@@ -13,10 +13,13 @@ npm install redcube.js
 
 &bull; No dependencies;
 
-&bull; Small file size;
+&bull; Small file size [34 kb];
 
 &bull; Support textures, transform animation, skinned animation.
 
+## How to convert 3D model to gltf
+
+&bull; [COLLADA2GLTF](https://github.com/KhronosGroup/COLLADA2GLTF/) - Command-line tool to convert COLLADA to glTF
 
 ## Usage
 
