@@ -1,4 +1,4 @@
-import {Matrix2, Matrix3, Matrix4, Vector3, Vector4, Frustum} from './matrix';
+import { Matrix3, Matrix4, Vector3 } from './matrix';
 
 class Object3D {
     constructor(name, parent) {
@@ -49,7 +49,6 @@ class Mesh extends Object3D {
 
     calculateBounding() {
         let vertices = this.geometry.attributes.a_position.value;
-        let verticesGrouped = [];
         let maxRadiusSq = 0;
 
         let min = [Infinity, Infinity, Infinity], max = [-Infinity, -Infinity, -Infinity];
@@ -160,7 +159,7 @@ class Mesh extends Object3D {
         let visible = true;
         for ( let p of planes ) {
             dist = p.elements[0] * c.elements[0] + p.elements[1] * c.elements[1] + p.elements[2] * c.elements[2] + p.elements[3];
-            if( dist < -r ) {
+            if ( dist < -r ) {
                 visible = false;
                 break;
             }
@@ -230,4 +229,4 @@ class Scene {
     }
 }
 
-export {Scene, Object3D, Mesh, SkinnedMesh, Bone, Camera};
+export { Scene, Object3D, Mesh, SkinnedMesh, Bone, Camera };

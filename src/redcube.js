@@ -1,5 +1,5 @@
-import {Scene, Object3D, Mesh, SkinnedMesh, Bone, Camera} from './objects';
-import {Matrix2, Matrix3, Matrix4, Vector3, Vector4, Frustum} from './matrix';
+import { Scene, Object3D, Mesh, SkinnedMesh, Bone, Camera } from './objects';
+import { Matrix2, Matrix3, Matrix4, Vector3, Vector4, Frustum } from './matrix';
 
 let gl;
 class RedCube {
@@ -82,7 +82,7 @@ class RedCube {
         const indicesAccessor = this.json.accessors[p.indices];
         const vertexAccessor = {};
         for (let a in p.attributes) {
-            vertexAccessor[a.toLowerCase().replace(/_(\d)/, '$1')] = this.json.accessors[p.attributes[a]]
+            vertexAccessor[a.toLowerCase().replace(/_(\d)/, '$1')] = this.json.accessors[p.attributes[a]];
         }
 
         const material = this.json.materials[p.material].values;
@@ -148,7 +148,7 @@ class RedCube {
             }
             if (u.count && !u.value) {
                 let constr = this.getMatrixType(u.type);
-                u.value = new Array(u.count).fill(1).map(it => new constr);
+                u.value = new Array(u.count).fill(1).map(() => new constr);
             }
         }
 
@@ -164,7 +164,7 @@ class RedCube {
                 const bufferView = this.json.bufferViews[accessor.bufferView];
                 attributes[`a_${k}`].value = this.buildArray(accessor.componentType, bufferView.byteOffset + accessor.byteOffset, this.getDataType(accessor.type) * accessor.count);
             }
-        };
+        }
 
         let mesh;
         if (source.skin) {
@@ -198,7 +198,7 @@ class RedCube {
 
     buildCamera(cam) {
         let proj;
-        if ( cam.type == "perspective" && cam.perspective ) {
+        if ( cam.type == 'perspective' && cam.perspective ) {
             const yfov = cam.perspective.yfov;
             const aspectRatio = cam.perspective.aspectRatio || this.aspect;
             const xfov = yfov * aspectRatio;
@@ -207,55 +207,56 @@ class RedCube {
                 console.error('this.canvas size and this.canvas size from scene dont equal');
             }
 
-            proj = new Matrix4().setPerspective(xfov * (180/Math.PI), this.aspect, cam.perspective.znear || 1, cam.perspective.zfar || 2e6);
-        } else if ( cam.type == "orthographic" && cam.orthographic ) {
-            proj = new Matrix4().setOrtho( window.innerWidth / - 2, window.innerWidth / 2, window.innerHeight / 2, window.innerHeight / - 2, cam.orthographic.znear, cam.orthographic.zfar);
+            proj = new Matrix4().setPerspective(xfov * (180 / Math.PI), this.aspect, cam.perspective.znear || 1, cam.perspective.zfar || 2e6);
+        } else if ( cam.type == 'orthographic' && cam.orthographic ) {
+            proj = new Matrix4().setOrtho( window.innerWidth / -2, window.innerWidth / 2, window.innerHeight / 2, window.innerHeight / -2, cam.orthographic.znear, cam.orthographic.zfar);
         }
 
         return proj;
     }
 
+    walkByMesh(parent, name) {
+        let el = this.json.nodes[name];
+        let child;
+        
+        if (el.camera) {
+            const proj = this.buildCamera(this.json.cameras[el.camera]);
+            child = new Camera(name, parent);
+            child.setProjection(proj.elements);
+            child.setMatrix(el.matrix);
+            child.setMatrixWorld(el.matrix);
+
+            this.cameras.push(child);
+        } else {
+            if (el.jointName) {
+                child = new Bone(name, parent);
+                child.setJointName(el.jointName);
+            } else {
+                child = new Object3D(name, parent);
+            }
+            if (el.translation && el.rotation && el.scale) {
+                child.setPosition(el.translation, el.rotation, el.scale);
+            } else if (el.matrix) {
+                child.setMatrix(el.matrix);
+            }
+        }
+
+        parent.children.push(child);
+        parent = child;
+
+        if (el.children && el.children.length) {
+            el.children.forEach(this.walkByMesh.bind(this, parent));
+        } else if (el.meshes && el.meshes.length) {
+            el.meshes.forEach(m => {
+                parent.children.push(...this.json.meshes[m].primitives.map(this.buildPrim.bind(this, parent, el, m)));
+            });
+        }
+    }
+
     buildMesh() {
         this.json.scenes.defaultScene.nodes.forEach(n => {
             if (this.json.nodes[n].children.length) {
-                function walk(parent, name) {
-                    let el = this.json.nodes[name];
-                    let child;
-                    
-                    if (el.camera) {
-                        const proj = this.buildCamera(this.json.cameras[el.camera]);
-                        child = new Camera(name, parent);
-                        child.setProjection(proj.elements);
-                        child.setMatrix(el.matrix);
-                        child.setMatrixWorld(el.matrix);
-
-                        this.cameras.push(child);
-                    } else {
-                        if (el.jointName) {
-                            child = new Bone(name, parent);
-                            child.setJointName(el.jointName);
-                        } else {
-                            child = new Object3D(name, parent);
-                        }
-                        if (el.translation && el.rotation && el.scale) {
-                            child.setPosition(el.translation, el.rotation, el.scale);
-                        } else if (el.matrix) {
-                            child.setMatrix(el.matrix);
-                        }
-                    }
-
-                    parent.children.push(child);
-                    parent = child;
-
-                    if (el.children && el.children.length) {
-                        el.children.forEach(walk.bind(this, parent));
-                    } else if (el.meshes && el.meshes.length) {
-                        el.meshes.forEach(m => {
-                            parent.children.push(...this.json.meshes[m].primitives.map(this.buildPrim.bind(this, parent, el, m)));
-                        });
-                    }
-                }
-                walk.call(this, this.scene, n);
+                this.walkByMesh(this.scene, n);
             }
             if (this.json.nodes[n].meshes && this.json.nodes[n].meshes.length) {
                 this.json.nodes[n].meshes.forEach(m => {
@@ -302,19 +303,21 @@ class RedCube {
                         let firstV, firstT;
 
                         firstT = inputArray[i];
-                        firstV = outputArray.slice(i * component, (i+1) * component);
+                        firstV = outputArray.slice(i * component, (i + 1) * component);
 
                         keys.push({
                             time: firstT,
                             value: firstV
-                        })
+                        });
                     }
 
                     let node = this.json.nodes[name];
                     let mesh;
                     let exist;
                     function walk(node) {
-                        if (exist) return;
+                        if (exist) {
+                            return;
+                        }
                         if (node.name + 'Node' === name || node.name === name) {
                             mesh = node;
                             exist = true;
@@ -346,7 +349,9 @@ class RedCube {
             let skin = this.json.skins[k];
             let bindShapeMatrix = new Matrix4();
 
-            if ( skin.bindShapeMatrix !== undefined ) bindShapeMatrix.set(skin.bindShapeMatrix);
+            if ( skin.bindShapeMatrix !== undefined ) {
+                bindShapeMatrix.set(skin.bindShapeMatrix);
+            }
 
             let acc = this.json.accessors[ skin.inverseBindMatrices ];
             let buffer = this.json.bufferViews[ acc.bufferView ];
@@ -383,66 +388,66 @@ class RedCube {
 
     buildArray(type, offset, length) {
         let arr;
-        switch(this.glEnum[type]) {
-            case 'BYTE':
-                arr = new Int8Array(this.arrayBuffer, offset, length);
-                break;
-            case 'UNSIGNED_BYTE':
-                arr = new Uint8Array(this.arrayBuffer, offset, length);
-                break;
-            case 'SHORT':
-                arr = new Int16Array(this.arrayBuffer, offset, length);
-                break;
-            case 'UNSIGNED_SHORT':
-                arr = new Uint16Array(this.arrayBuffer, offset, length);
-                break;
-            case 'FLOAT':
-                arr = new Float32Array(this.arrayBuffer, offset, length);
-                break;
+        switch (this.glEnum[type]) {
+        case 'BYTE':
+            arr = new Int8Array(this.arrayBuffer, offset, length);
+            break;
+        case 'UNSIGNED_BYTE':
+            arr = new Uint8Array(this.arrayBuffer, offset, length);
+            break;
+        case 'SHORT':
+            arr = new Int16Array(this.arrayBuffer, offset, length);
+            break;
+        case 'UNSIGNED_SHORT':
+            arr = new Uint16Array(this.arrayBuffer, offset, length);
+            break;
+        case 'FLOAT':
+            arr = new Float32Array(this.arrayBuffer, offset, length);
+            break;
         }
         return arr;
     }
 
     getDataType(type) {
         let count;
-        switch(type) {
-            case 'MAT2':
-                count = 4;
-                break;
-            case 'MAT3':
-                count = 9;
-                break;
-            case 'MAT4':
-                count = 16;
-                break;
-            case 'VEC4':
-                count = 4;
-                break;
-            case 'VEC3':
-                count = 3;
-                break;
-            case 'VEC2':
-                count = 2;
-                break;
-            case 'SCALAR':
-                count = 1;
-                break;
+        switch (type) {
+        case 'MAT2':
+            count = 4;
+            break;
+        case 'MAT3':
+            count = 9;
+            break;
+        case 'MAT4':
+            count = 16;
+            break;
+        case 'VEC4':
+            count = 4;
+            break;
+        case 'VEC3':
+            count = 3;
+            break;
+        case 'VEC2':
+            count = 2;
+            break;
+        case 'SCALAR':
+            count = 1;
+            break;
         }
         return count;
     }
 
     getComponentType(type) {
         let count;
-        switch(this.glEnum[type]) {
-            case 'FLOAT_VEC4':
-                count = 4;
-                break;
-            case 'FLOAT_VEC3':
-                count = 3;
-                break;
-            case 'FLOAT_VEC2':
-                count = 2;
-                break;
+        switch (this.glEnum[type]) {
+        case 'FLOAT_VEC4':
+            count = 4;
+            break;
+        case 'FLOAT_VEC3':
+            count = 3;
+            break;
+        case 'FLOAT_VEC2':
+            count = 2;
+            break;
         }
         return count;
     }
@@ -540,31 +545,31 @@ class RedCube {
 
     getMethod(type) {
         let method;
-        switch(this.glEnum[type]) {
-            case "FLOAT_VEC2":
-                method = 'uniform2f';
-                break;
-            case "FLOAT_VEC4":
-                method = 'uniform4f';
-                break;
-            case 'FLOAT':
-                method = 'uniform1f';
-                break;
-            case "FLOAT_VEC3":
-                method = 'uniform3f';
-                break;
-            case 'FLOAT_MAT4':
-                method = 'uniformMatrix4fv';
-                break;
-            case 'FLOAT_MAT3':
-                method = 'uniformMatrix3fv';
-                break;
-            case 'FLOAT_MAT2':
-                method = 'uniformMatrix2fv';
-                break;
-            case "SAMPLER_2D":
-                method = 'uniform1i';
-                break;
+        switch (this.glEnum[type]) {
+        case 'FLOAT_VEC2':
+            method = 'uniform2f';
+            break;
+        case 'FLOAT_VEC4':
+            method = 'uniform4f';
+            break;
+        case 'FLOAT':
+            method = 'uniform1f';
+            break;
+        case 'FLOAT_VEC3':
+            method = 'uniform3f';
+            break;
+        case 'FLOAT_MAT4':
+            method = 'uniformMatrix4fv';
+            break;
+        case 'FLOAT_MAT3':
+            method = 'uniformMatrix3fv';
+            break;
+        case 'FLOAT_MAT2':
+            method = 'uniformMatrix2fv';
+            break;
+        case 'SAMPLER_2D':
+            method = 'uniform1i';
+            break;
         }
         return method;
     }
@@ -590,34 +595,35 @@ class RedCube {
     }
 
     range(min, max, value) {
-        return (value - min) / (max - min)
+        return (value - min) / (max - min);
     }
 
     interpolation(time, frames) {
-        if (frames.length === 0)
+        if (frames.length === 0) {
             return [-1, -1, 0];
+        }
 
-        let prev = -1
+        let prev = -1;
         for (let i = frames.length - 1; i >= 0; i--) {
             if (time >= frames[i].time) {
-                prev = i
-                break
+                prev = i;
+                break;
             }
         }
 
         if (prev === -1 || prev === frames.length - 1) {
-            if (prev < 0)
-                prev = 0
+            if (prev < 0) {
+                prev = 0;
+            }
             return [prev, prev, 0];
-        } 
-        else {
-            let startFrame = frames[prev]
-            let endFrame = frames[prev + 1]
+        } else {
+            let startFrame = frames[prev];
+            let endFrame = frames[prev + 1];
 
-            time = Math.max(startFrame.time, Math.min(time, endFrame.time))
-            let t = this.range(startFrame.time, endFrame.time, time)
+            time = Math.max(startFrame.time, Math.min(time, endFrame.time));
+            let t = this.range(startFrame.time, endFrame.time, time);
 
-            return [prev, prev + 1, t]
+            return [prev, prev + 1, t];
         }
     }
 
@@ -625,7 +631,9 @@ class RedCube {
         for (let v of this.tracks) {
             let val = this.interpolation(sec, v.keys);
 
-            if (val[0] === -1 || val[1] === -1 || v.stoped) continue;
+            if (val[0] === -1 || val[1] === -1 || v.stoped) {
+                continue;
+            }
             if (val[0] === v.keys.length - 1) {
                 v.stoped = true;
             }
@@ -769,7 +777,7 @@ class RedCube {
             
             let a;
             if (v[k] !== undefined) {
-               a = v[k];
+                a = v[k];
             } else {
                 a = gl.getAttribLocation(mesh.program, k);
                 if (a !== 0 && !a) {
@@ -795,56 +803,54 @@ class RedCube {
                 texCount++;
             }
 
-            switch(v.semantic) {
-                case "MODELVIEWPROJECTION":
-                    v.value = mesh.getModelViewProjMatrix(_camera);
-                    break;
-                case "MODELVIEWPROJECTIONINVERSE":
-                    v.value = mesh.getModelViewProjMatrix(_camera).invert();
-                    break;
-                case "VIEW":
-                    v.value = mesh.getViewMatrix(_camera);
-                    break;
-                case "VIEWINVERSE":
-                    v.value = mesh.getViewMatrix(_camera).invert();
-                    break;
-                case "MODEL":
-                    v.value = mesh.matrixWorld;
-                    break;
-                case "MODELINVERSETRANSPOSE":
-                    let normalMatrix = new Matrix3();
-                    normalMatrix.normalFromMat4(mesh.matrixWorld);
-                    v.value = normalMatrix;
-                    break;
-                case "MODELINVERSE":
-                    v.value = new Matrix4(mesh.matrixWorld).invert();
-                    break;
-                case "MODELVIEW":
-                    v.value = mesh.getModelViewMatrix(v.node, _camera);
-                    break;
-                case "MODELVIEWINVERSE":
-                    v.value = mesh.getModelViewMatrix(v.node, _camera).invert();
-                    break;
-                case "PROJECTION":
-                    v.value = mesh.getProjectionMatrix(_camera);
-                    break;
-                case "PROJECTIONINVERSE":
-                    v.value = new Matrix4(mesh.getProjectionMatrix(_camera)).invert();
-                    break;
-                case "MODELVIEWINVERSETRANSPOSE":
-                    v.value = mesh.getNormalMatrix();
-                    break;
-                case "VIEWPORT":
-                    v.value = new Float32Array([0, 0, this.canvas.width, this.canvas.height]);
-                    break;
-                case "JOINTMATRIX":
-                    matricies = mesh.getJointMatrix();
-                    break;
+            switch (v.semantic) {
+            case 'MODELVIEWPROJECTION':
+                v.value = mesh.getModelViewProjMatrix(_camera);
+                break;
+            case 'MODELVIEWPROJECTIONINVERSE':
+                v.value = mesh.getModelViewProjMatrix(_camera).invert();
+                break;
+            case 'VIEW':
+                v.value = mesh.getViewMatrix(_camera);
+                break;
+            case 'VIEWINVERSE':
+                v.value = mesh.getViewMatrix(_camera).invert();
+                break;
+            case 'MODEL':
+                v.value = mesh.matrixWorld;
+                break;
+            case 'MODELINVERSETRANSPOSE':
+                v.value = new Matrix3().normalFromMat4(mesh.matrixWorld);
+                break;
+            case 'MODELINVERSE':
+                v.value = new Matrix4(mesh.matrixWorld).invert();
+                break;
+            case 'MODELVIEW':
+                v.value = mesh.getModelViewMatrix(v.node, _camera);
+                break;
+            case 'MODELVIEWINVERSE':
+                v.value = mesh.getModelViewMatrix(v.node, _camera).invert();
+                break;
+            case 'PROJECTION':
+                v.value = mesh.getProjectionMatrix(_camera);
+                break;
+            case 'PROJECTIONINVERSE':
+                v.value = new Matrix4(mesh.getProjectionMatrix(_camera)).invert();
+                break;
+            case 'MODELVIEWINVERSETRANSPOSE':
+                v.value = mesh.getNormalMatrix();
+                break;
+            case 'VIEWPORT':
+                v.value = new Float32Array([0, 0, this.canvas.width, this.canvas.height]);
+                break;
+            case 'JOINTMATRIX':
+                matricies = mesh.getJointMatrix();
+                break;
             }
 
             let u;
             if (v[k] !== undefined) {
-               u = v[k];
+                u = v[k];
             } else {
                 u = gl.getUniformLocation(mesh.program, k);
                 if (u !== 0 && !u) {
@@ -904,8 +910,11 @@ class RedCube {
                 image.onload = () => {
                     this.handleTextureLoaded(t, image);
                     resolve();
-                }
-                image.crossOrigin = "anonymous";
+                };
+                image.onerror = err => {
+                    reject(err);
+                };
+                image.crossOrigin = 'anonymous';
                 image.src = `${this.host}${t.uri}`;
             });
         });
@@ -925,4 +934,4 @@ class RedCube {
     }
 }
 
-export {RedCube};
+export { RedCube };

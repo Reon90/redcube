@@ -6,34 +6,34 @@
  */
 
 var Matrix2 = function(opt_src) {
-  var i, s, d;
-  if (opt_src && typeof opt_src === 'object' && opt_src.hasOwnProperty('elements')) {
-    s = opt_src.elements;
-    d = new Float32Array(4);
-    for (i = 0; i < 4; ++i) {
-      d[i] = s[i];
+    var i, s, d;
+    if (opt_src && typeof opt_src === 'object' && opt_src.hasOwnProperty('elements')) {
+        s = opt_src.elements;
+        d = new Float32Array(4);
+        for (i = 0; i < 4; ++i) {
+            d[i] = s[i];
+        }
+        this.elements = d;
+    } else {
+        this.elements = new Float32Array([1, 0, 0, 1]);
     }
-    this.elements = d;
-  } else {
-    this.elements = new Float32Array([1, 0, 0, 1]);
-  }
 };
 
 Matrix2.prototype.set = function(src) {
-  var i, s, d;
+    var i, s, d;
 
-  s = src;
-  d = this.elements;
+    s = src;
+    d = this.elements;
 
-  if (s === d) {
-    return;
-  }
+    if (s === d) {
+        return;
+    }
     
-  for (i = 0; i < 4; ++i) {
-    d[i] = s[i];
-  }
+    for (i = 0; i < 4; ++i) {
+        d[i] = s[i];
+    }
 
-  return this;
+    return this;
 };
 
 /**
@@ -43,34 +43,34 @@ Matrix2.prototype.set = function(src) {
  * @param opt_src source matrix(option)
  */
 var Matrix3 = function(opt_src) {
-  var i, s, d;
-  if (opt_src && typeof opt_src === 'object' && opt_src.hasOwnProperty('elements')) {
-    s = opt_src.elements;
-    d = new Float32Array(9);
-    for (i = 0; i < 9; ++i) {
-      d[i] = s[i];
+    var i, s, d;
+    if (opt_src && typeof opt_src === 'object' && opt_src.hasOwnProperty('elements')) {
+        s = opt_src.elements;
+        d = new Float32Array(9);
+        for (i = 0; i < 9; ++i) {
+            d[i] = s[i];
+        }
+        this.elements = d;
+    } else {
+        this.elements = new Float32Array([1, 0, 0, 0, 1, 0, 0, 0, 1]);
     }
-    this.elements = d;
-  } else {
-    this.elements = new Float32Array([1, 0, 0, 0, 1, 0, 0, 0, 1]);
-  }
 };
 
 Matrix3.prototype.set = function(src) {
-  var i, s, d;
+    var i, s, d;
 
-  s = src;
-  d = this.elements;
+    s = src;
+    d = this.elements;
 
-  if (s === d) {
-    return;
-  }
+    if (s === d) {
+        return;
+    }
     
-  for (i = 0; i < 9; ++i) {
-    d[i] = s[i];
-  }
+    for (i = 0; i < 9; ++i) {
+        d[i] = s[i];
+    }
 
-  return this;
+    return this;
 };
 
 Matrix3.prototype.normalFromMat4 = function(a) {
@@ -125,17 +125,17 @@ Matrix3.prototype.normalFromMat4 = function(a) {
  * @param opt_src source matrix(option)
  */
 var Matrix4 = function(opt_src) {
-  var i, s, d;
-  if (opt_src && typeof opt_src === 'object' && opt_src.hasOwnProperty('elements')) {
-    s = opt_src.elements;
-    d = new Float32Array(16);
-    for (i = 0; i < 16; ++i) {
-      d[i] = s[i];
+    var i, s, d;
+    if (opt_src && typeof opt_src === 'object' && opt_src.hasOwnProperty('elements')) {
+        s = opt_src.elements;
+        d = new Float32Array(16);
+        for (i = 0; i < 16; ++i) {
+            d[i] = s[i];
+        }
+        this.elements = d;
+    } else {
+        this.elements = new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
     }
-    this.elements = d;
-  } else {
-    this.elements = new Float32Array([1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1]);
-  }
 };
 
 /**
@@ -144,20 +144,20 @@ var Matrix4 = function(opt_src) {
  * @return this
  */
 Matrix4.prototype.set = function(src) {
-  var i, s, d;
+    var i, s, d;
 
-  s = src;
-  d = this.elements;
+    s = src;
+    d = this.elements;
 
-  if (s === d) {
-    return;
-  }
+    if (s === d) {
+        return;
+    }
     
-  for (i = 0; i < 16; ++i) {
-    d[i] = s[i];
-  }
+    for (i = 0; i < 16; ++i) {
+        d[i] = s[i];
+    }
 
-  return this;
+    return this;
 };
 
 /**
@@ -166,30 +166,30 @@ Matrix4.prototype.set = function(src) {
  * @return this
  */
 Matrix4.prototype.concat = function(other) {
-  var i, e, a, b, ai0, ai1, ai2, ai3;
+    var i, e, a, b, ai0, ai1, ai2, ai3;
   
   // Calculate e = a * b
-  e = this.elements;
-  a = this.elements;
-  b = other.elements;
+    e = this.elements;
+    a = this.elements;
+    b = other.elements;
   
   // If e equals b, copy b to temporary matrix.
-  if (e === b) {
-    b = new Float32Array(16);
-    for (i = 0; i < 16; ++i) {
-      b[i] = e[i];
+    if (e === b) {
+        b = new Float32Array(16);
+        for (i = 0; i < 16; ++i) {
+            b[i] = e[i];
+        }
     }
-  }
   
-  for (i = 0; i < 4; i++) {
-    ai0=a[i];  ai1=a[i+4];  ai2=a[i+8];  ai3=a[i+12];
-    e[i]    = ai0 * b[0]  + ai1 * b[1]  + ai2 * b[2]  + ai3 * b[3];
-    e[i+4]  = ai0 * b[4]  + ai1 * b[5]  + ai2 * b[6]  + ai3 * b[7];
-    e[i+8]  = ai0 * b[8]  + ai1 * b[9]  + ai2 * b[10] + ai3 * b[11];
-    e[i+12] = ai0 * b[12] + ai1 * b[13] + ai2 * b[14] + ai3 * b[15];
-  }
+    for (i = 0; i < 4; i++) {
+        ai0 = a[i]; ai1 = a[i + 4]; ai2 = a[i + 8]; ai3 = a[i + 12];
+        e[i] = ai0 * b[0] + ai1 * b[1] + ai2 * b[2] + ai3 * b[3];
+        e[i + 4] = ai0 * b[4] + ai1 * b[5] + ai2 * b[6] + ai3 * b[7];
+        e[i + 8] = ai0 * b[8] + ai1 * b[9] + ai2 * b[10] + ai3 * b[11];
+        e[i + 12] = ai0 * b[12] + ai1 * b[13] + ai2 * b[14] + ai3 * b[15];
+    }
   
-  return this;
+    return this;
 };
 Matrix4.prototype.multiply = Matrix4.prototype.concat;
 
@@ -199,59 +199,59 @@ Matrix4.prototype.multiply = Matrix4.prototype.concat;
  * @return this
  */
 Matrix4.prototype.setInverseOf = function(other) {
-  var i, s, d, inv, det;
+    var i, s, d, inv, det;
 
-  s = other.elements;
-  d = this.elements;
-  inv = new Float32Array(16);
+    s = other.elements;
+    d = this.elements;
+    inv = new Float32Array(16);
 
-  inv[0]  =   s[5]*s[10]*s[15] - s[5] *s[11]*s[14] - s[9] *s[6]*s[15]
-            + s[9]*s[7] *s[14] + s[13]*s[6] *s[11] - s[13]*s[7]*s[10];
-  inv[4]  = - s[4]*s[10]*s[15] + s[4] *s[11]*s[14] + s[8] *s[6]*s[15]
-            - s[8]*s[7] *s[14] - s[12]*s[6] *s[11] + s[12]*s[7]*s[10];
-  inv[8]  =   s[4]*s[9] *s[15] - s[4] *s[11]*s[13] - s[8] *s[5]*s[15]
-            + s[8]*s[7] *s[13] + s[12]*s[5] *s[11] - s[12]*s[7]*s[9];
-  inv[12] = - s[4]*s[9] *s[14] + s[4] *s[10]*s[13] + s[8] *s[5]*s[14]
-            - s[8]*s[6] *s[13] - s[12]*s[5] *s[10] + s[12]*s[6]*s[9];
+    inv[0] = s[5] * s[10] * s[15] - s[5] * s[11] * s[14] - s[9] * s[6] * s[15]
+            + s[9] * s[7] * s[14] + s[13] * s[6] * s[11] - s[13] * s[7] * s[10];
+    inv[4] = -s[4] * s[10] * s[15] + s[4] * s[11] * s[14] + s[8] * s[6] * s[15]
+            - s[8] * s[7] * s[14] - s[12] * s[6] * s[11] + s[12] * s[7] * s[10];
+    inv[8] = s[4] * s[9] * s[15] - s[4] * s[11] * s[13] - s[8] * s[5] * s[15]
+            + s[8] * s[7] * s[13] + s[12] * s[5] * s[11] - s[12] * s[7] * s[9];
+    inv[12] = -s[4] * s[9] * s[14] + s[4] * s[10] * s[13] + s[8] * s[5] * s[14]
+            - s[8] * s[6] * s[13] - s[12] * s[5] * s[10] + s[12] * s[6] * s[9];
 
-  inv[1]  = - s[1]*s[10]*s[15] + s[1] *s[11]*s[14] + s[9] *s[2]*s[15]
-            - s[9]*s[3] *s[14] - s[13]*s[2] *s[11] + s[13]*s[3]*s[10];
-  inv[5]  =   s[0]*s[10]*s[15] - s[0] *s[11]*s[14] - s[8] *s[2]*s[15]
-            + s[8]*s[3] *s[14] + s[12]*s[2] *s[11] - s[12]*s[3]*s[10];
-  inv[9]  = - s[0]*s[9] *s[15] + s[0] *s[11]*s[13] + s[8] *s[1]*s[15]
-            - s[8]*s[3] *s[13] - s[12]*s[1] *s[11] + s[12]*s[3]*s[9];
-  inv[13] =   s[0]*s[9] *s[14] - s[0] *s[10]*s[13] - s[8] *s[1]*s[14]
-            + s[8]*s[2] *s[13] + s[12]*s[1] *s[10] - s[12]*s[2]*s[9];
+    inv[1] = -s[1] * s[10] * s[15] + s[1] * s[11] * s[14] + s[9] * s[2] * s[15]
+            - s[9] * s[3] * s[14] - s[13] * s[2] * s[11] + s[13] * s[3] * s[10];
+    inv[5] = s[0] * s[10] * s[15] - s[0] * s[11] * s[14] - s[8] * s[2] * s[15]
+            + s[8] * s[3] * s[14] + s[12] * s[2] * s[11] - s[12] * s[3] * s[10];
+    inv[9] = -s[0] * s[9] * s[15] + s[0] * s[11] * s[13] + s[8] * s[1] * s[15]
+            - s[8] * s[3] * s[13] - s[12] * s[1] * s[11] + s[12] * s[3] * s[9];
+    inv[13] = s[0] * s[9] * s[14] - s[0] * s[10] * s[13] - s[8] * s[1] * s[14]
+            + s[8] * s[2] * s[13] + s[12] * s[1] * s[10] - s[12] * s[2] * s[9];
 
-  inv[2]  =   s[1]*s[6]*s[15] - s[1] *s[7]*s[14] - s[5] *s[2]*s[15]
-            + s[5]*s[3]*s[14] + s[13]*s[2]*s[7]  - s[13]*s[3]*s[6];
-  inv[6]  = - s[0]*s[6]*s[15] + s[0] *s[7]*s[14] + s[4] *s[2]*s[15]
-            - s[4]*s[3]*s[14] - s[12]*s[2]*s[7]  + s[12]*s[3]*s[6];
-  inv[10] =   s[0]*s[5]*s[15] - s[0] *s[7]*s[13] - s[4] *s[1]*s[15]
-            + s[4]*s[3]*s[13] + s[12]*s[1]*s[7]  - s[12]*s[3]*s[5];
-  inv[14] = - s[0]*s[5]*s[14] + s[0] *s[6]*s[13] + s[4] *s[1]*s[14]
-            - s[4]*s[2]*s[13] - s[12]*s[1]*s[6]  + s[12]*s[2]*s[5];
+    inv[2] = s[1] * s[6] * s[15] - s[1] * s[7] * s[14] - s[5] * s[2] * s[15]
+            + s[5] * s[3] * s[14] + s[13] * s[2] * s[7] - s[13] * s[3] * s[6];
+    inv[6] = -s[0] * s[6] * s[15] + s[0] * s[7] * s[14] + s[4] * s[2] * s[15]
+            - s[4] * s[3] * s[14] - s[12] * s[2] * s[7] + s[12] * s[3] * s[6];
+    inv[10] = s[0] * s[5] * s[15] - s[0] * s[7] * s[13] - s[4] * s[1] * s[15]
+            + s[4] * s[3] * s[13] + s[12] * s[1] * s[7] - s[12] * s[3] * s[5];
+    inv[14] = -s[0] * s[5] * s[14] + s[0] * s[6] * s[13] + s[4] * s[1] * s[14]
+            - s[4] * s[2] * s[13] - s[12] * s[1] * s[6] + s[12] * s[2] * s[5];
 
-  inv[3]  = - s[1]*s[6]*s[11] + s[1]*s[7]*s[10] + s[5]*s[2]*s[11]
-            - s[5]*s[3]*s[10] - s[9]*s[2]*s[7]  + s[9]*s[3]*s[6];
-  inv[7]  =   s[0]*s[6]*s[11] - s[0]*s[7]*s[10] - s[4]*s[2]*s[11]
-            + s[4]*s[3]*s[10] + s[8]*s[2]*s[7]  - s[8]*s[3]*s[6];
-  inv[11] = - s[0]*s[5]*s[11] + s[0]*s[7]*s[9]  + s[4]*s[1]*s[11]
-            - s[4]*s[3]*s[9]  - s[8]*s[1]*s[7]  + s[8]*s[3]*s[5];
-  inv[15] =   s[0]*s[5]*s[10] - s[0]*s[6]*s[9]  - s[4]*s[1]*s[10]
-            + s[4]*s[2]*s[9]  + s[8]*s[1]*s[6]  - s[8]*s[2]*s[5];
+    inv[3] = -s[1] * s[6] * s[11] + s[1] * s[7] * s[10] + s[5] * s[2] * s[11]
+            - s[5] * s[3] * s[10] - s[9] * s[2] * s[7] + s[9] * s[3] * s[6];
+    inv[7] = s[0] * s[6] * s[11] - s[0] * s[7] * s[10] - s[4] * s[2] * s[11]
+            + s[4] * s[3] * s[10] + s[8] * s[2] * s[7] - s[8] * s[3] * s[6];
+    inv[11] = -s[0] * s[5] * s[11] + s[0] * s[7] * s[9] + s[4] * s[1] * s[11]
+            - s[4] * s[3] * s[9] - s[8] * s[1] * s[7] + s[8] * s[3] * s[5];
+    inv[15] = s[0] * s[5] * s[10] - s[0] * s[6] * s[9] - s[4] * s[1] * s[10]
+            + s[4] * s[2] * s[9] + s[8] * s[1] * s[6] - s[8] * s[2] * s[5];
 
-  det = s[0]*inv[0] + s[1]*inv[4] + s[2]*inv[8] + s[3]*inv[12];
-  if (det === 0) {
+    det = s[0] * inv[0] + s[1] * inv[4] + s[2] * inv[8] + s[3] * inv[12];
+    if (det === 0) {
+        return this;
+    }
+
+    det = 1 / det;
+    for (i = 0; i < 16; i++) {
+        d[i] = inv[i] * det;
+    }
+
     return this;
-  }
-
-  det = 1 / det;
-  for (i = 0; i < 16; i++) {
-    d[i] = inv[i] * det;
-  }
-
-  return this;
 };
 
 /**
@@ -259,7 +259,7 @@ Matrix4.prototype.setInverseOf = function(other) {
  * @return this
  */
 Matrix4.prototype.invert = function() {
-  return this.setInverseOf(this);
+    return this.setInverseOf(this);
 };
 
 /**
@@ -273,39 +273,39 @@ Matrix4.prototype.invert = function() {
  * @return this
  */
 Matrix4.prototype.setOrtho = function(left, right, bottom, top, near, far) {
-  var e, rw, rh, rd;
+    var e, rw, rh, rd;
 
-  if (left === right || bottom === top || near === far) {
-    throw 'null frustum';
-  }
+    if (left === right || bottom === top || near === far) {
+        throw 'null frustum';
+    }
 
-  rw = 1 / (right - left);
-  rh = 1 / (top - bottom);
-  rd = 1 / (far - near);
+    rw = 1 / (right - left);
+    rh = 1 / (top - bottom);
+    rd = 1 / (far - near);
 
-  e = this.elements;
+    e = this.elements;
 
-  e[0]  = 2 * rw;
-  e[1]  = 0;
-  e[2]  = 0;
-  e[3]  = 0;
+    e[0] = 2 * rw;
+    e[1] = 0;
+    e[2] = 0;
+    e[3] = 0;
 
-  e[4]  = 0;
-  e[5]  = 2 * rh;
-  e[6]  = 0;
-  e[7]  = 0;
+    e[4] = 0;
+    e[5] = 2 * rh;
+    e[6] = 0;
+    e[7] = 0;
 
-  e[8]  = 0;
-  e[9]  = 0;
-  e[10] = -2 * rd;
-  e[11] = 0;
+    e[8] = 0;
+    e[9] = 0;
+    e[10] = -2 * rd;
+    e[11] = 0;
 
-  e[12] = -(right + left) * rw;
-  e[13] = -(top + bottom) * rh;
-  e[14] = -(far + near) * rd;
-  e[15] = 1;
+    e[12] = -(right + left) * rw;
+    e[13] = -(top + bottom) * rh;
+    e[14] = -(far + near) * rd;
+    e[15] = 1;
 
-  return this;
+    return this;
 };
 
 /**
@@ -319,7 +319,7 @@ Matrix4.prototype.setOrtho = function(left, right, bottom, top, near, far) {
  * @return this
  */
 Matrix4.prototype.ortho = function(left, right, bottom, top, near, far) {
-  return this.concat(new Matrix4().setOrtho(left, right, bottom, top, near, far));
+    return this.concat(new Matrix4().setOrtho(left, right, bottom, top, near, far));
 };
 
 /**
@@ -331,50 +331,50 @@ Matrix4.prototype.ortho = function(left, right, bottom, top, near, far) {
  * @return this
  */
 Matrix4.prototype.setPerspective = function(fovy, aspect, near, far) {
-  var e, rd, s, ct;
+    var e, rd, s, ct;
 
-  if (near === far || aspect === 0) {
-    throw 'null frustum';
-  }
-  if (near <= 0) {
-    throw 'near <= 0';
-  }
-  if (far <= 0) {
-    throw 'far <= 0';
-  }
+    if (near === far || aspect === 0) {
+        throw 'null frustum';
+    }
+    if (near <= 0) {
+        throw 'near <= 0';
+    }
+    if (far <= 0) {
+        throw 'far <= 0';
+    }
 
-  fovy = Math.PI * fovy / 180 / 2;
-  s = Math.sin(fovy);
-  if (s === 0) {
-    throw 'null frustum';
-  }
+    fovy = Math.PI * fovy / 180 / 2;
+    s = Math.sin(fovy);
+    if (s === 0) {
+        throw 'null frustum';
+    }
 
-  rd = 1 / (far - near);
-  ct = Math.cos(fovy) / s;
+    rd = 1 / (far - near);
+    ct = Math.cos(fovy) / s;
 
-  e = this.elements;
+    e = this.elements;
 
-  e[0]  = ct / aspect;
-  e[1]  = 0;
-  e[2]  = 0;
-  e[3]  = 0;
+    e[0] = ct / aspect;
+    e[1] = 0;
+    e[2] = 0;
+    e[3] = 0;
 
-  e[4]  = 0;
-  e[5]  = ct;
-  e[6]  = 0;
-  e[7]  = 0;
+    e[4] = 0;
+    e[5] = ct;
+    e[6] = 0;
+    e[7] = 0;
 
-  e[8]  = 0;
-  e[9]  = 0;
-  e[10] = -(far + near) * rd;
-  e[11] = -1;
+    e[8] = 0;
+    e[9] = 0;
+    e[10] = -(far + near) * rd;
+    e[11] = -1;
 
-  e[12] = 0;
-  e[13] = 0;
-  e[14] = -2 * near * far * rd;
-  e[15] = 0;
+    e[12] = 0;
+    e[13] = 0;
+    e[14] = -2 * near * far * rd;
+    e[15] = 0;
 
-  return this;
+    return this;
 };
 
 /**
@@ -386,7 +386,7 @@ Matrix4.prototype.setPerspective = function(fovy, aspect, near, far) {
  * @return this
  */
 Matrix4.prototype.perspective = function(fovy, aspect, near, far) {
-  return this.concat(new Matrix4().setPerspective(fovy, aspect, near, far));
+    return this.concat(new Matrix4().setPerspective(fovy, aspect, near, far));
 };
 
 /**
@@ -397,12 +397,12 @@ Matrix4.prototype.perspective = function(fovy, aspect, near, far) {
  * @return this
  */
 Matrix4.prototype.scale = function(x, y, z) {
-  var e = this.elements;
-  e[0] *= x;  e[4] *= y;  e[8]  *= z;
-  e[1] *= x;  e[5] *= y;  e[9]  *= z;
-  e[2] *= x;  e[6] *= y;  e[10] *= z;
-  e[3] *= x;  e[7] *= y;  e[11] *= z;
-  return this;
+    var e = this.elements;
+    e[0] *= x; e[4] *= y; e[8] *= z;
+    e[1] *= x; e[5] *= y; e[9] *= z;
+    e[2] *= x; e[6] *= y; e[10] *= z;
+    e[3] *= x; e[7] *= y; e[11] *= z;
+    return this;
 };
 
 /**
@@ -413,12 +413,12 @@ Matrix4.prototype.scale = function(x, y, z) {
  * @return this
  */
 Matrix4.prototype.setTranslate = function(x, y, z) {
-  var e = this.elements;
-  e[12] = x;
-  e[13] = y;
-  e[14] = z;
-  e[15] = 1;
-  return this;
+    var e = this.elements;
+    e[12] = x;
+    e[13] = y;
+    e[14] = z;
+    e[15] = 1;
+    return this;
 };
 
 /**
@@ -429,12 +429,12 @@ Matrix4.prototype.setTranslate = function(x, y, z) {
  * @return this
  */
 Matrix4.prototype.translate = function(x, y, z) {
-  var e = this.elements;
-  e[12] += e[0] * x + e[4] * y + e[8]  * z;
-  e[13] += e[1] * x + e[5] * y + e[9]  * z;
-  e[14] += e[2] * x + e[6] * y + e[10] * z;
-  e[15] += e[3] * x + e[7] * y + e[11] * z;
-  return this;
+    var e = this.elements;
+    e[12] += e[0] * x + e[4] * y + e[8] * z;
+    e[13] += e[1] * x + e[5] * y + e[9] * z;
+    e[14] += e[2] * x + e[6] * y + e[10] * z;
+    e[15] += e[3] * x + e[7] * y + e[11] * z;
+    return this;
 };
 
 /**
@@ -445,58 +445,58 @@ Matrix4.prototype.translate = function(x, y, z) {
  * @return this
  */
 Matrix4.prototype.setLookAt = function(eyeX, eyeY, eyeZ, centerX, centerY, centerZ, upX, upY, upZ) {
-  var e, fx, fy, fz, rlf, sx, sy, sz, rls, ux, uy, uz;
+    var e, fx, fy, fz, rlf, sx, sy, sz, rls, ux, uy, uz;
 
-  fx = centerX - eyeX;
-  fy = centerY - eyeY;
-  fz = centerZ - eyeZ;
+    fx = centerX - eyeX;
+    fy = centerY - eyeY;
+    fz = centerZ - eyeZ;
 
   // Normalize f.
-  rlf = 1 / Math.sqrt(fx*fx + fy*fy + fz*fz);
-  fx *= rlf;
-  fy *= rlf;
-  fz *= rlf;
+    rlf = 1 / Math.sqrt(fx * fx + fy * fy + fz * fz);
+    fx *= rlf;
+    fy *= rlf;
+    fz *= rlf;
 
   // Calculate cross product of f and up.
-  sx = fy * upZ - fz * upY;
-  sy = fz * upX - fx * upZ;
-  sz = fx * upY - fy * upX;
+    sx = fy * upZ - fz * upY;
+    sy = fz * upX - fx * upZ;
+    sz = fx * upY - fy * upX;
 
   // Normalize s.
-  rls = 1 / Math.sqrt(sx*sx + sy*sy + sz*sz);
-  sx *= rls;
-  sy *= rls;
-  sz *= rls;
+    rls = 1 / Math.sqrt(sx * sx + sy * sy + sz * sz);
+    sx *= rls;
+    sy *= rls;
+    sz *= rls;
 
   // Calculate cross product of s and f.
-  ux = sy * fz - sz * fy;
-  uy = sz * fx - sx * fz;
-  uz = sx * fy - sy * fx;
+    ux = sy * fz - sz * fy;
+    uy = sz * fx - sx * fz;
+    uz = sx * fy - sy * fx;
 
   // Set to this.
-  e = this.elements;
-  e[0] = sx;
-  e[1] = ux;
-  e[2] = -fx;
-  e[3] = 0;
+    e = this.elements;
+    e[0] = sx;
+    e[1] = ux;
+    e[2] = -fx;
+    e[3] = 0;
 
-  e[4] = sy;
-  e[5] = uy;
-  e[6] = -fy;
-  e[7] = 0;
+    e[4] = sy;
+    e[5] = uy;
+    e[6] = -fy;
+    e[7] = 0;
 
-  e[8] = sz;
-  e[9] = uz;
-  e[10] = -fz;
-  e[11] = 0;
+    e[8] = sz;
+    e[9] = uz;
+    e[10] = -fz;
+    e[11] = 0;
 
-  e[12] = 0;
-  e[13] = 0;
-  e[14] = 0;
-  e[15] = 1;
+    e[12] = 0;
+    e[13] = 0;
+    e[14] = 0;
+    e[15] = 1;
 
   // Translate.
-  return this.translate(-eyeX, -eyeY, -eyeZ);
+    return this.translate(-eyeX, -eyeY, -eyeZ);
 };
 
 /**
@@ -507,10 +507,10 @@ Matrix4.prototype.setLookAt = function(eyeX, eyeY, eyeZ, centerX, centerY, cente
  * @return this
  */
 Matrix4.prototype.lookAt = function(eyeX, eyeY, eyeZ, centerX, centerY, centerZ, upX, upY, upZ) {
-  return this.concat(new Matrix4().setLookAt(eyeX, eyeY, eyeZ, centerX, centerY, centerZ, upX, upY, upZ));
+    return this.concat(new Matrix4().setLookAt(eyeX, eyeY, eyeZ, centerX, centerY, centerZ, upX, upY, upZ));
 };
 
-Matrix4.prototype.getMaxScaleOnAxis = function () {
+Matrix4.prototype.getMaxScaleOnAxis = function() {
 
     var te = this.elements;
 
@@ -522,7 +522,7 @@ Matrix4.prototype.getMaxScaleOnAxis = function () {
 
 };
 
-Matrix4.prototype.makeRotationFromQuaternion = function ( q ) {
+Matrix4.prototype.makeRotationFromQuaternion = function( q ) {
     var te = this.elements;
 
     var x = q[0], y = q[1], z = q[2], w = q[3];
@@ -544,7 +544,7 @@ Matrix4.prototype.makeRotationFromQuaternion = function ( q ) {
     te[ 10 ] = 1 - ( xx + yy );
 
     return this;
-}
+};
 
 /**
  * Constructor of Vector3
@@ -552,30 +552,31 @@ Matrix4.prototype.makeRotationFromQuaternion = function ( q ) {
  * @param opt_src source vector(option)
  */
 var Vector3 = function(opt_src) {
-  var v = new Float32Array(3);
-  if (opt_src && typeof opt_src === 'object') {
-    v[0] = opt_src[0]; v[1] = opt_src[1]; v[2] = opt_src[2];
-  } 
-  this.elements = v;
-}
+    var v = new Float32Array(3);
+    if (opt_src && typeof opt_src === 'object') {
+        v[0] = opt_src[0]; v[1] = opt_src[1]; v[2] = opt_src[2];
+    } 
+    this.elements = v;
+};
 
 /**
   * Normalize.
   * @return this
   */
 Vector3.prototype.normalize = function() {
-  var v = this.elements;
-  var c = v[0], d = v[1], e = v[2], g = Math.sqrt(c*c+d*d+e*e);
-  if(g){
-    if(g == 1)
+    var v = this.elements;
+    var c = v[0], d = v[1], e = v[2], g = Math.sqrt(c * c + d * d + e * e);
+    if (g) {
+        if (g == 1) {
+            return this;
+        }
+    } else {
+        v[0] = 0; v[1] = 0; v[2] = 0;
         return this;
-   } else {
-     v[0] = 0; v[1] = 0; v[2] = 0;
-     return this;
-   }
-   g = 1/g;
-   v[0] = c*g; v[1] = d*g; v[2] = e*g;
-   return this;
+    }
+    g = 1 / g;
+    v[0] = c * g; v[1] = d * g; v[2] = e * g;
+    return this;
 };
 
 /**
@@ -603,7 +604,7 @@ Vector3.prototype.scale = function(b) {
     return this;
 };
 
-Vector3.prototype.distanceToSquared = function ( x, y, z ) {
+Vector3.prototype.distanceToSquared = function( x, y, z ) {
 
     var dx = this.elements[0] - x, dy = this.elements[1] - y, dz = this.elements[2] - z;
 
@@ -627,12 +628,12 @@ Vector3.prototype.subtract = function(b) {
  * @param opt_src source vector(option)
  */
 var Vector4 = function(opt_src) {
-  var v = new Float32Array(4);
-  if (opt_src && typeof opt_src === 'object') {
-    v[0] = opt_src[0]; v[1] = opt_src[1]; v[2] = opt_src[2]; v[3] = opt_src[3];
-  } 
-  this.elements = v;
-}
+    var v = new Float32Array(4);
+    if (opt_src && typeof opt_src === 'object') {
+        v[0] = opt_src[0]; v[1] = opt_src[1]; v[2] = opt_src[2]; v[3] = opt_src[3];
+    } 
+    this.elements = v;
+};
 
 Vector4.prototype.set = function(e) {
     var a = this.elements;
@@ -658,7 +659,7 @@ Vector4.prototype.normalize = function() {
         y = this.elements[1],
         z = this.elements[2],
         w = this.elements[3];
-    var len = x*x + y*y + z*z + w*w;
+    var len = x * x + y * y + z * z + w * w;
     if (len > 0) {
         len = 1 / Math.sqrt(len);
         this.elements[0] = x * len;
@@ -669,25 +670,25 @@ Vector4.prototype.normalize = function() {
     return this;
 };
 
-Vector3.prototype.divideScalar = function ( scalar ) {
+Vector3.prototype.divideScalar = function( scalar ) {
     return this.scale( 1 / scalar );
-}
+};
 
-Vector3.prototype.applyMatrix4 = function ( m ) {
+Vector3.prototype.applyMatrix4 = function( m ) {
 
     var x = this.elements[0], y = this.elements[1], z = this.elements[2];
     var e = m.elements;
 
-    this.elements[0] = e[ 0 ] * x + e[ 4 ] * y + e[ 8 ]  * z + e[ 12 ];
-    this.elements[1] = e[ 1 ] * x + e[ 5 ] * y + e[ 9 ]  * z + e[ 13 ];
+    this.elements[0] = e[ 0 ] * x + e[ 4 ] * y + e[ 8 ] * z + e[ 12 ];
+    this.elements[1] = e[ 1 ] * x + e[ 5 ] * y + e[ 9 ] * z + e[ 13 ];
     this.elements[2] = e[ 2 ] * x + e[ 6 ] * y + e[ 10 ] * z + e[ 14 ];
-    var w =  e[ 3 ] * x + e[ 7 ] * y + e[ 11 ] * z + e[ 15 ];
+    var w = e[ 3 ] * x + e[ 7 ] * y + e[ 11 ] * z + e[ 15 ];
 
     return this.divideScalar( w );
 
 };
 
-Vector4.prototype.lerp = function (a, b, t) {
+Vector4.prototype.lerp = function(a, b, t) {
     var out = this.elements;
     var ax = a[0],
         ay = a[1],
@@ -700,7 +701,7 @@ Vector4.prototype.lerp = function (a, b, t) {
     return this;
 };
 
-Vector3.prototype.lerp = function (a, b, t) {
+Vector3.prototype.lerp = function(a, b, t) {
     var out = this.elements;
     var ax = a[0],
         ay = a[1],
@@ -729,4 +730,4 @@ function Frustum( m ) {
     return planes;
 }
 
-export {Matrix2, Matrix3, Matrix4, Vector3, Vector4, Frustum};
+export { Matrix2, Matrix3, Matrix4, Vector3, Vector4, Frustum };
