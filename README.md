@@ -10,8 +10,11 @@ npm install redcube.js
 ## Features
 
 &bull; Create 3D model in Blender and others, then render it in Browser;
+
 &bull; No dependencies;
+
 &bull; Small file size;
+
 &bull; Support textures, transform animation, skinned animation.
 
 

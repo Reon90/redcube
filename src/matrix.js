@@ -697,7 +697,7 @@ Vector4.prototype.lerp = function (a, b, t) {
     out[1] = ay + t * (b[1] - ay);
     out[2] = az + t * (b[2] - az);
     out[3] = aw + t * (b[3] - aw);
-    return out;
+    return this;
 };
 
 Vector3.prototype.lerp = function (a, b, t) {
@@ -708,7 +708,7 @@ Vector3.prototype.lerp = function (a, b, t) {
     out[0] = ax + t * (b[0] - ax);
     out[1] = ay + t * (b[1] - ay);
     out[2] = az + t * (b[2] - az);
-    return out;
+    return this;
 };
 
 function Frustum( m ) {

@@ -12,13 +12,13 @@
     </div>
     <script src="../dist/redcube.js"></script>
     <script>
-        let name = 'Box';
+        let name = localStorage.getItem('sample') || 'Box';
         let canvas = document.getElementById('canvas');
         var samples = ['2CylinderEngine', 'Avocado', 'BarramundiFish', 'Box', 'BoxAnimated', 'BoxSemantics', 'BoxTextured', 'BoxWithoutIndices', 'BrainStem', 'Buggy', 'CesiumMan', 'CesiumMilkTruck', 'Duck', 'GearboxAssy', 'Monster', 'ReciprocatingSaw', 'RiggedFigure', 'RiggedSimple', 'SmilingFace', 'VC', 'WalkingLady'];
         var select = document.createElement('select');
         select.onchange = function() {
-            name = select.value;
-            init();
+            localStorage.setItem('sample', select.value);
+            window.location.reload();
         }
         samples.forEach(it => {
             var option = document.createElement('option');
@@ -26,28 +26,25 @@
             option.value = it;
             select.appendChild(option);
         });
-        select.value = 'Box';
+        select.value = name;
         document.body.appendChild(select);
 
-        function init() {
-            let renderer = new redcube.RedCube(`https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/1.0/${name}/glTF/${name}.gltf`, canvas);
-            renderer.init().then(() => {
-                if (renderer.cameras.length) {
-                    var select = document.createElement('select');
-                    select.onchange = function() {
-                        renderer._camera = renderer.cameras.find(it => select.value === it.name);
-                    }
-                    renderer.cameras.forEach(it => {
-                        var option = document.createElement('option');
-                        option.innerHTML = it.name;
-                        option.value = it.name;
-                        select.appendChild(option);
-                    });
-                    document.body.appendChild(select);
+        let renderer = new redcube.RedCube(`https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/1.0/${name}/glTF/${name}.gltf`, canvas);
+        renderer.init().then(() => {
+            if (renderer.cameras.length) {
+                var select = document.createElement('select');
+                select.onchange = function() {
+                    renderer._camera = renderer.cameras.find(it => select.value === it.name);
                 }
-            });
-        }
-        init();
+                renderer.cameras.forEach(it => {
+                    var option = document.createElement('option');
+                    option.innerHTML = it.name;
+                    option.value = it.name;
+                    select.appendChild(option);
+                });
+                document.body.appendChild(select);
+            }
+        });
     </script>
 </body>
 

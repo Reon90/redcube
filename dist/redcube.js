@@ -797,7 +797,7 @@ Vector4.prototype.lerp = function (a, b, t) {
   out[1] = ay + t * (b[1] - ay);
   out[2] = az + t * (b[2] - az);
   out[3] = aw + t * (b[3] - aw);
-  return out;
+  return this;
 };
 
 Vector3.prototype.lerp = function (a, b, t) {
@@ -808,7 +808,7 @@ Vector3.prototype.lerp = function (a, b, t) {
   out[0] = ax + t * (b[0] - ax);
   out[1] = ay + t * (b[1] - ay);
   out[2] = az + t * (b[2] - az);
-  return out;
+  return this;
 };
 
 function Frustum(m) {
@@ -2036,14 +2036,14 @@ var RedCube = function () {
                         var out = new _matrix.Vector4();
                         out.lerp(vector.elements, vector2.elements, t);
 
-                        v.mesh.matrixAnimation[this.getAnimationMethod(v.type)](out);
+                        v.mesh.matrixAnimation[this.getAnimationMethod(v.type)](out.elements);
                     } else {
                         var _v$mesh$matrixAnimati;
 
                         var _out = new _matrix.Vector3();
                         _out.lerp(vector.elements, vector2.elements, t);
 
-                        (_v$mesh$matrixAnimati = v.mesh.matrixAnimation)[this.getAnimationMethod(v.type)].apply(_v$mesh$matrixAnimati, _toConsumableArray(_out));
+                        (_v$mesh$matrixAnimati = v.mesh.matrixAnimation)[this.getAnimationMethod(v.type)].apply(_v$mesh$matrixAnimati, _toConsumableArray(_out.elements));
                     }
 
                     this.reflow = true;
@@ -2419,6 +2419,7 @@ var RedCube = function () {
                         _this9.handleTextureLoaded(t, image);
                         resolve();
                     };
+                    image.crossOrigin = "anonymous";
                     image.src = '' + _this9.host + t.uri;
                 });
             });

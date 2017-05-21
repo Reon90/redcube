@@ -644,12 +644,12 @@ class RedCube {
                 let out = new Vector4;
                 out.lerp(vector.elements, vector2.elements, t);
                 
-                v.mesh.matrixAnimation[this.getAnimationMethod(v.type)](out);
+                v.mesh.matrixAnimation[this.getAnimationMethod(v.type)](out.elements);
             } else {
                 let out = new Vector3;
                 out.lerp(vector.elements, vector2.elements, t);
 
-                v.mesh.matrixAnimation[this.getAnimationMethod(v.type)](...out);
+                v.mesh.matrixAnimation[this.getAnimationMethod(v.type)](...out.elements);
             }
 
             this.reflow = true;
@@ -905,6 +905,7 @@ class RedCube {
                     this.handleTextureLoaded(t, image);
                     resolve();
                 }
+                image.crossOrigin = "anonymous";
                 image.src = `${this.host}${t.uri}`;
             });
         });
