@@ -1829,7 +1829,7 @@ var RedCube = function () {
         value: function glInit() {
             var _this7 = this;
 
-            gl = this.canvas.getContext('webgl');
+            gl = this.canvas.getContext('webgl') || this.canvas.getContext('experimental-webgl');
 
             for (var k in gl) {
                 var v = gl[k];

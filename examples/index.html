@@ -10,6 +10,8 @@
     <div>
         <canvas id="canvas" width="750" height="500"></canvas>
     </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/es6-promise/4.1.0/es6-promise.auto.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fetch/2.0.3/fetch.js"></script>
     <script src="../dist/redcube.js"></script>
     <script>
         let name = localStorage.getItem('sample') || 'BrainStem';
@@ -20,7 +22,7 @@
             localStorage.setItem('sample', select.value);
             window.location.reload();
         }
-        samples.forEach(it => {
+        samples.forEach(function(it) {
             var option = document.createElement('option');
             option.innerHTML = it;
             option.value = it;
@@ -29,14 +31,16 @@
         select.value = name;
         document.body.appendChild(select);
 
-        let renderer = new redcube.RedCube(`https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/1.0/${name}/glTF/${name}.gltf`, canvas);
-        renderer.init().then(() => {
+        let renderer = new redcube.RedCube('https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/1.0/' + name + '/glTF/' + name + '.gltf', canvas);
+        renderer.init().then(function() {
             if (renderer.cameras.length) {
                 var select = document.createElement('select');
                 select.onchange = function() {
-                    renderer._camera = renderer.cameras.find(it => select.value === it.name);
+                    renderer._camera = renderer.cameras.find(function(it) { 
+                        return select.value === it.name; 
+                    });
                 }
-                renderer.cameras.forEach(it => {
+                renderer.cameras.forEach(function(it) {
                     var option = document.createElement('option');
                     option.innerHTML = it.name;
                     option.value = it.name;

@@ -493,7 +493,7 @@ class RedCube {
     }
 
     glInit() {
-        gl = this.canvas.getContext('webgl');
+        gl = this.canvas.getContext('webgl') || this.canvas.getContext('experimental-webgl');
 
         for (let k in gl) {
             let v = gl[k];
