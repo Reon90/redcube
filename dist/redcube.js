@@ -73,7 +73,7 @@ return /******/ (function(modules) { // webpackBootstrap
 /******/ 	__webpack_require__.p = "";
 /******/
 /******/ 	// Load entry module and return exports
-/******/ 	return __webpack_require__(__webpack_require__.s = 2);
+/******/ 	return __webpack_require__(__webpack_require__.s = 3);
 /******/ })
 /************************************************************************/
 /******/ ([
@@ -858,6 +858,56 @@ exports.Frustum = Frustum;
 
 
 Object.defineProperty(exports, "__esModule", {
+	value: true
+});
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+var Events = function () {
+	function Events(redraw) {
+		_classCallCheck(this, Events);
+
+		this.redraw = redraw;
+		document.addEventListener('wheel', this);
+		document.addEventListener('mousedown', this);
+		document.addEventListener('mousemove', this);
+		document.addEventListener('mouseup', this);
+	}
+
+	_createClass(Events, [{
+		key: 'handleEvent',
+		value: function handleEvent(e) {
+			switch (e.type) {
+				case 'wheel':
+					this.zoom(e);
+				case 'wheel':
+					this.zoom(e);
+			}
+		}
+	}, {
+		key: 'zoom',
+		value: function zoom(e) {
+			if (!this.zoom.v) this.zoom.v = 0;
+			this.zoom.v = Math.min(this.zoom.v + e.deltaY, 1250);
+			this.redraw(Math.pow(1.001, this.zoom.v));
+		}
+	}]);
+
+	return Events;
+}();
+
+exports.Events = Events;
+
+/***/ }),
+/* 2 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
     value: true
 });
 exports.Camera = exports.Bone = exports.SkinnedMesh = exports.Mesh = exports.Object3D = exports.Scene = undefined;
@@ -1203,7 +1253,7 @@ exports.Bone = Bone;
 exports.Camera = Camera;
 
 /***/ }),
-/* 2 */
+/* 3 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -1216,9 +1266,11 @@ exports.RedCube = undefined;
 
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
-var _objects = __webpack_require__(1);
+var _objects = __webpack_require__(2);
 
 var _matrix = __webpack_require__(0);
+
+var _events = __webpack_require__(1);
 
 function _toConsumableArray(arr) { if (Array.isArray(arr)) { for (var i = 0, arr2 = Array(arr.length); i < arr.length; i++) { arr2[i] = arr[i]; } return arr2; } else { return Array.from(arr); } }
 
@@ -1240,8 +1292,18 @@ var RedCube = function () {
         this.cameras = [];
         this.aspect = this.canvas.width / this.canvas.height;
         this._camera = new _objects.Camera();
-        this._camera.setProjection(new _matrix.Matrix4().setPerspective(30, this.aspect, 1, 1000).elements);
-        this._camera.setMatrixWorldInvert([5, 5, 5, 0, 1, 0, 0, 1, 0]);
+        this._camera.prop = {
+            type: 'perspective',
+            perspective: {
+                yfov: 0.5235987755982988,
+                znear: 1,
+                zfar: 1000,
+                aspectRatio: this.aspect
+            }
+        };
+        this.zoom = 1;
+        this._camera.setProjection(this.buildCamera(this._camera.prop).elements);
+        this._camera.setMatrixWorldInvert([0, 0, 5, 0, 0, 0, 0, 1, 0]);
 
         this.unblendEnable = {};
         this.blendEnable = {};
@@ -1251,9 +1313,18 @@ var RedCube = function () {
         this.json = null;
         this.glEnum = {};
         this.textures = {};
+
+        this.events = new _events.Events(this.redraw.bind(this));
     }
 
     _createClass(RedCube, [{
+        key: 'redraw',
+        value: function redraw(v) {
+            this.zoom = v;
+            this._camera.setProjection(this.buildCamera(this._camera.prop).elements);
+            this.reflow = true;
+        }
+    }, {
         key: 'init',
         value: function init() {
             return this.getJson().then(this.glInit.bind(this)).then(this.getBuffer.bind(this)).then(this.buildMesh.bind(this)).then(this.initTextures.bind(this)).then(this.buildAnimation.bind(this)).then(this.buildSkin.bind(this)).then(this.draw.bind(this)).catch(console.error);
@@ -1482,13 +1553,13 @@ var RedCube = function () {
             if (cam.type == 'perspective' && cam.perspective) {
                 var yfov = cam.perspective.yfov;
                 var aspectRatio = cam.perspective.aspectRatio || this.aspect;
-                var xfov = yfov * aspectRatio;
+                var xfov = yfov * this.aspect;
 
                 if (this.aspect !== aspectRatio) {
-                    console.error('this.canvas size and this.canvas size from scene dont equal');
+                    console.warn('this.canvas size and this.canvas size from scene dont equal');
                 }
 
-                proj = new _matrix.Matrix4().setPerspective(xfov * (180 / Math.PI), this.aspect, cam.perspective.znear || 1, cam.perspective.zfar || 2e6);
+                proj = new _matrix.Matrix4().setPerspective(xfov * this.zoom * (180 / Math.PI), this.aspect, cam.perspective.znear || 1, cam.perspective.zfar || 2e6);
             } else if (cam.type == 'orthographic' && cam.orthographic) {
                 proj = new _matrix.Matrix4().setOrtho(window.innerWidth / -2, window.innerWidth / 2, window.innerHeight / 2, window.innerHeight / -2, cam.orthographic.znear, cam.orthographic.zfar);
             }
@@ -1506,6 +1577,7 @@ var RedCube = function () {
             if (el.camera) {
                 var proj = this.buildCamera(this.json.cameras[el.camera]);
                 child = new _objects.Camera(name, parent);
+                child.prop = this.json.cameras[el.camera];
                 child.setProjection(proj.elements);
                 child.setMatrix(el.matrix);
                 child.setMatrixWorld(el.matrix);
@@ -1557,6 +1629,7 @@ var RedCube = function () {
                 if (_this4.json.nodes[n].camera) {
                     var proj = _this4.buildCamera(_this4.json.cameras[_this4.json.nodes[n].camera]);
                     _this4._camera = new _objects.Camera();
+                    _this4._camera.prop = _this4.json.cameras[_this4.json.nodes[n].camera];
                     _this4._camera.setProjection(proj.elements);
                     _this4._camera.setMatrix(_this4.json.nodes[n].matrix);
                     _this4._camera.setMatrixWorld(_this4.json.nodes[n].matrix);

@@ -1,5 +1,6 @@
 import { Scene, Object3D, Mesh, SkinnedMesh, Bone, Camera } from './objects';
 import { Matrix2, Matrix3, Matrix4, Vector3, Vector4, Frustum } from './matrix';
+import { Events } from './events';
 
 let gl;
 class RedCube {
@@ -14,8 +15,18 @@ class RedCube {
         this.cameras = [];
         this.aspect = this.canvas.width / this.canvas.height;
         this._camera = new Camera;
-        this._camera.setProjection(new Matrix4().setPerspective(30, this.aspect, 1, 1000).elements);
-        this._camera.setMatrixWorldInvert([5, 5, 5, 0, 1, 0, 0, 1, 0]);
+        this._camera.prop = {
+            type: 'perspective', 
+            perspective: {
+                yfov: 0.5235987755982988,
+                znear: 1,
+                zfar: 1000,
+                aspectRatio: this.aspect
+            }
+        };
+        this.zoom = 1;
+        this._camera.setProjection(this.buildCamera(this._camera.prop).elements);
+        this._camera.setMatrixWorldInvert([0, 0, 5, 0, 0, 0, 0, 1, 0]);
 
         this.unblendEnable = {};
         this.blendEnable = {};
@@ -25,6 +36,14 @@ class RedCube {
         this.json = null;
         this.glEnum = {};
         this.textures = {};
+
+        this.events = new Events(this.redraw.bind(this));
+    }
+
+    redraw(v) {
+        this.zoom = v;
+        this._camera.setProjection(this.buildCamera(this._camera.prop).elements);
+        this.reflow = true;
     }
 
     init() {
@@ -201,13 +220,13 @@ class RedCube {
         if ( cam.type == 'perspective' && cam.perspective ) {
             const yfov = cam.perspective.yfov;
             const aspectRatio = cam.perspective.aspectRatio || this.aspect;
-            const xfov = yfov * aspectRatio;
+            const xfov = yfov * this.aspect;
 
             if (this.aspect !== aspectRatio) {
-                console.error('this.canvas size and this.canvas size from scene dont equal');
+                console.warn('this.canvas size and this.canvas size from scene dont equal');
             }
 
-            proj = new Matrix4().setPerspective(xfov * (180 / Math.PI), this.aspect, cam.perspective.znear || 1, cam.perspective.zfar || 2e6);
+            proj = new Matrix4().setPerspective(xfov * this.zoom * (180 / Math.PI), this.aspect, cam.perspective.znear || 1, cam.perspective.zfar || 2e6);
         } else if ( cam.type == 'orthographic' && cam.orthographic ) {
             proj = new Matrix4().setOrtho( window.innerWidth / -2, window.innerWidth / 2, window.innerHeight / 2, window.innerHeight / -2, cam.orthographic.znear, cam.orthographic.zfar);
         }
@@ -222,6 +241,7 @@ class RedCube {
         if (el.camera) {
             const proj = this.buildCamera(this.json.cameras[el.camera]);
             child = new Camera(name, parent);
+            child.prop = this.json.cameras[el.camera];
             child.setProjection(proj.elements);
             child.setMatrix(el.matrix);
             child.setMatrixWorld(el.matrix);
@@ -266,6 +286,7 @@ class RedCube {
             if (this.json.nodes[n].camera) {
                 const proj = this.buildCamera(this.json.cameras[this.json.nodes[n].camera]);
                 this._camera = new Camera();
+                this._camera.prop = this.json.cameras[this.json.nodes[n].camera];
                 this._camera.setProjection(proj.elements);
                 this._camera.setMatrix(this.json.nodes[n].matrix);
                 this._camera.setMatrixWorld(this.json.nodes[n].matrix);
