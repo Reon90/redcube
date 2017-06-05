@@ -38,12 +38,65 @@ class RedCube {
         this.textures = {};
 
         this.events = new Events(this.redraw.bind(this));
+        this.cameraPosition = new Vector3([0, 0, 0.05]);
     }
 
-    redraw(v) {
-        this.zoom = v;
-        this._camera.setProjection(this.buildCamera(this._camera.prop).elements);
+    redraw(type, coordsStart, coordsMove) {
+        if (type === 'zoom') {
+            this.zoom = coordsStart;
+            this._camera.setProjection(this.buildCamera(this._camera.prop).elements);
+        }
+        if (type === 'rotate') {
+            const p0 = new Vector3(this.sceneToArcBall(this.canvasToWorld(...coordsStart)));
+            const p1 = new Vector3(this.sceneToArcBall(this.canvasToWorld(...coordsMove)));
+            const angle = Vector3.angle(p0, p1) * 2;
+            if (angle < 1e-6 || isNaN(angle))
+                return;
+
+            const v = Vector3.cross(p0, p1).normalize();
+            const sin = Math.sin(angle/2);
+            const q = new Vector4([v.elements[0]*sin, v.elements[1]*sin, v.elements[2]*sin, Math.cos(angle/2)]);
+
+            const tr = new Vector3([this._camera.matrixWorldInvert.elements[12], this._camera.matrixWorldInvert.elements[13], this._camera.matrixWorldInvert.elements[14]]);
+            const m = new Matrix4();
+            m.makeRotationFromQuaternion(q.elements);
+            this._camera.matrix.multiply(m);
+            this._camera.setMatrixWorld(this._camera.matrix.elements);
+            this._camera.matrixWorldInvert.setTranslate(tr.elements[0], tr.elements[1], tr.elements[2]);
+        }
+        if (type === 'pan') {
+            const tr = this._camera.matrixWorldInvert.elements[14];
+            this._camera.matrix.elements[12] = coordsStart[0] * -0.005;
+            this._camera.matrix.elements[13] = coordsStart[1] * 0.005;
+            this._camera.setMatrixWorld(this._camera.matrix.elements);
+            this._camera.matrixWorldInvert.elements[14] = tr;
+        }
+        
         this.reflow = true;
+    }
+
+    sceneToArcBall(pos) {
+        let len = pos.elements[0]*pos.elements[0] + pos.elements[1]*pos.elements[1];
+        const sz = 0.04*0.04 - len;
+        if (sz > 0)
+            return [pos.elements[0], pos.elements[1], Math.sqrt(sz)];
+        else {
+            len = Math.sqrt(len);
+            return [0.04* pos.elements[0] / len, 0.04* pos.elements[1] / len, 0];
+        }
+    }
+
+    canvasToWorld(x, y) {
+        const newM = new Matrix4();
+        newM.setTranslate(...this.cameraPosition.elements);
+        const m = new Matrix4(this._camera.projection);
+        m.multiply(newM);
+
+        const mp = m.multiplyVector4(new Vector4([0, 0, 0, 1]));
+        mp.elements[0] = (2 * x / this.canvas.width - 1) * mp.elements[3];
+        mp.elements[1] = (-2 * y / this.canvas.height + 1) * mp.elements[3];
+
+        return m.invert().multiplyVector4(mp);
     }
 
     init() {

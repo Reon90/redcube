@@ -390,6 +390,25 @@ Matrix4.prototype.perspective = function(fovy, aspect, near, far) {
 };
 
 /**
+ * Multiply the four-dimensional vector.
+ * @param pos  The multiply vector
+ * @return The result of multiplication(Float32Array)
+ */
+Matrix4.prototype.multiplyVector4 = function(pos) {
+  var e = this.elements;
+  var p = pos.elements;
+  var v = new Vector4();
+  var result = v.elements;
+
+  result[0] = p[0] * e[0] + p[1] * e[4] + p[2] * e[ 8] + p[3] * e[12];
+  result[1] = p[0] * e[1] + p[1] * e[5] + p[2] * e[ 9] + p[3] * e[13];
+  result[2] = p[0] * e[2] + p[1] * e[6] + p[2] * e[10] + p[3] * e[14];
+  result[3] = p[0] * e[3] + p[1] * e[7] + p[2] * e[11] + p[3] * e[15];
+
+  return v;
+};
+
+/**
  * Multiply the matrix for scaling from the right.
  * @param x The scale factor along the X axis
  * @param y The scale factor along the Y axis
@@ -557,6 +576,41 @@ var Vector3 = function(opt_src) {
         v[0] = opt_src[0]; v[1] = opt_src[1]; v[2] = opt_src[2];
     } 
     this.elements = v;
+};
+
+Vector3.angle = function(a, b) {
+    var tempA = new Vector3(a.elements);
+    var tempB = new Vector3(b.elements);
+ 
+    tempA.normalize();
+    tempB.normalize();
+ 
+    var cosine = Vector3.dot(tempA, tempB);
+
+    if(cosine > 1.0){
+        return 0;
+    } else {
+        return Math.acos(cosine);
+    }     
+};
+
+Vector3.cross = function(a, b) {
+    a = a.elements;
+    b = b.elements;
+    var ax = a[0], ay = a[1], az = a[2],
+        bx = b[0], by = b[1], bz = b[2];
+
+    var out = new Vector3();
+    out.elements[0] = ay * bz - az * by;
+    out.elements[1] = az * bx - ax * bz;
+    out.elements[2] = ax * by - ay * bx;
+    return out;
+};
+
+Vector3.dot = function (a, b) {
+    a = a.elements;
+    b = b.elements;
+    return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 };
 
 /**
