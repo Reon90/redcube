@@ -35,7 +35,10 @@ class Mesh extends Object3D {
 
         this.geometry = {
             boundingSphere: {
-                center: new Vector3
+                center: new Vector3,
+                radius: null,
+                min: null,
+                max: null
             }
         };
         this.material = {};
@@ -48,14 +51,14 @@ class Mesh extends Object3D {
     }
 
     calculateBounding() {
-        let vertices = this.geometry.attributes.a_position.value;
+        const vertices = this.geometry.attributes.a_position.value;
         let maxRadiusSq = 0;
 
-        let min = [Infinity, Infinity, Infinity], max = [-Infinity, -Infinity, -Infinity];
+        const min = [Infinity, Infinity, Infinity], max = [-Infinity, -Infinity, -Infinity];
         for (let i = 0; i < vertices.length; i = i + 3) {
-            let x = vertices[i];
-            let y = vertices[i + 1];
-            let z = vertices[i + 2];
+            const x = vertices[i];
+            const y = vertices[i + 1];
+            const z = vertices[i + 2];
 
             min[0] = Math.min(min[0], x);
             min[1] = Math.min(min[1], y);
@@ -66,9 +69,12 @@ class Mesh extends Object3D {
             max[2] = Math.max(max[2], z);
         }
 
+        this.geometry.boundingSphere.min = new Vector3(min);
+        this.geometry.boundingSphere.max = new Vector3(max);
+
         this.geometry.boundingSphere.center
-            .add( new Vector3(min) )
-            .add( new Vector3(max) )
+            .add( this.geometry.boundingSphere.min )
+            .add( this.geometry.boundingSphere.max )
             .scale( 0.5 );
         
         for (let i = 0; i < vertices.length; i = i + 3) {
@@ -107,12 +113,12 @@ class Mesh extends Object3D {
     }
 
     getJointMatrix() {
-        let m4v = this.material.uniforms.u_jointMat.value;
-        let m = new Matrix4(this.matrixWorld).invert();
-        let resArray = [];
+        const m4v = this.material.uniforms.u_jointMat.value;
+        const m = new Matrix4(this.matrixWorld).invert();
+        const resArray = [];
 
         for ( let mi = 0; mi < m4v.length; mi++ ) {
-            let res = new Matrix4(m4v[ mi ])
+            const res = new Matrix4(m4v[ mi ])
                 .multiply( m )
                 .multiply( this.bones[ mi ].matrixWorld )
                 .multiply( this.boneInverses[ mi ] )
@@ -123,7 +129,7 @@ class Mesh extends Object3D {
         return resArray;
     }
     getModelViewProjMatrix(_camera) {
-        let m = new Matrix4();
+        const m = new Matrix4();
         m.multiply(_camera.projection);
         m.multiply(_camera.matrixWorldInvert);
         m.multiply(this.matrixWorld);
@@ -131,13 +137,13 @@ class Mesh extends Object3D {
         return m;
     }
     getViewMatrix(_camera) {
-        let m = new Matrix4();
+        const m = new Matrix4();
         m.multiply(_camera.matrixWorldInvert);
 
         return m;
     }
     getModelViewMatrix(value, _camera) {
-        let m = new Matrix4();
+        const m = new Matrix4();
         m.multiply(_camera.matrixWorldInvert);
         m.multiply(value ? value : this.matrixWorld);
 
@@ -147,17 +153,17 @@ class Mesh extends Object3D {
         return _camera.projection;
     }
     getNormalMatrix() {
-        let normalMatrix = new Matrix3();
+        const normalMatrix = new Matrix3();
         normalMatrix.normalFromMat4(this.material.uniforms.u_modelViewMatrix.value);
         return normalMatrix;
     }
 
     isVisible(planes) {
-        let c = new Vector3(this.geometry.boundingSphere.center.elements).applyMatrix4(this.matrixWorld);
-        let r = this.geometry.boundingSphere.radius * this.matrixWorld.getMaxScaleOnAxis();
+        const c = new Vector3(this.geometry.boundingSphere.center.elements).applyMatrix4(this.matrixWorld);
+        const r = this.geometry.boundingSphere.radius * this.matrixWorld.getMaxScaleOnAxis();
         let dist;
         let visible = true;
-        for ( let p of planes ) {
+        for ( const p of planes ) {
             dist = p.elements[0] * c.elements[0] + p.elements[1] * c.elements[1] + p.elements[2] * c.elements[2] + p.elements[3];
             if ( dist < -r ) {
                 visible = false;
@@ -212,7 +218,7 @@ class Camera extends Object3D {
     }
 
     getViewProjMatrix() {
-        let m = new Matrix4();
+        const m = new Matrix4();
         m.multiply(this.projection);
         m.multiply(this.matrixWorldInvert);
 

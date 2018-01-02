@@ -73,7 +73,7 @@ return /******/ (function(modules) { // webpackBootstrap
 /******/ 	__webpack_require__.p = "";
 /******/
 /******/ 	// Load entry module and return exports
-/******/ 	return __webpack_require__(__webpack_require__.s = 3);
+/******/ 	return __webpack_require__(__webpack_require__.s = 4);
 /******/ })
 /************************************************************************/
 /******/ ([
@@ -89,6 +89,8 @@ Object.defineProperty(exports, "__esModule", {
 
 var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
 
+/* eslint-disable */
+
 /** 
  * This is a class treating 4x4 matrix.
  * This class contains the function that is equivalent to OpenGL matrix stack.
@@ -97,7 +99,9 @@ var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol
  */
 
 var Matrix2 = function Matrix2(opt_src) {
-    var i, s, d;
+    var i = void 0,
+        s = void 0,
+        d = void 0;
     if (opt_src && (typeof opt_src === 'undefined' ? 'undefined' : _typeof(opt_src)) === 'object' && opt_src.hasOwnProperty('elements')) {
         s = opt_src.elements;
         d = new Float32Array(4);
@@ -111,7 +115,9 @@ var Matrix2 = function Matrix2(opt_src) {
 };
 
 Matrix2.prototype.set = function (src) {
-    var i, s, d;
+    var i = void 0,
+        s = void 0,
+        d = void 0;
 
     s = src;
     d = this.elements;
@@ -134,7 +140,9 @@ Matrix2.prototype.set = function (src) {
  * @param opt_src source matrix(option)
  */
 var Matrix3 = function Matrix3(opt_src) {
-    var i, s, d;
+    var i = void 0,
+        s = void 0,
+        d = void 0;
     if (opt_src && (typeof opt_src === 'undefined' ? 'undefined' : _typeof(opt_src)) === 'object' && opt_src.hasOwnProperty('elements')) {
         s = opt_src.elements;
         d = new Float32Array(9);
@@ -148,7 +156,9 @@ var Matrix3 = function Matrix3(opt_src) {
 };
 
 Matrix3.prototype.set = function (src) {
-    var i, s, d;
+    var i = void 0,
+        s = void 0,
+        d = void 0;
 
     s = src;
     d = this.elements;
@@ -228,7 +238,9 @@ Matrix3.prototype.normalFromMat4 = function (a) {
  * @param opt_src source matrix(option)
  */
 var Matrix4 = function Matrix4(opt_src) {
-    var i, s, d;
+    var i = void 0,
+        s = void 0,
+        d = void 0;
     if (opt_src && (typeof opt_src === 'undefined' ? 'undefined' : _typeof(opt_src)) === 'object' && opt_src.hasOwnProperty('elements')) {
         s = opt_src.elements;
         d = new Float32Array(16);
@@ -247,7 +259,9 @@ var Matrix4 = function Matrix4(opt_src) {
  * @return this
  */
 Matrix4.prototype.set = function (src) {
-    var i, s, d;
+    var i = void 0,
+        s = void 0,
+        d = void 0;
 
     s = src;
     d = this.elements;
@@ -269,7 +283,14 @@ Matrix4.prototype.set = function (src) {
  * @return this
  */
 Matrix4.prototype.concat = function (other) {
-    var i, e, a, b, ai0, ai1, ai2, ai3;
+    var i = void 0,
+        e = void 0,
+        a = void 0,
+        b = void 0,
+        ai0 = void 0,
+        ai1 = void 0,
+        ai2 = void 0,
+        ai3 = void 0;
 
     // Calculate e = a * b
     e = this.elements;
@@ -302,7 +323,11 @@ Matrix4.prototype.multiply = Matrix4.prototype.concat;
  * @return this
  */
 Matrix4.prototype.setInverseOf = function (other) {
-    var i, s, d, inv, det;
+    var i = void 0,
+        s = void 0,
+        d = void 0,
+        inv = void 0,
+        det = void 0;
 
     s = other.elements;
     d = this.elements;
@@ -360,7 +385,10 @@ Matrix4.prototype.invert = function () {
  * @return this
  */
 Matrix4.prototype.setOrtho = function (left, right, bottom, top, near, far) {
-    var e, rw, rh, rd;
+    var e = void 0,
+        rw = void 0,
+        rh = void 0,
+        rd = void 0;
 
     if (left === right || bottom === top || near === far) {
         throw 'null frustum';
@@ -418,7 +446,10 @@ Matrix4.prototype.ortho = function (left, right, bottom, top, near, far) {
  * @return this
  */
 Matrix4.prototype.setPerspective = function (fovy, aspect, near, far) {
-    var e, rd, s, ct;
+    var e = void 0,
+        rd = void 0,
+        s = void 0,
+        ct = void 0;
 
     if (near === far || aspect === 0) {
         throw 'null frustum';
@@ -551,7 +582,18 @@ Matrix4.prototype.translate = function (x, y, z) {
  * @return this
  */
 Matrix4.prototype.setLookAt = function (eyeX, eyeY, eyeZ, centerX, centerY, centerZ, upX, upY, upZ) {
-    var e, fx, fy, fz, rlf, sx, sy, sz, rls, ux, uy, uz;
+    var e = void 0,
+        fx = void 0,
+        fy = void 0,
+        fz = void 0,
+        rlf = void 0,
+        sx = void 0,
+        sy = void 0,
+        sz = void 0,
+        rls = void 0,
+        ux = void 0,
+        uy = void 0,
+        uz = void 0;
 
     fx = centerX - eyeX;
     fy = centerY - eyeY;
@@ -916,7 +958,7 @@ exports.Frustum = Frustum;
 
 
 Object.defineProperty(exports, "__esModule", {
-	value: true
+    value: true
 });
 
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
@@ -924,91 +966,102 @@ var _createClass = function () { function defineProperties(target, props) { for 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
 var Events = function () {
-	function Events(redraw) {
-		_classCallCheck(this, Events);
+    function Events(redraw) {
+        _classCallCheck(this, Events);
 
-		this.redraw = redraw;
-		document.addEventListener('wheel', this);
-		document.addEventListener('mousedown', this);
-		document.addEventListener('mousemove', this);
-		document.addEventListener('mouseup', this);
-		document.addEventListener('keyup', this);
-		document.addEventListener('keydown', this);
+        this.redraw = redraw;
+        document.addEventListener('wheel', this);
+        document.addEventListener('mousedown', this);
+        document.addEventListener('mousemove', this);
+        document.addEventListener('mouseup', this);
+        document.addEventListener('keyup', this);
+        document.addEventListener('keydown', this);
+        addEventListener('resize', this);
 
-		this.position = [0, 0, 0];
-	}
+        this.position = [0, 0, 0];
+    }
 
-	_createClass(Events, [{
-		key: 'handleEvent',
-		value: function handleEvent(e) {
-			switch (e.type) {
-				case 'wheel':
-					this.zoom(e);
-					break;
-				case 'mousedown':
-					this.onStart(e);
-					break;
-				case 'mousemove':
-					this.onMove(e);
-					break;
-				case 'mouseup':
-					this.onEnd(e);
-					break;
-				case 'keyup':
-					this.onKeyUp(e);
-					break;
-				case 'keydown':
-					this.onKeyDown(e);
-					break;
-			}
-		}
-	}, {
-		key: 'onKeyDown',
-		value: function onKeyDown(e) {
-			if (e.shiftKey || e.ctrlKey) {
-				this.isPan = true;
-			}
-		}
-	}, {
-		key: 'onKeyUp',
-		value: function onKeyUp(e) {
-			this.isPan = false;
-		}
-	}, {
-		key: 'onStart',
-		value: function onStart(e) {
-			this.x = e.clientX;
-			this.y = e.clientY;
-			this.isDrag = true;
-		}
-	}, {
-		key: 'onMove',
-		value: function onMove(e) {
-			if (this.isDrag) {
-				if (this.isPan) {
-					this.redraw('pan', [e.clientX - this.x, e.clientY - this.y]);
-				} else {
-					this.redraw('rotate', [this.x, this.y], [e.clientX, e.clientY]);
-					this.x = e.clientX;
-					this.y = e.clientY;
-				}
-			}
-		}
-	}, {
-		key: 'onEnd',
-		value: function onEnd(e) {
-			this.isDrag = false;
-		}
-	}, {
-		key: 'zoom',
-		value: function zoom(e) {
-			if (!this.zoom.v) this.zoom.v = 0;
-			this.zoom.v = Math.min(this.zoom.v + e.deltaY, 1250);
-			this.redraw('zoom', Math.pow(1.001, this.zoom.v));
-		}
-	}]);
+    _createClass(Events, [{
+        key: 'handleEvent',
+        value: function handleEvent(e) {
+            switch (e.type) {
+                case 'wheel':
+                    this.zoom(e);
+                    break;
+                case 'mousedown':
+                    this.onStart(e);
+                    break;
+                case 'mousemove':
+                    this.onMove(e);
+                    break;
+                case 'mouseup':
+                    this.onEnd(e);
+                    break;
+                case 'keyup':
+                    this.onKeyUp(e);
+                    break;
+                case 'keydown':
+                    this.onKeyDown(e);
+                    break;
+                case 'resize':
+                    this.onResize(e);
+                    break;
+            }
+        }
+    }, {
+        key: 'onResize',
+        value: function onResize(e) {
+            this.redraw('resize');
+        }
+    }, {
+        key: 'onKeyDown',
+        value: function onKeyDown(e) {
+            if (e.shiftKey || e.ctrlKey) {
+                this.isPan = true;
+            }
+        }
+    }, {
+        key: 'onKeyUp',
+        value: function onKeyUp() {
+            this.isPan = false;
+        }
+    }, {
+        key: 'onStart',
+        value: function onStart(e) {
+            this.x = e.clientX;
+            this.y = e.clientY;
+            this.isDrag = true;
+        }
+    }, {
+        key: 'onMove',
+        value: function onMove(e) {
+            if (this.isDrag) {
+                if (this.isPan) {
+                    this.redraw('pan', [this.x, this.y], [e.clientX, e.clientY]);
+                } else {
+                    this.redraw('rotate', [this.x, this.y], [e.clientX, e.clientY]);
+                }
+                this.x = e.clientX;
+                this.y = e.clientY;
+            }
+        }
+    }, {
+        key: 'onEnd',
+        value: function onEnd() {
+            this.isDrag = false;
+        }
+    }, {
+        key: 'zoom',
+        value: function zoom(e) {
+            if (!this.zoom.v) {
+                this.zoom.v = 0;
+            }
+            this.zoom.v = Math.min(this.zoom.v + e.deltaY, 1250);
+            this.redraw('zoom', Math.pow(1.001, this.zoom.v));
+        }
+    }]);
 
-	return Events;
+    return Events;
 }();
 
 exports.Events = Events;
@@ -1089,7 +1142,10 @@ var Mesh = function (_Object3D) {
 
         _this.geometry = {
             boundingSphere: {
-                center: new _matrix3.Vector3()
+                center: new _matrix3.Vector3(),
+                radius: null,
+                min: null,
+                max: null
             }
         };
         _this.material = {};
@@ -1125,7 +1181,10 @@ var Mesh = function (_Object3D) {
                 max[2] = Math.max(max[2], z);
             }
 
-            this.geometry.boundingSphere.center.add(new _matrix3.Vector3(min)).add(new _matrix3.Vector3(max)).scale(0.5);
+            this.geometry.boundingSphere.min = new _matrix3.Vector3(min);
+            this.geometry.boundingSphere.max = new _matrix3.Vector3(max);
+
+            this.geometry.boundingSphere.center.add(this.geometry.boundingSphere.min).add(this.geometry.boundingSphere.max).scale(0.5);
 
             for (var _i = 0; _i < vertices.length; _i = _i + 3) {
                 maxRadiusSq = Math.max(maxRadiusSq, this.geometry.boundingSphere.center.distanceToSquared(vertices[_i], vertices[_i + 1], vertices[_i + 2]));
@@ -1375,6 +1434,202 @@ exports.Camera = Camera;
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
+exports.setGl = setGl;
+exports.isMatrix = isMatrix;
+exports.getMatrixType = getMatrixType;
+exports.getDataType = getDataType;
+exports.getComponentType = getComponentType;
+exports.getMethod = getMethod;
+exports.getAnimationComponent = getAnimationComponent;
+exports.getAnimationMethod = getAnimationMethod;
+exports.range = range;
+exports.interpolation = interpolation;
+exports.buildArray = buildArray;
+
+var _matrix = __webpack_require__(0);
+
+var glEnum = void 0;
+
+function setGl(gl) {
+    glEnum = gl;
+}
+
+function isMatrix(type) {
+    return glEnum[type] === 'FLOAT_MAT4' || glEnum[type] === 'FLOAT_MAT3' || glEnum[type] === 'FLOAT_MAT2';
+}
+
+function getMatrixType(type) {
+    if (glEnum[type] === 'FLOAT_MAT4') {
+        return _matrix.Matrix4;
+    }
+    if (glEnum[type] === 'FLOAT_MAT3') {
+        return _matrix.Matrix3;
+    }
+    if (glEnum[type] === 'FLOAT_MAT2') {
+        return _matrix.Matrix2;
+    }
+}
+
+function getDataType(type) {
+    var count = void 0;
+    switch (type) {
+        case 'MAT2':
+            count = 4;
+            break;
+        case 'MAT3':
+            count = 9;
+            break;
+        case 'MAT4':
+            count = 16;
+            break;
+        case 'VEC4':
+            count = 4;
+            break;
+        case 'VEC3':
+            count = 3;
+            break;
+        case 'VEC2':
+            count = 2;
+            break;
+        case 'SCALAR':
+            count = 1;
+            break;
+    }
+    return count;
+}
+
+function getComponentType(type) {
+    var count = void 0;
+    switch (glEnum[type]) {
+        case 'FLOAT_VEC4':
+            count = 4;
+            break;
+        case 'FLOAT_VEC3':
+            count = 3;
+            break;
+        case 'FLOAT_VEC2':
+            count = 2;
+            break;
+    }
+    return count;
+}
+
+function getMethod(type) {
+    var method = void 0;
+    switch (glEnum[type]) {
+        case 'FLOAT_VEC2':
+            method = 'uniform2f';
+            break;
+        case 'FLOAT_VEC4':
+            method = 'uniform4f';
+            break;
+        case 'FLOAT':
+            method = 'uniform1f';
+            break;
+        case 'FLOAT_VEC3':
+            method = 'uniform3f';
+            break;
+        case 'FLOAT_MAT4':
+            method = 'uniformMatrix4fv';
+            break;
+        case 'FLOAT_MAT3':
+            method = 'uniformMatrix3fv';
+            break;
+        case 'FLOAT_MAT2':
+            method = 'uniformMatrix2fv';
+            break;
+        case 'SAMPLER_2D':
+            method = 'uniform1i';
+            break;
+    }
+    return method;
+}
+
+function getAnimationComponent(type) {
+    if (type === 'rotation') {
+        return 4;
+    } else {
+        return 3;
+    }
+}
+
+function getAnimationMethod(type) {
+    if (type === 'rotation') {
+        return 'makeRotationFromQuaternion';
+    }
+    if (type === 'scale') {
+        return 'scale';
+    }
+    if (type === 'translation') {
+        return 'setTranslate';
+    }
+}
+
+function range(min, max, value) {
+    return (value - min) / (max - min);
+}
+
+function interpolation(time, frames) {
+    if (frames.length === 0) {
+        return [-1, -1, 0];
+    }
+
+    var prev = -1;
+    for (var i = frames.length - 1; i >= 0; i--) {
+        if (time >= frames[i].time) {
+            prev = i;
+            break;
+        }
+    }
+
+    if (prev === -1 || prev === frames.length - 1) {
+        if (prev < 0) {
+            prev = 0;
+        }
+        return [prev, prev, 0];
+    } else {
+        var startFrame = frames[prev];
+        var endFrame = frames[prev + 1];
+
+        time = Math.max(startFrame.time, Math.min(time, endFrame.time));
+        var t = range(startFrame.time, endFrame.time, time);
+
+        return [prev, prev + 1, t];
+    }
+}
+
+function buildArray(arrayBuffer, type, offset, length) {
+    var arr = void 0;
+    switch (glEnum[type]) {
+        case 'BYTE':
+            arr = new Int8Array(arrayBuffer, offset, length);
+            break;
+        case 'UNSIGNED_BYTE':
+            arr = new Uint8Array(arrayBuffer, offset, length);
+            break;
+        case 'SHORT':
+            arr = new Int16Array(arrayBuffer, offset, length);
+            break;
+        case 'UNSIGNED_SHORT':
+            arr = new Uint16Array(arrayBuffer, offset, length);
+            break;
+        case 'FLOAT':
+            arr = new Float32Array(arrayBuffer, offset, length);
+            break;
+    }
+    return arr;
+}
+
+/***/ }),
+/* 4 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
 exports.RedCube = undefined;
 
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
@@ -1384,6 +1639,8 @@ var _objects = __webpack_require__(2);
 var _matrix = __webpack_require__(0);
 
 var _events = __webpack_require__(1);
+
+var _utils = __webpack_require__(3);
 
 function _toConsumableArray(arr) { if (Array.isArray(arr)) { for (var i = 0, arr2 = Array(arr.length); i < arr.length; i++) { arr2[i] = arr[i]; } return arr2; } else { return Array.from(arr); } }
 
@@ -1397,25 +1654,23 @@ var RedCube = function () {
 
         this.reflow = true;
         this.scene = new _objects.Scene();
-
         this.color = [0.6, 0.6, 0.6, 1.0];
         this.url = url;
         this.host = url.substr(0, url.lastIndexOf('/') + 1);
         this.canvas = canvas;
+        this.aspect = this.canvas.offsetWidth / this.canvas.offsetHeight;
         this.cameras = [];
-        this.aspect = this.canvas.width / this.canvas.height;
         this._camera = new _objects.Camera();
-        this._camera.prop = {
+        this._camera.props = {
             type: 'perspective',
             perspective: {
-                yfov: 0.5235987755982988,
+                yfov: null,
                 znear: 1,
-                zfar: 1000,
-                aspectRatio: this.aspect
+                zfar: 2e6,
+                aspectRatio: null
             }
         };
         this.zoom = 1;
-        this._camera.setProjection(this.buildCamera(this._camera.prop).elements);
         this._camera.setMatrixWorldInvert([0, 0, 5, 0, 0, 0, 0, 1, 0]);
 
         this.unblendEnable = {};
@@ -1436,13 +1691,15 @@ var RedCube = function () {
         value: function redraw(type, coordsStart, coordsMove) {
             if (type === 'zoom') {
                 this.zoom = coordsStart;
-                this._camera.setProjection(this.buildCamera(this._camera.prop).elements);
+                this._camera.setProjection(this.buildCamera(this._camera.props).elements);
             }
             if (type === 'rotate') {
                 var p0 = new _matrix.Vector3(this.sceneToArcBall(this.canvasToWorld.apply(this, _toConsumableArray(coordsStart))));
                 var p1 = new _matrix.Vector3(this.sceneToArcBall(this.canvasToWorld.apply(this, _toConsumableArray(coordsMove))));
-                var angle = _matrix.Vector3.angle(p0, p1) * 2;
-                if (angle < 1e-6 || isNaN(angle)) return;
+                var angle = _matrix.Vector3.angle(p0, p1) * 5;
+                if (angle < 1e-6 || isNaN(angle)) {
+                    return;
+                }
 
                 var v = _matrix.Vector3.cross(p0, p1).normalize();
                 var sin = Math.sin(angle / 2);
@@ -1456,21 +1713,41 @@ var RedCube = function () {
                 this._camera.matrixWorldInvert.setTranslate(tr.elements[0], tr.elements[1], tr.elements[2]);
             }
             if (type === 'pan') {
+                var _p = new _matrix.Vector3(this.canvasToWorld.apply(this, _toConsumableArray(coordsStart)).elements);
+                var _p2 = new _matrix.Vector3(this.canvasToWorld.apply(this, _toConsumableArray(coordsMove)).elements);
+                var pan = this._camera.modelSize * 100;
+                var delta = _p2.subtract(_p).scale(pan);
+
+                // eslint-disable-next-line
                 var _tr = this._camera.matrixWorldInvert.elements[14];
-                this._camera.matrix.elements[12] = coordsStart[0] * -0.005;
-                this._camera.matrix.elements[13] = coordsStart[1] * 0.005;
+                this._camera.matrix.elements[12] += delta.elements[0];
+                this._camera.matrix.elements[13] += delta.elements[1];
                 this._camera.setMatrixWorld(this._camera.matrix.elements);
                 this._camera.matrixWorldInvert.elements[14] = _tr;
             }
+            if (type === 'resize') {
+                this.resize();
+            }
 
             this.reflow = true;
+        }
+    }, {
+        key: 'resize',
+        value: function resize() {
+            this.aspect = this.canvas.offsetWidth / this.canvas.offsetHeight;
+            this.canvas.width = this.canvas.offsetWidth;
+            this.canvas.height = this.canvas.offsetHeight;
+            gl.viewport(0, 0, this.canvas.offsetWidth, this.canvas.offsetHeight);
+            this._camera.setProjection(this.buildCamera(this._camera.props).elements);
         }
     }, {
         key: 'sceneToArcBall',
         value: function sceneToArcBall(pos) {
             var len = pos.elements[0] * pos.elements[0] + pos.elements[1] * pos.elements[1];
             var sz = 0.04 * 0.04 - len;
-            if (sz > 0) return [pos.elements[0], pos.elements[1], Math.sqrt(sz)];else {
+            if (sz > 0) {
+                return [pos.elements[0], pos.elements[1], Math.sqrt(sz)];
+            } else {
                 len = Math.sqrt(len);
                 return [0.04 * pos.elements[0] / len, 0.04 * pos.elements[1] / len, 0];
             }
@@ -1484,8 +1761,8 @@ var RedCube = function () {
             m.multiply(newM);
 
             var mp = m.multiplyVector4(new _matrix.Vector4([0, 0, 0, 1]));
-            mp.elements[0] = (2 * x / this.canvas.width - 1) * mp.elements[3];
-            mp.elements[1] = (-2 * y / this.canvas.height + 1) * mp.elements[3];
+            mp.elements[0] = (2 * x / this.canvas.offsetWidth - 1) * mp.elements[3];
+            mp.elements[1] = (-2 * y / this.canvas.offsetHeight + 1) * mp.elements[3];
 
             return m.invert().multiplyVector4(mp);
         }
@@ -1509,24 +1786,6 @@ var RedCube = function () {
                 }
             }
             _walk(node);
-        }
-    }, {
-        key: 'isMatrix',
-        value: function isMatrix(type) {
-            return this.glEnum[type] === 'FLOAT_MAT4' || this.glEnum[type] === 'FLOAT_MAT3' || this.glEnum[type] === 'FLOAT_MAT2';
-        }
-    }, {
-        key: 'getMatrixType',
-        value: function getMatrixType(type) {
-            if (this.glEnum[type] === 'FLOAT_MAT4') {
-                return _matrix.Matrix4;
-            }
-            if (this.glEnum[type] === 'FLOAT_MAT3') {
-                return _matrix.Matrix3;
-            }
-            if (this.glEnum[type] === 'FLOAT_MAT2') {
-                return _matrix.Matrix2;
-            }
         }
     }, {
         key: 'getBuffer',
@@ -1568,6 +1827,7 @@ var RedCube = function () {
                 var node = key.node;
                 var value = key.value;
 
+
                 if (node) {
                     node = this.json.nodes[node].matrix;
                 }
@@ -1604,17 +1864,17 @@ var RedCube = function () {
                     u.node = [u.node];
                 }
 
-                if (u.value && this.isMatrix(u.type)) {
-                    var matrixConstr = this.getMatrixType(u.type);
+                if (u.value && (0, _utils.isMatrix)(u.type)) {
+                    var matrixConstr = (0, _utils.getMatrixType)(u.type);
                     u.value = new matrixConstr().set(u.value);
                 }
-                if (u.node && this.isMatrix(u.type)) {
-                    var _matrixConstr = this.getMatrixType(u.type);
+                if (u.node && (0, _utils.isMatrix)(u.type)) {
+                    var _matrixConstr = (0, _utils.getMatrixType)(u.type);
                     u.node = new _matrixConstr().set(u.node);
                 }
                 if (u.count && !u.value) {
                     (function () {
-                        var constr = _this2.getMatrixType(u.type);
+                        var constr = (0, _utils.getMatrixType)(u.type);
                         u.value = new Array(u.count).fill(1).map(function () {
                             return new constr();
                         });
@@ -1626,13 +1886,13 @@ var RedCube = function () {
             if (indicesAccessor) {
                 indicesBuffer = {};
                 var bufferView = this.json.bufferViews[indicesAccessor.bufferView];
-                indicesBuffer.value = this.buildArray(indicesAccessor.componentType, bufferView.byteOffset + indicesAccessor.byteOffset, this.getDataType(indicesAccessor.type) * indicesAccessor.count);
+                indicesBuffer.value = (0, _utils.buildArray)(this.arrayBuffer, indicesAccessor.componentType, bufferView.byteOffset + indicesAccessor.byteOffset, (0, _utils.getDataType)(indicesAccessor.type) * indicesAccessor.count);
             }
             for (var _k4 in vertexAccessor) {
                 if (attributes['a_' + _k4]) {
                     var accessor = vertexAccessor[_k4];
                     var _bufferView = this.json.bufferViews[accessor.bufferView];
-                    attributes['a_' + _k4].value = this.buildArray(accessor.componentType, _bufferView.byteOffset + accessor.byteOffset, this.getDataType(accessor.type) * accessor.count);
+                    attributes['a_' + _k4].value = (0, _utils.buildArray)(this.arrayBuffer, accessor.componentType, _bufferView.byteOffset + accessor.byteOffset, (0, _utils.getDataType)(accessor.type) * accessor.count);
                 }
             }
 
@@ -1712,11 +1972,41 @@ var RedCube = function () {
             return mesh;
         }
     }, {
+        key: 'calculateFov',
+        value: function calculateFov() {
+            var biggestMesh = void 0;
+            this.walk(this.scene, function (node) {
+                if (node instanceof _objects.SkinnedMesh || node instanceof _objects.Mesh) {
+                    if (!biggestMesh) {
+                        biggestMesh = node;
+                    }
+                    if (node.geometry.boundingSphere.radius > biggestMesh.geometry.boundingSphere.radius) {
+                        biggestMesh = node;
+                    }
+                }
+            });
+            var a = Math.abs;
+            var min = biggestMesh.geometry.boundingSphere.min.elements;
+            var max = biggestMesh.geometry.boundingSphere.max.elements;
+            this._camera.modelXSize = Math.max(a(min[0]), a(min[2]), a(max[0]), a(max[2]), Math.sqrt(min[0] * min[0] + min[2] * min[2]), Math.sqrt(max[0] * max[0] + max[2] * max[2]));
+            this._camera.modelYSize = Math.max(a(min[1]), a(min[2]), a(max[1]), a(max[2]));
+            this._camera.modelSize = Math.max(this._camera.modelYSize, this._camera.modelXSize);
+
+            if (!this._camera.props.perspective.yfov) {
+                console.warn('Camera not found');
+                var z = this._camera.modelSize / (this.canvas.offsetWidth / 100) * 30;
+                this._camera.setMatrixWorldInvert([0, 0, z, 0, 0, 0, 0, 1, 0]);
+                this._camera.props.perspective.yfov = 0.6;
+            }
+            this.resize();
+        }
+    }, {
         key: 'buildCamera',
         value: function buildCamera(cam) {
             var proj = void 0;
-            if (cam.type == 'perspective' && cam.perspective) {
+            if (cam.type === 'perspective' && cam.perspective) {
                 var yfov = cam.perspective.yfov;
+
                 var aspectRatio = cam.perspective.aspectRatio || this.aspect;
                 var xfov = yfov * this.aspect;
 
@@ -1725,7 +2015,7 @@ var RedCube = function () {
                 }
 
                 proj = new _matrix.Matrix4().setPerspective(xfov * this.zoom * (180 / Math.PI), this.aspect, cam.perspective.znear || 1, cam.perspective.zfar || 2e6);
-            } else if (cam.type == 'orthographic' && cam.orthographic) {
+            } else if (cam.type === 'orthographic' && cam.orthographic) {
                 proj = new _matrix.Matrix4().setOrtho(window.innerWidth / -2, window.innerWidth / 2, window.innerHeight / 2, window.innerHeight / -2, cam.orthographic.znear, cam.orthographic.zfar);
             }
 
@@ -1742,10 +2032,11 @@ var RedCube = function () {
             if (el.camera) {
                 var proj = this.buildCamera(this.json.cameras[el.camera]);
                 child = new _objects.Camera(name, parent);
-                child.prop = this.json.cameras[el.camera];
+                child.props = this.json.cameras[el.camera];
                 child.setProjection(proj.elements);
                 child.setMatrix(el.matrix);
                 child.setMatrixWorld(el.matrix);
+                this._camera = child;
 
                 this.cameras.push(child);
             } else {
@@ -1794,12 +2085,14 @@ var RedCube = function () {
                 if (_this4.json.nodes[n].camera) {
                     var proj = _this4.buildCamera(_this4.json.cameras[_this4.json.nodes[n].camera]);
                     _this4._camera = new _objects.Camera();
-                    _this4._camera.prop = _this4.json.cameras[_this4.json.nodes[n].camera];
+                    _this4._camera.props = _this4.json.cameras[_this4.json.nodes[n].camera];
                     _this4._camera.setProjection(proj.elements);
                     _this4._camera.setMatrix(_this4.json.nodes[n].matrix);
                     _this4._camera.setMatrixWorld(_this4.json.nodes[n].matrix);
                 }
             });
+
+            this.calculateFov();
 
             return true;
         }
@@ -1816,6 +2109,7 @@ var RedCube = function () {
 
                     if (sampler) {
                         (function () {
+                            // eslint-disable-next-line
                             var walk = function walk(node) {
                                 if (exist) {
                                     return;
@@ -1830,6 +2124,7 @@ var RedCube = function () {
                             };
 
                             var target = channel.target;
+
                             var name = target.id;
                             var input = animation.parameters !== undefined ? animation.parameters[sampler.input] : sampler.input;
                             var output = animation.parameters !== undefined ? animation.parameters[sampler.output] : sampler.output;
@@ -1839,18 +2134,15 @@ var RedCube = function () {
                             var inputBuffer = _this5.json.bufferViews[inputAccessor.bufferView];
                             var outputBuffer = _this5.json.bufferViews[outputAccessor.bufferView];
 
-                            var inputArray = _this5.buildArray(inputAccessor.componentType, inputBuffer.byteOffset + inputAccessor.byteOffset, _this5.getDataType(inputAccessor.type) * inputAccessor.count);
-                            var outputArray = _this5.buildArray(outputAccessor.componentType, outputBuffer.byteOffset + outputAccessor.byteOffset, _this5.getDataType(outputAccessor.type) * outputAccessor.count);
+                            var inputArray = (0, _utils.buildArray)(_this5.arrayBuffer, inputAccessor.componentType, inputBuffer.byteOffset + inputAccessor.byteOffset, (0, _utils.getDataType)(inputAccessor.type) * inputAccessor.count);
+                            var outputArray = (0, _utils.buildArray)(_this5.arrayBuffer, outputAccessor.componentType, outputBuffer.byteOffset + outputAccessor.byteOffset, (0, _utils.getDataType)(outputAccessor.type) * outputAccessor.count);
 
-                            var component = _this5.getAnimationComponent(target.path);
+                            var component = (0, _utils.getAnimationComponent)(target.path);
 
                             var keys = [];
                             for (var i = 0; i < inputArray.length; i++) {
-                                var firstV = void 0,
-                                    firstT = void 0;
-
-                                firstT = inputArray[i];
-                                firstV = outputArray.slice(i * component, (i + 1) * component);
+                                var firstT = inputArray[i];
+                                var firstV = outputArray.slice(i * component, (i + 1) * component);
 
                                 keys.push({
                                     time: firstT,
@@ -1861,7 +2153,6 @@ var RedCube = function () {
                             var node = _this5.json.nodes[name];
                             var mesh = void 0;
                             var exist = void 0;
-
                             walk(_this5.scene);
 
                             if (node) {
@@ -1893,7 +2184,7 @@ var RedCube = function () {
 
                 var acc = this.json.accessors[skin.inverseBindMatrices];
                 var buffer = this.json.bufferViews[acc.bufferView];
-                var array = this.buildArray(acc.componentType, buffer.byteOffset + acc.byteOffset, this.getDataType(acc.type) * acc.count);
+                var array = (0, _utils.buildArray)(this.arrayBuffer, acc.componentType, buffer.byteOffset + acc.byteOffset, (0, _utils.getDataType)(acc.type) * acc.count);
 
                 this.skins[k] = {
                     bindShapeMatrix: bindShapeMatrix,
@@ -1944,75 +2235,6 @@ var RedCube = function () {
             if (node.jointName === join) {
                 v.bones.push(node);
             }
-        }
-    }, {
-        key: 'buildArray',
-        value: function buildArray(type, offset, length) {
-            var arr = void 0;
-            switch (this.glEnum[type]) {
-                case 'BYTE':
-                    arr = new Int8Array(this.arrayBuffer, offset, length);
-                    break;
-                case 'UNSIGNED_BYTE':
-                    arr = new Uint8Array(this.arrayBuffer, offset, length);
-                    break;
-                case 'SHORT':
-                    arr = new Int16Array(this.arrayBuffer, offset, length);
-                    break;
-                case 'UNSIGNED_SHORT':
-                    arr = new Uint16Array(this.arrayBuffer, offset, length);
-                    break;
-                case 'FLOAT':
-                    arr = new Float32Array(this.arrayBuffer, offset, length);
-                    break;
-            }
-            return arr;
-        }
-    }, {
-        key: 'getDataType',
-        value: function getDataType(type) {
-            var count = void 0;
-            switch (type) {
-                case 'MAT2':
-                    count = 4;
-                    break;
-                case 'MAT3':
-                    count = 9;
-                    break;
-                case 'MAT4':
-                    count = 16;
-                    break;
-                case 'VEC4':
-                    count = 4;
-                    break;
-                case 'VEC3':
-                    count = 3;
-                    break;
-                case 'VEC2':
-                    count = 2;
-                    break;
-                case 'SCALAR':
-                    count = 1;
-                    break;
-            }
-            return count;
-        }
-    }, {
-        key: 'getComponentType',
-        value: function getComponentType(type) {
-            var count = void 0;
-            switch (this.glEnum[type]) {
-                case 'FLOAT_VEC4':
-                    count = 4;
-                    break;
-                case 'FLOAT_VEC3':
-                    count = 3;
-                    break;
-                case 'FLOAT_VEC2':
-                    count = 2;
-                    break;
-            }
-            return count;
         }
     }, {
         key: 'getJson',
@@ -2075,6 +2297,7 @@ var RedCube = function () {
                     this.glEnum[v] = k;
                 }
             }
+            (0, _utils.setGl)(this.glEnum);
 
             var shaderArr = [];
             var _iteratorNormalCompletion4 = true;
@@ -2084,7 +2307,6 @@ var RedCube = function () {
             try {
                 for (var _iterator4 = this.scene.program[Symbol.iterator](), _step4; !(_iteratorNormalCompletion4 = (_step4 = _iterator4.next()).done); _iteratorNormalCompletion4 = true) {
                     var p = _step4.value;
-
 
                     shaderArr.push(fetch('' + this.host + p.fragmentShader + '.glsl').then(function (res) {
                         return res.text();
@@ -2162,95 +2384,6 @@ var RedCube = function () {
             });
         }
     }, {
-        key: 'getMethod',
-        value: function getMethod(type) {
-            var method = void 0;
-            switch (this.glEnum[type]) {
-                case 'FLOAT_VEC2':
-                    method = 'uniform2f';
-                    break;
-                case 'FLOAT_VEC4':
-                    method = 'uniform4f';
-                    break;
-                case 'FLOAT':
-                    method = 'uniform1f';
-                    break;
-                case 'FLOAT_VEC3':
-                    method = 'uniform3f';
-                    break;
-                case 'FLOAT_MAT4':
-                    method = 'uniformMatrix4fv';
-                    break;
-                case 'FLOAT_MAT3':
-                    method = 'uniformMatrix3fv';
-                    break;
-                case 'FLOAT_MAT2':
-                    method = 'uniformMatrix2fv';
-                    break;
-                case 'SAMPLER_2D':
-                    method = 'uniform1i';
-                    break;
-            }
-            return method;
-        }
-    }, {
-        key: 'getAnimationComponent',
-        value: function getAnimationComponent(type) {
-            if (type === 'rotation') {
-                return 4;
-            } else {
-                return 3;
-            }
-        }
-    }, {
-        key: 'getAnimationMethod',
-        value: function getAnimationMethod(type) {
-            if (type === 'rotation') {
-                return 'makeRotationFromQuaternion';
-            }
-            if (type === 'scale') {
-                return 'scale';
-            }
-            if (type === 'translation') {
-                return 'setTranslate';
-            }
-        }
-    }, {
-        key: 'range',
-        value: function range(min, max, value) {
-            return (value - min) / (max - min);
-        }
-    }, {
-        key: 'interpolation',
-        value: function interpolation(time, frames) {
-            if (frames.length === 0) {
-                return [-1, -1, 0];
-            }
-
-            var prev = -1;
-            for (var i = frames.length - 1; i >= 0; i--) {
-                if (time >= frames[i].time) {
-                    prev = i;
-                    break;
-                }
-            }
-
-            if (prev === -1 || prev === frames.length - 1) {
-                if (prev < 0) {
-                    prev = 0;
-                }
-                return [prev, prev, 0];
-            } else {
-                var startFrame = frames[prev];
-                var endFrame = frames[prev + 1];
-
-                time = Math.max(startFrame.time, Math.min(time, endFrame.time));
-                var t = this.range(startFrame.time, endFrame.time, time);
-
-                return [prev, prev + 1, t];
-            }
-        }
-    }, {
         key: 'animate',
         value: function animate(sec) {
             var _iteratorNormalCompletion6 = true;
@@ -2261,7 +2394,7 @@ var RedCube = function () {
                 for (var _iterator6 = this.tracks[Symbol.iterator](), _step6; !(_iteratorNormalCompletion6 = (_step6 = _iterator6.next()).done); _iteratorNormalCompletion6 = true) {
                     var v = _step6.value;
 
-                    var val = this.interpolation(sec, v.keys);
+                    var val = (0, _utils.interpolation)(sec, v.keys);
 
                     if (val[0] === -1 || val[1] === -1 || v.stoped) {
                         continue;
@@ -2272,28 +2405,26 @@ var RedCube = function () {
 
                     var startFrame = v.keys[val[0]];
                     var endFrame = v.keys[val[1]];
+                    // eslint-disable-next-line
                     var t = val[2];
 
-                    var component = this.getAnimationComponent(v.type);
-                    var vector = void 0,
-                        vector2 = void 0,
-                        vectorC = component === 3 ? _matrix.Vector3 : _matrix.Vector4;
-
-                    vector = new vectorC(startFrame.value);
-                    vector2 = new vectorC(endFrame.value);
+                    var component = (0, _utils.getAnimationComponent)(v.type);
+                    var vectorC = component === 3 ? _matrix.Vector3 : _matrix.Vector4;
+                    var vector = new vectorC(startFrame.value);
+                    var vector2 = new vectorC(endFrame.value);
 
                     if (v.type === 'rotation') {
                         var out = new _matrix.Vector4();
                         out.lerp(vector.elements, vector2.elements, t);
 
-                        v.mesh.matrixAnimation[this.getAnimationMethod(v.type)](out.elements);
+                        v.mesh.matrixAnimation[(0, _utils.getAnimationMethod)(v.type)](out.elements);
                     } else {
                         var _v$mesh$matrixAnimati;
 
                         var _out = new _matrix.Vector3();
                         _out.lerp(vector.elements, vector2.elements, t);
 
-                        (_v$mesh$matrixAnimati = v.mesh.matrixAnimation)[this.getAnimationMethod(v.type)].apply(_v$mesh$matrixAnimati, _toConsumableArray(_out.elements));
+                        (_v$mesh$matrixAnimati = v.mesh.matrixAnimation)[(0, _utils.getAnimationMethod)(v.type)].apply(_v$mesh$matrixAnimati, _toConsumableArray(_out.elements));
                     }
 
                     this.reflow = true;
@@ -2496,6 +2627,7 @@ var RedCube = function () {
 
             var _camera = this._camera;
 
+
             for (var k in mesh.geometry.attributes) {
                 var v = mesh.geometry.attributes[k];
 
@@ -2515,13 +2647,13 @@ var RedCube = function () {
                     gl.enableVertexAttribArray(a);
                 }
 
-                gl.vertexAttribPointer(a, this.getComponentType(v.type), gl.FLOAT, false, 0, 0);
+                gl.vertexAttribPointer(a, (0, _utils.getComponentType)(v.type), gl.FLOAT, false, 0, 0);
             }
 
             var texCount = 0;
             for (var _k5 in mesh.material.uniforms) {
-                var _v = mesh.material.uniforms[_k5],
-                    matricies = void 0;
+                var _v = mesh.material.uniforms[_k5];
+                var matricies = void 0;
 
                 if (_v.type === gl.SAMPLER_2D) {
                     gl.activeTexture(gl['TEXTURE' + texCount]);
@@ -2568,7 +2700,7 @@ var RedCube = function () {
                         _v.value = mesh.getNormalMatrix();
                         break;
                     case 'VIEWPORT':
-                        _v.value = new Float32Array([0, 0, this.canvas.width, this.canvas.height]);
+                        _v.value = new Float32Array([0, 0, this.canvas.offsetWidth, this.canvas.offsetHeight]);
                         break;
                     case 'JOINTMATRIX':
                         matricies = mesh.getJointMatrix();
@@ -2588,15 +2720,10 @@ var RedCube = function () {
                     _v[_k5] = u;
                 }
 
-                var value = void 0;
-                if (_v.value !== undefined) {
-                    value = _v.value;
-                } else if (_v.node !== undefined) {
-                    value = _v.node;
-                }
+                var value = _v.value || _v.node;
 
                 if (value.elements) {
-                    gl[this.getMethod(_v.type)](u, false, value.elements);
+                    gl[(0, _utils.getMethod)(_v.type)](u, false, value.elements);
                 } else if (matricies) {
                     var concatArr = new Float32Array(matricies.length * 16);
                     var i = 0;
@@ -2626,11 +2753,11 @@ var RedCube = function () {
                         }
                     }
 
-                    gl[this.getMethod(_v.type)](u, false, concatArr);
+                    gl[(0, _utils.getMethod)(_v.type)](u, false, concatArr);
                 } else {
                     var _gl3;
 
-                    (_gl3 = gl)[this.getMethod(_v.type)].apply(_gl3, [u].concat(_toConsumableArray(value)));
+                    (_gl3 = gl)[(0, _utils.getMethod)(_v.type)].apply(_gl3, [u].concat(_toConsumableArray(value)));
                 }
             }
 

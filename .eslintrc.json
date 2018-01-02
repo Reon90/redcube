@@ -9,19 +9,19 @@
     },
     "rules": {
         "no-redeclare": [
-            "warn"
+            "error"
         ],
         "no-unused-vars": [
-            "warn"
+            "error"
         ],
         "no-console": [
             "off"
         ],
         "no-unreachable": [
-            "warn"
+            "error"
         ],
         "no-empty": [
-            "warn"
+            "error"
         ],
         "indent": [
             "error",
@@ -71,13 +71,19 @@
             "error",
             { "before": true }
         ],
-        "object-curly-spacing": [
-            "error",
-            "always"
-        ],
         "arrow-spacing": [
             "error",
             { "before": true, "after": true }
-        ]
+        ],
+        "eqeqeq": [
+            "error"
+        ],
+        "no-var": "error",
+        "prefer-arrow-callback": "error",
+        "prefer-template": "error",
+        "prefer-destructuring": "error",
+        "prefer-const": "error",
+        "prefer-rest-params": "error",
+        "prefer-spread": "error"
     }
 }

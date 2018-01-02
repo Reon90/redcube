@@ -1,3 +1,5 @@
+/* eslint-disable */
+
 /** 
  * This is a class treating 4x4 matrix.
  * This class contains the function that is equivalent to OpenGL matrix stack.
@@ -5,8 +7,8 @@
  * The matrix is replaced by the calculated result.
  */
 
-var Matrix2 = function(opt_src) {
-    var i, s, d;
+const Matrix2 = function(opt_src) {
+    let i, s, d;
     if (opt_src && typeof opt_src === 'object' && opt_src.hasOwnProperty('elements')) {
         s = opt_src.elements;
         d = new Float32Array(4);
@@ -20,7 +22,7 @@ var Matrix2 = function(opt_src) {
 };
 
 Matrix2.prototype.set = function(src) {
-    var i, s, d;
+    let i, s, d;
 
     s = src;
     d = this.elements;
@@ -42,8 +44,8 @@ Matrix2.prototype.set = function(src) {
  * Otherwise, new matrix is initialized by identity matrix.
  * @param opt_src source matrix(option)
  */
-var Matrix3 = function(opt_src) {
-    var i, s, d;
+const Matrix3 = function(opt_src) {
+    let i, s, d;
     if (opt_src && typeof opt_src === 'object' && opt_src.hasOwnProperty('elements')) {
         s = opt_src.elements;
         d = new Float32Array(9);
@@ -57,7 +59,7 @@ var Matrix3 = function(opt_src) {
 };
 
 Matrix3.prototype.set = function(src) {
-    var i, s, d;
+    let i, s, d;
 
     s = src;
     d = this.elements;
@@ -74,10 +76,10 @@ Matrix3.prototype.set = function(src) {
 };
 
 Matrix3.prototype.normalFromMat4 = function(a) {
-    var e = this.elements;
+    const e = this.elements;
     a = a.elements;
     
-    var a00 = a[0], a01 = a[1], a02 = a[2], a03 = a[3],
+    let a00 = a[0], a01 = a[1], a02 = a[2], a03 = a[3],
         a10 = a[4], a11 = a[5], a12 = a[6], a13 = a[7],
         a20 = a[8], a21 = a[9], a22 = a[10], a23 = a[11],
         a30 = a[12], a31 = a[13], a32 = a[14], a33 = a[15],
@@ -124,8 +126,8 @@ Matrix3.prototype.normalFromMat4 = function(a) {
  * Otherwise, new matrix is initialized by identity matrix.
  * @param opt_src source matrix(option)
  */
-var Matrix4 = function(opt_src) {
-    var i, s, d;
+const Matrix4 = function(opt_src) {
+    let i, s, d;
     if (opt_src && typeof opt_src === 'object' && opt_src.hasOwnProperty('elements')) {
         s = opt_src.elements;
         d = new Float32Array(16);
@@ -144,7 +146,7 @@ var Matrix4 = function(opt_src) {
  * @return this
  */
 Matrix4.prototype.set = function(src) {
-    var i, s, d;
+    let i, s, d;
 
     s = src;
     d = this.elements;
@@ -166,14 +168,14 @@ Matrix4.prototype.set = function(src) {
  * @return this
  */
 Matrix4.prototype.concat = function(other) {
-    var i, e, a, b, ai0, ai1, ai2, ai3;
+    let i, e, a, b, ai0, ai1, ai2, ai3;
   
-  // Calculate e = a * b
+    // Calculate e = a * b
     e = this.elements;
     a = this.elements;
     b = other.elements;
   
-  // If e equals b, copy b to temporary matrix.
+    // If e equals b, copy b to temporary matrix.
     if (e === b) {
         b = new Float32Array(16);
         for (i = 0; i < 16; ++i) {
@@ -199,7 +201,7 @@ Matrix4.prototype.multiply = Matrix4.prototype.concat;
  * @return this
  */
 Matrix4.prototype.setInverseOf = function(other) {
-    var i, s, d, inv, det;
+    let i, s, d, inv, det;
 
     s = other.elements;
     d = this.elements;
@@ -273,7 +275,7 @@ Matrix4.prototype.invert = function() {
  * @return this
  */
 Matrix4.prototype.setOrtho = function(left, right, bottom, top, near, far) {
-    var e, rw, rh, rd;
+    let e, rw, rh, rd;
 
     if (left === right || bottom === top || near === far) {
         throw 'null frustum';
@@ -331,7 +333,7 @@ Matrix4.prototype.ortho = function(left, right, bottom, top, near, far) {
  * @return this
  */
 Matrix4.prototype.setPerspective = function(fovy, aspect, near, far) {
-    var e, rd, s, ct;
+    let e, rd, s, ct;
 
     if (near === far || aspect === 0) {
         throw 'null frustum';
@@ -395,17 +397,17 @@ Matrix4.prototype.perspective = function(fovy, aspect, near, far) {
  * @return The result of multiplication(Float32Array)
  */
 Matrix4.prototype.multiplyVector4 = function(pos) {
-  var e = this.elements;
-  var p = pos.elements;
-  var v = new Vector4();
-  var result = v.elements;
+    const e = this.elements;
+    const p = pos.elements;
+    const v = new Vector4();
+    const result = v.elements;
 
-  result[0] = p[0] * e[0] + p[1] * e[4] + p[2] * e[ 8] + p[3] * e[12];
-  result[1] = p[0] * e[1] + p[1] * e[5] + p[2] * e[ 9] + p[3] * e[13];
-  result[2] = p[0] * e[2] + p[1] * e[6] + p[2] * e[10] + p[3] * e[14];
-  result[3] = p[0] * e[3] + p[1] * e[7] + p[2] * e[11] + p[3] * e[15];
+    result[0] = p[0] * e[0] + p[1] * e[4] + p[2] * e[ 8] + p[3] * e[12];
+    result[1] = p[0] * e[1] + p[1] * e[5] + p[2] * e[ 9] + p[3] * e[13];
+    result[2] = p[0] * e[2] + p[1] * e[6] + p[2] * e[10] + p[3] * e[14];
+    result[3] = p[0] * e[3] + p[1] * e[7] + p[2] * e[11] + p[3] * e[15];
 
-  return v;
+    return v;
 };
 
 /**
@@ -416,7 +418,7 @@ Matrix4.prototype.multiplyVector4 = function(pos) {
  * @return this
  */
 Matrix4.prototype.scale = function(x, y, z) {
-    var e = this.elements;
+    const e = this.elements;
     e[0] *= x; e[4] *= y; e[8] *= z;
     e[1] *= x; e[5] *= y; e[9] *= z;
     e[2] *= x; e[6] *= y; e[10] *= z;
@@ -432,7 +434,7 @@ Matrix4.prototype.scale = function(x, y, z) {
  * @return this
  */
 Matrix4.prototype.setTranslate = function(x, y, z) {
-    var e = this.elements;
+    const e = this.elements;
     e[12] = x;
     e[13] = y;
     e[14] = z;
@@ -448,7 +450,7 @@ Matrix4.prototype.setTranslate = function(x, y, z) {
  * @return this
  */
 Matrix4.prototype.translate = function(x, y, z) {
-    var e = this.elements;
+    const e = this.elements;
     e[12] += e[0] * x + e[4] * y + e[8] * z;
     e[13] += e[1] * x + e[5] * y + e[9] * z;
     e[14] += e[2] * x + e[6] * y + e[10] * z;
@@ -464,35 +466,35 @@ Matrix4.prototype.translate = function(x, y, z) {
  * @return this
  */
 Matrix4.prototype.setLookAt = function(eyeX, eyeY, eyeZ, centerX, centerY, centerZ, upX, upY, upZ) {
-    var e, fx, fy, fz, rlf, sx, sy, sz, rls, ux, uy, uz;
+    let e, fx, fy, fz, rlf, sx, sy, sz, rls, ux, uy, uz;
 
     fx = centerX - eyeX;
     fy = centerY - eyeY;
     fz = centerZ - eyeZ;
 
-  // Normalize f.
+    // Normalize f.
     rlf = 1 / Math.sqrt(fx * fx + fy * fy + fz * fz);
     fx *= rlf;
     fy *= rlf;
     fz *= rlf;
 
-  // Calculate cross product of f and up.
+    // Calculate cross product of f and up.
     sx = fy * upZ - fz * upY;
     sy = fz * upX - fx * upZ;
     sz = fx * upY - fy * upX;
 
-  // Normalize s.
+    // Normalize s.
     rls = 1 / Math.sqrt(sx * sx + sy * sy + sz * sz);
     sx *= rls;
     sy *= rls;
     sz *= rls;
 
-  // Calculate cross product of s and f.
+    // Calculate cross product of s and f.
     ux = sy * fz - sz * fy;
     uy = sz * fx - sx * fz;
     uz = sx * fy - sy * fx;
 
-  // Set to this.
+    // Set to this.
     e = this.elements;
     e[0] = sx;
     e[1] = ux;
@@ -514,7 +516,7 @@ Matrix4.prototype.setLookAt = function(eyeX, eyeY, eyeZ, centerX, centerY, cente
     e[14] = 0;
     e[15] = 1;
 
-  // Translate.
+    // Translate.
     return this.translate(-eyeX, -eyeY, -eyeZ);
 };
 
@@ -531,24 +533,24 @@ Matrix4.prototype.lookAt = function(eyeX, eyeY, eyeZ, centerX, centerY, centerZ,
 
 Matrix4.prototype.getMaxScaleOnAxis = function() {
 
-    var te = this.elements;
+    const te = this.elements;
 
-    var scaleXSq = te[ 0 ] * te[ 0 ] + te[ 1 ] * te[ 1 ] + te[ 2 ] * te[ 2 ];
-    var scaleYSq = te[ 4 ] * te[ 4 ] + te[ 5 ] * te[ 5 ] + te[ 6 ] * te[ 6 ];
-    var scaleZSq = te[ 8 ] * te[ 8 ] + te[ 9 ] * te[ 9 ] + te[ 10 ] * te[ 10 ];
+    const scaleXSq = te[ 0 ] * te[ 0 ] + te[ 1 ] * te[ 1 ] + te[ 2 ] * te[ 2 ];
+    const scaleYSq = te[ 4 ] * te[ 4 ] + te[ 5 ] * te[ 5 ] + te[ 6 ] * te[ 6 ];
+    const scaleZSq = te[ 8 ] * te[ 8 ] + te[ 9 ] * te[ 9 ] + te[ 10 ] * te[ 10 ];
 
     return Math.sqrt( Math.max( scaleXSq, scaleYSq, scaleZSq ) );
 
 };
 
 Matrix4.prototype.makeRotationFromQuaternion = function( q ) {
-    var te = this.elements;
+    const te = this.elements;
 
-    var x = q[0], y = q[1], z = q[2], w = q[3];
-    var x2 = x + x, y2 = y + y, z2 = z + z;
-    var xx = x * x2, xy = x * y2, xz = x * z2;
-    var yy = y * y2, yz = y * z2, zz = z * z2;
-    var wx = w * x2, wy = w * y2, wz = w * z2;
+    let x = q[0], y = q[1], z = q[2], w = q[3];
+    let x2 = x + x, y2 = y + y, z2 = z + z;
+    let xx = x * x2, xy = x * y2, xz = x * z2;
+    let yy = y * y2, yz = y * z2, zz = z * z2;
+    let wx = w * x2, wy = w * y2, wz = w * z2;
 
     te[ 0 ] = 1 - ( yy + zz );
     te[ 4 ] = xy - wz;
@@ -570,8 +572,8 @@ Matrix4.prototype.makeRotationFromQuaternion = function( q ) {
  * If opt_src is specified, new vector is initialized by opt_src.
  * @param opt_src source vector(option)
  */
-var Vector3 = function(opt_src) {
-    var v = new Float32Array(3);
+const Vector3 = function(opt_src) {
+    const v = new Float32Array(3);
     if (opt_src && typeof opt_src === 'object') {
         v[0] = opt_src[0]; v[1] = opt_src[1]; v[2] = opt_src[2];
     } 
@@ -579,15 +581,15 @@ var Vector3 = function(opt_src) {
 };
 
 Vector3.angle = function(a, b) {
-    var tempA = new Vector3(a.elements);
-    var tempB = new Vector3(b.elements);
+    const tempA = new Vector3(a.elements);
+    const tempB = new Vector3(b.elements);
  
     tempA.normalize();
     tempB.normalize();
  
-    var cosine = Vector3.dot(tempA, tempB);
+    const cosine = Vector3.dot(tempA, tempB);
 
-    if(cosine > 1.0){
+    if (cosine > 1.0) {
         return 0;
     } else {
         return Math.acos(cosine);
@@ -597,17 +599,17 @@ Vector3.angle = function(a, b) {
 Vector3.cross = function(a, b) {
     a = a.elements;
     b = b.elements;
-    var ax = a[0], ay = a[1], az = a[2],
+    let ax = a[0], ay = a[1], az = a[2],
         bx = b[0], by = b[1], bz = b[2];
 
-    var out = new Vector3();
+    const out = new Vector3();
     out.elements[0] = ay * bz - az * by;
     out.elements[1] = az * bx - ax * bz;
     out.elements[2] = ax * by - ay * bx;
     return out;
 };
 
-Vector3.dot = function (a, b) {
+Vector3.dot = function(a, b) {
     a = a.elements;
     b = b.elements;
     return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
@@ -618,8 +620,8 @@ Vector3.dot = function (a, b) {
   * @return this
   */
 Vector3.prototype.normalize = function() {
-    var v = this.elements;
-    var c = v[0], d = v[1], e = v[2], g = Math.sqrt(c * c + d * d + e * e);
+    const v = this.elements;
+    let c = v[0], d = v[1], e = v[2], g = Math.sqrt(c * c + d * d + e * e);
     if (g) {
         if (g == 1) {
             return this;
@@ -642,7 +644,7 @@ Vector3.prototype.normalize = function() {
 	 * @returns {vec3} out
 	 */
 Vector3.prototype.add = function(b) {
-    var a = this.elements;
+    const a = this.elements;
     b = b.elements;
     a[0] = a[0] + b[0];
     a[1] = a[1] + b[1];
@@ -651,7 +653,7 @@ Vector3.prototype.add = function(b) {
 };
 
 Vector3.prototype.scale = function(b) {
-    var a = this.elements;
+    const a = this.elements;
     a[0] = a[0] * b;
     a[1] = a[1] * b;
     a[2] = a[2] * b;
@@ -660,14 +662,14 @@ Vector3.prototype.scale = function(b) {
 
 Vector3.prototype.distanceToSquared = function( x, y, z ) {
 
-    var dx = this.elements[0] - x, dy = this.elements[1] - y, dz = this.elements[2] - z;
+    let dx = this.elements[0] - x, dy = this.elements[1] - y, dz = this.elements[2] - z;
 
     return dx * dx + dy * dy + dz * dz;
 
 };
 
 Vector3.prototype.subtract = function(b) {
-    var out = this.elements;
+    const out = this.elements;
     b = b.elements;
     out[0] = out[0] - b[0];
     out[1] = out[1] - b[1];
@@ -682,7 +684,7 @@ Vector3.prototype.subtract = function(b) {
  * @param opt_src source vector(option)
  */
 var Vector4 = function(opt_src) {
-    var v = new Float32Array(4);
+    const v = new Float32Array(4);
     if (opt_src && typeof opt_src === 'object') {
         v[0] = opt_src[0]; v[1] = opt_src[1]; v[2] = opt_src[2]; v[3] = opt_src[3];
     } 
@@ -690,7 +692,7 @@ var Vector4 = function(opt_src) {
 };
 
 Vector4.prototype.set = function(e) {
-    var a = this.elements;
+    const a = this.elements;
     a[0] = e[0];
     a[1] = e[1];
     a[2] = e[2];
@@ -699,7 +701,7 @@ Vector4.prototype.set = function(e) {
 };
 
 Vector4.prototype.add = function(b) {
-    var a = this.elements;
+    const a = this.elements;
     b = b.elements;
     a[0] = b[0];
     a[1] = b[1];
@@ -709,11 +711,11 @@ Vector4.prototype.add = function(b) {
 };
 
 Vector4.prototype.normalize = function() {
-    var x = this.elements[0],
+    let x = this.elements[0],
         y = this.elements[1],
         z = this.elements[2],
         w = this.elements[3];
-    var len = x * x + y * y + z * z + w * w;
+    let len = x * x + y * y + z * z + w * w;
     if (len > 0) {
         len = 1 / Math.sqrt(len);
         this.elements[0] = x * len;
@@ -730,21 +732,21 @@ Vector3.prototype.divideScalar = function( scalar ) {
 
 Vector3.prototype.applyMatrix4 = function( m ) {
 
-    var x = this.elements[0], y = this.elements[1], z = this.elements[2];
-    var e = m.elements;
+    let x = this.elements[0], y = this.elements[1], z = this.elements[2];
+    const e = m.elements;
 
     this.elements[0] = e[ 0 ] * x + e[ 4 ] * y + e[ 8 ] * z + e[ 12 ];
     this.elements[1] = e[ 1 ] * x + e[ 5 ] * y + e[ 9 ] * z + e[ 13 ];
     this.elements[2] = e[ 2 ] * x + e[ 6 ] * y + e[ 10 ] * z + e[ 14 ];
-    var w = e[ 3 ] * x + e[ 7 ] * y + e[ 11 ] * z + e[ 15 ];
+    const w = e[ 3 ] * x + e[ 7 ] * y + e[ 11 ] * z + e[ 15 ];
 
     return this.divideScalar( w );
 
 };
 
 Vector4.prototype.lerp = function(a, b, t) {
-    var out = this.elements;
-    var ax = a[0],
+    const out = this.elements;
+    let ax = a[0],
         ay = a[1],
         az = a[2],
         aw = a[3];
@@ -756,8 +758,8 @@ Vector4.prototype.lerp = function(a, b, t) {
 };
 
 Vector3.prototype.lerp = function(a, b, t) {
-    var out = this.elements;
-    var ax = a[0],
+    const out = this.elements;
+    let ax = a[0],
         ay = a[1],
         az = a[2];
     out[0] = ax + t * (b[0] - ax);
@@ -767,12 +769,12 @@ Vector3.prototype.lerp = function(a, b, t) {
 };
 
 function Frustum( m ) {
-    var planes = [new Vector4, new Vector4, new Vector4, new Vector4, new Vector4, new Vector4];
-    var me = m.elements;
-    var me0 = me[ 0 ], me1 = me[ 1 ], me2 = me[ 2 ], me3 = me[ 3 ];
-    var me4 = me[ 4 ], me5 = me[ 5 ], me6 = me[ 6 ], me7 = me[ 7 ];
-    var me8 = me[ 8 ], me9 = me[ 9 ], me10 = me[ 10 ], me11 = me[ 11 ];
-    var me12 = me[ 12 ], me13 = me[ 13 ], me14 = me[ 14 ], me15 = me[ 15 ];
+    const planes = [new Vector4, new Vector4, new Vector4, new Vector4, new Vector4, new Vector4];
+    const me = m.elements;
+    let me0 = me[ 0 ], me1 = me[ 1 ], me2 = me[ 2 ], me3 = me[ 3 ];
+    let me4 = me[ 4 ], me5 = me[ 5 ], me6 = me[ 6 ], me7 = me[ 7 ];
+    let me8 = me[ 8 ], me9 = me[ 9 ], me10 = me[ 10 ], me11 = me[ 11 ];
+    let me12 = me[ 12 ], me13 = me[ 13 ], me14 = me[ 14 ], me15 = me[ 15 ];
 
     planes[ 0 ].set( [me3 - me0, me7 - me4, me11 - me8, me15 - me12] ).normalize();
     planes[ 1 ].set( [me3 + me0, me7 + me4, me11 + me8, me15 + me12] ).normalize();
