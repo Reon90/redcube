@@ -1686,13 +1686,12 @@ var RedCube = function () {
             if (type === 'rotate') {
                 var deltaX = coordsMove[0] - coordsStart[0];
                 var newRotationMatrix = new _matrix.Matrix4();
-                newRotationMatrix.rotate((0, _utils.degToRad)(-deltaX / 5), [0, 1, 0]);
+                newRotationMatrix.rotate((0, _utils.degToRad)(-deltaX / 5), [0, -1, 0]);
 
                 var deltaY = coordsMove[1] - coordsStart[1];
-                newRotationMatrix.rotate((0, _utils.degToRad)(-deltaY / 5), [1, 0, 0]);
+                newRotationMatrix.rotate((0, _utils.degToRad)(-deltaY / 5), [-1, 0, 0]);
 
-                this._camera.matrix.multiply(newRotationMatrix);
-                this._camera.setMatrixWorld(this._camera.matrix.elements);
+                this.scene.matrixWorld.multiply(newRotationMatrix);
             }
             if (type === 'pan') {
                 var p0 = new _matrix.Vector3(this.canvasToWorld.apply(this, _toConsumableArray(coordsStart)).elements);
@@ -1700,8 +1699,7 @@ var RedCube = function () {
                 var pan = this._camera.modelSize * 100;
                 var delta = p1.subtract(p0).scale(pan);
 
-                this._camera.matrix.translate(delta.elements[0], delta.elements[1], 0);
-                this._camera.setMatrixWorld(this._camera.matrix.elements);
+                this.scene.matrixWorld.translate(-delta.elements[0], -delta.elements[1], 0);
             }
             if (type === 'resize') {
                 this.resize();
@@ -1972,7 +1970,7 @@ var RedCube = function () {
 
             if (!this._camera.props.perspective.yfov) {
                 console.warn('Camera not found');
-                var z = this._camera.modelSize / (this.canvas.offsetWidth / 100) * 100;
+                var z = this._camera.modelSize / (this.canvas.offsetWidth / 100) * 30;
                 this._camera.setZ(z);
                 this._camera.props.perspective.yfov = 0.6;
             }
