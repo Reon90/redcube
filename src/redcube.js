@@ -1,7 +1,7 @@
 import { Scene, Object3D, Mesh, SkinnedMesh, Bone, Camera } from './objects';
 import { Matrix3, Matrix4, Vector3, Vector4, Frustum } from './matrix';
 import { Events } from './events';
-import { setGl, isMatrix, getMatrixType, getDataType, getComponentType, getMethod, getAnimationComponent, getAnimationMethod, interpolation, buildArray } from './utils';
+import { setGl, isMatrix, getMatrixType, getDataType, getComponentType, getMethod, getAnimationComponent, getAnimationMethod, interpolation, buildArray, degToRad } from './utils';
 
 let gl;
 class RedCube {
@@ -25,7 +25,7 @@ class RedCube {
             }
         };
         this.zoom = 1;
-        this._camera.setMatrixWorldInvert([0, 0, 5, 0, 0, 0, 0, 1, 0]);
+        this._camera.setZ(5);
 
         this.unblendEnable = {};
         this.blendEnable = {};
@@ -46,23 +46,15 @@ class RedCube {
             this._camera.setProjection(this.buildCamera(this._camera.props).elements);
         }
         if (type === 'rotate') {
-            const p0 = new Vector3(this.sceneToArcBall(this.canvasToWorld(...coordsStart)));
-            const p1 = new Vector3(this.sceneToArcBall(this.canvasToWorld(...coordsMove)));
-            const angle = Vector3.angle(p0, p1) * 5;
-            if (angle < 1e-6 || isNaN(angle)) {
-                return;
-            }
+            const deltaX = coordsMove[0] - coordsStart[0];
+            const newRotationMatrix = new Matrix4;
+            newRotationMatrix.rotate(degToRad(-deltaX / 5), [0, 1, 0]);
 
-            const v = Vector3.cross(p0, p1).normalize();
-            const sin = Math.sin(angle / 2);
-            const q = new Vector4([v.elements[0] * sin, v.elements[1] * sin, v.elements[2] * sin, Math.cos(angle / 2)]);
+            const deltaY = coordsMove[1] - coordsStart[1];
+            newRotationMatrix.rotate(degToRad(-deltaY / 5), [1, 0, 0]);
 
-            const tr = new Vector3([this._camera.matrixWorldInvert.elements[12], this._camera.matrixWorldInvert.elements[13], this._camera.matrixWorldInvert.elements[14]]);
-            const m = new Matrix4();
-            m.makeRotationFromQuaternion(q.elements);
-            this._camera.matrix.multiply(m);
+            this._camera.matrix.multiply(newRotationMatrix);
             this._camera.setMatrixWorld(this._camera.matrix.elements);
-            this._camera.matrixWorldInvert.setTranslate(tr.elements[0], tr.elements[1], tr.elements[2]);
         }
         if (type === 'pan') {
             const p0 = new Vector3(this.canvasToWorld(...coordsStart).elements);
@@ -70,12 +62,8 @@ class RedCube {
             const pan = this._camera.modelSize * 100;
             const delta = p1.subtract(p0).scale(pan);
 
-            // eslint-disable-next-line
-            const tr = this._camera.matrixWorldInvert.elements[14];
-            this._camera.matrix.elements[12] += delta.elements[0];
-            this._camera.matrix.elements[13] += delta.elements[1];
+            this._camera.matrix.translate(delta.elements[0], delta.elements[1], 0);
             this._camera.setMatrixWorld(this._camera.matrix.elements);
-            this._camera.matrixWorldInvert.elements[14] = tr;
         }
         if (type === 'resize') {
             this.resize();
@@ -290,8 +278,8 @@ class RedCube {
 
         if (!this._camera.props.perspective.yfov) {
             console.warn('Camera not found');
-            const z = this._camera.modelSize / (this.canvas.offsetWidth / 100) * 30;
-            this._camera.setMatrixWorldInvert([0, 0, z, 0, 0, 0, 0, 1, 0]);
+            const z = this._camera.modelSize / (this.canvas.offsetWidth / 100) * 100;
+            this._camera.setZ(z);
             this._camera.props.perspective.yfov = 0.6;
         }
         this.resize();

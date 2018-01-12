@@ -171,3 +171,7 @@ export function buildArray(arrayBuffer, type, offset, length) {
     }
     return arr;
 }
+
+export function degToRad(degrees) {
+    return degrees * Math.PI / 180;
+}

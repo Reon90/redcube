@@ -213,8 +213,9 @@ class Camera extends Object3D {
         this.matrixWorldInvert.setInverseOf(this.matrixWorld);
     }
 
-    setMatrixWorldInvert(look) {
-        this.matrixWorldInvert.lookAt(...look);
+    setZ(z) {
+        this.matrix.elements[14] = z;
+        this.setMatrixWorld(this.matrix.elements);
     }
 
     getViewProjMatrix() {

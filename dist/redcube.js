@@ -574,90 +574,6 @@ Matrix4.prototype.translate = function (x, y, z) {
     return this;
 };
 
-/**
- * Set the viewing matrix.
- * @param eyeX, eyeY, eyeZ The position of the eye point.
- * @param centerX, centerY, centerZ The position of the reference point.
- * @param upX, upY, upZ The direction of the up vector.
- * @return this
- */
-Matrix4.prototype.setLookAt = function (eyeX, eyeY, eyeZ, centerX, centerY, centerZ, upX, upY, upZ) {
-    var e = void 0,
-        fx = void 0,
-        fy = void 0,
-        fz = void 0,
-        rlf = void 0,
-        sx = void 0,
-        sy = void 0,
-        sz = void 0,
-        rls = void 0,
-        ux = void 0,
-        uy = void 0,
-        uz = void 0;
-
-    fx = centerX - eyeX;
-    fy = centerY - eyeY;
-    fz = centerZ - eyeZ;
-
-    // Normalize f.
-    rlf = 1 / Math.sqrt(fx * fx + fy * fy + fz * fz);
-    fx *= rlf;
-    fy *= rlf;
-    fz *= rlf;
-
-    // Calculate cross product of f and up.
-    sx = fy * upZ - fz * upY;
-    sy = fz * upX - fx * upZ;
-    sz = fx * upY - fy * upX;
-
-    // Normalize s.
-    rls = 1 / Math.sqrt(sx * sx + sy * sy + sz * sz);
-    sx *= rls;
-    sy *= rls;
-    sz *= rls;
-
-    // Calculate cross product of s and f.
-    ux = sy * fz - sz * fy;
-    uy = sz * fx - sx * fz;
-    uz = sx * fy - sy * fx;
-
-    // Set to this.
-    e = this.elements;
-    e[0] = sx;
-    e[1] = ux;
-    e[2] = -fx;
-    e[3] = 0;
-
-    e[4] = sy;
-    e[5] = uy;
-    e[6] = -fy;
-    e[7] = 0;
-
-    e[8] = sz;
-    e[9] = uz;
-    e[10] = -fz;
-    e[11] = 0;
-
-    e[12] = 0;
-    e[13] = 0;
-    e[14] = 0;
-    e[15] = 1;
-
-    // Translate.
-    return this.translate(-eyeX, -eyeY, -eyeZ);
-};
-
-/**
- * Multiply the viewing matrix from the right.
- * @param eyeX, eyeY, eyeZ The position of the eye point.
- * @param centerX, centerY, centerZ The position of the reference point.
- * @param upX, upY, upZ The direction of the up vector.
- * @return this
- */
-Matrix4.prototype.lookAt = function (eyeX, eyeY, eyeZ, centerX, centerY, centerZ, upX, upY, upZ) {
-    return this.concat(new Matrix4().setLookAt(eyeX, eyeY, eyeZ, centerX, centerY, centerZ, upX, upY, upZ));
-};
-
 Matrix4.prototype.getMaxScaleOnAxis = function () {
 
     var te = this.elements;
@@ -667,6 +583,76 @@ Matrix4.prototype.getMaxScaleOnAxis = function () {
     var scaleZSq = te[8] * te[8] + te[9] * te[9] + te[10] * te[10];
 
     return Math.sqrt(Math.max(scaleXSq, scaleYSq, scaleZSq));
+};
+
+Matrix4.prototype.rotate = function (rad, axis) {
+    var te = this.elements;
+    var x = axis[0],
+        y = axis[1],
+        z = axis[2];
+    var len = Math.sqrt(x * x + y * y + z * z);
+    var s = void 0,
+        c = void 0,
+        t = void 0;
+    var a00 = void 0,
+        a01 = void 0,
+        a02 = void 0,
+        a03 = void 0;
+    var a10 = void 0,
+        a11 = void 0,
+        a12 = void 0,
+        a13 = void 0;
+    var a20 = void 0,
+        a21 = void 0,
+        a22 = void 0,
+        a23 = void 0;
+    var b00 = void 0,
+        b01 = void 0,
+        b02 = void 0;
+    var b10 = void 0,
+        b11 = void 0,
+        b12 = void 0;
+    var b20 = void 0,
+        b21 = void 0,
+        b22 = void 0;
+
+    if (Math.abs(len) < Number.EPSILON) {
+        return null;
+    }
+
+    len = 1 / len;
+    x *= len;
+    y *= len;
+    z *= len;
+
+    s = Math.sin(rad);
+    c = Math.cos(rad);
+    t = 1 - c;
+
+    a00 = te[0];a01 = te[1];a02 = te[2];a03 = te[3];
+    a10 = te[4];a11 = te[5];a12 = te[6];a13 = te[7];
+    a20 = te[8];a21 = te[9];a22 = te[10];a23 = te[11];
+
+    // Construct the elements of the rotation matrix
+    b00 = x * x * t + c;b01 = y * x * t + z * s;b02 = z * x * t - y * s;
+    b10 = x * y * t - z * s;b11 = y * y * t + c;b12 = z * y * t + x * s;
+    b20 = x * z * t + y * s;b21 = y * z * t - x * s;b22 = z * z * t + c;
+
+    // Perform rotation-specific matrix multiplication
+    te[0] = a00 * b00 + a10 * b01 + a20 * b02;
+    te[1] = a01 * b00 + a11 * b01 + a21 * b02;
+    te[2] = a02 * b00 + a12 * b01 + a22 * b02;
+    te[3] = a03 * b00 + a13 * b01 + a23 * b02;
+    te[4] = a00 * b10 + a10 * b11 + a20 * b12;
+    te[5] = a01 * b10 + a11 * b11 + a21 * b12;
+    te[6] = a02 * b10 + a12 * b11 + a22 * b12;
+    te[7] = a03 * b10 + a13 * b11 + a23 * b12;
+    te[8] = a00 * b20 + a10 * b21 + a20 * b22;
+    te[9] = a01 * b20 + a11 * b21 + a21 * b22;
+    te[10] = a02 * b20 + a12 * b21 + a22 * b22;
+    te[11] = a03 * b20 + a13 * b21 + a23 * b22;
+
+    return this;
 };
 
 Matrix4.prototype.makeRotationFromQuaternion = function (q) {
@@ -1010,7 +996,7 @@ var Events = function () {
         }
     }, {
         key: 'onResize',
-        value: function onResize(e) {
+        value: function onResize() {
             this.redraw('resize');
         }
     }, {
@@ -1388,11 +1374,10 @@ var Camera = function (_Object3D3) {
             this.matrixWorldInvert.setInverseOf(this.matrixWorld);
         }
     }, {
-        key: 'setMatrixWorldInvert',
-        value: function setMatrixWorldInvert(look) {
-            var _matrixWorldInvert;
-
-            (_matrixWorldInvert = this.matrixWorldInvert).lookAt.apply(_matrixWorldInvert, _toConsumableArray(look));
+        key: 'setZ',
+        value: function setZ(z) {
+            this.matrix.elements[14] = z;
+            this.setMatrixWorld(this.matrix.elements);
         }
     }, {
         key: 'getViewProjMatrix',
@@ -1445,6 +1430,7 @@ exports.getAnimationMethod = getAnimationMethod;
 exports.range = range;
 exports.interpolation = interpolation;
 exports.buildArray = buildArray;
+exports.degToRad = degToRad;
 
 var _matrix = __webpack_require__(0);
 
@@ -1620,6 +1606,10 @@ function buildArray(arrayBuffer, type, offset, length) {
     return arr;
 }
 
+function degToRad(degrees) {
+    return degrees * Math.PI / 180;
+}
+
 /***/ }),
 /* 4 */
 /***/ (function(module, exports, __webpack_require__) {
@@ -1671,7 +1661,7 @@ var RedCube = function () {
             }
         };
         this.zoom = 1;
-        this._camera.setMatrixWorldInvert([0, 0, 5, 0, 0, 0, 0, 1, 0]);
+        this._camera.setZ(5);
 
         this.unblendEnable = {};
         this.blendEnable = {};
@@ -1694,36 +1684,24 @@ var RedCube = function () {
                 this._camera.setProjection(this.buildCamera(this._camera.props).elements);
             }
             if (type === 'rotate') {
-                var p0 = new _matrix.Vector3(this.sceneToArcBall(this.canvasToWorld.apply(this, _toConsumableArray(coordsStart))));
-                var p1 = new _matrix.Vector3(this.sceneToArcBall(this.canvasToWorld.apply(this, _toConsumableArray(coordsMove))));
-                var angle = _matrix.Vector3.angle(p0, p1) * 5;
-                if (angle < 1e-6 || isNaN(angle)) {
-                    return;
-                }
+                var deltaX = coordsMove[0] - coordsStart[0];
+                var newRotationMatrix = new _matrix.Matrix4();
+                newRotationMatrix.rotate((0, _utils.degToRad)(-deltaX / 5), [0, 1, 0]);
 
-                var v = _matrix.Vector3.cross(p0, p1).normalize();
-                var sin = Math.sin(angle / 2);
-                var q = new _matrix.Vector4([v.elements[0] * sin, v.elements[1] * sin, v.elements[2] * sin, Math.cos(angle / 2)]);
+                var deltaY = coordsMove[1] - coordsStart[1];
+                newRotationMatrix.rotate((0, _utils.degToRad)(-deltaY / 5), [1, 0, 0]);
 
-                var tr = new _matrix.Vector3([this._camera.matrixWorldInvert.elements[12], this._camera.matrixWorldInvert.elements[13], this._camera.matrixWorldInvert.elements[14]]);
-                var m = new _matrix.Matrix4();
-                m.makeRotationFromQuaternion(q.elements);
-                this._camera.matrix.multiply(m);
+                this._camera.matrix.multiply(newRotationMatrix);
                 this._camera.setMatrixWorld(this._camera.matrix.elements);
-                this._camera.matrixWorldInvert.setTranslate(tr.elements[0], tr.elements[1], tr.elements[2]);
             }
             if (type === 'pan') {
-                var _p = new _matrix.Vector3(this.canvasToWorld.apply(this, _toConsumableArray(coordsStart)).elements);
-                var _p2 = new _matrix.Vector3(this.canvasToWorld.apply(this, _toConsumableArray(coordsMove)).elements);
+                var p0 = new _matrix.Vector3(this.canvasToWorld.apply(this, _toConsumableArray(coordsStart)).elements);
+                var p1 = new _matrix.Vector3(this.canvasToWorld.apply(this, _toConsumableArray(coordsMove)).elements);
                 var pan = this._camera.modelSize * 100;
-                var delta = _p2.subtract(_p).scale(pan);
+                var delta = p1.subtract(p0).scale(pan);
 
-                // eslint-disable-next-line
-                var _tr = this._camera.matrixWorldInvert.elements[14];
-                this._camera.matrix.elements[12] += delta.elements[0];
-                this._camera.matrix.elements[13] += delta.elements[1];
+                this._camera.matrix.translate(delta.elements[0], delta.elements[1], 0);
                 this._camera.setMatrixWorld(this._camera.matrix.elements);
-                this._camera.matrixWorldInvert.elements[14] = _tr;
             }
             if (type === 'resize') {
                 this.resize();
@@ -1994,8 +1972,8 @@ var RedCube = function () {
 
             if (!this._camera.props.perspective.yfov) {
                 console.warn('Camera not found');
-                var z = this._camera.modelSize / (this.canvas.offsetWidth / 100) * 30;
-                this._camera.setMatrixWorldInvert([0, 0, z, 0, 0, 0, 0, 1, 0]);
+                var z = this._camera.modelSize / (this.canvas.offsetWidth / 100) * 100;
+                this._camera.setZ(z);
                 this._camera.props.perspective.yfov = 0.6;
             }
             this.resize();

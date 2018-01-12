@@ -458,79 +458,6 @@ Matrix4.prototype.translate = function(x, y, z) {
     return this;
 };
 
-/**
- * Set the viewing matrix.
- * @param eyeX, eyeY, eyeZ The position of the eye point.
- * @param centerX, centerY, centerZ The position of the reference point.
- * @param upX, upY, upZ The direction of the up vector.
- * @return this
- */
-Matrix4.prototype.setLookAt = function(eyeX, eyeY, eyeZ, centerX, centerY, centerZ, upX, upY, upZ) {
-    let e, fx, fy, fz, rlf, sx, sy, sz, rls, ux, uy, uz;
-
-    fx = centerX - eyeX;
-    fy = centerY - eyeY;
-    fz = centerZ - eyeZ;
-
-    // Normalize f.
-    rlf = 1 / Math.sqrt(fx * fx + fy * fy + fz * fz);
-    fx *= rlf;
-    fy *= rlf;
-    fz *= rlf;
-
-    // Calculate cross product of f and up.
-    sx = fy * upZ - fz * upY;
-    sy = fz * upX - fx * upZ;
-    sz = fx * upY - fy * upX;
-
-    // Normalize s.
-    rls = 1 / Math.sqrt(sx * sx + sy * sy + sz * sz);
-    sx *= rls;
-    sy *= rls;
-    sz *= rls;
-
-    // Calculate cross product of s and f.
-    ux = sy * fz - sz * fy;
-    uy = sz * fx - sx * fz;
-    uz = sx * fy - sy * fx;
-
-    // Set to this.
-    e = this.elements;
-    e[0] = sx;
-    e[1] = ux;
-    e[2] = -fx;
-    e[3] = 0;
-
-    e[4] = sy;
-    e[5] = uy;
-    e[6] = -fy;
-    e[7] = 0;
-
-    e[8] = sz;
-    e[9] = uz;
-    e[10] = -fz;
-    e[11] = 0;
-
-    e[12] = 0;
-    e[13] = 0;
-    e[14] = 0;
-    e[15] = 1;
-
-    // Translate.
-    return this.translate(-eyeX, -eyeY, -eyeZ);
-};
-
-/**
- * Multiply the viewing matrix from the right.
- * @param eyeX, eyeY, eyeZ The position of the eye point.
- * @param centerX, centerY, centerZ The position of the reference point.
- * @param upX, upY, upZ The direction of the up vector.
- * @return this
- */
-Matrix4.prototype.lookAt = function(eyeX, eyeY, eyeZ, centerX, centerY, centerZ, upX, upY, upZ) {
-    return this.concat(new Matrix4().setLookAt(eyeX, eyeY, eyeZ, centerX, centerY, centerZ, upX, upY, upZ));
-};
-
 Matrix4.prototype.getMaxScaleOnAxis = function() {
 
     const te = this.elements;
@@ -542,6 +469,55 @@ Matrix4.prototype.getMaxScaleOnAxis = function() {
     return Math.sqrt( Math.max( scaleXSq, scaleYSq, scaleZSq ) );
 
 };
+
+Matrix4.prototype.rotate = function(rad, axis) {
+  const te = this.elements;
+  let x = axis[0], y = axis[1], z = axis[2];
+  let len = Math.sqrt(x * x + y * y + z * z);
+  let s, c, t;
+  let a00, a01, a02, a03;
+  let a10, a11, a12, a13;
+  let a20, a21, a22, a23;
+  let b00, b01, b02;
+  let b10, b11, b12;
+  let b20, b21, b22;
+
+  if (Math.abs(len) < Number.EPSILON) { return null; }
+
+  len = 1 / len;
+  x *= len;
+  y *= len;
+  z *= len;
+
+  s = Math.sin(rad);
+  c = Math.cos(rad);
+  t = 1 - c;
+
+  a00 = te[0]; a01 = te[1]; a02 = te[2]; a03 = te[3];
+  a10 = te[4]; a11 = te[5]; a12 = te[6]; a13 = te[7];
+  a20 = te[8]; a21 = te[9]; a22 = te[10]; a23 = te[11];
+
+  // Construct the elements of the rotation matrix
+  b00 = x * x * t + c; b01 = y * x * t + z * s; b02 = z * x * t - y * s;
+  b10 = x * y * t - z * s; b11 = y * y * t + c; b12 = z * y * t + x * s;
+  b20 = x * z * t + y * s; b21 = y * z * t - x * s; b22 = z * z * t + c;
+
+  // Perform rotation-specific matrix multiplication
+  te[0] = a00 * b00 + a10 * b01 + a20 * b02;
+  te[1] = a01 * b00 + a11 * b01 + a21 * b02;
+  te[2] = a02 * b00 + a12 * b01 + a22 * b02;
+  te[3] = a03 * b00 + a13 * b01 + a23 * b02;
+  te[4] = a00 * b10 + a10 * b11 + a20 * b12;
+  te[5] = a01 * b10 + a11 * b11 + a21 * b12;
+  te[6] = a02 * b10 + a12 * b11 + a22 * b12;
+  te[7] = a03 * b10 + a13 * b11 + a23 * b12;
+  te[8] = a00 * b20 + a10 * b21 + a20 * b22;
+  te[9] = a01 * b20 + a11 * b21 + a21 * b22;
+  te[10] = a02 * b20 + a12 * b21 + a22 * b22;
+  te[11] = a03 * b20 + a13 * b21 + a23 * b22;
+
+  return this;
+}
 
 Matrix4.prototype.makeRotationFromQuaternion = function( q ) {
     const te = this.elements;
