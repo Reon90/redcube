@@ -16,6 +16,9 @@ const config = {
             test: /(\.js)$/,
             loader: 'babel-loader',
             exclude: /(node_modules|bower_components)/
+        }, {
+            test: /\.glsl$/,
+            loader: 'raw-loader'
         }]
     }
 };

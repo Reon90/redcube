@@ -73,7 +73,7 @@ return /******/ (function(modules) { // webpackBootstrap
 /******/ 	__webpack_require__.p = "";
 /******/
 /******/ 	// Load entry module and return exports
-/******/ 	return __webpack_require__(__webpack_require__.s = 4);
+/******/ 	return __webpack_require__(__webpack_require__.s = 8);
 /******/ })
 /************************************************************************/
 /******/ ([
@@ -1612,6 +1612,25 @@ function degToRad(degrees) {
 
 /***/ }),
 /* 4 */
+/***/ (function(module, exports) {
+
+module.exports = "#version 300 es\r\nprecision highp float;\r\n\r\nin vec2 uv;\r\nout vec4 color;\r\n\r\nuniform sampler2D uOriginal;\r\nuniform sampler2D uTexture1;\r\nuniform sampler2D uTexture2;\r\nuniform sampler2D uTexture3;\r\nuniform sampler2D uTexture4;\r\n\r\nvoid main() \r\n{\r\n    vec4 vOriginal = texture(uOriginal, uv);\r\n    vec4 vT1 = texture(uTexture1, uv);\r\n    vec4 vT2 = texture(uTexture2, uv);\r\n    vec4 vT3 = texture(uTexture3, uv);\r\n    vec4 vT4 = texture(uTexture4, uv);\r\n    color = vOriginal + vT1 + vT2 + vT3 + vT4;\r\n}\r\n"
+
+/***/ }),
+/* 5 */
+/***/ (function(module, exports) {
+
+module.exports = "#version 300 es\r\nprecision highp float;\r\n\r\nin vec2 uv;\r\nout vec4 color;\r\n\r\nuniform vec2 offset;\r\nuniform float level;\r\nuniform sampler2D uTexture;\r\n\r\nvoid main() \r\n{\r\n    vec4 c = vec4(0);\r\n    c += 15.0 * vec4(textureLod(uTexture, uv - offset, level).rgb * 0.1, 1.0);\r\n    c += 16.0 * vec4(textureLod(uTexture, uv, level).rgb * 0.1, 1.0);\r\n    c += 15.0 * vec4(textureLod(uTexture, uv + offset, level).rgb * 0.1, 1.0);\r\n    color = c / 16.0;\r\n}\r\n"
+
+/***/ }),
+/* 6 */,
+/* 7 */
+/***/ (function(module, exports) {
+
+module.exports = "#version 300 es\r\nlayout (location = 0) in vec2 pos;\r\n\r\nout vec2 uv;\r\n\r\nvoid main() {\r\n    uv = pos * 0.5 + 0.5;\r\n    gl_Position = vec4(pos, 0.0, 1.0); \r\n}\r\n"
+
+/***/ }),
+/* 8 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -1632,10 +1651,26 @@ var _events = __webpack_require__(1);
 
 var _utils = __webpack_require__(3);
 
+var _quad = __webpack_require__(7);
+
+var _quad2 = _interopRequireDefault(_quad);
+
+var _blur = __webpack_require__(5);
+
+var _blur2 = _interopRequireDefault(_blur);
+
+var _bloom = __webpack_require__(4);
+
+var _bloom2 = _interopRequireDefault(_bloom);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
 function _toConsumableArray(arr) { if (Array.isArray(arr)) { for (var i = 0, arr2 = Array(arr.length); i < arr.length; i++) { arr2[i] = arr[i]; } return arr2; } else { return Array.from(arr); } }
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
+var screenTextureCount = 0;
+var sceneTextureCount = 6;
 var gl = void 0;
 
 var RedCube = function () {
@@ -1674,9 +1709,123 @@ var RedCube = function () {
 
         this.events = new _events.Events(this.redraw.bind(this));
         this.cameraPosition = new _matrix.Vector3([0, 0, 0.05]);
+
+        this.counterEl = document.createElement('div');
+        this.counterEl.setAttribute('style', 'position: absolute; top: 0; right: 0; color: #fff; font-size: 30px; background: #000;');
+        document.body.appendChild(this.counterEl);
+        this.fps = 0;
+        this.elapsedTime = 0;
+        this.lastTime = 0;
     }
 
     _createClass(RedCube, [{
+        key: 'postProcessing',
+        value: function postProcessing() {
+            var program = gl.createProgram();
+            this.compileShader(gl.VERTEX_SHADER, _quad2.default, program);
+            this.compileShader(gl.FRAGMENT_SHADER, _blur2.default, program);
+            gl.linkProgram(program);
+            gl.useProgram(program);
+
+            gl.bindBuffer(gl.ARRAY_BUFFER, this.screenQuadVBO);
+            gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+            gl.enableVertexAttribArray(0);
+
+            gl.activeTexture(gl.TEXTURE0);
+            gl.generateMipmap(gl.TEXTURE_2D);
+
+            this.renderBlur(program, 0.0, this.blurTexture, true);
+            this.renderBlur(program, 1.0, this.blurTexture2);
+            this.renderBlur(program, 2.0, this.blurTexture3);
+            this.renderBlur(program, 3.0, this.blurTexture4);
+
+            gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+            var program2 = gl.createProgram();
+            this.compileShader(gl.VERTEX_SHADER, _quad2.default, program2);
+            this.compileShader(gl.FRAGMENT_SHADER, _bloom2.default, program2);
+            gl.linkProgram(program2);
+            gl.useProgram(program2);
+
+            gl.uniform1i(gl.getUniformLocation(program2, 'uOriginal'), this.screenTexture.index);
+            gl.uniform1i(gl.getUniformLocation(program2, 'uTexture1'), this.blurTexture.index);
+            gl.uniform1i(gl.getUniformLocation(program2, 'uTexture2'), this.blurTexture2.index);
+            gl.uniform1i(gl.getUniformLocation(program2, 'uTexture3'), this.blurTexture3.index);
+            gl.uniform1i(gl.getUniformLocation(program2, 'uTexture4'), this.blurTexture4.index);
+
+            gl.drawArrays(gl.TRIANGLES, 0, 6);
+        }
+    }, {
+        key: 'renderBlur',
+        value: function renderBlur(program, level, out, needMipmap) {
+            gl.uniform1i(gl.getUniformLocation(program, 'uTexture'), this.screenTexture.index);
+            gl.uniform2f(gl.getUniformLocation(program, 'offset'), 1.2 / this.canvas.offsetWidth, 0);
+            gl.uniform1f(gl.getUniformLocation(program, 'level'), level);
+            gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.tempBlurTexture, 0);
+            gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+            if (needMipmap) {
+                gl.activeTexture(gl.TEXTURE1);
+                gl.generateMipmap(gl.TEXTURE_2D);
+            }
+            gl.uniform1i(gl.getUniformLocation(program, 'uTexture'), this.tempBlurTexture.index);
+            gl.uniform2f(gl.getUniformLocation(program, 'offset'), 0, 1.2 / this.canvas.offsetHeight);
+            gl.uniform1f(gl.getUniformLocation(program, 'level'), 0.0);
+            gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, out, 0);
+            gl.drawArrays(gl.TRIANGLES, 0, 6);
+        }
+    }, {
+        key: 'compileShader',
+        value: function compileShader(type, shaderSource, program) {
+            var shader = gl.createShader(type);
+            gl.shaderSource(shader, shaderSource);
+            gl.compileShader(shader);
+            gl.attachShader(program, shader);
+        }
+    }, {
+        key: 'createTexture',
+        value: function createTexture(needMipmap) {
+            var texture = gl.createTexture();
+            gl.activeTexture(gl['TEXTURE' + screenTextureCount]);
+            gl.bindTexture(gl.TEXTURE_2D, texture);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, needMipmap ? gl.LINEAR_MIPMAP_LINEAR : gl.LINEAR);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, this.canvas.offsetWidth, this.canvas.offsetHeight, 0, gl.RGBA, gl.FLOAT, null);
+            texture.index = screenTextureCount;
+            screenTextureCount++;
+            return texture;
+        }
+    }, {
+        key: 'buildScreenBuffer',
+        value: function buildScreenBuffer() {
+            var verts = [1.0, 1.0, -1.0, 1.0, -1.0, -1.0, -1.0, -1.0, 1.0, -1.0, 1.0, 1.0];
+            this.screenQuadVBO = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, this.screenQuadVBO);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(verts), gl.STATIC_DRAW);
+
+            this.framebuffer = gl.createFramebuffer();
+            gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
+
+            gl.getExtension('EXT_color_buffer_float');
+            gl.getExtension('OES_texture_float_linear');
+
+            this.screenTexture = this.createTexture(true);
+            this.tempBlurTexture = this.createTexture(true);
+            this.blurTexture = this.createTexture();
+            this.blurTexture2 = this.createTexture();
+            this.blurTexture3 = this.createTexture();
+            this.blurTexture4 = this.createTexture();
+
+            var renderbuffer = gl.createRenderbuffer();
+            gl.bindRenderbuffer(gl.RENDERBUFFER, renderbuffer);
+            gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, this.canvas.offsetWidth, this.canvas.offsetHeight);
+
+            gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.screenTexture, 0);
+            gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, renderbuffer);
+
+            return true;
+        }
+    }, {
         key: 'redraw',
         value: function redraw(type, coordsStart, coordsMove) {
             if (type === 'zoom') {
@@ -1717,18 +1866,6 @@ var RedCube = function () {
             this._camera.setProjection(this.buildCamera(this._camera.props).elements);
         }
     }, {
-        key: 'sceneToArcBall',
-        value: function sceneToArcBall(pos) {
-            var len = pos.elements[0] * pos.elements[0] + pos.elements[1] * pos.elements[1];
-            var sz = 0.04 * 0.04 - len;
-            if (sz > 0) {
-                return [pos.elements[0], pos.elements[1], Math.sqrt(sz)];
-            } else {
-                len = Math.sqrt(len);
-                return [0.04 * pos.elements[0] / len, 0.04 * pos.elements[1] / len, 0];
-            }
-        }
-    }, {
         key: 'canvasToWorld',
         value: function canvasToWorld(x, y) {
             var newM = new _matrix.Matrix4();
@@ -1745,7 +1882,7 @@ var RedCube = function () {
     }, {
         key: 'init',
         value: function init() {
-            return this.getJson().then(this.glInit.bind(this)).then(this.getBuffer.bind(this)).then(this.buildMesh.bind(this)).then(this.initTextures.bind(this)).then(this.buildAnimation.bind(this)).then(this.buildSkin.bind(this)).then(this.draw.bind(this)).catch(console.error);
+            return this.getJson().then(this.glInit.bind(this)).then(this.buildScreenBuffer.bind(this)).then(this.getBuffer.bind(this)).then(this.buildMesh.bind(this)).then(this.initTextures.bind(this)).then(this.buildAnimation.bind(this)).then(this.buildSkin.bind(this)).then(this.draw.bind(this)).catch(console.error);
         }
     }, {
         key: 'setColor',
@@ -1830,6 +1967,7 @@ var RedCube = function () {
                     var t = Object.assign({}, this.json.textures[u.value]);
                     Object.assign(t, this.json.samplers[t.sampler]);
                     Object.assign(t, this.json.images[t.source]);
+                    t.name = u.value;
                     textures.push(t);
                 }
 
@@ -2265,7 +2403,8 @@ var RedCube = function () {
         value: function glInit() {
             var _this7 = this;
 
-            gl = this.canvas.getContext('webgl') || this.canvas.getContext('experimental-webgl');
+            gl = this.canvas.getContext('webgl2') || this.canvas.getContext('webgl') || this.canvas.getContext('experimental-webgl');
+            this.gl = gl;
 
             for (var k in gl) {
                 var v = gl[k];
@@ -2456,12 +2595,17 @@ var RedCube = function () {
         }
     }, {
         key: 'render',
-        value: function render(time) {
+        value: function render() {
+            var time = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 0;
+
             var sec = time / 1000;
 
             this.animate(sec);
 
             if (this.reflow) {
+                gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
+                gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.screenTexture, 0);
+
                 gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENSIL_BUFFER_BIT);
 
                 var blends = [];
@@ -2591,6 +2735,17 @@ var RedCube = function () {
                         }
                     }
                 }
+
+                this.postProcessing();
+            }
+
+            this.fps++;
+            this.elapsedTime += time - this.lastTime;
+            this.lastTime = time;
+            if (this.elapsedTime >= 1000) {
+                this.counterEl.innerHTML = this.fps;
+                this.fps = 0;
+                this.elapsedTime -= 1000;
             }
 
             this.reflow = false;
@@ -2626,16 +2781,13 @@ var RedCube = function () {
                 gl.vertexAttribPointer(a, (0, _utils.getComponentType)(v.type), gl.FLOAT, false, 0, 0);
             }
 
-            var texCount = 0;
             for (var _k5 in mesh.material.uniforms) {
                 var _v = mesh.material.uniforms[_k5];
-                var matricies = void 0;
+                var matricies = void 0,
+                    value = void 0;
 
                 if (_v.type === gl.SAMPLER_2D) {
-                    gl.activeTexture(gl['TEXTURE' + texCount]);
-                    gl.bindTexture(mesh.material.texture[texCount].target, this.textures[mesh.material.texture[texCount].name].data);
-                    _v.value = [texCount];
-                    texCount++;
+                    value = [this.textures[_v.value[0]].count];
                 }
 
                 switch (_v.semantic) {
@@ -2696,7 +2848,9 @@ var RedCube = function () {
                     _v[_k5] = u;
                 }
 
-                var value = _v.value || _v.node;
+                if (_v.type !== gl.SAMPLER_2D) {
+                    value = _v.value || _v.node;
+                }
 
                 if (value.elements) {
                     gl[(0, _utils.getMethod)(_v.type)](u, false, value.elements);
@@ -2784,6 +2938,8 @@ var RedCube = function () {
         key: 'handleTextureLoaded',
         value: function handleTextureLoaded(t, image) {
             t.data = gl.createTexture();
+            t.count = sceneTextureCount;
+            gl.activeTexture(gl['TEXTURE' + sceneTextureCount]);
             gl.bindTexture(t.target, t.data);
             gl.texImage2D(t.target, 0, t.format, t.internalFormat, t.type, image);
             gl.texParameteri(t.target, gl.TEXTURE_WRAP_S, t.wrapS);
@@ -2791,6 +2947,7 @@ var RedCube = function () {
             gl.texParameteri(t.target, gl.TEXTURE_MAG_FILTER, t.magFilter);
             gl.texParameteri(t.target, gl.TEXTURE_MIN_FILTER, t.minFilter);
             gl.generateMipmap(t.target);
+            sceneTextureCount++;
         }
     }]);
 
