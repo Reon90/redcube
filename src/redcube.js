@@ -91,6 +91,7 @@ class RedCube {
         const m = new Matrix4();
         m.multiply(this._camera.projection);
         m.multiply(this._camera.matrixWorldInvert);
+        m.multiply(this.envMatrix);
         gl.uniform1i(gl.getUniformLocation(program, 'uTexture'), 0);
         gl.uniformMatrix4fv(gl.getUniformLocation(program, 'uMVPMatrix'), false, m.elements);
 
@@ -165,6 +166,7 @@ class RedCube {
         vertexIndexBuffer.itemSize = 1;
         vertexIndexBuffer.numItems = indexData.length;
 
+        this.envMatrix = new Matrix4;
         this.envVertexIndexBuffer = vertexIndexBuffer;
         this.envVertexPositionBuffer = vertexPositionBuffer;
         this.envVertexTextureCoordBuffer = vertexTextureCoordBuffer;
@@ -317,6 +319,7 @@ class RedCube {
             newRotationMatrix.rotate(degToRad(-deltaY / 5), [-1, 0, 0]);
 
             this.scene.matrixWorld.multiply(newRotationMatrix);
+            this.envMatrix.multiply(newRotationMatrix);
         }
         if (type === 'pan') {
             const p0 = new Vector3(this.canvasToWorld(...coordsStart).elements);

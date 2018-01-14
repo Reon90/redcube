@@ -1767,6 +1767,7 @@ var RedCube = function () {
             var m = new _matrix.Matrix4();
             m.multiply(this._camera.projection);
             m.multiply(this._camera.matrixWorldInvert);
+            m.multiply(this.envMatrix);
             gl.uniform1i(gl.getUniformLocation(program, 'uTexture'), 0);
             gl.uniformMatrix4fv(gl.getUniformLocation(program, 'uMVPMatrix'), false, m.elements);
 
@@ -1842,6 +1843,7 @@ var RedCube = function () {
             vertexIndexBuffer.itemSize = 1;
             vertexIndexBuffer.numItems = indexData.length;
 
+            this.envMatrix = new _matrix.Matrix4();
             this.envVertexIndexBuffer = vertexIndexBuffer;
             this.envVertexPositionBuffer = vertexPositionBuffer;
             this.envVertexTextureCoordBuffer = vertexTextureCoordBuffer;
@@ -1993,6 +1995,7 @@ var RedCube = function () {
                 newRotationMatrix.rotate((0, _utils.degToRad)(-deltaY / 5), [-1, 0, 0]);
 
                 this.scene.matrixWorld.multiply(newRotationMatrix);
+                this.envMatrix.multiply(newRotationMatrix);
             }
             if (type === 'pan') {
                 var p0 = new _matrix.Vector3(this.canvasToWorld.apply(this, _toConsumableArray(coordsStart)).elements);
