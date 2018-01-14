@@ -73,7 +73,7 @@ return /******/ (function(modules) { // webpackBootstrap
 /******/ 	__webpack_require__.p = "";
 /******/
 /******/ 	// Load entry module and return exports
-/******/ 	return __webpack_require__(__webpack_require__.s = 8);
+/******/ 	return __webpack_require__(__webpack_require__.s = 9);
 /******/ })
 /************************************************************************/
 /******/ ([
@@ -1623,7 +1623,12 @@ module.exports = "#version 300 es\r\nprecision highp float;\r\n\r\nin vec2 uv;\r
 module.exports = "#version 300 es\r\nprecision highp float;\r\n\r\nin vec2 uv;\r\nout vec4 color;\r\n\r\nuniform vec2 offset;\r\nuniform float level;\r\nuniform sampler2D uTexture;\r\n\r\nvoid main() \r\n{\r\n    vec4 c = vec4(0);\r\n    c += 15.0 * vec4(textureLod(uTexture, uv - offset, level).rgb * 0.1, 1.0);\r\n    c += 16.0 * vec4(textureLod(uTexture, uv, level).rgb * 0.1, 1.0);\r\n    c += 15.0 * vec4(textureLod(uTexture, uv + offset, level).rgb * 0.1, 1.0);\r\n    color = c / 16.0;\r\n}\r\n"
 
 /***/ }),
-/* 6 */,
+/* 6 */
+/***/ (function(module, exports) {
+
+module.exports = "#version 300 es\r\nprecision highp float;\r\n\r\nlayout (location = 0) in vec3 pos;\r\nlayout (location = 1) in vec2 aUV;\r\n\r\nuniform mat4 uMVPMatrix;\r\n\r\nout vec2 uv;\r\n\r\nvoid main() {\r\n\tuv = aUV;\r\n    gl_Position = uMVPMatrix * vec4(pos, 1.0);\r\n}\r\n"
+
+/***/ }),
 /* 7 */
 /***/ (function(module, exports) {
 
@@ -1631,6 +1636,12 @@ module.exports = "#version 300 es\r\nlayout (location = 0) in vec2 pos;\r\n\r\no
 
 /***/ }),
 /* 8 */
+/***/ (function(module, exports) {
+
+module.exports = "#version 300 es\r\nprecision highp float;\r\n\r\nin vec2 uv;\r\nout vec4 color;\r\n\r\nuniform sampler2D uTexture;\r\n\r\nvoid main() {\r\n    color = texture(uTexture, uv);\r\n}\r\n"
+
+/***/ }),
+/* 9 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -1663,14 +1674,22 @@ var _bloom = __webpack_require__(4);
 
 var _bloom2 = _interopRequireDefault(_bloom);
 
+var _env = __webpack_require__(6);
+
+var _env2 = _interopRequireDefault(_env);
+
+var _texture = __webpack_require__(8);
+
+var _texture2 = _interopRequireDefault(_texture);
+
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 function _toConsumableArray(arr) { if (Array.isArray(arr)) { for (var i = 0, arr2 = Array(arr.length); i < arr.length; i++) { arr2[i] = arr[i]; } return arr2; } else { return Array.from(arr); } }
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
-var screenTextureCount = 0;
-var sceneTextureCount = 6;
+var screenTextureCount = 1;
+var sceneTextureCount = 7;
 var gl = void 0;
 
 var RedCube = function () {
@@ -1719,6 +1738,135 @@ var RedCube = function () {
     }
 
     _createClass(RedCube, [{
+        key: 'init',
+        value: function init() {
+            return this.getJson().then(this.glInit.bind(this)).then(this.buildScreenBuffer.bind(this)).then(this.getBuffer.bind(this)).then(this.buildMesh.bind(this)).then(this.initTextures.bind(this)).then(this.buildAnimation.bind(this)).then(this.buildSkin.bind(this)).then(this.createEnvironmentBuffer.bind(this)).then(this.draw.bind(this)).catch(console.error);
+        }
+    }, {
+        key: 'setColor',
+        value: function setColor(color) {
+            this.color = color;
+        }
+    }, {
+        key: 'createEnvironment',
+        value: function createEnvironment() {
+            var program = gl.createProgram();
+            this.compileShader(gl.VERTEX_SHADER, _env2.default, program);
+            this.compileShader(gl.FRAGMENT_SHADER, _texture2.default, program);
+            gl.linkProgram(program);
+            gl.useProgram(program);
+
+            gl.bindBuffer(gl.ARRAY_BUFFER, this.envVertexPositionBuffer);
+            gl.vertexAttribPointer(0, this.envVertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
+            gl.enableVertexAttribArray(0);
+            gl.bindBuffer(gl.ARRAY_BUFFER, this.envVertexTextureCoordBuffer);
+            gl.vertexAttribPointer(1, this.envVertexTextureCoordBuffer.itemSize, gl.FLOAT, false, 0, 0);
+            gl.enableVertexAttribArray(1);
+            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.envVertexIndexBuffer);
+
+            var m = new _matrix.Matrix4();
+            m.multiply(this._camera.projection);
+            m.multiply(this._camera.matrixWorldInvert);
+            gl.uniform1i(gl.getUniformLocation(program, 'uTexture'), 0);
+            gl.uniformMatrix4fv(gl.getUniformLocation(program, 'uMVPMatrix'), false, m.elements);
+
+            gl.drawElements(gl.TRIANGLES, this.envVertexIndexBuffer.numItems, gl.UNSIGNED_SHORT, 0);
+        }
+    }, {
+        key: 'createEnvironmentBuffer',
+        value: function createEnvironmentBuffer() {
+            var latitudeBands = 30;
+            var longitudeBands = 30;
+            var radius = this._camera.modelSize * 10;
+
+            var vertexPositionData = [];
+            var normalData = [];
+            var textureCoordData = [];
+            for (var latNumber = 0; latNumber <= latitudeBands; latNumber++) {
+                var theta = latNumber * Math.PI / latitudeBands;
+                var sinTheta = Math.sin(theta);
+                var cosTheta = Math.cos(theta);
+
+                for (var longNumber = 0; longNumber <= longitudeBands; longNumber++) {
+                    var phi = longNumber * 2 * Math.PI / longitudeBands;
+                    var sinPhi = Math.sin(phi);
+                    var cosPhi = Math.cos(phi);
+
+                    var x = cosPhi * sinTheta;
+                    var y = cosTheta;
+                    var z = sinPhi * sinTheta;
+                    var u = 1 - longNumber / longitudeBands;
+                    var v = 1 - latNumber / latitudeBands;
+
+                    normalData.push(x);
+                    normalData.push(y);
+                    normalData.push(z);
+                    textureCoordData.push(u);
+                    textureCoordData.push(v);
+                    vertexPositionData.push(radius * x);
+                    vertexPositionData.push(radius * y);
+                    vertexPositionData.push(radius * z);
+                }
+            }
+
+            var indexData = [];
+            for (var _latNumber = 0; _latNumber < latitudeBands; _latNumber++) {
+                for (var _longNumber = 0; _longNumber < longitudeBands; _longNumber++) {
+                    var first = _latNumber * (longitudeBands + 1) + _longNumber;
+                    var second = first + longitudeBands + 1;
+                    indexData.push(first);
+                    indexData.push(second);
+                    indexData.push(first + 1);
+
+                    indexData.push(second);
+                    indexData.push(second + 1);
+                    indexData.push(first + 1);
+                }
+            }
+
+            var vertexTextureCoordBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, vertexTextureCoordBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(textureCoordData), gl.STATIC_DRAW);
+            vertexTextureCoordBuffer.itemSize = 2;
+            vertexTextureCoordBuffer.numItems = textureCoordData.length / 2;
+
+            var vertexPositionBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, vertexPositionBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertexPositionData), gl.STATIC_DRAW);
+            vertexPositionBuffer.itemSize = 3;
+            vertexPositionBuffer.numItems = vertexPositionData.length / 3;
+
+            var vertexIndexBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, vertexIndexBuffer);
+            gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indexData), gl.STATIC_DRAW);
+            vertexIndexBuffer.itemSize = 1;
+            vertexIndexBuffer.numItems = indexData.length;
+
+            this.envVertexIndexBuffer = vertexIndexBuffer;
+            this.envVertexPositionBuffer = vertexPositionBuffer;
+            this.envVertexTextureCoordBuffer = vertexTextureCoordBuffer;
+
+            return new Promise(function (resolve, reject) {
+                var texture = gl.createTexture();
+                var img = new Image();
+                img.crossOrigin = 'anonymous';
+                img.onload = function () {
+                    gl.activeTexture(gl.TEXTURE0);
+                    gl.bindTexture(gl.TEXTURE_2D, texture);
+                    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+                    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_NEAREST);
+                    gl.generateMipmap(gl.TEXTURE_2D);
+                    resolve();
+                };
+                img.onerror = function (err) {
+                    reject(err);
+                };
+                img.src = '/src/images/env.png';
+            });
+        }
+    }, {
         key: 'postProcessing',
         value: function postProcessing() {
             var program = gl.createProgram();
@@ -1731,7 +1879,7 @@ var RedCube = function () {
             gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
             gl.enableVertexAttribArray(0);
 
-            gl.activeTexture(gl.TEXTURE0);
+            gl.activeTexture(gl.TEXTURE1);
             gl.generateMipmap(gl.TEXTURE_2D);
 
             this.renderBlur(program, 0.0, this.blurTexture, true);
@@ -1765,7 +1913,7 @@ var RedCube = function () {
             gl.drawArrays(gl.TRIANGLES, 0, 6);
 
             if (needMipmap) {
-                gl.activeTexture(gl.TEXTURE1);
+                gl.activeTexture(gl.TEXTURE2);
                 gl.generateMipmap(gl.TEXTURE_2D);
             }
             gl.uniform1i(gl.getUniformLocation(program, 'uTexture'), this.tempBlurTexture.index);
@@ -1781,6 +1929,10 @@ var RedCube = function () {
             gl.shaderSource(shader, shaderSource);
             gl.compileShader(shader);
             gl.attachShader(program, shader);
+            var log = gl.getShaderInfoLog(shader);
+            if (log) {
+                console.error(log);
+            }
         }
     }, {
         key: 'createTexture',
@@ -1878,16 +2030,6 @@ var RedCube = function () {
             mp.elements[1] = (-2 * y / this.canvas.offsetHeight + 1) * mp.elements[3];
 
             return m.invert().multiplyVector4(mp);
-        }
-    }, {
-        key: 'init',
-        value: function init() {
-            return this.getJson().then(this.glInit.bind(this)).then(this.buildScreenBuffer.bind(this)).then(this.getBuffer.bind(this)).then(this.buildMesh.bind(this)).then(this.initTextures.bind(this)).then(this.buildAnimation.bind(this)).then(this.buildSkin.bind(this)).then(this.draw.bind(this)).catch(console.error);
-        }
-    }, {
-        key: 'setColor',
-        value: function setColor(color) {
-            this.color = color;
         }
     }, {
         key: 'walk',
@@ -2607,6 +2749,8 @@ var RedCube = function () {
                 gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.screenTexture, 0);
 
                 gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENSIL_BUFFER_BIT);
+
+                this.createEnvironment();
 
                 var blends = [];
                 var nonBlends = [];
