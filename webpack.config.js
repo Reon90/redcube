@@ -19,6 +19,9 @@ const config = {
         }, {
             test: /\.glsl$/,
             loader: 'raw-loader'
+        }, {
+          test: /\.(jpeg|jpg|png|gif)$/,
+          use: 'url-loader'
         }]
     }
 };

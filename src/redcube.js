@@ -8,6 +8,7 @@ import blurShader from './shaders/blur.glsl';
 import bloomShader from './shaders/bloom.glsl';
 import envShader from './shaders/env.glsl';
 import textureShader from './shaders/texture.glsl';
+import envTexture from './images/env.png';
 
 let screenTextureCount = 1;
 let sceneTextureCount = 7;
@@ -188,7 +189,7 @@ class RedCube {
             img.onerror = err => {
                 reject(err);
             };
-            img.src = '/src/images/env.png';
+            img.src = envTexture;
         });
     }
 
