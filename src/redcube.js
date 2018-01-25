@@ -1,18 +1,22 @@
 import { Scene, Object3D, Mesh, SkinnedMesh, Bone, Camera } from './objects';
 import { Matrix3, Matrix4, Vector3, Vector4, Frustum } from './matrix';
 import { Events } from './events';
-import { setGl, isMatrix, getMatrixType, getDataType, getComponentType, getMethod, getAnimationComponent, getAnimationMethod, interpolation, buildArray, degToRad } from './utils';
+import { setGl, isMatrix, getMatrixType, getDataType, getComponentType, getMethod, getAnimationComponent, getAnimationMethod, interpolation, buildArray, random } from './utils';
 
+import envTexture from './images/env.jpg';
 import quadShader from './shaders/quad.glsl';
 import blurShader from './shaders/blur.glsl';
 import bloomShader from './shaders/bloom.glsl';
 import envShader from './shaders/env.glsl';
-import textureShader from './shaders/texture.glsl';
-import envTexture from './images/env.png';
+import envBlurShader from './shaders/blurEnv.glsl';
+import ssaoShader from './shaders/ssao.glsl';
+import ssaoBlurShader from './shaders/blurSsao.glsl';
 
 let screenTextureCount = 1;
-let sceneTextureCount = 7;
+let sceneTextureCount = 13;
 let gl;
+const randSize = 4;
+
 class RedCube {
     constructor(url, canvas) {
         this.reflow = true;
@@ -77,7 +81,7 @@ class RedCube {
     createEnvironment() {
         const program = gl.createProgram();
         this.compileShader(gl.VERTEX_SHADER, envShader, program);
-        this.compileShader(gl.FRAGMENT_SHADER, textureShader, program);
+        this.compileShader(gl.FRAGMENT_SHADER, envBlurShader, program);
         gl.linkProgram(program);
         gl.useProgram(program);
 
@@ -194,15 +198,49 @@ class RedCube {
     }
 
     postProcessing() {
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this.ssaobuffer);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.ssaoTexture, 0);
+
+        gl.clearColor(1, 1, 1, 0);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENSIL_BUFFER_BIT);
+
+        const ssaoProgram = gl.createProgram();
+        this.compileShader(gl.VERTEX_SHADER, quadShader, ssaoProgram);
+        this.compileShader(gl.FRAGMENT_SHADER, ssaoShader, ssaoProgram);
+        gl.linkProgram(ssaoProgram);
+        gl.useProgram(ssaoProgram);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.screenQuadVBO);
+        gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+        gl.enableVertexAttribArray(0);
+
+        gl.uniform1i( gl.getUniformLocation(ssaoProgram, 'posBuff'), this.positionTexture.index);
+        gl.uniform1i( gl.getUniformLocation(ssaoProgram, 'normBuff'), this.normalTexture.index);
+        gl.uniform1i( gl.getUniformLocation(ssaoProgram, 'depthBuff'), this.depthTexture.index);
+        gl.uniform1i( gl.getUniformLocation(ssaoProgram, 'randMap'), this.randMap.index);
+        gl.uniform2f( gl.getUniformLocation(ssaoProgram, 'scr'), this.canvas.offsetWidth / randSize, this.canvas.offsetHeight / randSize);
+        gl.uniformMatrix4fv(gl.getUniformLocation(ssaoProgram, 'proj'), false, this._camera.projection.elements);
+        gl.uniform3fv(gl.getUniformLocation(ssaoProgram, 'rndTable'), this.rndTable);
+
+        gl.drawArrays( gl.TRIANGLES, 0, 6 );
+
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.ssaoBlurTexture, 0);
+
+        const ssaoBlurProgram = gl.createProgram();
+        this.compileShader(gl.VERTEX_SHADER, quadShader, ssaoBlurProgram);
+        this.compileShader(gl.FRAGMENT_SHADER, ssaoBlurShader, ssaoBlurProgram);
+        gl.linkProgram(ssaoBlurProgram);
+        gl.useProgram(ssaoBlurProgram);
+
+        gl.uniform1i( gl.getUniformLocation(ssaoBlurProgram, 'ssaoInput'), this.ssaoTexture.index);
+
+        gl.drawArrays( gl.TRIANGLES, 0, 6 );
+
         const program = gl.createProgram();
         this.compileShader(gl.VERTEX_SHADER, quadShader, program);
         this.compileShader(gl.FRAGMENT_SHADER, blurShader, program);
         gl.linkProgram(program);
         gl.useProgram(program);
-
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.screenQuadVBO);
-        gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
-        gl.enableVertexAttribArray(0);
 
         gl.activeTexture(gl.TEXTURE1);
         gl.generateMipmap(gl.TEXTURE_2D);
@@ -221,6 +259,7 @@ class RedCube {
         gl.useProgram(program2);
 
         gl.uniform1i( gl.getUniformLocation(program2, 'uOriginal'), this.screenTexture.index);
+        gl.uniform1i( gl.getUniformLocation(program2, 'ssao'), this.ssaoBlurTexture.index);
         gl.uniform1i( gl.getUniformLocation(program2, 'uTexture1'), this.blurTexture.index);
         gl.uniform1i( gl.getUniformLocation(program2, 'uTexture2'), this.blurTexture2.index);
         gl.uniform1i( gl.getUniformLocation(program2, 'uTexture3'), this.blurTexture3.index);
@@ -258,16 +297,68 @@ class RedCube {
         }
     }
 
-    createTexture(needMipmap) {
+    createTexture(needMipmap, type) {
         const texture = gl.createTexture();
         gl.activeTexture(gl[`TEXTURE${screenTextureCount}`]);
         gl.bindTexture(gl.TEXTURE_2D, texture);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, needMipmap ? gl.LINEAR_MIPMAP_LINEAR : gl.LINEAR);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, this.canvas.offsetWidth, this.canvas.offsetHeight, 0, gl.RGBA, gl.FLOAT, null);
+        
+        switch (type) {
+        case 'depth':
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.DEPTH_COMPONENT24, this.canvas.offsetWidth, this.canvas.offsetHeight, 0, gl.DEPTH_COMPONENT, gl.UNSIGNED_INT, null);
+            break;
+        case 'red':
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, this.canvas.offsetWidth, this.canvas.offsetHeight, 0, gl.RED, gl.UNSIGNED_BYTE, null);
+            break;
+        default:
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, needMipmap ? gl.LINEAR_MIPMAP_LINEAR : gl.LINEAR);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, this.canvas.offsetWidth, this.canvas.offsetHeight, 0, gl.RGBA, gl.FLOAT, null);
+            break;
+        }
         texture.index = screenTextureCount;
         screenTextureCount++;
         return texture;
+    }
+
+    buildRandomTexture() {
+        const rnd = new Uint8Array(randSize * randSize * 3);
+        for (let i = 0; i < randSize * randSize; i++) {
+            const v = new Vector3([random(-1, 1), random(-1, 1), 0]);
+            v.normalize();
+            v.scale(0.5);
+            v.addS(0.5);
+            rnd[i * 3] = v.elements[0] * 255;
+            rnd[i * 3 + 1] = v.elements[1] * 255;
+            rnd[i * 3 + 2] = v.elements[2] * 255;
+        }
+        this.randMap = gl.createTexture();
+        gl.activeTexture(gl[`TEXTURE${screenTextureCount}`]);
+        gl.bindTexture(gl.TEXTURE_2D, this.randMap);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB8, randSize, randSize, 0, gl.RGB, gl.UNSIGNED_BYTE, rnd);
+        this.randMap.index = screenTextureCount;
+        screenTextureCount++;
+    }
+
+    buildRandomKernels() {
+        const rndTable = [];
+        const kernels = 64;
+        for (let i = 0; i < kernels; i++) {
+            rndTable[i] = new Vector3([random(-1, 1), random(-1, 1), random(-1, 0)]);
+            rndTable[i].normalize();
+            rndTable[i].scale((i + 1) / kernels);
+        }
+        this.rndTable = new Float32Array(rndTable.length * 3);
+        let j = 0;
+        for (const m of rndTable) {
+            this.rndTable.set(m.elements, j * 3);
+            j++;
+        }
     }
 
     buildScreenBuffer() {
@@ -295,13 +386,30 @@ class RedCube {
         this.blurTexture2 = this.createTexture();
         this.blurTexture3 = this.createTexture();
         this.blurTexture4 = this.createTexture();
+        this.normalTexture = this.createTexture();
+        this.depthTexture = this.createTexture(false, 'depth');
+        this.positionTexture = this.createTexture();
 
-        const renderbuffer = gl.createRenderbuffer();
-        gl.bindRenderbuffer(gl.RENDERBUFFER, renderbuffer);
-        gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, this.canvas.offsetWidth, this.canvas.offsetHeight);
+        //const renderbuffer = gl.createRenderbuffer();
+        //gl.bindRenderbuffer(gl.RENDERBUFFER, renderbuffer);
+        //gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, this.canvas.offsetWidth, this.canvas.offsetHeight);
 
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.screenTexture, 0);
-        gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, renderbuffer);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, gl.TEXTURE_2D, this.normalTexture, 0);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT2, gl.TEXTURE_2D, this.positionTexture, 0);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, this.depthTexture, 0);
+        gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1, gl.COLOR_ATTACHMENT2]);
+        //gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, renderbuffer);
+
+        this.ssaobuffer = gl.createFramebuffer();
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this.ssaobuffer);
+        this.ssaoTexture = this.createTexture(false, 'red');
+        this.ssaoBlurTexture = this.createTexture(false, 'red');
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.ssaoTexture, 0);
+
+        this.buildRandomTexture();
+
+        this.buildRandomKernels();
 
         return true;
     }
@@ -312,15 +420,22 @@ class RedCube {
             this._camera.setProjection(this.buildCamera(this._camera.props).elements);
         }
         if (type === 'rotate') {
-            const deltaX = coordsMove[0] - coordsStart[0];
-            const newRotationMatrix = new Matrix4;
-            newRotationMatrix.rotate(degToRad(-deltaX / 5), [0, -1, 0]);
+            const p0 = new Vector3(this.sceneToArcBall(this.canvasToWorld(...coordsStart)));
+            const p1 = new Vector3(this.sceneToArcBall(this.canvasToWorld(...coordsMove)));
+            const angle = Vector3.angle(p0, p1) * 2;
+            if (angle < 1e-6 || isNaN(angle)) {
+                return;
+            }
 
-            const deltaY = coordsMove[1] - coordsStart[1];
-            newRotationMatrix.rotate(degToRad(-deltaY / 5), [-1, 0, 0]);
+            const v = Vector3.cross(p0, p1).normalize();
+            const sin = Math.sin(angle / 2);
+            const q = new Vector4([v.elements[0] * -sin, v.elements[1] * -sin, v.elements[2] * -sin, Math.cos(angle / 2)]);
 
-            this.scene.matrixWorld.multiply(newRotationMatrix);
-            this.envMatrix.multiply(newRotationMatrix);
+            const m = new Matrix4();
+            m.makeRotationFromQuaternion(q.elements);
+
+            this.scene.matrixWorld.multiply(m);
+            this.envMatrix.multiply(m);
         }
         if (type === 'pan') {
             const p0 = new Vector3(this.canvasToWorld(...coordsStart).elements);
@@ -345,6 +460,17 @@ class RedCube {
         this._camera.setProjection(this.buildCamera(this._camera.props).elements);
     }
 
+    sceneToArcBall(pos) {
+        let len = pos.elements[0] * pos.elements[0] + pos.elements[1] * pos.elements[1];
+        const sz = 0.04 * 0.04 - len;
+        if (sz > 0) {
+            return [pos.elements[0], pos.elements[1], Math.sqrt(sz)];
+        } else {
+            len = Math.sqrt(len);
+            return [0.04 * pos.elements[0] / len, 0.04 * pos.elements[1] / len, 0];
+        }
+    }
+
     canvasToWorld(x, y) {
         const newM = new Matrix4();
         newM.setTranslate(...this.cameraPosition.elements);
@@ -352,8 +478,8 @@ class RedCube {
         m.multiply(newM);
 
         const mp = m.multiplyVector4(new Vector4([0, 0, 0, 1]));
-        mp.elements[0] = (2 * x / this.canvas.offsetWidth - 1) * mp.elements[3];
-        mp.elements[1] = (-2 * y / this.canvas.offsetHeight + 1) * mp.elements[3];
+        mp.elements[0] = (2 * x / this.canvas.width - 1) * mp.elements[3];
+        mp.elements[1] = (-2 * y / this.canvas.height + 1) * mp.elements[3];
 
         return m.invert().multiplyVector4(mp);
     }
@@ -796,6 +922,10 @@ class RedCube {
                     gl.shaderSource(shader, sh);
                     gl.compileShader(shader);
                     gl.attachShader(program, shader);
+                    const log = gl.getShaderInfoLog(shader);
+                    if (log) {
+                        console.error(log);
+                    }
 
                     const index = this.scene.program[i].shaders.push(shader);
                     if (index === 2) {
@@ -885,6 +1015,9 @@ class RedCube {
         if (this.reflow) {
             gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
             gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.screenTexture, 0);
+            gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, gl.TEXTURE_2D, this.normalTexture, 0);
+            gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT2, gl.TEXTURE_2D, this.positionTexture, 0);
+            gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, this.depthTexture, 0);
 
             gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENSIL_BUFFER_BIT);
 

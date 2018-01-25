@@ -10,6 +10,10 @@ export function isMatrix(type) {
     return glEnum[type] === 'FLOAT_MAT4' || glEnum[type] === 'FLOAT_MAT3' || glEnum[type] === 'FLOAT_MAT2';
 }
 
+export function random(min, max) {
+    return Math.random() * (max - min) + min;
+}
+
 export function getMatrixType(type) {
     if (glEnum[type] === 'FLOAT_MAT4') {
         return Matrix4;
@@ -170,8 +174,4 @@ export function buildArray(arrayBuffer, type, offset, length) {
         break;
     }
     return arr;
-}
-
-export function degToRad(degrees) {
-    return degrees * Math.PI / 180;
 }
