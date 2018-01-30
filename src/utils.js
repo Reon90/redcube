@@ -1,9 +1,13 @@
 import { Matrix2, Matrix3, Matrix4 } from './matrix';
 
 let glEnum;
+let gl;
 
-export function setGl(gl) {
-    glEnum = gl;
+export function setGlEnum(g) {
+    glEnum = g;
+}
+export function setGl(g) {
+    gl = g;
 }
 
 export function isMatrix(type) {
@@ -174,4 +178,25 @@ export function buildArray(arrayBuffer, type, offset, length) {
         break;
     }
     return arr;
+}
+
+export function compileShader(type, shaderSource, program) {
+    const shader = gl.createShader(type);
+    gl.shaderSource(shader, shaderSource);
+    gl.compileShader(shader);
+    gl.attachShader(program, shader);
+    const log = gl.getShaderInfoLog(shader);
+    if (log) {
+        console.error(log);
+    }
+}
+
+export function walk(node, callback) {
+    function _walk(node) {
+        callback(node);
+        if (node.children) {
+            node.children.forEach(_walk);
+        }
+    }
+    _walk(node);
 }
