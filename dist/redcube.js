@@ -1883,6 +1883,7 @@ var RedCube = function () {
         this.parse.setCamera(this._camera);
         this.parse.setCanvas(this.canvas);
         this.parse.setResize(this.resize.bind(this));
+        this.parse.setCalculateProjection(this.calculateProjection.bind(this));
     }
 
     _createClass(RedCube, [{
@@ -2918,6 +2919,11 @@ var Parse = exports.Parse = function () {
             this.resize = resize;
         }
     }, {
+        key: 'setCalculateProjection',
+        value: function setCalculateProjection(calculateProjection) {
+            this.calculateProjection = calculateProjection;
+        }
+    }, {
         key: 'getBuffer',
         value: function getBuffer() {
             var _this = this;
@@ -3109,7 +3115,7 @@ var Parse = exports.Parse = function () {
             var child = void 0;
 
             if (el.camera) {
-                var proj = this.buildCamera(this.json.cameras[el.camera]);
+                var proj = this.calculateProjection(this.json.cameras[el.camera]);
                 child = new _objects.Camera(name, parent);
                 child.props = this.json.cameras[el.camera];
                 child.setProjection(proj.elements);
@@ -3192,7 +3198,7 @@ var Parse = exports.Parse = function () {
                     });
                 }
                 if (_this3.json.nodes[n].camera) {
-                    var proj = _this3.buildCamera(_this3.json.cameras[_this3.json.nodes[n].camera]);
+                    var proj = _this3.calculateProjection(_this3.json.cameras[_this3.json.nodes[n].camera]);
 
                     //this._camera = new Camera();
                     _this3._camera.props = _this3.json.cameras[_this3.json.nodes[n].camera];

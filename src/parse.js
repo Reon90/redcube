@@ -43,6 +43,10 @@ export class Parse {
         this.resize = resize;
     }
 
+    setCalculateProjection(calculateProjection) {
+        this.calculateProjection = calculateProjection;
+    }
+
     get width() {
         return this.canvas.offsetWidth;
     }
@@ -180,7 +184,7 @@ export class Parse {
         let child;
         
         if (el.camera) {
-            const proj = this.buildCamera(this.json.cameras[el.camera]);
+            const proj = this.calculateProjection(this.json.cameras[el.camera]);
             child = new Camera(name, parent);
             child.props = this.json.cameras[el.camera];
             child.setProjection(proj.elements);
@@ -255,7 +259,7 @@ export class Parse {
                 });
             }
             if (this.json.nodes[n].camera) {
-                const proj = this.buildCamera(this.json.cameras[this.json.nodes[n].camera]);
+                const proj = this.calculateProjection(this.json.cameras[this.json.nodes[n].camera]);
                 
                 //this._camera = new Camera();
                 this._camera.props = this.json.cameras[this.json.nodes[n].camera];

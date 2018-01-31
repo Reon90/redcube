@@ -54,6 +54,7 @@ class RedCube {
         this.parse.setCamera(this._camera);
         this.parse.setCanvas(this.canvas);
         this.parse.setResize(this.resize.bind(this));
+        this.parse.setCalculateProjection(this.calculateProjection.bind(this));
     }
 
     init() {
