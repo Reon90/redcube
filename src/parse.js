@@ -1,4 +1,4 @@
-import { isMatrix, buildArray, getDataType, walk, getMatrixType, getAnimationComponent } from './utils';
+import { isMatrix, buildArray, getDataType, walk, getMatrixType, getAnimationComponent, calculateProjection, compileShader } from './utils';
 import { Mesh, SkinnedMesh, Bone, Camera, Object3D } from './objects';
 import { Matrix4 } from './matrix';
 
@@ -31,8 +31,10 @@ export class Parse {
         glEnum = g;
     }
 
-    setCamera(camera) {
+    setCamera(camera, aspect, zoom) {
         this._camera = camera;
+        this.aspect = aspect;
+        this.zoom = zoom;
     }
 
     setCanvas(canvas) {
@@ -41,10 +43,6 @@ export class Parse {
 
     setResize(resize) {
         this.resize = resize;
-    }
-
-    setCalculateProjection(calculateProjection) {
-        this.calculateProjection = calculateProjection;
     }
 
     get width() {
@@ -58,6 +56,44 @@ export class Parse {
                 this.arrayBuffer = res;
                 return true;
             });
+    }
+
+    loadShader() {
+        const shaderArr = [];
+        for (const p of this.scene.program) {
+            shaderArr.push(fetch(`${this.host}${p.fragmentShader}.glsl`).then(res => res.text()));
+            shaderArr.push(fetch(`${this.host}${p.vertexShader}.glsl`).then(res => res.text()));
+        }
+
+        return Promise.all(shaderArr)
+            .then(this.compileShader.bind(this));
+    }
+
+    compileShader(res) {
+        let program;
+        let i = 0;
+        for (const sh of res) {
+            if (!program) {
+                program = gl.createProgram();
+            }
+
+            let type;
+            if (/gl_Position/.test(sh)) {
+                type = gl.VERTEX_SHADER;
+            } else {
+                type = gl.FRAGMENT_SHADER;
+            }
+
+            const index = this.scene.program[i].shaders.push(compileShader(type, sh, program));
+            if (index === 2) {
+                this.scene.program[i].program = program;
+                gl.linkProgram(program);
+                program = null;
+                i++;
+            }
+        }
+
+        return true;
     }
 
     buildPrim(parent, source, name, p) {
@@ -184,7 +220,7 @@ export class Parse {
         let child;
         
         if (el.camera) {
-            const proj = this.calculateProjection(this.json.cameras[el.camera]);
+            const proj = calculateProjection(this.json.cameras[el.camera], this.aspect, this.zoom);
             child = new Camera(name, parent);
             child.props = this.json.cameras[el.camera];
             child.setProjection(proj.elements);
@@ -259,7 +295,7 @@ export class Parse {
                 });
             }
             if (this.json.nodes[n].camera) {
-                const proj = this.calculateProjection(this.json.cameras[this.json.nodes[n].camera]);
+                const proj = calculateProjection(this.json.cameras[this.json.nodes[n].camera], this.aspect, this.zoom);
                 
                 //this._camera = new Camera();
                 this._camera.props = this.json.cameras[this.json.nodes[n].camera];

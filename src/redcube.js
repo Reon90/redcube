@@ -4,7 +4,7 @@ import { Events } from './events';
 import { Env } from './env';
 import { Parse } from './parse';
 import { PostProcessing } from './postprocessing';
-import { setGl, setGlEnum, getComponentType, getMethod, getAnimationComponent, getAnimationMethod, interpolation, compileShader, walk } from './utils';
+import { setGl, setGlEnum, getComponentType, getMethod, getAnimationComponent, getAnimationMethod, interpolation, walk, sceneToArcBall, canvasToWorld, calculateProjection } from './utils';
 
 let gl;
 
@@ -33,7 +33,6 @@ class RedCube {
         this.glEnum = {};
 
         this.events = new Events(this.redraw.bind(this));
-        this.cameraPosition = new Vector3([0, 0, 0.05]);
 
         this.counterEl = document.createElement('div');
         this.counterEl.setAttribute('style', 'position: absolute; top: 0; right: 0; color: #fff; font-size: 30px; background: #000;');
@@ -51,15 +50,15 @@ class RedCube {
 
         this.parse = new Parse(url);
         this.parse.setScene(this.scene);
-        this.parse.setCamera(this._camera);
+        this.parse.setCamera(this._camera, this.aspect, this.zoom);
         this.parse.setCanvas(this.canvas);
-        this.parse.setResize(this.resize.bind(this));
-        this.parse.setCalculateProjection(this.calculateProjection.bind(this));
+        this.parse.setResize(this.resize.bind(this));    
     }
 
     init() {
         return this.parse.getJson()
             .then(this.glInit.bind(this))
+            .then(this.parse.loadShader.bind(this.parse))
             .then(this.PP.buildScreenBuffer.bind(this.PP))
             .then(this.parse.getBuffer.bind(this.parse))
             .then(this.parse.buildMesh.bind(this.parse))
@@ -78,11 +77,11 @@ class RedCube {
     redraw(type, coordsStart, coordsMove) {
         if (type === 'zoom') {
             this.zoom = coordsStart;
-            this._camera.setProjection(this.calculateProjection(this._camera.props).elements);
+            this._camera.setProjection(calculateProjection(this._camera.props, this.aspect, this.zoom).elements);
         }
         if (type === 'rotate') {
-            const p0 = new Vector3(this.sceneToArcBall(this.canvasToWorld(...coordsStart)));
-            const p1 = new Vector3(this.sceneToArcBall(this.canvasToWorld(...coordsMove)));
+            const p0 = new Vector3(sceneToArcBall(canvasToWorld(...coordsStart, this._camera.projection, this.canvas.offsetWidth, this.canvas.offsetHeight)));
+            const p1 = new Vector3(sceneToArcBall(canvasToWorld(...coordsMove, this._camera.projection, this.canvas.offsetWidth, this.canvas.offsetHeight)));
             const angle = Vector3.angle(p0, p1) * 2;
             if (angle < 1e-6 || isNaN(angle)) {
                 return;
@@ -99,8 +98,8 @@ class RedCube {
             this.env.envMatrix.multiply(m);
         }
         if (type === 'pan') {
-            const p0 = new Vector3(this.canvasToWorld(...coordsStart).elements);
-            const p1 = new Vector3(this.canvasToWorld(...coordsMove).elements);
+            const p0 = new Vector3(canvasToWorld(...coordsStart, this._camera.projection, this.canvas.offsetWidth, this.canvas.offsetHeight).elements);
+            const p1 = new Vector3(canvasToWorld(...coordsMove, this._camera.projection, this.canvas.offsetWidth, this.canvas.offsetHeight).elements);
             const pan = this._camera.modelSize * 100;
             const delta = p1.subtract(p0).scale(pan);
 
@@ -118,50 +117,7 @@ class RedCube {
         this.canvas.width = this.canvas.offsetWidth;
         this.canvas.height = this.canvas.offsetHeight;
         gl.viewport( 0, 0, this.canvas.offsetWidth, this.canvas.offsetHeight );
-        this._camera.setProjection(this.calculateProjection(this._camera.props).elements);
-    }
-
-    sceneToArcBall(pos) {
-        let len = pos.elements[0] * pos.elements[0] + pos.elements[1] * pos.elements[1];
-        const sz = 0.04 * 0.04 - len;
-        if (sz > 0) {
-            return [pos.elements[0], pos.elements[1], Math.sqrt(sz)];
-        } else {
-            len = Math.sqrt(len);
-            return [0.04 * pos.elements[0] / len, 0.04 * pos.elements[1] / len, 0];
-        }
-    }
-
-    canvasToWorld(x, y) {
-        const newM = new Matrix4();
-        newM.setTranslate(...this.cameraPosition.elements);
-        const m = new Matrix4(this._camera.projection);
-        m.multiply(newM);
-
-        const mp = m.multiplyVector4(new Vector4([0, 0, 0, 1]));
-        mp.elements[0] = (2 * x / this.canvas.width - 1) * mp.elements[3];
-        mp.elements[1] = (-2 * y / this.canvas.height + 1) * mp.elements[3];
-
-        return m.invert().multiplyVector4(mp);
-    }
-
-    calculateProjection(cam) {
-        let proj;
-        if ( cam.type === 'perspective' && cam.perspective ) {
-            const {yfov} = cam.perspective;
-            const aspectRatio = cam.perspective.aspectRatio || this.aspect;
-            const xfov = yfov * this.aspect;
-
-            if (this.aspect !== aspectRatio) {
-                console.warn('this.canvas size and this.canvas size from scene dont equal');
-            }
-
-            proj = new Matrix4().setPerspective(xfov * this.zoom * (180 / Math.PI), this.aspect, cam.perspective.znear || 1, cam.perspective.zfar || 2e6);
-        } else if ( cam.type === 'orthographic' && cam.orthographic ) {
-            proj = new Matrix4().setOrtho( window.innerWidth / -2, window.innerWidth / 2, window.innerHeight / 2, window.innerHeight / -2, cam.orthographic.znear, cam.orthographic.zfar);
-        }
-
-        return proj;
+        this._camera.setProjection(calculateProjection(this._camera.props, this.aspect, this.zoom).elements);
     }
 
     buildBuffer(indexBuffer, ...buffer) {
@@ -202,40 +158,6 @@ class RedCube {
         this.PP.setGl(gl);
         this.parse.setGl(gl);
         this.parse.setGlEnum(this.glEnum);
-
-        const shaderArr = [];
-        for (const p of this.scene.program) {
-            shaderArr.push(fetch(`${this.host}${p.fragmentShader}.glsl`).then(res => res.text()));
-            shaderArr.push(fetch(`${this.host}${p.vertexShader}.glsl`).then(res => res.text()));
-        }
-
-        return Promise.all(shaderArr)
-            .then(this.compileShader.bind(this));
-    }
-
-    compileShader(res) {
-        let program;
-        let i = 0;
-        for (const sh of res) {
-            if (!program) {
-                program = gl.createProgram();
-            }
-
-            let type;
-            if (/gl_Position/.test(sh)) {
-                type = gl.VERTEX_SHADER;
-            } else {
-                type = gl.FRAGMENT_SHADER;
-            }
-
-            const index = this.scene.program[i].shaders.push(compileShader(type, sh, program));
-            if (index === 2) {
-                this.scene.program[i].program = program;
-                gl.linkProgram(program);
-                program = null;
-                i++;
-            }
-        }
 
         return true;
     }

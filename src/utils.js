@@ -1,4 +1,4 @@
-import { Matrix2, Matrix3, Matrix4 } from './matrix';
+import { Matrix2, Matrix3, Matrix4, Vector3, Vector4 } from './matrix';
 
 let glEnum;
 let gl;
@@ -199,4 +199,47 @@ export function walk(node, callback) {
         }
     }
     _walk(node);
+}
+
+export function sceneToArcBall(pos) {
+    let len = pos.elements[0] * pos.elements[0] + pos.elements[1] * pos.elements[1];
+    const sz = 0.04 * 0.04 - len;
+    if (sz > 0) {
+        return [pos.elements[0], pos.elements[1], Math.sqrt(sz)];
+    } else {
+        len = Math.sqrt(len);
+        return [0.04 * pos.elements[0] / len, 0.04 * pos.elements[1] / len, 0];
+    }
+}
+
+export function canvasToWorld(x, y, projection, width, height) {
+    const newM = new Matrix4();
+    newM.setTranslate(...(new Vector3([0, 0, 0.05]).elements));
+    const m = new Matrix4(projection);
+    m.multiply(newM);
+
+    const mp = m.multiplyVector4(new Vector4([0, 0, 0, 1]));
+    mp.elements[0] = (2 * x / width - 1) * mp.elements[3];
+    mp.elements[1] = (-2 * y / height + 1) * mp.elements[3];
+
+    return m.invert().multiplyVector4(mp);
+}
+
+export function calculateProjection(cam, aspect, zoom) {
+    let proj;
+    if ( cam.type === 'perspective' && cam.perspective ) {
+        const {yfov} = cam.perspective;
+        const aspectRatio = cam.perspective.aspectRatio || aspect;
+        const xfov = yfov * aspect;
+
+        if (aspect !== aspectRatio) {
+            console.warn('this.canvas size and this.canvas size from scene dont equal');
+        }
+
+        proj = new Matrix4().setPerspective(xfov * zoom * (180 / Math.PI), aspect, cam.perspective.znear || 1, cam.perspective.zfar || 2e6);
+    } else if ( cam.type === 'orthographic' && cam.orthographic ) {
+        proj = new Matrix4().setOrtho( window.innerWidth / -2, window.innerWidth / 2, window.innerHeight / 2, window.innerHeight / -2, cam.orthographic.znear, cam.orthographic.zfar);
+    }
+
+    return proj;
 }
