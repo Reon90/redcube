@@ -2,6 +2,9 @@ import { isMatrix, buildArray, getDataType, walk, getMatrixType, getAnimationCom
 import { Mesh, SkinnedMesh, Bone, Camera, Object3D } from './objects';
 import { Matrix4 } from './matrix';
 
+import vertexShader from './shaders/vertex.glsl';
+import fragmentShader from './shaders/fragment.glsl';
+
 let gl;
 let glEnum;
 let sceneTextureCount = 13;
@@ -14,7 +17,8 @@ export class Parse {
         this.blendEnable = {};
         this.tracks = [];
         this.skins = {};
-        this.textures = {};
+        this.textures = null;
+        this.samplers = null;
         this.blendTechnique = {};
         this.cameras = [];
     }
@@ -45,6 +49,10 @@ export class Parse {
         this.resize = resize;
     }
 
+    setUpdateCamera(updateCamera) {
+        this.updateCamera = updateCamera;
+    }
+
     get width() {
         return this.canvas.offsetWidth;
     }
@@ -58,168 +66,120 @@ export class Parse {
             });
     }
 
-    loadShader() {
-        const shaderArr = [];
-        for (const p of this.scene.program) {
-            shaderArr.push(fetch(`${this.host}${p.fragmentShader}.glsl`).then(res => res.text()));
-            shaderArr.push(fetch(`${this.host}${p.vertexShader}.glsl`).then(res => res.text()));
-        }
+    compileShader(vertexShader, fragmentShader) {
+        const program = gl.createProgram();
+        compileShader(gl.VERTEX_SHADER, vertexShader, program);
+        compileShader(gl.FRAGMENT_SHADER, fragmentShader, program);
+        gl.linkProgram(program);
 
-        return Promise.all(shaderArr)
-            .then(this.compileShader.bind(this));
+        return program;
     }
 
-    compileShader(res) {
-        let program;
-        let i = 0;
-        for (const sh of res) {
-            if (!program) {
-                program = gl.createProgram();
-            }
-
-            let type;
-            if (/gl_Position/.test(sh)) {
-                type = gl.VERTEX_SHADER;
-            } else {
-                type = gl.FRAGMENT_SHADER;
-            }
-
-            const index = this.scene.program[i].shaders.push(compileShader(type, sh, program));
-            if (index === 2) {
-                this.scene.program[i].program = program;
-                gl.linkProgram(program);
-                program = null;
-                i++;
-            }
-        }
-
-        return true;
-    }
-
-    buildPrim(parent, source, name, p) {
+    buildPrim(parent, name, matrix, p) {
         const indicesAccessor = this.json.accessors[p.indices];
         const vertexAccessor = {};
         for (const a in p.attributes) {
-            vertexAccessor[a.toLowerCase().replace(/_(\d)/, '$1')] = this.json.accessors[p.attributes[a]];
+            vertexAccessor[a] = this.json.accessors[p.attributes[a]];
         }
 
-        const material = this.json.materials[p.material].values;
-        const tech = this.json.materials[p.material].technique;
-        const technique = this.json.techniques[tech];
-
-        const attributes = {};
-        for (const k in technique.attributes) {
-            attributes[k] = {
-                type: technique.parameters[technique.attributes[k]].type,
-                semantic: technique.parameters[technique.attributes[k]].semantic,
-            };
-        }
-        const uniforms = {};
-        for (const k in technique.uniforms) {
-            const key = technique.parameters[technique.uniforms[k]];
-            let {node} = key;
-            const {value} = key;
-
-            if (node) {
-                node = this.json.nodes[node].matrix;
-            }
-
-            uniforms[k] = {
-                type: key.type,
-                value: value,
-                semantic: key.semantic,
-                node: node,
-                count: key.count
-            };
-        }
-        for (const k in material) {
-            if (material[k] !== undefined) {
-                uniforms[`u_${k}`].value = material[k];
-            }
+        const material = this.json.materials[p.material];
+        const defines = [];
+        if (material.pbrMetallicRoughness.baseColorTexture) {
+            material.pbrMetallicRoughness.baseColorTexture = this.textures[material.pbrMetallicRoughness.baseColorTexture.index];
+            defines.push('BASECOLORTEXTURE');
         }
 
-        const textures = [];
-        for (const k in uniforms) {
-            const u = uniforms[k];
-
-            if (u.type === gl.SAMPLER_2D) {
-                const t = Object.assign({}, this.json.textures[u.value]);
-                Object.assign(t, this.json.samplers[t.sampler]);
-                Object.assign(t, this.json.images[t.source]);
-                t.name = u.value;
-                textures.push(t);
-            }
-
-            if (u.value !== undefined && !Array.isArray(u.value)) {
-                u.value = [u.value];
-            }
-            if (u.node !== undefined && !Array.isArray(u.node)) {
-                u.node = [u.node];
-            }
-
-            if (u.value && isMatrix(u.type)) {
-                const matrixConstr = getMatrixType(u.type);
-                u.value = new matrixConstr().set(u.value);
-            }
-            if (u.node && isMatrix(u.type)) {
-                const matrixConstr = getMatrixType(u.type);
-                u.node = new matrixConstr().set(u.node);
-            }
-            if (u.count && !u.value) {
-                const constr = getMatrixType(u.type);
-                u.value = new Array(u.count).fill(1).map(() => new constr);
-            }
-        }
+        const defineStr = defines.map(define => `#define ${define} 1` + '\n').join('');
+        const program = this.compileShader(vertexShader.replace(/\n/, '\n' + defineStr), fragmentShader.replace(/\n/, '\n' + defineStr));
 
         let indicesBuffer;
         if (indicesAccessor) {
-            indicesBuffer = {};
             const bufferView = this.json.bufferViews[indicesAccessor.bufferView];
-            indicesBuffer.value = buildArray(this.arrayBuffer, indicesAccessor.componentType, bufferView.byteOffset + indicesAccessor.byteOffset, getDataType(indicesAccessor.type) * indicesAccessor.count);
+            indicesBuffer = buildArray(this.arrayBuffer, indicesAccessor.componentType, bufferView.byteOffset + indicesAccessor.byteOffset, getDataType(indicesAccessor.type) * indicesAccessor.count);
         }
         for (const k in vertexAccessor) {
-            if (attributes[`a_${k}`]) {
-                const accessor = vertexAccessor[k];
-                const bufferView = this.json.bufferViews[accessor.bufferView];
-                attributes[`a_${k}`].value = buildArray(this.arrayBuffer, accessor.componentType, bufferView.byteOffset + accessor.byteOffset, getDataType(accessor.type) * accessor.count);
-            }
+            const accessor = vertexAccessor[k];
+            const bufferView = this.json.bufferViews[accessor.bufferView];
+            vertexAccessor[k] = buildArray(this.arrayBuffer, accessor.componentType, bufferView.byteOffset + accessor.byteOffset, getDataType(accessor.type) * accessor.count);
         }
 
-        let mesh;
-        if (source.skin) {
-            mesh = new SkinnedMesh(name, parent);
-            mesh.setSkin(source.skin);
-        } else {
-            mesh = new Mesh(name, parent);
-        }
-        const isBlend = technique.states.enable.some(s => glEnum[s] === 'BLEND');
-        if (isBlend) {
-            mesh.setBlend(isBlend);
-            Object.assign(this.blendTechnique, technique.states.functions);
-            for (const e of technique.states.enable) {
-                this.blendEnable[e] = true;
-            }
-        } else {
-            for (const e of technique.states.enable) {
-                this.unblendEnable[e] = true;
-            }
-        }
-        mesh.setTechnique(technique.states);
-        mesh.setProgram(this.scene.program.find(p => p.name === technique.program).program);
+        const mesh = new Mesh(name, parent);
+        
+        mesh.setProgram(program);
         mesh.setMode(p.mode);
-        mesh.setUniforms(uniforms);
-        mesh.setAttributes(attributes);
+        mesh.setMaterial(material);
+        //mesh.setUniforms(uniforms);
+        mesh.setAttributes(vertexAccessor);
         mesh.setIndicesBuffer(indicesBuffer);
-        mesh.setTextures(textures);
+        if (matrix) {
+            mesh.setMatrix(matrix);
+        }
+        //mesh.setTextures(textures);
+
+        const m = new Matrix4;
+        m.multiply( mesh.parent.matrixWorld );
+        m.multiply(mesh.matrix);
+        mesh.setMatrixWorld(m.elements);
+
+        const VAO = gl.createVertexArray();
+        gl.bindVertexArray(VAO);
+
+        for (const k in vertexAccessor) {
+            const VBO = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, VBO);
+            gl.bufferData(gl.ARRAY_BUFFER, vertexAccessor[k], gl.STATIC_DRAW);
+            const index = this.getAttributeIndex(k);
+            gl.enableVertexAttribArray(index[0]);
+            gl.vertexAttribPointer(index[0], index[1], gl.FLOAT, false, 0, 0);
+        }
+        const VBO = gl.createBuffer();
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, VBO);
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indicesBuffer, gl.STATIC_DRAW);
+        mesh.geometry.VAO = VAO;
+
+        gl.bindVertexArray(null);
+
+        if (mesh.material.pbrMetallicRoughness.baseColorFactor) {
+            const materials = new Float32Array(8);
+            materials.set(mesh.material.pbrMetallicRoughness.baseColorFactor);
+            materials.set([336.34771728515625,258.2054748535156,330.2711181640625], 4);
+            const mIndex = gl.getUniformBlockIndex(mesh.program, 'Material');
+            gl.uniformBlockBinding(mesh.program, mIndex, 1);
+            const mUBO = gl.createBuffer();
+            gl.bindBuffer(gl.UNIFORM_BUFFER, mUBO);
+            gl.bufferData(gl.UNIFORM_BUFFER, materials, gl.STATIC_DRAW);
+            mesh.material.UBO = mUBO;
+        }
+        if (material.pbrMetallicRoughness.baseColorTexture) {
+            mesh.material.baseColorTexture = gl.getUniformLocation(mesh.program, 'baseColorTexture');
+        }
+
+        gl.bindBuffer(gl.UNIFORM_BUFFER, null);
 
         return mesh;
+    }
+
+    getAttributeIndex(name) {
+        let index;
+        switch (name) {
+        case 'POSITION':
+            index = [0, 3];
+            break;
+        case 'NORMAL':
+            index = [1, 3];
+            break;
+        case 'TEXCOORD_0':
+            index = [2, 2];
+            break;
+        }
+        return index;
     }
 
     walkByMesh(parent, name) {
         const el = this.json.nodes[name];
         let child;
         
-        if (el.camera) {
+        if (el.camera !== undefined) {
             const proj = calculateProjection(this.json.cameras[el.camera], this.aspect, this.zoom);
             child = new Camera(name, parent);
             child.props = this.json.cameras[el.camera];
@@ -227,13 +187,17 @@ export class Parse {
             child.setMatrix(el.matrix);
             child.setMatrixWorld(el.matrix);
             
-            //this._camera = child;
+            this._camera = child;
+            this.updateCamera(this._camera);
 
             this.cameras.push(child);
         } else {
-            if (el.jointName) {
+            if (el.jointName !== undefined) {
                 child = new Bone(name, parent);
                 child.setJointName(el.jointName);
+            } else if (el.mesh !== undefined) {
+                parent.children.push(...this.json.meshes[el.mesh].primitives.map(this.buildPrim.bind(this, parent, this.json.meshes[el.mesh].name, el.matrix)));
+                return;
             } else {
                 child = new Object3D(name, parent);
             }
@@ -244,15 +208,16 @@ export class Parse {
             }
         }
 
+        const m = new Matrix4;
+        m.multiply( child.parent.matrixWorld );
+        m.multiply(child.matrix);
+        child.setMatrixWorld(m.elements);
+
         parent.children.push(child);
         parent = child;
 
         if (el.children && el.children.length) {
             el.children.forEach(this.walkByMesh.bind(this, parent));
-        } else if (el.meshes && el.meshes.length) {
-            el.meshes.forEach(m => {
-                parent.children.push(...this.json.meshes[m].primitives.map(this.buildPrim.bind(this, parent, el, m)));
-            });
         }
     }
 
@@ -285,27 +250,47 @@ export class Parse {
     }
 
     buildMesh() {
-        this.json.scenes.defaultScene.nodes.forEach(n => {
-            if (this.json.nodes[n].children.length) {
+        this.json.scenes[this.json.scene].nodes.forEach(n => {
+            if (this.json.nodes[n].children && this.json.nodes[n].children.length) {
                 this.walkByMesh(this.scene, n);
             }
-            if (this.json.nodes[n].meshes && this.json.nodes[n].meshes.length) {
-                this.json.nodes[n].meshes.forEach(m => {
-                    this.scene.children.push(...this.json.meshes[m].primitives.map(this.buildPrim.bind(this, this.scene, this.json.nodes[n], m)));
-                });
-            }
-            if (this.json.nodes[n].camera) {
+            // if (this.json.nodes[n].meshes && this.json.nodes[n].meshes.length) {
+            //     this.json.nodes[n].meshes.forEach(m => {
+            //         this.scene.children.push(...this.json.meshes[m].primitives.map(this.buildPrim.bind(this, this.scene, this.json.nodes[n], m)));
+            //     });
+            // }
+            if (this.json.nodes[n].camera !== undefined) {
                 const proj = calculateProjection(this.json.cameras[this.json.nodes[n].camera], this.aspect, this.zoom);
                 
-                //this._camera = new Camera();
+                this._camera = new Camera();
                 this._camera.props = this.json.cameras[this.json.nodes[n].camera];
                 this._camera.setProjection(proj.elements);
                 this._camera.setMatrix(this.json.nodes[n].matrix);
                 this._camera.setMatrixWorld(this.json.nodes[n].matrix);
+                this.updateCamera(this._camera);
             }
         });
 
-        this.calculateFov();
+        //this.calculateFov();
+
+        walk(this.scene, mesh => {
+            if (mesh instanceof SkinnedMesh || mesh instanceof Mesh) {
+                const normalMatrix = new Matrix4(mesh.matrixWorld.elements);
+                normalMatrix.invert().transpose();
+                const matrices = new Float32Array(64);
+                matrices.set(mesh.matrixWorld.elements);
+                matrices.set(this._camera.matrixWorldInvert.elements, 16);
+                matrices.set(this._camera.projection.elements, 32);
+                matrices.set(normalMatrix.elements, 48);
+                const uIndex = gl.getUniformBlockIndex(mesh.program, 'Matrices');
+                gl.uniformBlockBinding(mesh.program, uIndex, 0);
+                const UBO = gl.createBuffer();
+                gl.bindBuffer(gl.UNIFORM_BUFFER, UBO);
+                gl.bufferData(gl.UNIFORM_BUFFER, matrices, gl.DYNAMIC_DRAW);
+                mesh.geometry.UBO = UBO;
+                gl.bindBuffer(gl.UNIFORM_BUFFER, null);
+            }
+        });
 
         return true;
     }
@@ -424,11 +409,6 @@ export class Parse {
         return fetch(this.url)
             .then(res => res.json())
             .then(j => {
-                for (const k in j.programs) {
-                    j.programs[k].shaders = [];
-                    j.programs[k].name = k;
-                    this.scene.program.push(j.programs[k]);
-                }
                 for (const key in j.buffers) {
                     this.scene.bin.push(j.buffers[key].uri);
                 }
@@ -438,48 +418,52 @@ export class Parse {
             });
     }
 
-    walkTexture(node) {
-        if (node.material && node.material.texture) {
-            node.material.texture.forEach(t => {
-                if (!this.textures[t.name]) {
-                    this.textures[t.name] = t;
-                }
-            });
-        }
-    }
-
     initTextures() {
-        walk(this.scene, this.walkTexture.bind(this));
-        
-        const promiseArr = Object.values(this.textures).map(t => {
+        if (!this.json.textures) {
+            return true;
+        }
+        this.samplers = this.json.samplers.map(s => {
+            const sampler = gl.createSampler();
+            gl.samplerParameteri(sampler, gl.TEXTURE_MIN_FILTER, s.minFilter);
+            gl.samplerParameteri(sampler, gl.TEXTURE_MAG_FILTER, s.magFilter);
+            gl.samplerParameteri(sampler, gl.TEXTURE_WRAP_S, s.wrapS);
+            gl.samplerParameteri(sampler, gl.TEXTURE_WRAP_T, s.wrapT);
+            return sampler;
+        });
+
+        const promiseArr = this.json.textures.map(t => {
             return new Promise((resolve, reject) => {
+                const sampler = this.samplers[t.sampler];
+                const source = this.json.images[t.source];
                 const image = new Image();
                 image.onload = () => {
-                    this.handleTextureLoaded(t, image);
-                    resolve();
+                    resolve(this.handleTextureLoaded(sampler, image));
                 };
                 image.onerror = err => {
                     reject(err);
                 };
                 image.crossOrigin = 'anonymous';
-                image.src = `${this.host}${t.uri}`;
+                image.src = `${this.host}${source.uri}`;
             });
         });
 
-        return Promise.all(promiseArr);
+        return Promise.all(promiseArr)
+            .then(textures => {
+                this.textures = textures;
+                return true;
+            });
     }
 
-    handleTextureLoaded(t, image) {
+    handleTextureLoaded(sampler, image) {
+        const t ={};
         t.data = gl.createTexture();
         t.count = sceneTextureCount;
         gl.activeTexture(gl[`TEXTURE${sceneTextureCount}`]);
-        gl.bindTexture(t.target, t.data);
-        gl.texImage2D(t.target, 0, t.format, t.internalFormat, t.type, image);
-        gl.texParameteri(t.target, gl.TEXTURE_WRAP_S, t.wrapS);
-        gl.texParameteri(t.target, gl.TEXTURE_WRAP_T, t.wrapT);
-        gl.texParameteri(t.target, gl.TEXTURE_MAG_FILTER, t.magFilter);
-        gl.texParameteri(t.target, gl.TEXTURE_MIN_FILTER, t.minFilter);
-        gl.generateMipmap(t.target);
+        gl.bindTexture(gl.TEXTURE_2D, t.data);
+        gl.bindSampler(0, sampler);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+        gl.generateMipmap(gl.TEXTURE_2D);
         sceneTextureCount++;
+        return t;
     }
 }

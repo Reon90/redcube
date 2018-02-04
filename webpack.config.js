@@ -13,7 +13,7 @@ const config = {
     },
     module: {
         loaders: [{
-            test: /(\.js)$/,
+            test: /(\.jsx)$/,
             loader: 'babel-loader',
             exclude: /(node_modules|bower_components)/
         }, {

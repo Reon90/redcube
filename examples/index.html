@@ -26,8 +26,6 @@
         <canvas id="canvas"></canvas>
         <div id="selector"></div>
     </div>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/es6-promise/4.1.0/es6-promise.auto.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/fetch/2.0.3/fetch.js"></script>
     <script src="../dist/redcube.js"></script>
     <script>
         const name = localStorage.getItem('sample') || 'BrainStem';
@@ -47,7 +45,7 @@
         select.value = name;
         selector.appendChild(select);
 
-        const renderer = new redcube.RedCube('https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/1.0/' + name + '/glTF/' + name + '.gltf', canvas);
+        const renderer = new redcube.RedCube('' + name + '/glTF/' + name + '.gltf', canvas);
         renderer.init().then(function() {
             if (renderer.parse.cameras.length) {
                 const select = document.createElement('select');

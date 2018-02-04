@@ -43,6 +43,7 @@ class Mesh extends Object3D {
         };
         this.material = {};
         this.program = null;
+        this.defines = null;
         this.mode = 4;
     }
 
@@ -50,8 +51,12 @@ class Mesh extends Object3D {
         this.material.blend = value;
     }
 
+    setMaterial(material) {
+        this.material = material;
+    }
+
     calculateBounding() {
-        const vertices = this.geometry.attributes.a_position.value;
+        const vertices = this.geometry.attributes.POSITION;
         let maxRadiusSq = 0;
 
         const min = [Infinity, Infinity, Infinity], max = [-Infinity, -Infinity, -Infinity];

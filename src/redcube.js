@@ -21,7 +21,7 @@ class RedCube {
         this._camera.props = {
             type: 'perspective', 
             perspective: {
-                yfov: null,
+                yfov: 0.6,
                 znear: 1,
                 zfar: 2e6,
                 aspectRatio: null
@@ -41,33 +41,37 @@ class RedCube {
         this.elapsedTime = 0;
         this.lastTime = 0;
 
-        this.env = new Env;
-        this.env.setCamera(this._camera);
+        //this.env = new Env;
+        //this.env.setCamera(this._camera);
 
-        this.PP = new PostProcessing;
-        this.PP.setCanvas(this.canvas);
-        this.PP.setCamera(this._camera);
+        // this.PP = new PostProcessing;
+        // this.PP.setCanvas(this.canvas);
+        // this.PP.setCamera(this._camera);
 
         this.parse = new Parse(url);
         this.parse.setScene(this.scene);
         this.parse.setCamera(this._camera, this.aspect, this.zoom);
-        this.parse.setCanvas(this.canvas);
-        this.parse.setResize(this.resize.bind(this));    
+        this.parse.setUpdateCamera(this.updateCamera.bind(this));
+        // this.parse.setCanvas(this.canvas);
+        // this.parse.setResize(this.resize.bind(this));    
     }
 
     init() {
         return this.parse.getJson()
             .then(this.glInit.bind(this))
-            .then(this.parse.loadShader.bind(this.parse))
-            .then(this.PP.buildScreenBuffer.bind(this.PP))
+            .then(this.parse.initTextures.bind(this.parse))
+            // .then(this.PP.buildScreenBuffer.bind(this.PP))
             .then(this.parse.getBuffer.bind(this.parse))
             .then(this.parse.buildMesh.bind(this.parse))
-            .then(this.parse.initTextures.bind(this.parse))
-            .then(this.parse.buildAnimation.bind(this.parse))
-            .then(this.parse.buildSkin.bind(this.parse))
-            .then(this.env.createEnvironmentBuffer.bind(this.env))
+            // .then(this.parse.buildAnimation.bind(this.parse))
+            // .then(this.parse.buildSkin.bind(this.parse))
+            // .then(this.env.createEnvironmentBuffer.bind(this.env))
             .then(this.draw.bind(this))
             .catch(console.error);
+    }
+
+    updateCamera(camera) {
+        this._camera = camera;
     }
 
     setColor(color) {
@@ -95,7 +99,7 @@ class RedCube {
             m.makeRotationFromQuaternion(q.elements);
 
             this.scene.matrixWorld.multiply(m);
-            this.env.envMatrix.multiply(m);
+            //this.env.envMatrix.multiply(m);
         }
         if (type === 'pan') {
             const p0 = new Vector3(canvasToWorld(...coordsStart, this._camera.projection, this.canvas.offsetWidth, this.canvas.offsetHeight).elements);
@@ -154,10 +158,12 @@ class RedCube {
         }
         setGlEnum(this.glEnum);
         setGl(gl);
-        this.env.setGl(gl);
-        this.PP.setGl(gl);
+        //this.env.setGl(gl);
+        //this.PP.setGl(gl);
         this.parse.setGl(gl);
         this.parse.setGlEnum(this.glEnum);
+
+        this.resize();
 
         return true;
     }
@@ -235,71 +241,80 @@ class RedCube {
         this.animate(sec);
         
         if (this.reflow) {
-            this.PP.bindBuffer();
+            //this.PP.bindBuffer();
 
             gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENSIL_BUFFER_BIT);
 
-            this.env.createEnvironment();
+            gl.enable(gl.DEPTH_TEST);
+            gl.enable(gl.CULL_FACE);
 
-            const blends = [];
-            const nonBlends = [];
-            walk(this.scene, this.setMesh.bind(this, blends, nonBlends));
-
-            const planes = Frustum(this._camera.getViewProjMatrix());
-
-            if (nonBlends.length) {
-                for (const e in this.parse.unblendEnable) {
-                    gl.enable(e);
+            walk(this.scene, node => {
+                if (node instanceof Mesh) {
+                    this._draw(node);
                 }
-                for (const mesh of nonBlends) {
-                    if (mesh.isVisible(planes)) {
-                        this.buildBuffer(mesh.geometry.indicesBuffer, ...(Object.values(mesh.geometry.attributes)));
-                        this._draw(mesh);
-                    }
-                }
-                for (const e in this.parse.unblendEnable) {
-                    gl.disable(e);
-                }
-            }
+            });
 
-            if (blends.length) {
-                const blendsSorted = [];
-                for (const mesh of blends) {
-                    if (mesh.isVisible(planes)) {
-                        blendsSorted.push(mesh);
-                    }
-                }
-                if (blendsSorted.length) {
-                    blendsSorted.sort((a, b) => a.distance - b.distance);
+            //this.env.createEnvironment();
 
-                    for (const e in this.parse.blendEnable) {
-                        gl.enable(e);
-                    }
-                    for (const f in this.parse.blendTechnique) {
-                        gl[f](...this.parse.blendTechnique[f]);
-                    }
-                    for (const mesh of blendsSorted) {
-                        this.buildBuffer(mesh.geometry.indicesBuffer, ...(Object.values(mesh.geometry.attributes)));
-                        this._draw(mesh);
-                    }
-                    for (const e in this.parse.blendEnable) {
-                        gl.disable(e);
-                    }
-                    for (const f in this.parse.blendTechnique) {
-                        if (f === 'depthMask') {
-                            gl[f](true);
-                        }
-                        if (f === 'blendFuncSeparate') {
-                            gl[f](gl.ONE, gl.ZERO, gl.ONE, gl.ZERO);
-                        }
-                        if (f === 'blendEquationSeparate') {
-                            gl[f](gl.FUNC_ADD, gl.FUNC_ADD);
-                        }
-                    }
-                }
-            }
+            // const blends = [];
+            // const nonBlends = [];
+            // walk(this.scene, this.setMesh.bind(this, blends, nonBlends));
 
-            this.PP.postProcessing();
+            // const planes = Frustum(this._camera.getViewProjMatrix());
+
+            // if (nonBlends.length) {
+            //     for (const e in this.parse.unblendEnable) {
+            //         gl.enable(e);
+            //     }
+            //     for (const mesh of nonBlends) {
+            //         if (mesh.isVisible(planes)) {
+            //             this.buildBuffer(mesh.geometry.indicesBuffer, ...(Object.values(mesh.geometry.attributes)));
+            //             this._draw(mesh);
+            //         }
+            //     }
+            //     for (const e in this.parse.unblendEnable) {
+            //         gl.disable(e);
+            //     }
+            // }
+
+            // if (blends.length) {
+            //     const blendsSorted = [];
+            //     for (const mesh of blends) {
+            //         if (mesh.isVisible(planes)) {
+            //             blendsSorted.push(mesh);
+            //         }
+            //     }
+            //     if (blendsSorted.length) {
+            //         blendsSorted.sort((a, b) => a.distance - b.distance);
+
+            //         for (const e in this.parse.blendEnable) {
+            //             gl.enable(e);
+            //         }
+            //         for (const f in this.parse.blendTechnique) {
+            //             gl[f](...this.parse.blendTechnique[f]);
+            //         }
+            //         for (const mesh of blendsSorted) {
+            //             this.buildBuffer(mesh.geometry.indicesBuffer, ...(Object.values(mesh.geometry.attributes)));
+            //             this._draw(mesh);
+            //         }
+            //         for (const e in this.parse.blendEnable) {
+            //             gl.disable(e);
+            //         }
+            //         for (const f in this.parse.blendTechnique) {
+            //             if (f === 'depthMask') {
+            //                 gl[f](true);
+            //             }
+            //             if (f === 'blendFuncSeparate') {
+            //                 gl[f](gl.ONE, gl.ZERO, gl.ONE, gl.ZERO);
+            //             }
+            //             if (f === 'blendEquationSeparate') {
+            //                 gl[f](gl.FUNC_ADD, gl.FUNC_ADD);
+            //             }
+            //         }
+            //     }
+            // }
+
+            //this.PP.postProcessing();
         }
 
         this.fps++;
@@ -318,120 +333,130 @@ class RedCube {
     _draw(mesh) {
         gl.useProgram(mesh.program);
 
-        const {_camera} = this;
+        gl.bindVertexArray(mesh.geometry.VAO);
+        gl.bindBufferBase(gl.UNIFORM_BUFFER, 0, mesh.geometry.UBO);
+        //gl.bufferSubData(gl.UNIFORM_BUFFER, 0, transforms);
+        if (mesh.material.UBO) {
+            gl.bindBufferBase(gl.UNIFORM_BUFFER, 1, mesh.material.UBO);
+        }
+        if (mesh.material.baseColorTexture) {
+            gl.uniform1i(mesh.material.baseColorTexture, mesh.material.pbrMetallicRoughness.baseColorTexture.count);
+        }
+
+        // const {_camera} = this;
         
-        for (const k in mesh.geometry.attributes) {
-            const v = mesh.geometry.attributes[k];
+        // for (const k in mesh.geometry.attributes) {
+        //     const v = mesh.geometry.attributes[k];
 
-            gl.bindBuffer(gl.ARRAY_BUFFER, v.buffer);
+        //     gl.bindBuffer(gl.ARRAY_BUFFER, v.buffer);
             
-            let a;
-            if (v[k] !== undefined) {
-                a = v[k];
-            } else {
-                a = gl.getAttribLocation(mesh.program, k);
-                if (a !== 0 && !a) {
-                    console.warn(`dont get ${k} from shader`);
-                    delete mesh.geometry.attributes[k];
-                    continue;
-                }
-                v[k] = a;
-                gl.enableVertexAttribArray(a);
-            }
+        //     let a;
+        //     if (v[k] !== undefined) {
+        //         a = v[k];
+        //     } else {
+        //         a = gl.getAttribLocation(mesh.program, k);
+        //         if (a !== 0 && !a) {
+        //             console.warn(`dont get ${k} from shader`);
+        //             delete mesh.geometry.attributes[k];
+        //             continue;
+        //         }
+        //         v[k] = a;
+        //         gl.enableVertexAttribArray(a);
+        //     }
 
-            gl.vertexAttribPointer(a, getComponentType(v.type), gl.FLOAT, false, 0, 0);
-        }
+        //     gl.vertexAttribPointer(a, getComponentType(v.type), gl.FLOAT, false, 0, 0);
+        // }
 
-        for (const k in mesh.material.uniforms) {
-            const v = mesh.material.uniforms[k];
-            let matricies, value;
+        // for (const k in mesh.material.uniforms) {
+        //     const v = mesh.material.uniforms[k];
+        //     let matricies, value;
 
-            if (v.type === gl.SAMPLER_2D) {
-                value = [this.parse.textures[v.value[0]].count];
-            }
+        //     if (v.type === gl.SAMPLER_2D) {
+        //         value = [this.parse.textures[v.value[0]].count];
+        //     }
 
-            switch (v.semantic) {
-            case 'MODELVIEWPROJECTION':
-                v.value = mesh.getModelViewProjMatrix(_camera);
-                break;
-            case 'MODELVIEWPROJECTIONINVERSE':
-                v.value = mesh.getModelViewProjMatrix(_camera).invert();
-                break;
-            case 'VIEW':
-                v.value = mesh.getViewMatrix(_camera);
-                break;
-            case 'VIEWINVERSE':
-                v.value = mesh.getViewMatrix(_camera).invert();
-                break;
-            case 'MODEL':
-                v.value = mesh.matrixWorld;
-                break;
-            case 'MODELINVERSETRANSPOSE':
-                v.value = new Matrix3().normalFromMat4(mesh.matrixWorld);
-                break;
-            case 'MODELINVERSE':
-                v.value = new Matrix4(mesh.matrixWorld).invert();
-                break;
-            case 'MODELVIEW':
-                v.value = mesh.getModelViewMatrix(v.node, _camera);
-                break;
-            case 'MODELVIEWINVERSE':
-                v.value = mesh.getModelViewMatrix(v.node, _camera).invert();
-                break;
-            case 'PROJECTION':
-                v.value = mesh.getProjectionMatrix(_camera);
-                break;
-            case 'PROJECTIONINVERSE':
-                v.value = new Matrix4(mesh.getProjectionMatrix(_camera)).invert();
-                break;
-            case 'MODELVIEWINVERSETRANSPOSE':
-                v.value = mesh.getNormalMatrix();
-                break;
-            case 'VIEWPORT':
-                v.value = new Float32Array([0, 0, this.canvas.offsetWidth, this.canvas.offsetHeight]);
-                break;
-            case 'JOINTMATRIX':
-                matricies = mesh.getJointMatrix();
-                break;
-            }
+        //     switch (v.semantic) {
+        //     case 'MODELVIEWPROJECTION':
+        //         v.value = mesh.getModelViewProjMatrix(_camera);
+        //         break;
+        //     case 'MODELVIEWPROJECTIONINVERSE':
+        //         v.value = mesh.getModelViewProjMatrix(_camera).invert();
+        //         break;
+        //     case 'VIEW':
+        //         v.value = mesh.getViewMatrix(_camera);
+        //         break;
+        //     case 'VIEWINVERSE':
+        //         v.value = mesh.getViewMatrix(_camera).invert();
+        //         break;
+        //     case 'MODEL':
+        //         v.value = mesh.matrixWorld;
+        //         break;
+        //     case 'MODELINVERSETRANSPOSE':
+        //         v.value = new Matrix3().normalFromMat4(mesh.matrixWorld);
+        //         break;
+        //     case 'MODELINVERSE':
+        //         v.value = new Matrix4(mesh.matrixWorld).invert();
+        //         break;
+        //     case 'MODELVIEW':
+        //         v.value = mesh.getModelViewMatrix(v.node, _camera);
+        //         break;
+        //     case 'MODELVIEWINVERSE':
+        //         v.value = mesh.getModelViewMatrix(v.node, _camera).invert();
+        //         break;
+        //     case 'PROJECTION':
+        //         v.value = mesh.getProjectionMatrix(_camera);
+        //         break;
+        //     case 'PROJECTIONINVERSE':
+        //         v.value = new Matrix4(mesh.getProjectionMatrix(_camera)).invert();
+        //         break;
+        //     case 'MODELVIEWINVERSETRANSPOSE':
+        //         v.value = mesh.getNormalMatrix();
+        //         break;
+        //     case 'VIEWPORT':
+        //         v.value = new Float32Array([0, 0, this.canvas.offsetWidth, this.canvas.offsetHeight]);
+        //         break;
+        //     case 'JOINTMATRIX':
+        //         matricies = mesh.getJointMatrix();
+        //         break;
+        //     }
 
-            let u;
-            if (v[k] !== undefined) {
-                u = v[k];
-            } else {
-                u = gl.getUniformLocation(mesh.program, k);
-                if (u !== 0 && !u) {
-                    console.warn(`dont get ${k} from shader`);
-                    delete mesh.material.uniforms[k];
-                    continue;
-                }
-                v[k] = u;
-            }
+        //     let u;
+        //     if (v[k] !== undefined) {
+        //         u = v[k];
+        //     } else {
+        //         u = gl.getUniformLocation(mesh.program, k);
+        //         if (u !== 0 && !u) {
+        //             console.warn(`dont get ${k} from shader`);
+        //             delete mesh.material.uniforms[k];
+        //             continue;
+        //         }
+        //         v[k] = u;
+        //     }
 
-            if (v.type !== gl.SAMPLER_2D) {
-                value = v.value || v.node;
-            }
+        //     if (v.type !== gl.SAMPLER_2D) {
+        //         value = v.value || v.node;
+        //     }
 
-            if (value.elements) {
-                gl[getMethod(v.type)](u, false, value.elements);
-            } else if (matricies) {
-                const concatArr = new Float32Array(matricies.length * 16);
-                let i = 0;
-                for (const m of matricies) {
-                    concatArr.set(m.elements, i * 16);
-                    i++;
-                }
+        //     if (value.elements) {
+        //         gl[getMethod(v.type)](u, false, value.elements);
+        //     } else if (matricies) {
+        //         const concatArr = new Float32Array(matricies.length * 16);
+        //         let i = 0;
+        //         for (const m of matricies) {
+        //             concatArr.set(m.elements, i * 16);
+        //             i++;
+        //         }
 
-                gl[getMethod(v.type)](u, false, concatArr);
-            } else {
-                gl[getMethod(v.type)](u, ...value);
-            }
-        }
+        //         gl[getMethod(v.type)](u, false, concatArr);
+        //     } else {
+        //         gl[getMethod(v.type)](u, ...value);
+        //     }
+        // }
 
         if (mesh.geometry.indicesBuffer) {
-            gl.drawElements(mesh.mode, mesh.geometry.indicesBuffer.value.length, gl.UNSIGNED_SHORT, 0);
+            gl.drawElements(mesh.mode, mesh.geometry.indicesBuffer.length, gl.UNSIGNED_SHORT, 0);
         } else {
-            gl.drawArrays(mesh.mode, 0, mesh.geometry.attributes.a_position.value.length / 3);
+            gl.drawArrays(mesh.mode, 0, mesh.geometry.attributes.POSITION.length / 3);
         }
     }
 }

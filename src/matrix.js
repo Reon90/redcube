@@ -494,6 +494,21 @@ Matrix4.prototype.makeRotationFromQuaternion = function( q ) {
     return this;
 };
 
+Matrix4.prototype.transpose = function() {
+    var e, t;
+
+    e = this.elements;
+
+    t = e[ 1];  e[ 1] = e[ 4];  e[ 4] = t;
+    t = e[ 2];  e[ 2] = e[ 8];  e[ 8] = t;
+    t = e[ 3];  e[ 3] = e[12];  e[12] = t;
+    t = e[ 6];  e[ 6] = e[ 9];  e[ 9] = t;
+    t = e[ 7];  e[ 7] = e[13];  e[13] = t;
+    t = e[11];  e[11] = e[14];  e[14] = t;
+
+    return this;
+};
+
 /**
  * Constructor of Vector3
  * If opt_src is specified, new vector is initialized by opt_src.
