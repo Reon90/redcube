@@ -7,7 +7,6 @@ class Object3D {
         this.children = [];
         this.matrix = new Matrix4();
         this.matrixWorld = new Matrix4();
-        this.matrixAnimation = new Matrix4();
         this.parent = parent;
     }
 
@@ -16,12 +15,10 @@ class Object3D {
         this.matrix.makeRotationFromQuaternion(rotation);
         this.matrix.scale(...scale);
         this.matrix.setTranslate(...translation);
-        this.matrixAnimation.set(this.matrix.elements);
     }
 
     setMatrix(matrix) {
         this.matrix.set(matrix);
-        this.matrixAnimation.set(matrix);
     }
 
     setMatrixWorld(matrix) {

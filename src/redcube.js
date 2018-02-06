@@ -63,7 +63,7 @@ class RedCube {
             // .then(this.PP.buildScreenBuffer.bind(this.PP))
             .then(this.parse.getBuffer.bind(this.parse))
             .then(this.parse.buildMesh.bind(this.parse))
-            // .then(this.parse.buildAnimation.bind(this.parse))
+            .then(this.parse.buildAnimation.bind(this.parse))
             // .then(this.parse.buildSkin.bind(this.parse))
             // .then(this.env.createEnvironmentBuffer.bind(this.env))
             .then(this.draw.bind(this))
@@ -193,12 +193,12 @@ class RedCube {
                 const out = new Vector4;
                 out.lerp(vector.elements, vector2.elements, t);
                 
-                v.mesh.matrixAnimation[getAnimationMethod(v.type)](out.elements);
+                v.mesh.matrix[getAnimationMethod(v.type)](out.elements);
             } else {
                 const out = new Vector3;
                 out.lerp(vector.elements, vector2.elements, t);
 
-                v.mesh.matrixAnimation[getAnimationMethod(v.type)](...out.elements);
+                v.mesh.matrix[getAnimationMethod(v.type)](...out.elements);
             }
 
             this.reflow = true;
@@ -335,7 +335,7 @@ class RedCube {
 
         gl.bindVertexArray(mesh.geometry.VAO);
         gl.bindBufferBase(gl.UNIFORM_BUFFER, 0, mesh.geometry.UBO);
-        //gl.bufferSubData(gl.UNIFORM_BUFFER, 0, transforms);
+        gl.bufferSubData(gl.UNIFORM_BUFFER, 0, mesh.matrix.elements);
         if (mesh.material.UBO) {
             gl.bindBufferBase(gl.UNIFORM_BUFFER, 1, mesh.material.UBO);
         }

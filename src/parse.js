@@ -139,22 +139,9 @@ export class Parse {
 
         gl.bindVertexArray(null);
 
-        if (mesh.material.pbrMetallicRoughness.baseColorFactor) {
-            const materials = new Float32Array(8);
-            materials.set(mesh.material.pbrMetallicRoughness.baseColorFactor);
-            materials.set([336.34771728515625,258.2054748535156,330.2711181640625], 4);
-            const mIndex = gl.getUniformBlockIndex(mesh.program, 'Material');
-            gl.uniformBlockBinding(mesh.program, mIndex, 1);
-            const mUBO = gl.createBuffer();
-            gl.bindBuffer(gl.UNIFORM_BUFFER, mUBO);
-            gl.bufferData(gl.UNIFORM_BUFFER, materials, gl.STATIC_DRAW);
-            mesh.material.UBO = mUBO;
-        }
         if (material.pbrMetallicRoughness.baseColorTexture) {
             mesh.material.baseColorTexture = gl.getUniformLocation(mesh.program, 'baseColorTexture');
         }
-
-        gl.bindBuffer(gl.UNIFORM_BUFFER, null);
 
         return mesh;
     }
@@ -202,6 +189,7 @@ export class Parse {
                 child = new Object3D(name, parent);
             }
             if (el.translation && el.rotation && el.scale) {
+                console.error('ERROR');
                 child.setPosition(el.translation, el.rotation, el.scale);
             } else if (el.matrix) {
                 child.setMatrix(el.matrix);
@@ -254,11 +242,10 @@ export class Parse {
             if (this.json.nodes[n].children && this.json.nodes[n].children.length) {
                 this.walkByMesh(this.scene, n);
             }
-            // if (this.json.nodes[n].meshes && this.json.nodes[n].meshes.length) {
-            //     this.json.nodes[n].meshes.forEach(m => {
-            //         this.scene.children.push(...this.json.meshes[m].primitives.map(this.buildPrim.bind(this, this.scene, this.json.nodes[n], m)));
-            //     });
-            // }
+            if (this.json.nodes[n].mesh) {
+                const m = this.json.meshes[this.json.nodes[n].mesh];
+                this.scene.children.push(...m.primitives.map(this.buildPrim.bind(this, this.scene, m.name, m.matrix)));
+            }
             if (this.json.nodes[n].camera !== undefined) {
                 const proj = calculateProjection(this.json.cameras[this.json.nodes[n].camera], this.aspect, this.zoom);
                 
@@ -275,7 +262,18 @@ export class Parse {
 
         walk(this.scene, mesh => {
             if (mesh instanceof SkinnedMesh || mesh instanceof Mesh) {
-                const normalMatrix = new Matrix4(mesh.matrixWorld.elements);
+                const materials = new Float32Array(12);
+                materials.set(mesh.material.pbrMetallicRoughness.baseColorFactor || [0, 0, 0, 0]);
+                materials.set([this._camera.matrixWorld.elements[12], this._camera.matrixWorld.elements[13], this._camera.matrixWorld.elements[14]], 4);
+                materials.set([this._camera.matrixWorld.elements[12], this._camera.matrixWorld.elements[13], this._camera.matrixWorld.elements[14]], 8);
+                const mIndex = gl.getUniformBlockIndex(mesh.program, 'Material');
+                gl.uniformBlockBinding(mesh.program, mIndex, 1);
+                const mUBO = gl.createBuffer();
+                gl.bindBuffer(gl.UNIFORM_BUFFER, mUBO);
+                gl.bufferData(gl.UNIFORM_BUFFER, materials, gl.STATIC_DRAW);
+                mesh.material.UBO = mUBO;
+
+                const normalMatrix = new Matrix4(mesh.matrixWorld);
                 normalMatrix.invert().transpose();
                 const matrices = new Float32Array(64);
                 matrices.set(mesh.matrixWorld.elements);
@@ -296,15 +294,13 @@ export class Parse {
     }
 
     buildAnimation() {
-        for (const k in this.json.animations) {
-            const animation = this.json.animations[k];
-            for ( const channelId in animation.channels ) {
-                const channel = animation.channels[ channelId ];
+        for (const animation of this.json.animations) {
+            for ( const channel of animation.channels ) {
                 const sampler = animation.samplers[ channel.sampler ];
 
                 if ( sampler ) {
                     const {target} = channel;
-                    const name = target.id;
+                    const name = target.node;
                     const input = animation.parameters !== undefined ? animation.parameters[ sampler.input ] : sampler.input;
                     const output = animation.parameters !== undefined ? animation.parameters[ sampler.output ] : sampler.output;
 
@@ -330,28 +326,29 @@ export class Parse {
                     }
 
                     const node = this.json.nodes[name];
+                    const meshName = this.json.meshes[0].name;
                     let mesh;
                     let exist;
                     // eslint-disable-next-line
-                    function walk(node) {
+                    function walk(n) {
                         if (exist) {
                             return;
                         }
-                        if (`${node.name }Node` === name || node.name === name) {
-                            mesh = node;
+                        if (n.name === meshName) {
+                            mesh = n;
                             exist = true;
                         }
-                        if (node.children) {
-                            node.children.forEach(walk);
+                        if (n.children) {
+                            n.children.forEach(walk);
                         }
                     }
                     walk(this.scene);
 
-                    if ( node ) {
+                    if ( mesh ) {
                         this.tracks.push({
                             mesh: mesh,
                             type: target.path,
-                            name: `${node.name}.${target.path}`,
+                            name: `${mesh.name}.${target.path}`,
                             keys: keys,
                             interpolation: sampler.interpolation
                         });
