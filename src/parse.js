@@ -16,7 +16,7 @@ export class Parse {
         this.unblendEnable = {};
         this.blendEnable = {};
         this.tracks = [];
-        this.skins = {};
+        this.skins = [];
         this.textures = null;
         this.samplers = null;
         this.blendTechnique = {};
@@ -75,14 +75,14 @@ export class Parse {
         return program;
     }
 
-    buildPrim(parent, name, matrix, p) {
+    buildPrim(parent, name, matrix, skin, p) {
         const indicesAccessor = this.json.accessors[p.indices];
         const vertexAccessor = {};
         for (const a in p.attributes) {
             vertexAccessor[a] = this.json.accessors[p.attributes[a]];
         }
 
-        const material = this.json.materials[p.material];
+        const material = Object.assign({}, this.json.materials[p.material]);
         const defines = [];
         if (material.pbrMetallicRoughness.baseColorTexture) {
             if (material.pbrMetallicRoughness.baseColorTexture.index !== undefined) {
@@ -105,7 +105,7 @@ export class Parse {
             vertexAccessor[k] = buildArray(this.arrayBuffer, accessor.componentType, bufferView.byteOffset + accessor.byteOffset, getDataType(accessor.type) * accessor.count);
         }
 
-        const mesh = new Mesh(name, parent);
+        const mesh = skin !== undefined ? new SkinnedMesh(name, parent) : new Mesh(name, parent);
         
         mesh.setProgram(program);
         mesh.setMode(p.mode);
@@ -115,6 +115,9 @@ export class Parse {
         mesh.setIndicesBuffer(indicesBuffer);
         if (matrix) {
             mesh.setMatrix(matrix);
+        }
+        if (skin !== undefined) {
+            mesh.setSkin(skin);
         }
         //mesh.setTextures(textures);
 
@@ -160,6 +163,12 @@ export class Parse {
         case 'TEXCOORD_0':
             index = [2, 2];
             break;
+        case 'JOINTS_0':
+            index = [3, 4];
+            break;
+        case 'WEIGHTS_0':
+            index = [4, 4];
+            break;
         }
         return index;
     }
@@ -181,11 +190,8 @@ export class Parse {
 
             this.cameras.push(child);
         } else {
-            if (el.jointName !== undefined) {
-                child = new Bone(name, parent);
-                child.setJointName(el.jointName);
-            } else if (el.mesh !== undefined) {
-                parent.children.push(...this.json.meshes[el.mesh].primitives.map(this.buildPrim.bind(this, parent, this.json.meshes[el.mesh].name, el.matrix)));
+            if (el.mesh !== undefined) {
+                parent.children.push(...this.json.meshes[el.mesh].primitives.map(this.buildPrim.bind(this, parent, this.json.meshes[el.mesh].name, el.matrix, el.skin)));
 
                 if (el.children && el.children.length) {
                     el.children.forEach(this.walkByMesh.bind(this, parent));
@@ -195,7 +201,6 @@ export class Parse {
                 child = new Object3D(name, parent);
             }
             if (el.translation && el.rotation && el.scale) {
-                console.error('ERROR');
                 child.setPosition(el.translation, el.rotation, el.scale);
             } else if (el.matrix) {
                 child.setMatrix(el.matrix);
@@ -250,7 +255,7 @@ export class Parse {
             }
             if (this.json.nodes[n].mesh) {
                 const m = this.json.meshes[this.json.nodes[n].mesh];
-                this.scene.children.push(...m.primitives.map(this.buildPrim.bind(this, this.scene, m.name, m.matrix)));
+                this.scene.children.push(...m.primitives.map(this.buildPrim.bind(this, this.scene, m.name, m.matrix, undefined)));
             }
             if (this.json.nodes[n].camera !== undefined) {
                 const proj = calculateProjection(this.json.cameras[this.json.nodes[n].camera], this.aspect, this.zoom);
@@ -264,9 +269,19 @@ export class Parse {
             }
         });
 
+        this.buildSkin();
+
         //this.calculateFov();
 
         walk(this.scene, mesh => {
+            let jointMatrix;
+            if (mesh instanceof SkinnedMesh) {
+                mesh.bones = this.skins[mesh.skin].bones;
+                mesh.boneInverses = this.skins[mesh.skin].boneInverses;
+                mesh.bindShapeMatrix = this.skins[mesh.skin].bindShapeMatrix;
+
+                jointMatrix = mesh.getJointMatrix();
+            }
             if (mesh instanceof SkinnedMesh || mesh instanceof Mesh) {
                 const materials = new Float32Array(12);
                 materials.set(mesh.material.pbrMetallicRoughness.baseColorFactor || [0, 0, 0, 0]);
@@ -281,11 +296,15 @@ export class Parse {
 
                 const normalMatrix = new Matrix4(mesh.matrixWorld);
                 normalMatrix.invert().transpose();
-                const matrices = new Float32Array(64);
+                const matrices = new Float32Array(jointMatrix ? 96 : 64);
                 matrices.set(mesh.matrixWorld.elements);
                 matrices.set(normalMatrix.elements, 16);
                 matrices.set(this._camera.matrixWorldInvert.elements, 32);
                 matrices.set(this._camera.projection.elements, 48);
+                if (jointMatrix) {
+                    matrices.set(jointMatrix[0], 64);
+                    matrices.set(jointMatrix[1], 80);
+                }
                 const uIndex = gl.getUniformBlockIndex(mesh.program, 'Matrices');
                 gl.uniformBlockBinding(mesh.program, uIndex, 0);
                 const UBO = gl.createBuffer();
@@ -332,21 +351,18 @@ export class Parse {
                         });
                     }
 
-                    let mesh;
+                    const meshes = [];
                     walk(this.scene, node => {
                         if (node.name === name) {
-                            if (mesh) {
-                                console.error('Dublicate node');
-                            }
-                            mesh = node;
+                            meshes.push(node);
                         }
                     });
 
-                    if ( mesh ) {
+                    if ( meshes.length ) {
                         this.tracks.push({
-                            mesh: mesh,
+                            meshes: meshes,
                             type: target.path,
-                            name: `${mesh.name}.${target.path}`,
+                            name: `${meshes[0].name}.${target.path}`,
                             keys: keys,
                             interpolation: sampler.interpolation
                         });
@@ -359,8 +375,7 @@ export class Parse {
     }
 
     buildSkin() {
-        for (const k in this.json.skins) {
-            const skin = this.json.skins[k];
+        for (const skin of this.json.skins) {
             const bindShapeMatrix = new Matrix4();
 
             if ( skin.bindShapeMatrix !== undefined ) {
@@ -371,14 +386,13 @@ export class Parse {
             const buffer = this.json.bufferViews[ acc.bufferView ];
             const array = buildArray(this.arrayBuffer, acc.componentType, buffer.byteOffset + acc.byteOffset, getDataType(acc.type) * acc.count);
 
-            this.skins[k] = {
+            const v = {
                 bindShapeMatrix: bindShapeMatrix,
-                jointNames: skin.jointNames,
+                jointNames: skin.joints,
                 inverseBindMatrices: array
             };
 
             let i = 0;
-            const v = this.skins[k];
             v.bones = [];
             v.boneInverses = [];
 
@@ -389,13 +403,14 @@ export class Parse {
                 v.boneInverses.push( mat );
                 i++;
             }
+            this.skins.push(v);
         }
 
         return true;
     }
 
     buildBones(join, v, node) {
-        if (node.jointName === join) {
+        if (node.name === join) {
             v.bones.push(node);
         }
     }

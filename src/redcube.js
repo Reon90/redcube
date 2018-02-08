@@ -64,7 +64,7 @@ class RedCube {
             .then(this.parse.getBuffer.bind(this.parse))
             .then(this.parse.buildMesh.bind(this.parse))
             .then(this.parse.buildAnimation.bind(this.parse))
-            // .then(this.parse.buildSkin.bind(this.parse))
+            //.then(this.parse.buildSkin.bind(this.parse))
             // .then(this.env.createEnvironmentBuffer.bind(this.env))
             .then(this.draw.bind(this))
             .catch(console.error);
@@ -193,32 +193,41 @@ class RedCube {
                 const out = new Vector4;
                 out.lerp(vector.elements, vector2.elements, t);
                 
-                v.mesh.matrix[getAnimationMethod(v.type)](out.elements);
+                for (const mesh of v.meshes) {
+                    mesh.matrix[getAnimationMethod(v.type)](out.elements);
+                }
             } else if (v.type === 'scale') {
-                console.error('ERROR');
+                const out = new Vector3;
+                out.lerp(vector.elements, vector2.elements, t);
+
+                for (const mesh of v.meshes) {
+                    mesh.matrix[getAnimationMethod(v.type)](...out.elements);
+                }
             } else if (v.type === 'weights') {
                 console.error('ERROR');
             } else if (v.type === 'translation') {
                 const out = new Vector3;
                 out.lerp(vector.elements, vector2.elements, t);
 
-                v.mesh.matrix[getAnimationMethod(v.type)](...out.elements);
+                for (const mesh of v.meshes) {
+                    mesh.matrix[getAnimationMethod(v.type)](...out.elements);
+                }
             } else {
                 console.error('ERROR');
             }
 
-            
-            //v.mesh.reflow = true;
-            walk(v.mesh, node => {
-                const m = new Matrix4;
-                m.multiply( node.parent.matrixWorld );
-                m.multiply(node.matrix);
-                node.setMatrixWorld(m.elements);
+            for (const mesh of v.meshes) {
+                walk(mesh, node => {
+                    const m = new Matrix4;
+                    m.multiply( node.parent.matrixWorld );
+                    m.multiply(node.matrix);
+                    node.setMatrixWorld(m.elements);
 
-                if (node instanceof Mesh) {
-                    node.reflow = true;
-                }
-            });
+                    if (node instanceof Mesh) {
+                        node.reflow = true;
+                    }
+                });
+            }
 
             this.reflow = true;
         }

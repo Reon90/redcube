@@ -115,7 +115,7 @@ class Mesh extends Object3D {
     }
 
     getJointMatrix() {
-        const m4v = this.material.uniforms.u_jointMat.value;
+        const m4v = this.boneInverses;
         const m = new Matrix4(this.matrixWorld).invert();
         const resArray = [];
 
