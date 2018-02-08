@@ -194,12 +194,31 @@ class RedCube {
                 out.lerp(vector.elements, vector2.elements, t);
                 
                 v.mesh.matrix[getAnimationMethod(v.type)](out.elements);
-            } else {
+            } else if (v.type === 'scale') {
+                console.error('ERROR');
+            } else if (v.type === 'weights') {
+                console.error('ERROR');
+            } else if (v.type === 'translation') {
                 const out = new Vector3;
                 out.lerp(vector.elements, vector2.elements, t);
 
                 v.mesh.matrix[getAnimationMethod(v.type)](...out.elements);
+            } else {
+                console.error('ERROR');
             }
+
+            
+            //v.mesh.reflow = true;
+            walk(v.mesh, node => {
+                const m = new Matrix4;
+                m.multiply( node.parent.matrixWorld );
+                m.multiply(node.matrix);
+                node.setMatrixWorld(m.elements);
+
+                if (node instanceof Mesh) {
+                    node.reflow = true;
+                }
+            });
 
             this.reflow = true;
         }
@@ -335,7 +354,16 @@ class RedCube {
 
         gl.bindVertexArray(mesh.geometry.VAO);
         gl.bindBufferBase(gl.UNIFORM_BUFFER, 0, mesh.geometry.UBO);
-        gl.bufferSubData(gl.UNIFORM_BUFFER, 0, mesh.matrix.elements);
+        if (mesh.reflow) { // matrixWorld changed
+            const normalMatrix = new Matrix4(mesh.matrixWorld);
+            normalMatrix.invert().transpose();
+            const matrices = new Float32Array(32);
+            matrices.set(mesh.matrixWorld.elements);
+            matrices.set(normalMatrix.elements, 16);
+            gl.bufferSubData(gl.UNIFORM_BUFFER, 0, matrices);
+            mesh.reflow = false;
+        }
+
         if (mesh.material.UBO) {
             gl.bindBufferBase(gl.UNIFORM_BUFFER, 1, mesh.material.UBO);
         }

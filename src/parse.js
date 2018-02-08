@@ -85,7 +85,9 @@ export class Parse {
         const material = this.json.materials[p.material];
         const defines = [];
         if (material.pbrMetallicRoughness.baseColorTexture) {
-            material.pbrMetallicRoughness.baseColorTexture = this.textures[material.pbrMetallicRoughness.baseColorTexture.index];
+            if (material.pbrMetallicRoughness.baseColorTexture.index !== undefined) {
+                material.pbrMetallicRoughness.baseColorTexture = this.textures[material.pbrMetallicRoughness.baseColorTexture.index];
+            }
             defines.push('BASECOLORTEXTURE');
         }
 
@@ -184,6 +186,10 @@ export class Parse {
                 child.setJointName(el.jointName);
             } else if (el.mesh !== undefined) {
                 parent.children.push(...this.json.meshes[el.mesh].primitives.map(this.buildPrim.bind(this, parent, this.json.meshes[el.mesh].name, el.matrix)));
+
+                if (el.children && el.children.length) {
+                    el.children.forEach(this.walkByMesh.bind(this, parent));
+                }
                 return;
             } else {
                 child = new Object3D(name, parent);
@@ -277,9 +283,9 @@ export class Parse {
                 normalMatrix.invert().transpose();
                 const matrices = new Float32Array(64);
                 matrices.set(mesh.matrixWorld.elements);
-                matrices.set(this._camera.matrixWorldInvert.elements, 16);
-                matrices.set(this._camera.projection.elements, 32);
-                matrices.set(normalMatrix.elements, 48);
+                matrices.set(normalMatrix.elements, 16);
+                matrices.set(this._camera.matrixWorldInvert.elements, 32);
+                matrices.set(this._camera.projection.elements, 48);
                 const uIndex = gl.getUniformBlockIndex(mesh.program, 'Matrices');
                 gl.uniformBlockBinding(mesh.program, uIndex, 0);
                 const UBO = gl.createBuffer();
@@ -300,7 +306,8 @@ export class Parse {
 
                 if ( sampler ) {
                     const {target} = channel;
-                    const name = target.node;
+                    const meshName = this.json.nodes[target.node].mesh;
+                    const name = meshName === undefined ? target.node : this.json.meshes[meshName].name;
                     const input = animation.parameters !== undefined ? animation.parameters[ sampler.input ] : sampler.input;
                     const output = animation.parameters !== undefined ? animation.parameters[ sampler.output ] : sampler.output;
 
@@ -325,24 +332,15 @@ export class Parse {
                         });
                     }
 
-                    const node = this.json.nodes[name];
-                    const meshName = this.json.meshes[0].name;
                     let mesh;
-                    let exist;
-                    // eslint-disable-next-line
-                    function walk(n) {
-                        if (exist) {
-                            return;
+                    walk(this.scene, node => {
+                        if (node.name === name) {
+                            if (mesh) {
+                                console.error('Dublicate node');
+                            }
+                            mesh = node;
                         }
-                        if (n.name === meshName) {
-                            mesh = n;
-                            exist = true;
-                        }
-                        if (n.children) {
-                            n.children.forEach(walk);
-                        }
-                    }
-                    walk(this.scene);
+                    });
 
                     if ( mesh ) {
                         this.tracks.push({

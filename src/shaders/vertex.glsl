@@ -11,9 +11,9 @@ out vec3 outPosition;
 
 uniform Matrices {
 	mat4 model;
+	mat4 normalMatrix;
 	mat4 view;
 	mat4 projection;
-	mat4 normalMatrix;
 };
 
 void main() {
