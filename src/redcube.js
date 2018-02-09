@@ -62,9 +62,9 @@ class RedCube {
             .then(this.parse.initTextures.bind(this.parse))
             // .then(this.PP.buildScreenBuffer.bind(this.PP))
             .then(this.parse.getBuffer.bind(this.parse))
+            .then(this.parse.buildSkin.bind(this.parse))
             .then(this.parse.buildMesh.bind(this.parse))
             .then(this.parse.buildAnimation.bind(this.parse))
-            //.then(this.parse.buildSkin.bind(this.parse))
             // .then(this.env.createEnvironmentBuffer.bind(this.env))
             .then(this.draw.bind(this))
             .catch(console.error);

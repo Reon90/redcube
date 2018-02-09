@@ -135,7 +135,7 @@ export class Parse {
             gl.bufferData(gl.ARRAY_BUFFER, vertexAccessor[k], gl.STATIC_DRAW);
             const index = this.getAttributeIndex(k);
             gl.enableVertexAttribArray(index[0]);
-            gl.vertexAttribPointer(index[0], index[1], gl.FLOAT, false, 0, 0);
+            gl.vertexAttribPointer(index[0], index[1], index[2], false, 0, 0);
         }
         const VBO = gl.createBuffer();
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, VBO);
@@ -155,19 +155,19 @@ export class Parse {
         let index;
         switch (name) {
         case 'POSITION':
-            index = [0, 3];
+            index = [0, 3, gl.FLOAT];
             break;
         case 'NORMAL':
-            index = [1, 3];
+            index = [1, 3, gl.FLOAT];
             break;
         case 'TEXCOORD_0':
-            index = [2, 2];
+            index = [2, 2, gl.FLOAT];
             break;
         case 'JOINTS_0':
-            index = [3, 4];
+            index = [3, 4, gl.UNSIGNED_SHORT];
             break;
         case 'WEIGHTS_0':
-            index = [4, 4];
+            index = [4, 4, gl.FLOAT];
             break;
         }
         return index;
@@ -190,7 +190,9 @@ export class Parse {
 
             this.cameras.push(child);
         } else {
-            if (el.mesh !== undefined) {
+            if (el.joint !== undefined) {
+                child = new Bone(name, parent);
+            } else if (el.mesh !== undefined) {
                 parent.children.push(...this.json.meshes[el.mesh].primitives.map(this.buildPrim.bind(this, parent, this.json.meshes[el.mesh].name, el.matrix, el.skin)));
 
                 if (el.children && el.children.length) {
@@ -269,16 +271,16 @@ export class Parse {
             }
         });
 
-        this.buildSkin();
-
         //this.calculateFov();
 
         walk(this.scene, mesh => {
             let jointMatrix;
             if (mesh instanceof SkinnedMesh) {
+                for (const join of this.skins[mesh.skin].jointNames) {
+                    walk(this.scene, this.buildBones.bind(this, join, this.skins[mesh.skin]));
+                }
                 mesh.bones = this.skins[mesh.skin].bones;
                 mesh.boneInverses = this.skins[mesh.skin].boneInverses;
-                mesh.bindShapeMatrix = this.skins[mesh.skin].bindShapeMatrix;
 
                 jointMatrix = mesh.getJointMatrix();
             }
@@ -302,8 +304,8 @@ export class Parse {
                 matrices.set(this._camera.matrixWorldInvert.elements, 32);
                 matrices.set(this._camera.projection.elements, 48);
                 if (jointMatrix) {
-                    matrices.set(jointMatrix[0], 64);
-                    matrices.set(jointMatrix[1], 80);
+                    matrices.set(jointMatrix[0].elements, 64);
+                    matrices.set(jointMatrix[1].elements, 80);
                 }
                 const uIndex = gl.getUniformBlockIndex(mesh.program, 'Matrices');
                 gl.uniformBlockBinding(mesh.program, uIndex, 0);
@@ -376,18 +378,11 @@ export class Parse {
 
     buildSkin() {
         for (const skin of this.json.skins) {
-            const bindShapeMatrix = new Matrix4();
-
-            if ( skin.bindShapeMatrix !== undefined ) {
-                bindShapeMatrix.set(skin.bindShapeMatrix);
-            }
-
             const acc = this.json.accessors[ skin.inverseBindMatrices ];
             const buffer = this.json.bufferViews[ acc.bufferView ];
             const array = buildArray(this.arrayBuffer, acc.componentType, buffer.byteOffset + acc.byteOffset, getDataType(acc.type) * acc.count);
 
             const v = {
-                bindShapeMatrix: bindShapeMatrix,
                 jointNames: skin.joints,
                 inverseBindMatrices: array
             };
@@ -397,7 +392,8 @@ export class Parse {
             v.boneInverses = [];
 
             for (const join of v.jointNames) {
-                walk(this.scene, this.buildBones.bind(this, join, v));
+                //walk(this.scene, this.buildBones.bind(this, join, v));
+                this.json.nodes[join].joint = true;
                 const m = v.inverseBindMatrices;
                 const mat = new Matrix4().set( m.slice(i * 16, (i + 1) * 16) );
                 v.boneInverses.push( mat );

@@ -123,8 +123,7 @@ class Mesh extends Object3D {
             const res = new Matrix4(m4v[ mi ])
                 .multiply( m )
                 .multiply( this.bones[ mi ].matrixWorld )
-                .multiply( this.boneInverses[ mi ] )
-                .multiply( this.bindShapeMatrix );
+                .multiply( this.boneInverses[ mi ] );
             resArray.push(res);
         }
 
