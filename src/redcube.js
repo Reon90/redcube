@@ -28,7 +28,7 @@ class RedCube {
             }
         };
         this.zoom = 1;
-        this._camera.setZ(0.3);
+        this._camera.setZ(3);
 
         this.glEnum = {};
 
@@ -98,7 +98,10 @@ class RedCube {
             const m = new Matrix4();
             m.makeRotationFromQuaternion(q.elements);
 
-            this.scene.matrixWorld.multiply(m);
+            this.needUpdateView = true;
+            this._camera.matrixWorld.multiply(m);
+            this._camera.setMatrixWorld(this._camera.matrixWorld.elements);
+            //this.scene.matrixWorld.multiply(m);
             //this.env.envMatrix.multiply(m);
         }
         if (type === 'pan') {
@@ -446,11 +449,17 @@ class RedCube {
         if (mesh.material.UBO) {
             gl.bindBufferBase(gl.UNIFORM_BUFFER, 1, mesh.material.UBO);
         }
-        if (mesh.material.baseColorTexture) {
-            gl.uniform1i(mesh.material.baseColorTexture, mesh.material.pbrMetallicRoughness.baseColorTexture.count);
+        if (mesh.material.pbrMetallicRoughness.baseColorTexture) {
+            gl.uniform1i(mesh.material.pbrMetallicRoughness.baseColorTexture.u, mesh.material.pbrMetallicRoughness.baseColorTexture.count);
         }
         if (mesh.material.pbrMetallicRoughness.metallicRoughnessTexture) {
-            gl.uniform1i(mesh.material.metallicRoughnessTexture, mesh.material.pbrMetallicRoughness.metallicRoughnessTexture.count);
+            gl.uniform1i(mesh.material.pbrMetallicRoughness.metallicRoughnessTexture.u, mesh.material.pbrMetallicRoughness.metallicRoughnessTexture.count);
+        }
+        if (mesh.material.normalTexture) {
+            gl.uniform1i(mesh.material.normalTexture.u, mesh.material.normalTexture.count);
+        }
+        if (mesh.material.occlusionTexture) {
+            gl.uniform1i(mesh.material.occlusionTexture.u, mesh.material.occlusionTexture.count);
         }
 
         // const {_camera} = this;

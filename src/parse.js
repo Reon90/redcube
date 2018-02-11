@@ -110,6 +110,12 @@ export class Parse {
             }
             defines.push({name: 'NORMALMAP'});
         }
+        if (material.occlusionTexture) {
+            if (material.occlusionTexture.index !== undefined) {
+                material.occlusionTexture = this.textures[material.occlusionTexture.index];
+            }
+            defines.push({name: 'OCCLUSIONMAP'});
+        }
         if (material.pbrMetallicRoughness.baseColorTexture) {
             if (material.pbrMetallicRoughness.baseColorTexture.index !== undefined) {
                 material.pbrMetallicRoughness.baseColorTexture = this.textures[material.pbrMetallicRoughness.baseColorTexture.index];
@@ -190,13 +196,16 @@ export class Parse {
         gl.bindVertexArray(null);
 
         if (material.pbrMetallicRoughness.baseColorTexture) {
-            mesh.material.baseColorTexture = gl.getUniformLocation(mesh.program, 'baseColorTexture');
+            mesh.material.pbrMetallicRoughness.baseColorTexture.u = gl.getUniformLocation(mesh.program, 'baseColorTexture');
         }
         if (material.pbrMetallicRoughness.metallicRoughnessTexture) {
-            mesh.material.metallicRoughnessTexture = gl.getUniformLocation(mesh.program, 'metallicRoughnessTexture');
+            mesh.material.pbrMetallicRoughness.metallicRoughnessTexture.u = gl.getUniformLocation(mesh.program, 'metallicRoughnessTexture');
         }
-        if (material.pbrMetallicRoughness.normalTexture) {
-            mesh.material.normalTexture = gl.getUniformLocation(mesh.program, 'normalTexture');
+        if (material.normalTexture) {
+            mesh.material.normalTexture.u = gl.getUniformLocation(mesh.program, 'normalTexture');
+        }
+        if (material.occlusionTexture) {
+            mesh.material.occlusionTexture.u = gl.getUniformLocation(mesh.program, 'occlusionTexture');
         }
 
         return mesh;

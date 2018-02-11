@@ -19,11 +19,13 @@ uniform Material {
 uniform sampler2D baseColorTexture;
 uniform sampler2D metallicRoughnessTexture;
 uniform sampler2D normalTexture;
+uniform sampler2D occlusionTexture;
 
 const float ambientStrength = 0.1;
 const float specularStrength = 0.5;
 const float specularPower = 32.0;
 const vec3 lightColor = vec3(1.0, 1.0, 1.0);
+const float occlusionStrength = 0.5;
 
 void main() {
 	#ifdef BASECOLORTEXTURE
@@ -34,6 +36,11 @@ void main() {
 
 	#ifdef METALROUGHNESSMAP
 	    baseColor *= 1.0 - texture(metallicRoughnessTexture, outUV).b;
+	#endif
+
+	#ifdef HAS_OCCLUSIONMAP
+	    float ao = texture(occlusionTexture, outUV).r;
+	    baseColor = mix(baseColor, baseColor * ao, occlusionStrength);
 	#endif
 
 	#ifdef NORMALMAP
