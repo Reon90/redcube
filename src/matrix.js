@@ -274,37 +274,33 @@ Matrix4.prototype.invert = function() {
  * @param far The distances to the farther depth clipping plane. This value is minus if the plane is to be behind the viewer.
  * @return this
  */
-Matrix4.prototype.setOrtho = function(left, right, bottom, top, near, far) {
+Matrix4.prototype.setOrtho = function(r, t, near, far) {
     let e, rw, rh, rd;
 
-    if (left === right || bottom === top || near === far) {
-        throw 'null frustum';
-    }
-
-    rw = 1 / (right - left);
-    rh = 1 / (top - bottom);
-    rd = 1 / (far - near);
+    rw = 1 / r;
+    rh = 1 / t;
+    rd = 2 / (near - far);
 
     e = this.elements;
 
-    e[0] = 2 * rw;
+    e[0] = rw;
     e[1] = 0;
     e[2] = 0;
     e[3] = 0;
 
     e[4] = 0;
-    e[5] = 2 * rh;
+    e[5] = rh;
     e[6] = 0;
     e[7] = 0;
 
     e[8] = 0;
     e[9] = 0;
-    e[10] = -2 * rd;
-    e[11] = 0;
+    e[10] = rd;
+    e[11] = (far + near) / (near - far);
 
-    e[12] = -(right + left) * rw;
-    e[13] = -(top + bottom) * rh;
-    e[14] = -(far + near) * rd;
+    e[12] = 0;
+    e[13] = 0;
+    e[14] = 0;
     e[15] = 1;
 
     return this;
@@ -718,6 +714,23 @@ Vector3.prototype.lerp = function(a, b, t) {
     return this;
 };
 
+const Vector2 = function(opt_src) {
+    const v = new Float32Array(2);
+    if (opt_src && typeof opt_src === 'object') {
+        v[0] = opt_src[0]; v[1] = opt_src[1];
+    } 
+    this.elements = v;
+};
+
+Vector2.prototype.lerp = function(a, b, t) {
+    const out = this.elements;
+    let ax = a[0],
+        ay = a[1];
+    out[0] = ax + t * (b[0] - ax);
+    out[1] = ay + t * (b[1] - ay);
+    return this;
+};
+
 function Frustum( m ) {
     const planes = [new Vector4, new Vector4, new Vector4, new Vector4, new Vector4, new Vector4];
     const me = m.elements;
@@ -736,4 +749,4 @@ function Frustum( m ) {
     return planes;
 }
 
-export { Matrix2, Matrix3, Matrix4, Vector3, Vector4, Frustum };
+export { Matrix2, Matrix3, Matrix4, Vector2, Vector3, Vector4, Frustum };

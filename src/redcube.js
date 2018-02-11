@@ -1,10 +1,10 @@
-import { Scene, Mesh, SkinnedMesh, Camera } from './objects';
-import { Matrix3, Matrix4, Vector3, Vector4, Frustum } from './matrix';
+import { Scene, Mesh, SkinnedMesh, Camera, Bone } from './objects';
+import { Matrix3, Matrix4, Vector2, Vector3, Vector4, Frustum } from './matrix';
 import { Events } from './events';
 import { Env } from './env';
 import { Parse } from './parse';
 import { PostProcessing } from './postprocessing';
-import { setGl, setGlEnum, getComponentType, getMethod, getAnimationComponent, getAnimationMethod, interpolation, walk, sceneToArcBall, canvasToWorld, calculateProjection } from './utils';
+import { setGl, setGlEnum, getComponentType, getMethod, getAnimationComponent, getAnimationMethod, interpolation, walk, sceneToArcBall, canvasToWorld, calculateProjection, getAttributeIndex } from './utils';
 
 let gl;
 
@@ -12,7 +12,7 @@ class RedCube {
     constructor(url, canvas) {
         this.reflow = true;
         this.scene = new Scene();
-        this.color = [0.6, 0.6, 0.6, 1.0];
+        this.color = [0.8, 0.8, 0.8, 1.0];
         this.url = url;
         this.host = url.substr(0, url.lastIndexOf('/') + 1);
         this.canvas = canvas;
@@ -22,13 +22,13 @@ class RedCube {
             type: 'perspective', 
             perspective: {
                 yfov: 0.6,
-                znear: 1,
+                znear: 0.00001,
                 zfar: 2e6,
                 aspectRatio: null
             }
         };
         this.zoom = 1;
-        this._camera.setZ(5);
+        this._camera.setZ(0.3);
 
         this.glEnum = {};
 
@@ -185,7 +185,14 @@ class RedCube {
             const t = val[2];
             
             const component = getAnimationComponent(v.type);
-            const vectorC = component === 3 ? Vector3 : Vector4;
+            let vectorC;
+            if (component === 3) {
+                vectorC = Vector3;
+            } else if (component === 4) {
+                vectorC = Vector4;
+            } else if (component === 2) {
+                vectorC = Vector2;
+            }
             const vector = new vectorC(startFrame.value);
             const vector2 = new vectorC(endFrame.value);
 
@@ -204,7 +211,38 @@ class RedCube {
                     mesh.matrix[getAnimationMethod(v.type)](...out.elements);
                 }
             } else if (v.type === 'weights') {
-                console.error('ERROR');
+                const out = new Vector2;
+                out.lerp(vector.elements, vector2.elements, t);
+
+                for (const m of v.meshes) {
+                    const mesh = m.children[0];
+                    const geometry = {};
+
+                    for (const k in mesh.geometry.attributes) {
+                        let offset = 0;
+                        geometry[k] = new Float32Array(mesh.geometry.attributes[k].length);
+                        for (let i = 0; i < geometry[k].length; i++) {
+                            if (k === 'TANGENT' && (i + 1) % 4 === 0) {
+                                offset++;
+                                continue;
+                            }
+                            geometry[k][i] = mesh.geometry.attributes[k][i] + out.elements[0] * mesh.geometry.targets[0][k][i - offset] + out.elements[1] * mesh.geometry.targets[1][k][i - offset];
+                        }
+                    }
+
+                    gl.bindVertexArray(mesh.geometry.VAO);
+
+                    for (const k in geometry) {
+                        const VBO = gl.createBuffer();
+                        gl.bindBuffer(gl.ARRAY_BUFFER, VBO);
+                        gl.bufferData(gl.ARRAY_BUFFER, geometry[k], gl.STATIC_DRAW);
+                        const index = getAttributeIndex(k);
+                        gl.enableVertexAttribArray(index[0]);
+                        gl.vertexAttribPointer(index[0], index[1], index[2], false, 0, 0);
+                    }
+
+                    gl.bindVertexArray(null);
+                }
             } else if (v.type === 'translation') {
                 const out = new Vector3;
                 out.lerp(vector.elements, vector2.elements, t);
@@ -223,8 +261,16 @@ class RedCube {
                     m.multiply(node.matrix);
                     node.setMatrixWorld(m.elements);
 
+                    if (node instanceof Bone) {
+                        node.reflow = true;
+                    }
+
                     if (node instanceof Mesh) {
                         node.reflow = true;
+                    }
+
+                    if (node instanceof Camera && node === this._camera) {
+                        this.needUpdateView = true;
                     }
                 });
             }
@@ -248,7 +294,7 @@ class RedCube {
             node.bindShapeMatrix = this.parse.skins[node.skin].bindShapeMatrix;
         }
 
-        if (node instanceof SkinnedMesh || node instanceof Mesh) {
+        if (node instanceof Mesh) {
             if (node.material.blend) {
                 blends.push(node);
             } else {
@@ -281,6 +327,13 @@ class RedCube {
                     this._draw(node);
                 }
             });
+
+            walk(this.scene, node => {
+                if (node instanceof Bone) {
+                    node.reflow = false;
+                }
+            });
+            this.needUpdateView = false;
 
             //this.env.createEnvironment();
 
@@ -373,11 +426,31 @@ class RedCube {
             mesh.reflow = false;
         }
 
+        if (this.needUpdateView) {
+            gl.bufferSubData(gl.UNIFORM_BUFFER, 32 * Float32Array.BYTES_PER_ELEMENT, this._camera.matrixWorldInvert.elements);
+        }
+
+        if (mesh instanceof SkinnedMesh) {
+            gl.bindBufferBase(gl.UNIFORM_BUFFER, 2, mesh.geometry.SKIN);
+            if (mesh.bones.some(bone => bone.reflow)) {
+                const jointMatrix = mesh.getJointMatrix();
+                const matrices = new Float32Array(jointMatrix.length * 16);
+                let i = 0;
+                for (const j of jointMatrix) {
+                    matrices.set(j.elements, 0 + 16 * i);
+                    i++;
+                }
+                gl.bufferSubData(gl.UNIFORM_BUFFER, 0, matrices);
+            }
+        }
         if (mesh.material.UBO) {
             gl.bindBufferBase(gl.UNIFORM_BUFFER, 1, mesh.material.UBO);
         }
         if (mesh.material.baseColorTexture) {
             gl.uniform1i(mesh.material.baseColorTexture, mesh.material.pbrMetallicRoughness.baseColorTexture.count);
+        }
+        if (mesh.material.pbrMetallicRoughness.metallicRoughnessTexture) {
+            gl.uniform1i(mesh.material.metallicRoughnessTexture, mesh.material.pbrMetallicRoughness.metallicRoughnessTexture.count);
         }
 
         // const {_camera} = this;
@@ -491,9 +564,9 @@ class RedCube {
         // }
 
         if (mesh.geometry.indicesBuffer) {
-            gl.drawElements(mesh.mode, mesh.geometry.indicesBuffer.length, gl.UNSIGNED_SHORT, 0);
+            gl.drawElements(mesh.mode || gl.TRIANGLES, mesh.geometry.indicesBuffer.length, gl.UNSIGNED_SHORT, 0);
         } else {
-            gl.drawArrays(mesh.mode, 0, mesh.geometry.attributes.POSITION.length / 3);
+            gl.drawArrays(mesh.mode || gl.TRIANGLES, 0, mesh.geometry.attributes.POSITION.length / 3);
         }
     }
 }

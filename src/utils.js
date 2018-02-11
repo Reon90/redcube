@@ -108,6 +108,8 @@ export function getMethod(type) {
 export function getAnimationComponent(type) {
     if (type === 'rotation') {
         return 4;
+    } else if (type === 'weights') {
+        return 2;
     } else {
         return 3;
     }
@@ -238,8 +240,37 @@ export function calculateProjection(cam, aspect, zoom) {
 
         proj = new Matrix4().setPerspective(xfov * zoom * (180 / Math.PI), aspect, cam.perspective.znear || 1, cam.perspective.zfar || 2e6);
     } else if ( cam.type === 'orthographic' && cam.orthographic ) {
-        proj = new Matrix4().setOrtho( window.innerWidth / -2, window.innerWidth / 2, window.innerHeight / 2, window.innerHeight / -2, cam.orthographic.znear, cam.orthographic.zfar);
+        proj = new Matrix4().setOrtho( cam.orthographic.xmag, cam.orthographic.ymag, cam.orthographic.znear, cam.orthographic.zfar);
     }
 
     return proj;
+}
+
+export function calculateOffset(a = 0, b = 0) {
+    return a + b;
+}
+
+export function getAttributeIndex(name) {
+    let index;
+    switch (name) {
+    case 'POSITION':
+        index = [0, 3, gl.FLOAT];
+        break;
+    case 'NORMAL':
+        index = [1, 3, gl.FLOAT];
+        break;
+    case 'TEXCOORD_0':
+        index = [2, 2, gl.FLOAT];
+        break;
+    case 'JOINTS_0':
+        index = [3, 4, gl.UNSIGNED_SHORT];
+        break;
+    case 'WEIGHTS_0':
+        index = [4, 4, gl.FLOAT];
+        break;
+    case 'TANGENT':
+        index = [5, 4, gl.FLOAT];
+        break;
+    }
+    return index;
 }

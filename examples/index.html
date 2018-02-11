@@ -30,7 +30,50 @@
     <script>
         const name = localStorage.getItem('sample') || 'BrainStem';
         const canvas = document.getElementById('canvas');
-        const samples = ['2CylinderEngine', 'Avocado', 'BarramundiFish', 'Box', 'BoxAnimated', 'BoxSemantics', 'BoxTextured', 'BoxWithoutIndices', 'BrainStem', 'Buggy', 'CesiumMan', 'CesiumMilkTruck', 'Duck', 'GearboxAssy', 'Monster', 'ReciprocatingSaw', 'RiggedFigure', 'RiggedSimple', 'SmilingFace', 'VC', 'WalkingLady'];
+        const samples = [
+        "2CylinderEngine",
+        "AnimatedCube",
+        "AnimatedMorphCube",
+        "AnimatedMorphSphere",
+        "AnimatedTriangle",
+        "Avocado",
+        "BarramundiFish",
+        "BoomBox",
+        "BoomBoxWithAxes",
+        "Box",
+        "BoxAnimated",
+        "BoxInterleaved",
+        "BoxTextured",
+        "BrainStem",
+        "Buggy",
+        "Cameras",
+        "CesiumMan",
+        "CesiumMilkTruck",
+        "Corset",
+        "Cube",
+        "DamagedHelmet",
+        "Duck",
+        "GearboxAssy",
+        "Lantern",
+        "MetalRoughSpheres",
+        "Monster",
+        "NormalTangentTest",
+        "ReciprocatingSaw",
+        "RiggedFigure",
+        "RiggedSimple",
+        "SciFiHelmet",
+        "SimpleMeshes",
+        "SimpleMorph",
+        "SimpleSparseAccessor",
+        "Suzanne",
+        "TextureCoordinateTest",
+        "TextureSettingsTest",
+        "Triangle",
+        "TriangleWithoutIndices",
+        "TwoSidedPlane",
+        "VC",
+        "WaterBottle"
+        ];
         const select = document.createElement('select');
         select.onchange = function() {
             localStorage.setItem('sample', select.value);
@@ -51,7 +94,7 @@
                 const select = document.createElement('select');
                 select.onchange = function() {
                     renderer._camera = renderer.parse.cameras.find(function(it) { 
-                        return select.value === it.name; 
+                        return Number(select.value) === it.name; 
                     });
                 }
                 renderer.parse.cameras.forEach(function(it) {

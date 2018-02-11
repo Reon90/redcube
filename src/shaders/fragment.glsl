@@ -2,8 +2,12 @@
 precision highp float;
 
 in vec2 outUV;
-in vec3 outNormal;
 in vec3 outPosition;
+#ifdef TANGENT
+in mat3 outTBN;
+#else
+in vec3 outNormal;
+#endif
 
 out vec4 color;
 
@@ -13,6 +17,8 @@ uniform Material {
 	vec3 viewPos;
 };
 uniform sampler2D baseColorTexture;
+uniform sampler2D metallicRoughnessTexture;
+uniform sampler2D normalTexture;
 
 const float ambientStrength = 0.1;
 const float specularStrength = 0.5;
@@ -26,14 +32,29 @@ void main() {
 	    vec4 baseColor = baseColorFactor;
 	#endif
 
+	#ifdef METALROUGHNESSMAP
+	    baseColor *= 1.0 - texture(metallicRoughnessTexture, outUV).b;
+	#endif
+
+	#ifdef NORMALMAP
+    	vec3 n = texture(normalTexture, outUV).rgb;
+    	n = normalize(outTBN * (2.0 * n - 1.0));
+	#else
+	    #ifdef TANGENT
+		vec3 n = outTBN[2].xyz;
+		#else
+		vec3 n = outNormal;
+		#endif
+	#endif
+
     vec3 ambient = ambientStrength * lightColor;
 
 	vec3 lightDir = normalize(lightPos - outPosition);
-	float diff = max(dot(outNormal, lightDir), 0.0);
+	float diff = max(dot(n, lightDir), 0.0);
 	vec3 diffuse = diff * lightColor;
 
 	vec3 viewDir = normalize(viewPos - outPosition);
-	vec3 reflectDir = reflect(-lightDir, outNormal);
+	vec3 reflectDir = reflect(-lightDir, n);
 	float spec = pow(max(dot(viewDir, reflectDir), 0.0), specularPower);
 	vec3 specular = specularStrength * spec * lightColor;
 

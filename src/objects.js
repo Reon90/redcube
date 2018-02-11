@@ -11,10 +11,15 @@ class Object3D {
     }
 
     setPosition(translation, rotation, scale) {
-        this.hasPosition = true;
-        this.matrix.makeRotationFromQuaternion(rotation);
-        this.matrix.scale(...scale);
-        this.matrix.setTranslate(...translation);
+        if (rotation) {
+            this.matrix.makeRotationFromQuaternion(rotation);
+        }
+        if (scale) {
+            this.matrix.scale(...scale);
+        }
+        if (translation) {
+            this.matrix.setTranslate(...translation);
+        }
     }
 
     setMatrix(matrix) {
@@ -120,7 +125,7 @@ class Mesh extends Object3D {
         const resArray = [];
 
         for ( let mi = 0; mi < m4v.length; mi++ ) {
-            const res = new Matrix4(m4v[ mi ])
+            const res = new Matrix4()
                 .multiply( m )
                 .multiply( this.bones[ mi ].matrixWorld )
                 .multiply( this.boneInverses[ mi ] );

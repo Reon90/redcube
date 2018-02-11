@@ -1,4 +1,4 @@
-import { isMatrix, buildArray, getDataType, walk, getMatrixType, getAnimationComponent, calculateProjection, compileShader } from './utils';
+import { isMatrix, buildArray, getDataType, walk, getMatrixType, getAnimationComponent, calculateProjection, compileShader, calculateOffset, getAttributeIndex } from './utils';
 import { Mesh, SkinnedMesh, Bone, Camera, Object3D } from './objects';
 import { Matrix4 } from './matrix';
 
@@ -7,7 +7,7 @@ import fragmentShader from './shaders/fragment.glsl';
 
 let gl;
 let glEnum;
-let sceneTextureCount = 13;
+let sceneTextureCount = 0;
 
 export class Parse {
     constructor(url) {
@@ -19,6 +19,7 @@ export class Parse {
         this.skins = [];
         this.textures = null;
         this.samplers = null;
+        this.arrayBuffer = null;
         this.blendTechnique = {};
         this.cameras = [];
     }
@@ -58,11 +59,10 @@ export class Parse {
     }
 
     getBuffer() {
-        return fetch(`${this.host}${this.scene.bin[0]}`)
-            .then(res => res.arrayBuffer())
-            .then(res => {
-                this.arrayBuffer = res;
-                return true;
+        return Promise.all(
+            this.scene.bin.map(url => fetch(`${this.host}${url}`).then(res => res.arrayBuffer())))
+            .then(buffers => {
+                this.arrayBuffer = buffers;
             });
     }
 
@@ -75,34 +75,79 @@ export class Parse {
         return program;
     }
 
-    buildPrim(parent, name, matrix, skin, p) {
+    buildPrim(parent, name, skin, weights, p) {
         const indicesAccessor = this.json.accessors[p.indices];
         const vertexAccessor = {};
         for (const a in p.attributes) {
             vertexAccessor[a] = this.json.accessors[p.attributes[a]];
         }
 
-        const material = Object.assign({}, this.json.materials[p.material]);
+        const targets = [];
+        if (p.targets) {
+            for (const target of p.targets) {
+                const vertexAcc = {};
+                for (const a in target) {
+                    vertexAcc[a] = this.json.accessors[target[a]];
+                    const accessor = vertexAcc[a];
+                    const bufferView = this.json.bufferViews[accessor.bufferView];
+                    vertexAcc[a] = buildArray(this.arrayBuffer[bufferView.buffer], accessor.componentType, calculateOffset(bufferView.byteOffset, accessor.byteOffset), getDataType(accessor.type) * accessor.count);
+                }
+                targets.push(vertexAcc);
+            }
+        }
+
+        const material = p.material !== undefined ? Object.assign({}, this.json.materials[p.material]) : {pbrMetallicRoughness: {baseColorFactor: [0.8, 0.8, 0.8, 1.0]}};
         const defines = [];
+        if (material.pbrMetallicRoughness.metallicRoughnessTexture) {
+            if (material.pbrMetallicRoughness.metallicRoughnessTexture.index !== undefined) {
+                material.pbrMetallicRoughness.metallicRoughnessTexture = this.textures[material.pbrMetallicRoughness.metallicRoughnessTexture.index];
+            }
+            defines.push({name: 'METALROUGHNESSMAP'});
+        }
+        if (material.normalTexture) {
+            if (material.normalTexture.index !== undefined) {
+                material.normalTexture = this.textures[material.normalTexture.index];
+            }
+            defines.push({name: 'NORMALMAP'});
+        }
         if (material.pbrMetallicRoughness.baseColorTexture) {
             if (material.pbrMetallicRoughness.baseColorTexture.index !== undefined) {
                 material.pbrMetallicRoughness.baseColorTexture = this.textures[material.pbrMetallicRoughness.baseColorTexture.index];
             }
-            defines.push('BASECOLORTEXTURE');
+            defines.push({name: 'BASECOLORTEXTURE'});
+        }
+        if (skin !== undefined) {
+            defines.push({name: 'JOINTNUMBER', value: this.skins[skin].jointNames.length});
+        }
+        if (p.attributes.TANGENT) {
+            defines.push({name: 'TANGENT'});
         }
 
-        const defineStr = defines.map(define => `#define ${define} 1` + '\n').join('');
+        const defineStr = defines.map(define => `#define ${define.name} ${define.value || 1}` + '\n').join('');
         const program = this.compileShader(vertexShader.replace(/\n/, '\n' + defineStr), fragmentShader.replace(/\n/, '\n' + defineStr));
 
         let indicesBuffer;
         if (indicesAccessor) {
             const bufferView = this.json.bufferViews[indicesAccessor.bufferView];
-            indicesBuffer = buildArray(this.arrayBuffer, indicesAccessor.componentType, bufferView.byteOffset + indicesAccessor.byteOffset, getDataType(indicesAccessor.type) * indicesAccessor.count);
+            indicesBuffer = buildArray(this.arrayBuffer[bufferView.buffer], indicesAccessor.componentType, calculateOffset(bufferView.byteOffset, indicesAccessor.byteOffset), getDataType(indicesAccessor.type) * indicesAccessor.count);
         }
         for (const k in vertexAccessor) {
             const accessor = vertexAccessor[k];
             const bufferView = this.json.bufferViews[accessor.bufferView];
-            vertexAccessor[k] = buildArray(this.arrayBuffer, accessor.componentType, bufferView.byteOffset + accessor.byteOffset, getDataType(accessor.type) * accessor.count);
+            vertexAccessor[k] = buildArray(this.arrayBuffer[bufferView.buffer], accessor.componentType, calculateOffset(bufferView.byteOffset, accessor.byteOffset), getDataType(accessor.type) * accessor.count);
+
+            if (p.targets) {
+                let offset = 0;
+                const geometry = vertexAccessor[k];
+                vertexAccessor[k] = new Float32Array(geometry.length);
+                for (let i = 0; i < vertexAccessor[k].length; i++) {
+                    if (k === 'TANGENT' && (i + 1) % 4 === 0) {
+                        offset++;
+                        continue;
+                    }
+                    vertexAccessor[k][i] = geometry[i] + weights[0] * targets[0][k][i - offset] + weights[1] * targets[1][k][i - offset];
+                }
+            }
         }
 
         const mesh = skin !== undefined ? new SkinnedMesh(name, parent) : new Mesh(name, parent);
@@ -113,12 +158,10 @@ export class Parse {
         //mesh.setUniforms(uniforms);
         mesh.setAttributes(vertexAccessor);
         mesh.setIndicesBuffer(indicesBuffer);
-        if (matrix) {
-            mesh.setMatrix(matrix);
-        }
         if (skin !== undefined) {
             mesh.setSkin(skin);
         }
+        mesh.geometry.targets = targets;
         //mesh.setTextures(textures);
 
         const m = new Matrix4;
@@ -133,13 +176,15 @@ export class Parse {
             const VBO = gl.createBuffer();
             gl.bindBuffer(gl.ARRAY_BUFFER, VBO);
             gl.bufferData(gl.ARRAY_BUFFER, vertexAccessor[k], gl.STATIC_DRAW);
-            const index = this.getAttributeIndex(k);
+            const index = getAttributeIndex(k);
             gl.enableVertexAttribArray(index[0]);
             gl.vertexAttribPointer(index[0], index[1], index[2], false, 0, 0);
         }
-        const VBO = gl.createBuffer();
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, VBO);
-        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indicesBuffer, gl.STATIC_DRAW);
+        if (indicesBuffer) {
+            const VBO = gl.createBuffer();
+            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, VBO);
+            gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indicesBuffer, gl.STATIC_DRAW);
+        }
         mesh.geometry.VAO = VAO;
 
         gl.bindVertexArray(null);
@@ -147,66 +192,42 @@ export class Parse {
         if (material.pbrMetallicRoughness.baseColorTexture) {
             mesh.material.baseColorTexture = gl.getUniformLocation(mesh.program, 'baseColorTexture');
         }
+        if (material.pbrMetallicRoughness.metallicRoughnessTexture) {
+            mesh.material.metallicRoughnessTexture = gl.getUniformLocation(mesh.program, 'metallicRoughnessTexture');
+        }
+        if (material.pbrMetallicRoughness.normalTexture) {
+            mesh.material.normalTexture = gl.getUniformLocation(mesh.program, 'normalTexture');
+        }
 
         return mesh;
-    }
-
-    getAttributeIndex(name) {
-        let index;
-        switch (name) {
-        case 'POSITION':
-            index = [0, 3, gl.FLOAT];
-            break;
-        case 'NORMAL':
-            index = [1, 3, gl.FLOAT];
-            break;
-        case 'TEXCOORD_0':
-            index = [2, 2, gl.FLOAT];
-            break;
-        case 'JOINTS_0':
-            index = [3, 4, gl.UNSIGNED_SHORT];
-            break;
-        case 'WEIGHTS_0':
-            index = [4, 4, gl.FLOAT];
-            break;
-        }
-        return index;
     }
 
     walkByMesh(parent, name) {
         const el = this.json.nodes[name];
         let child;
-        
+
         if (el.camera !== undefined) {
             const proj = calculateProjection(this.json.cameras[el.camera], this.aspect, this.zoom);
             child = new Camera(name, parent);
             child.props = this.json.cameras[el.camera];
             child.setProjection(proj.elements);
-            child.setMatrix(el.matrix);
-            child.setMatrixWorld(el.matrix);
             
             this._camera = child;
             this.updateCamera(this._camera);
 
             this.cameras.push(child);
         } else {
-            if (el.joint !== undefined) {
+            if (el.isBone !== undefined) {
                 child = new Bone(name, parent);
-            } else if (el.mesh !== undefined) {
-                parent.children.push(...this.json.meshes[el.mesh].primitives.map(this.buildPrim.bind(this, parent, this.json.meshes[el.mesh].name, el.matrix, el.skin)));
-
-                if (el.children && el.children.length) {
-                    el.children.forEach(this.walkByMesh.bind(this, parent));
-                }
-                return;
             } else {
                 child = new Object3D(name, parent);
             }
-            if (el.translation && el.rotation && el.scale) {
-                child.setPosition(el.translation, el.rotation, el.scale);
-            } else if (el.matrix) {
-                child.setMatrix(el.matrix);
-            }
+        }
+
+        if (el.translation || el.rotation || el.scale) {
+            child.setPosition(el.translation, el.rotation, el.scale);
+        } else if (el.matrix) {
+            child.setMatrix(el.matrix);
         }
 
         const m = new Matrix4;
@@ -217,6 +238,15 @@ export class Parse {
         parent.children.push(child);
         parent = child;
 
+        if (el.mesh !== undefined) {
+            if (el.skin !== undefined) {
+                for (const join of this.skins[el.skin].jointNames) {
+                    walk(this.scene, this.buildBones.bind(this, join, this.skins[el.skin]));
+                }
+            }
+            parent.children.push(...this.json.meshes[el.mesh].primitives.map(this.buildPrim.bind(this, parent, this.json.meshes[el.mesh].name, el.skin, this.json.meshes[el.mesh].weights)));
+        }
+
         if (el.children && el.children.length) {
             el.children.forEach(this.walkByMesh.bind(this, parent));
         }
@@ -225,7 +255,7 @@ export class Parse {
     calculateFov() {
         let biggestMesh;
         walk(this.scene, node => {
-            if (node instanceof SkinnedMesh || node instanceof Mesh) {
+            if (node instanceof Mesh) {
                 if (!biggestMesh) {
                     biggestMesh = node;
                 }
@@ -251,40 +281,41 @@ export class Parse {
     }
 
     buildMesh() {
-        this.json.scenes[this.json.scene].nodes.forEach(n => {
+        this.json.scenes[this.json.scene !== undefined ? this.json.scene : 0].nodes.forEach(n => {
             if (this.json.nodes[n].children && this.json.nodes[n].children.length) {
                 this.walkByMesh(this.scene, n);
             }
-            if (this.json.nodes[n].mesh) {
-                const m = this.json.meshes[this.json.nodes[n].mesh];
-                this.scene.children.push(...m.primitives.map(this.buildPrim.bind(this, this.scene, m.name, m.matrix, undefined)));
+            if (this.json.nodes[n].mesh !== undefined) {
+                this.walkByMesh(this.scene, n);
             }
             if (this.json.nodes[n].camera !== undefined) {
-                const proj = calculateProjection(this.json.cameras[this.json.nodes[n].camera], this.aspect, this.zoom);
-                
-                this._camera = new Camera();
-                this._camera.props = this.json.cameras[this.json.nodes[n].camera];
-                this._camera.setProjection(proj.elements);
-                this._camera.setMatrix(this.json.nodes[n].matrix);
-                this._camera.setMatrixWorld(this.json.nodes[n].matrix);
-                this.updateCamera(this._camera);
+                this.walkByMesh(this.scene, n);
             }
         });
 
         //this.calculateFov();
 
         walk(this.scene, mesh => {
-            let jointMatrix;
             if (mesh instanceof SkinnedMesh) {
-                for (const join of this.skins[mesh.skin].jointNames) {
-                    walk(this.scene, this.buildBones.bind(this, join, this.skins[mesh.skin]));
-                }
                 mesh.bones = this.skins[mesh.skin].bones;
                 mesh.boneInverses = this.skins[mesh.skin].boneInverses;
 
-                jointMatrix = mesh.getJointMatrix();
+                const jointMatrix = mesh.getJointMatrix();
+                const matrices = new Float32Array(jointMatrix.length * 16);
+                let i = 0;
+                for (const j of jointMatrix) {
+                    matrices.set(j.elements, 0 + 16 * i);
+                    i++;
+                }
+                const uIndex = gl.getUniformBlockIndex(mesh.program, 'Skin');
+                gl.uniformBlockBinding(mesh.program, uIndex, 2);
+                const UBO = gl.createBuffer();
+                gl.bindBuffer(gl.UNIFORM_BUFFER, UBO);
+                gl.bufferData(gl.UNIFORM_BUFFER, matrices, gl.DYNAMIC_DRAW);
+                mesh.geometry.SKIN = UBO;
+                gl.bindBuffer(gl.UNIFORM_BUFFER, null);
             }
-            if (mesh instanceof SkinnedMesh || mesh instanceof Mesh) {
+            if (mesh instanceof Mesh) {
                 const materials = new Float32Array(12);
                 materials.set(mesh.material.pbrMetallicRoughness.baseColorFactor || [0, 0, 0, 0]);
                 materials.set([this._camera.matrixWorld.elements[12], this._camera.matrixWorld.elements[13], this._camera.matrixWorld.elements[14]], 4);
@@ -298,15 +329,11 @@ export class Parse {
 
                 const normalMatrix = new Matrix4(mesh.matrixWorld);
                 normalMatrix.invert().transpose();
-                const matrices = new Float32Array(jointMatrix ? 96 : 64);
-                matrices.set(mesh.matrixWorld.elements);
+                const matrices = new Float32Array(64);
+                matrices.set(mesh.matrixWorld.elements, 0);
                 matrices.set(normalMatrix.elements, 16);
                 matrices.set(this._camera.matrixWorldInvert.elements, 32);
                 matrices.set(this._camera.projection.elements, 48);
-                if (jointMatrix) {
-                    matrices.set(jointMatrix[0].elements, 64);
-                    matrices.set(jointMatrix[1].elements, 80);
-                }
                 const uIndex = gl.getUniformBlockIndex(mesh.program, 'Matrices');
                 gl.uniformBlockBinding(mesh.program, uIndex, 0);
                 const UBO = gl.createBuffer();
@@ -321,14 +348,16 @@ export class Parse {
     }
 
     buildAnimation() {
+        if (!this.json.animations) {
+            return true;
+        }
         for (const animation of this.json.animations) {
             for ( const channel of animation.channels ) {
                 const sampler = animation.samplers[ channel.sampler ];
 
                 if ( sampler ) {
                     const {target} = channel;
-                    const meshName = this.json.nodes[target.node].mesh;
-                    const name = meshName === undefined ? target.node : this.json.meshes[meshName].name;
+                    const name = target.node;
                     const input = animation.parameters !== undefined ? animation.parameters[ sampler.input ] : sampler.input;
                     const output = animation.parameters !== undefined ? animation.parameters[ sampler.output ] : sampler.output;
 
@@ -337,8 +366,8 @@ export class Parse {
                     const inputBuffer = this.json.bufferViews[ inputAccessor.bufferView ];
                     const outputBuffer = this.json.bufferViews[ outputAccessor.bufferView ];
 
-                    const inputArray = buildArray(this.arrayBuffer, inputAccessor.componentType, inputBuffer.byteOffset + inputAccessor.byteOffset, getDataType(inputAccessor.type) * inputAccessor.count);
-                    const outputArray = buildArray(this.arrayBuffer, outputAccessor.componentType, outputBuffer.byteOffset + outputAccessor.byteOffset, getDataType(outputAccessor.type) * outputAccessor.count);
+                    const inputArray = buildArray(this.arrayBuffer[inputBuffer.buffer], inputAccessor.componentType, calculateOffset(inputBuffer.byteOffset, inputAccessor.byteOffset), getDataType(inputAccessor.type) * inputAccessor.count);
+                    const outputArray = buildArray(this.arrayBuffer[outputBuffer.buffer], outputAccessor.componentType, calculateOffset(outputBuffer.byteOffset, outputAccessor.byteOffset), getDataType(outputAccessor.type) * outputAccessor.count);
 
                     const component = getAnimationComponent(target.path);
 
@@ -377,10 +406,13 @@ export class Parse {
     }
 
     buildSkin() {
+        if (!this.json.skins) {
+            return true;
+        }
         for (const skin of this.json.skins) {
             const acc = this.json.accessors[ skin.inverseBindMatrices ];
             const buffer = this.json.bufferViews[ acc.bufferView ];
-            const array = buildArray(this.arrayBuffer, acc.componentType, buffer.byteOffset + acc.byteOffset, getDataType(acc.type) * acc.count);
+            const array = buildArray(this.arrayBuffer[buffer.buffer], acc.componentType, calculateOffset(buffer.byteOffset, acc.byteOffset), getDataType(acc.type) * acc.count);
 
             const v = {
                 jointNames: skin.joints,
@@ -393,7 +425,7 @@ export class Parse {
 
             for (const join of v.jointNames) {
                 //walk(this.scene, this.buildBones.bind(this, join, v));
-                this.json.nodes[join].joint = true;
+                this.json.nodes[join].isBone = true;
                 const m = v.inverseBindMatrices;
                 const mat = new Matrix4().set( m.slice(i * 16, (i + 1) * 16) );
                 v.boneInverses.push( mat );
@@ -428,7 +460,13 @@ export class Parse {
         if (!this.json.textures) {
             return true;
         }
-        this.samplers = this.json.samplers.map(s => {
+        const samplers = this.json.samplers || [{
+            magFilter: 9729,
+            minFilter: 9986,
+            wrapS: 10497,
+            wrapT: 10497
+        }];
+        this.samplers = samplers.map(s => {
             const sampler = gl.createSampler();
             gl.samplerParameteri(sampler, gl.TEXTURE_MIN_FILTER, s.minFilter);
             gl.samplerParameteri(sampler, gl.TEXTURE_MAG_FILTER, s.magFilter);
@@ -439,7 +477,7 @@ export class Parse {
 
         const promiseArr = this.json.textures.map(t => {
             return new Promise((resolve, reject) => {
-                const sampler = this.samplers[t.sampler];
+                const sampler = this.samplers[t.sampler !== undefined ? t.sampler : 0];
                 const source = this.json.images[t.source];
                 const image = new Image();
                 image.onload = () => {
