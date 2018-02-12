@@ -100,28 +100,35 @@ export class Parse {
         const defines = [];
         if (material.pbrMetallicRoughness.metallicRoughnessTexture) {
             if (material.pbrMetallicRoughness.metallicRoughnessTexture.index !== undefined) {
-                material.pbrMetallicRoughness.metallicRoughnessTexture = this.textures[material.pbrMetallicRoughness.metallicRoughnessTexture.index];
+                material.pbrMetallicRoughness.metallicRoughnessTexture = Object.assign({}, this.textures[material.pbrMetallicRoughness.metallicRoughnessTexture.index]);
             }
             defines.push({name: 'METALROUGHNESSMAP'});
         }
         if (material.normalTexture) {
             if (material.normalTexture.index !== undefined) {
-                material.normalTexture = this.textures[material.normalTexture.index];
+                material.normalTexture = Object.assign({}, this.textures[material.normalTexture.index]);
             }
             defines.push({name: 'NORMALMAP'});
         }
         if (material.occlusionTexture) {
             if (material.occlusionTexture.index !== undefined) {
-                material.occlusionTexture = this.textures[material.occlusionTexture.index];
+                material.occlusionTexture = Object.assign({}, this.textures[material.occlusionTexture.index]);
             }
             defines.push({name: 'OCCLUSIONMAP'});
         }
         if (material.pbrMetallicRoughness.baseColorTexture) {
             if (material.pbrMetallicRoughness.baseColorTexture.index !== undefined) {
-                material.pbrMetallicRoughness.baseColorTexture = this.textures[material.pbrMetallicRoughness.baseColorTexture.index];
+                material.pbrMetallicRoughness.baseColorTexture = Object.assign({}, this.textures[material.pbrMetallicRoughness.baseColorTexture.index]);
             }
             defines.push({name: 'BASECOLORTEXTURE'});
         }
+        if (material.emissiveTexture) {
+            if (material.emissiveTexture.index !== undefined) {
+                material.emissiveTexture = Object.assign({}, this.textures[material.emissiveTexture.index]);
+            }
+            defines.push({name: 'EMISSIVEMAP'});
+        }
+
         if (skin !== undefined) {
             defines.push({name: 'JOINTNUMBER', value: this.skins[skin].jointNames.length});
         }
@@ -196,16 +203,19 @@ export class Parse {
         gl.bindVertexArray(null);
 
         if (material.pbrMetallicRoughness.baseColorTexture) {
-            mesh.material.pbrMetallicRoughness.baseColorTexture.u = gl.getUniformLocation(mesh.program, 'baseColorTexture');
+            mesh.material.uniforms.baseColorTexture = gl.getUniformLocation(mesh.program, 'baseColorTexture');
         }
         if (material.pbrMetallicRoughness.metallicRoughnessTexture) {
-            mesh.material.pbrMetallicRoughness.metallicRoughnessTexture.u = gl.getUniformLocation(mesh.program, 'metallicRoughnessTexture');
+            mesh.material.uniforms.metallicRoughnessTexture = gl.getUniformLocation(mesh.program, 'metallicRoughnessTexture');
         }
         if (material.normalTexture) {
-            mesh.material.normalTexture.u = gl.getUniformLocation(mesh.program, 'normalTexture');
+            mesh.material.uniforms.normalTexture = gl.getUniformLocation(mesh.program, 'normalTexture');
         }
         if (material.occlusionTexture) {
-            mesh.material.occlusionTexture.u = gl.getUniformLocation(mesh.program, 'occlusionTexture');
+            mesh.material.uniforms.occlusionTexture = gl.getUniformLocation(mesh.program, 'occlusionTexture');
+        }
+        if (material.emissiveTexture) {
+            mesh.material.uniforms.emissiveTexture = gl.getUniformLocation(mesh.program, 'emissiveTexture');
         }
 
         return mesh;
@@ -509,6 +519,7 @@ export class Parse {
 
     handleTextureLoaded(sampler, image) {
         const t ={};
+        t.image = image.src.substr(image.src.lastIndexOf('/'));
         t.data = gl.createTexture();
         t.count = sceneTextureCount;
         gl.activeTexture(gl[`TEXTURE${sceneTextureCount}`]);

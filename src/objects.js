@@ -55,6 +55,7 @@ class Mesh extends Object3D {
 
     setMaterial(material) {
         this.material = material;
+        this.material.uniforms = {};
     }
 
     calculateBounding() {
@@ -96,7 +97,7 @@ class Mesh extends Object3D {
 
     setAttributes(value) {
         this.geometry.attributes = value;
-        this.calculateBounding();
+        //this.calculateBounding();
     }
 
     setTextures(value) {
