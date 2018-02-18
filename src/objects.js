@@ -62,24 +62,6 @@ class Mesh extends Object3D {
         const vertices = this.geometry.attributes.POSITION;
         let maxRadiusSq = 0;
 
-        const min = [Infinity, Infinity, Infinity], max = [-Infinity, -Infinity, -Infinity];
-        for (let i = 0; i < vertices.length; i = i + 3) {
-            const x = vertices[i];
-            const y = vertices[i + 1];
-            const z = vertices[i + 2];
-
-            min[0] = Math.min(min[0], x);
-            min[1] = Math.min(min[1], y);
-            min[2] = Math.min(min[2], z);
-
-            max[0] = Math.max(max[0], x);
-            max[1] = Math.max(max[1], y);
-            max[2] = Math.max(max[2], z);
-        }
-
-        this.geometry.boundingSphere.min = new Vector3(min);
-        this.geometry.boundingSphere.max = new Vector3(max);
-
         this.geometry.boundingSphere.center
             .add( this.geometry.boundingSphere.min )
             .add( this.geometry.boundingSphere.max )
@@ -91,13 +73,18 @@ class Mesh extends Object3D {
         this.geometry.boundingSphere.radius = Math.sqrt( maxRadiusSq );
     }
 
+    setBoundingBox({min, max}) {
+        this.geometry.boundingSphere.min = new Vector3(min);
+        this.geometry.boundingSphere.max = new Vector3(max);
+        this.calculateBounding();
+    }
+
     setIndicesBuffer(value) {
         this.geometry.indicesBuffer = value;
     }
 
     setAttributes(value) {
         this.geometry.attributes = value;
-        //this.calculateBounding();
     }
 
     setTextures(value) {

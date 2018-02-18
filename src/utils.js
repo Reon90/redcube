@@ -160,7 +160,32 @@ export function interpolation(time, frames) {
     }
 }
 
-export function buildArray(arrayBuffer, type, offset, length) {
+function getCount(type) {
+    let arr;
+    switch (glEnum[type]) {
+    case 'BYTE':
+    case 'UNSIGNED_BYTE':
+        arr = 1;
+        break;
+    case 'SHORT':
+    case 'UNSIGNED_SHORT':
+        arr = 2;
+        break;
+    case 'UNSIGNED_INT':
+    case 'FLOAT':
+        arr = 4;
+        break;
+    }
+    return arr;
+}
+
+export function buildArray(arrayBuffer, type, offset, length, stride, count) {
+    const l = length;
+    const c = length / count;
+    if (stride && stride !== getCount(type) * c) {
+        length = stride * count / getCount(type) - offset / getCount(type);
+    }
+
     let arr;
     switch (glEnum[type]) {
     case 'BYTE':
@@ -175,9 +200,22 @@ export function buildArray(arrayBuffer, type, offset, length) {
     case 'UNSIGNED_SHORT':
         arr = new Uint16Array(arrayBuffer, offset, length);
         break;
+    case 'UNSIGNED_INT':
+        arr = new Uint32Array(arrayBuffer, offset, length);
     case 'FLOAT':
         arr = new Float32Array(arrayBuffer, offset, length);
         break;
+    }
+    if (stride && stride !== getCount(type) * c) {
+        const stridedArr = new Float32Array(l);
+        let j = 0;
+        for (let i = 0; i < stridedArr.length; i = i + c) {
+            stridedArr[i] = arr[j];
+            stridedArr[i+1] = arr[j+1];
+            stridedArr[i+2] = arr[j+2];
+            j = j + c * (stride / getCount(type) / c);
+        }
+        return stridedArr;
     }
     return arr;
 }
@@ -231,12 +269,7 @@ export function calculateProjection(cam, aspect, zoom) {
     let proj;
     if ( cam.type === 'perspective' && cam.perspective ) {
         const {yfov} = cam.perspective;
-        const aspectRatio = cam.perspective.aspectRatio || aspect;
         const xfov = yfov * aspect;
-
-        if (aspect !== aspectRatio) {
-            console.warn('this.canvas size and this.canvas size from scene dont equal');
-        }
 
         proj = new Matrix4().setPerspective(xfov * zoom * (180 / Math.PI), aspect, cam.perspective.znear || 1, cam.perspective.zfar || 2e6);
     } else if ( cam.type === 'orthographic' && cam.orthographic ) {

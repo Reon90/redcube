@@ -18,17 +18,18 @@ class RedCube {
         this.canvas = canvas;
         this.aspect = this.canvas.offsetWidth / this.canvas.offsetHeight;
         this._camera = new Camera;
+        this._camera.isInitial = true;
         this._camera.props = {
             type: 'perspective', 
             perspective: {
                 yfov: 0.6,
-                znear: 0.00001,
+                znear: 0.1,
                 zfar: 2e6,
                 aspectRatio: null
             }
         };
         this.zoom = 1;
-        this._camera.setZ(100);
+        this._camera.setZ(5);
 
         this.glEnum = {};
 
@@ -52,8 +53,8 @@ class RedCube {
         this.parse.setScene(this.scene);
         this.parse.setCamera(this._camera, this.aspect, this.zoom);
         this.parse.setUpdateCamera(this.updateCamera.bind(this));
-        // this.parse.setCanvas(this.canvas);
-        // this.parse.setResize(this.resize.bind(this));    
+        this.parse.setCanvas(this.canvas);
+        this.parse.setResize(this.resize.bind(this));    
     }
 
     init() {
@@ -82,6 +83,7 @@ class RedCube {
         if (type === 'zoom') {
             this.zoom = coordsStart;
             this._camera.setProjection(calculateProjection(this._camera.props, this.aspect, this.zoom).elements);
+            this.needUpdateProjection = true;
         }
         if (type === 'rotate') {
             const p0 = new Vector3(sceneToArcBall(canvasToWorld(...coordsStart, this._camera.projection, this.canvas.offsetWidth, this.canvas.offsetHeight)));
@@ -135,6 +137,8 @@ class RedCube {
         }
         if (type === 'resize') {
             this.resize();
+            this.needUpdateProjection = true;
+            this.needUpdateView = true;
         }
         
         this.reflow = true;
@@ -146,6 +150,11 @@ class RedCube {
         this.canvas.height = this.canvas.offsetHeight;
         gl.viewport( 0, 0, this.canvas.offsetWidth, this.canvas.offsetHeight );
         this._camera.setProjection(calculateProjection(this._camera.props, this.aspect, this.zoom).elements);
+
+        if (this._camera.isInitial) {
+            const z = 1 / this.canvas.width * this._camera.modelSize * 5000;
+            this._camera.setZ(z);
+        }
     }
 
     buildBuffer(indexBuffer, ...buffer) {
@@ -186,8 +195,6 @@ class RedCube {
         //this.PP.setGl(gl);
         this.parse.setGl(gl);
         this.parse.setGlEnum(this.glEnum);
-
-        this.resize();
 
         return true;
     }
@@ -346,6 +353,11 @@ class RedCube {
             gl.enable(gl.DEPTH_TEST);
             gl.enable(gl.CULL_FACE);
 
+            gl.disable(gl.BLEND);
+            gl.depthMask(true);
+            gl.blendFuncSeparate(gl.ONE, gl.ZERO, gl.ONE, gl.ZERO);
+            gl.blendEquationSeparate(gl.FUNC_ADD, gl.FUNC_ADD);
+
             walk(this.scene, node => {
                 if (node instanceof Mesh) {
                     this._draw(node);
@@ -358,6 +370,7 @@ class RedCube {
                 }
             });
             this.needUpdateView = false;
+            this.needUpdateProjection = false;
 
             //this.env.createEnvironment();
 
@@ -454,6 +467,10 @@ class RedCube {
             gl.bufferSubData(gl.UNIFORM_BUFFER, 32 * Float32Array.BYTES_PER_ELEMENT, this._camera.matrixWorldInvert.elements);
         }
 
+        if (this.needUpdateProjection) {
+            gl.bufferSubData(gl.UNIFORM_BUFFER, 48 * Float32Array.BYTES_PER_ELEMENT, this._camera.projection.elements);
+        }
+
         if (mesh instanceof SkinnedMesh) {
             gl.bindBufferBase(gl.UNIFORM_BUFFER, 2, mesh.geometry.SKIN);
             if (mesh.bones.some(bone => bone.reflow)) {
@@ -484,6 +501,15 @@ class RedCube {
         }
         if (mesh.material.emissiveTexture) {
             gl.uniform1i(mesh.material.uniforms.emissiveTexture, mesh.material.emissiveTexture.count);
+        }
+        if (mesh.material.doubleSided) {
+            gl.disable(gl.CULL_FACE);
+        }
+        if (mesh.material.alphaMode === 'BLEND') {
+            gl.enable(gl.BLEND);
+            gl.depthMask(false);
+            gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+            gl.blendEquationSeparate(gl.FUNC_ADD, gl.FUNC_ADD);
         }
 
         // const {_camera} = this;
@@ -597,7 +623,7 @@ class RedCube {
         // }
 
         if (mesh.geometry.indicesBuffer) {
-            gl.drawElements(mesh.mode || gl.TRIANGLES, mesh.geometry.indicesBuffer.length, gl.UNSIGNED_SHORT, 0);
+            gl.drawElements(mesh.mode || gl.TRIANGLES, mesh.geometry.indicesBuffer.length, mesh.geometry.indicesBuffer.BYTES_PER_ELEMENT === 4 ? gl.UNSIGNED_INT : gl.UNSIGNED_SHORT, 0);
         } else {
             gl.drawArrays(mesh.mode || gl.TRIANGLES, 0, mesh.geometry.attributes.POSITION.length / 3);
         }

@@ -22,6 +22,7 @@ export class Parse {
         this.arrayBuffer = null;
         this.blendTechnique = {};
         this.cameras = [];
+        this.programs = {};
     }
 
     setScene(scene) {
@@ -136,18 +137,28 @@ export class Parse {
             defines.push({name: 'TANGENT'});
         }
 
-        const defineStr = defines.map(define => `#define ${define.name} ${define.value || 1}` + '\n').join('');
-        const program = this.compileShader(vertexShader.replace(/\n/, '\n' + defineStr), fragmentShader.replace(/\n/, '\n' + defineStr));
+        let program;
+        if (this.programs[defines.map(define => define.name).join('')]) {
+            program = this.programs[defines.map(define => define.name).join('')];
+        } else {
+            const defineStr = defines.map(define => `#define ${define.name} ${define.value || 1}` + '\n').join('');
+            program = this.compileShader(vertexShader.replace(/\n/, '\n' + defineStr), fragmentShader.replace(/\n/, '\n' + defineStr));
+            this.programs[defines.map(define => define.name).join('')] = program;
+        }
 
         let indicesBuffer;
         if (indicesAccessor) {
             const bufferView = this.json.bufferViews[indicesAccessor.bufferView];
             indicesBuffer = buildArray(this.arrayBuffer[bufferView.buffer], indicesAccessor.componentType, calculateOffset(bufferView.byteOffset, indicesAccessor.byteOffset), getDataType(indicesAccessor.type) * indicesAccessor.count);
         }
+        const boundingBox = {
+            min: vertexAccessor.POSITION.min,
+            max: vertexAccessor.POSITION.max
+        };
         for (const k in vertexAccessor) {
             const accessor = vertexAccessor[k];
             const bufferView = this.json.bufferViews[accessor.bufferView];
-            vertexAccessor[k] = buildArray(this.arrayBuffer[bufferView.buffer], accessor.componentType, calculateOffset(bufferView.byteOffset, accessor.byteOffset), getDataType(accessor.type) * accessor.count);
+            vertexAccessor[k] = buildArray(this.arrayBuffer[bufferView.buffer], accessor.componentType, calculateOffset(bufferView.byteOffset, accessor.byteOffset), getDataType(accessor.type) * accessor.count, bufferView.byteStride, accessor.count);
 
             if (p.targets) {
                 let offset = 0;
@@ -171,6 +182,7 @@ export class Parse {
         //mesh.setUniforms(uniforms);
         mesh.setAttributes(vertexAccessor);
         mesh.setIndicesBuffer(indicesBuffer);
+        mesh.setBoundingBox(boundingBox);
         if (skin !== undefined) {
             mesh.setSkin(skin);
         }
@@ -290,12 +302,6 @@ export class Parse {
         this._camera.modelYSize = Math.max(a(min[1]), a(min[2]), a(max[1]), a(max[2]));
         this._camera.modelSize = Math.max(this._camera.modelYSize, this._camera.modelXSize);
 
-        if (!this._camera.props.perspective.yfov) {
-            console.warn('Camera not found');
-            const z = this._camera.modelSize / (this.width / 100) * 30;
-            this._camera.setZ(z);
-            this._camera.props.perspective.yfov = 0.6;
-        }
         this.resize();
     }
 
@@ -312,7 +318,7 @@ export class Parse {
             }
         });
 
-        //this.calculateFov();
+        this.calculateFov();
 
         walk(this.scene, mesh => {
             if (mesh instanceof SkinnedMesh) {
@@ -336,7 +342,7 @@ export class Parse {
             }
             if (mesh instanceof Mesh) {
                 const materials = new Float32Array(12);
-                materials.set(mesh.material.pbrMetallicRoughness.baseColorFactor || [0, 0, 0, 0]);
+                materials.set(mesh.material.pbrMetallicRoughness.baseColorFactor || [0.8, 0.8, 0.8, 1.0]);
                 materials.set([this._camera.matrixWorld.elements[12], this._camera.matrixWorld.elements[13], this._camera.matrixWorld.elements[14]], 4);
                 materials.set([this._camera.matrixWorld.elements[12], this._camera.matrixWorld.elements[13], this._camera.matrixWorld.elements[14]], 8);
                 const mIndex = gl.getUniformBlockIndex(mesh.program, 'Material');
@@ -479,18 +485,13 @@ export class Parse {
         if (!this.json.textures) {
             return true;
         }
-        const samplers = this.json.samplers || [{
-            magFilter: 9729,
-            minFilter: 9986,
-            wrapS: 10497,
-            wrapT: 10497
-        }];
+        const samplers = this.json.samplers || [{}];
         this.samplers = samplers.map(s => {
             const sampler = gl.createSampler();
-            gl.samplerParameteri(sampler, gl.TEXTURE_MIN_FILTER, s.minFilter);
-            gl.samplerParameteri(sampler, gl.TEXTURE_MAG_FILTER, s.magFilter);
-            gl.samplerParameteri(sampler, gl.TEXTURE_WRAP_S, s.wrapS);
-            gl.samplerParameteri(sampler, gl.TEXTURE_WRAP_T, s.wrapT);
+            gl.samplerParameteri(sampler, gl.TEXTURE_MIN_FILTER, s.minFilter || 9986);
+            gl.samplerParameteri(sampler, gl.TEXTURE_MAG_FILTER, s.magFilter || 9729);
+            gl.samplerParameteri(sampler, gl.TEXTURE_WRAP_S, s.wrapS || 10497);
+            gl.samplerParameteri(sampler, gl.TEXTURE_WRAP_T, s.wrapT || 10497);
             return sampler;
         });
 
