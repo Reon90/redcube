@@ -88,44 +88,21 @@ class RedCube {
         if (type === 'rotate') {
             const p0 = new Vector3(sceneToArcBall(canvasToWorld(...coordsStart, this._camera.projection, this.canvas.offsetWidth, this.canvas.offsetHeight)));
             const p1 = new Vector3(sceneToArcBall(canvasToWorld(...coordsMove, this._camera.projection, this.canvas.offsetWidth, this.canvas.offsetHeight)));
-            const angle = Vector3.angle(p0, p1) * 2;
+            const angle = Vector3.angle(p0, p1) * 5;
             if (angle < 1e-6 || isNaN(angle)) {
                 return;
             }
 
             const v = Vector3.cross(p0, p1).normalize();
             const sin = Math.sin(angle / 2);
-            const q = new Vector4([v.elements[0] * -sin, v.elements[1] * -sin, v.elements[2] * -sin, Math.cos(angle / 2)]);
+            const q = new Vector4([v.elements[0] * sin, v.elements[1] * sin, v.elements[2] * sin, Math.cos(angle / 2)]);
 
             const m = new Matrix4();
             m.makeRotationFromQuaternion(q.elements);
 
-            // this.needUpdateView = true;
-            // this._camera.matrixWorld.multiply(m);
-            // this._camera.setMatrixWorld(this._camera.matrixWorld.elements);
-            this.scene.matrixWorld.multiply(m);
-            walk(this.scene, node => {
-                if (!node.parent) {
-                    return;
-                }
-                const m = new Matrix4;
-                m.multiply( node.parent.matrixWorld );
-                m.multiply(node.matrix);
-                node.setMatrixWorld(m.elements);
-
-                if (node instanceof Bone) {
-                    node.reflow = true;
-                }
-
-                if (node instanceof Mesh) {
-                    node.reflow = true;
-                }
-
-                if (node instanceof Camera && node === this._camera) {
-                    this.needUpdateView = true;
-                }
-            });
-            //this.env.envMatrix.multiply(m);
+            m.multiply(this._camera.matrixWorld);
+            this._camera.setMatrixWorld(m.elements);
+            this.needUpdateView = true;
         }
         if (type === 'pan') {
             const p0 = new Vector3(canvasToWorld(...coordsStart, this._camera.projection, this.canvas.offsetWidth, this.canvas.offsetHeight).elements);
@@ -133,12 +110,13 @@ class RedCube {
             const pan = this._camera.modelSize * 100;
             const delta = p1.subtract(p0).scale(pan);
 
-            this.scene.matrixWorld.translate(-delta.elements[0], -delta.elements[1], 0);
+            this._camera.matrixWorld.translate(delta.elements[0], delta.elements[1], 0);
+            this._camera.setMatrixWorld(this._camera.matrixWorld.elements);
+            this.needUpdateView = true;
         }
         if (type === 'resize') {
             this.resize();
             this.needUpdateProjection = true;
-            this.needUpdateView = true;
         }
         
         this.reflow = true;
@@ -154,6 +132,7 @@ class RedCube {
         if (this._camera.isInitial) {
             const z = 1 / this.canvas.width * this._camera.modelSize * 5000;
             this._camera.setZ(z);
+            this.needUpdateView = true;
         }
     }
 
@@ -486,6 +465,11 @@ class RedCube {
         }
         if (mesh.material.UBO) {
             gl.bindBufferBase(gl.UNIFORM_BUFFER, 1, mesh.material.UBO);
+
+            if (this.needUpdateView) {
+                gl.bufferSubData(gl.UNIFORM_BUFFER, 4 * Float32Array.BYTES_PER_ELEMENT, new Float32Array([this._camera.matrixWorld.elements[12], this._camera.matrixWorld.elements[13], this._camera.matrixWorld.elements[14]]));
+                gl.bufferSubData(gl.UNIFORM_BUFFER, 8 * Float32Array.BYTES_PER_ELEMENT, new Float32Array([this._camera.matrixWorld.elements[12], this._camera.matrixWorld.elements[13], this._camera.matrixWorld.elements[14]]));
+            }
         }
         if (mesh.material.pbrMetallicRoughness.baseColorTexture) {
             gl.uniform1i(mesh.material.uniforms.baseColorTexture, mesh.material.pbrMetallicRoughness.baseColorTexture.count);
