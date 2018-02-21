@@ -96,6 +96,12 @@ class RedCube {
             const v = Vector3.cross(p0, p1).normalize();
             const sin = Math.sin(angle / 2);
             const q = new Vector4([v.elements[0] * sin, v.elements[1] * sin, v.elements[2] * sin, Math.cos(angle / 2)]);
+            this._camera.up.applyQuaternion(q);
+            const diff = Vector3.angle(this._camera.up, new Vector3([0, 1, 0]));
+            console.log(diff)
+            if (diff >= Math.PI / 2) {
+                return;
+            }
 
             const m = new Matrix4();
             m.makeRotationFromQuaternion(q.elements);

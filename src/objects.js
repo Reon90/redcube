@@ -196,6 +196,7 @@ class Camera extends Object3D {
 
         this.matrixWorldInvert = new Matrix4();
         this.projection = new Matrix4();
+        this.up = new Vector3([0, 1, 0]);
     }
 
     setProjection(matrix) {

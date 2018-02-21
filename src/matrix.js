@@ -553,6 +553,28 @@ Vector3.dot = function(a, b) {
     return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 };
 
+Vector3.prototype.applyQuaternion = function ( q ) {
+
+    var x = this.elements[0], y = this.elements[1], z = this.elements[2];
+    var qx = q.elements[0], qy = q.elements[1], qz = q.elements[2], qw = q.elements[3];
+
+    // calculate quat * vector
+
+    var ix = qw * x + qy * z - qz * y;
+    var iy = qw * y + qz * x - qx * z;
+    var iz = qw * z + qx * y - qy * x;
+    var iw = - qx * x - qy * y - qz * z;
+
+    // calculate result * inverse quat
+
+    this.elements[0] = ix * qw + iw * - qx + iy * - qz - iz * - qy;
+    this.elements[1] = iy * qw + iw * - qy + iz * - qx - ix * - qz;
+    this.elements[2] = iz * qw + iw * - qz + ix * - qy - iy * - qx;
+
+    return this;
+
+}
+
 /**
   * Normalize.
   * @return this
