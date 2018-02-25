@@ -137,6 +137,10 @@ export class Parse {
             defines.push({name: 'TANGENT'});
         }
 
+        if (true) {
+            defines.push({name: 'USE_PBR'});
+        }
+
         let program;
         if (this.programs[defines.map(define => define.name).join('')]) {
             program = this.programs[defines.map(define => define.name).join('')];
