@@ -1,4 +1,4 @@
-import { isMatrix, buildArray, getDataType, walk, getMatrixType, getAnimationComponent, calculateProjection, compileShader, calculateOffset, getAttributeIndex } from './utils';
+import { isMatrix, buildArray, getDataType, walk, getMatrixType, getAnimationComponent, calculateProjection, compileShader, calculateOffset, getAttributeIndex, calculateBinormals } from './utils';
 import { Mesh, SkinnedMesh, Bone, Camera, Object3D } from './objects';
 import { Matrix4 } from './matrix';
 
@@ -103,6 +103,7 @@ export class Parse {
             if (material.pbrMetallicRoughness.metallicRoughnessTexture.index !== undefined) {
                 material.pbrMetallicRoughness.metallicRoughnessTexture = Object.assign({}, this.textures[material.pbrMetallicRoughness.metallicRoughnessTexture.index]);
             }
+            defines.push({name: 'USE_PBR'});
             defines.push({name: 'METALROUGHNESSMAP'});
         }
         if (material.normalTexture) {
@@ -133,12 +134,8 @@ export class Parse {
         if (skin !== undefined) {
             defines.push({name: 'JOINTNUMBER', value: this.skins[skin].jointNames.length});
         }
-        if (p.attributes.TANGENT) {
+        if (p.attributes.TANGENT || material.normalTexture) {
             defines.push({name: 'TANGENT'});
-        }
-
-        if (true) {
-            defines.push({name: 'USE_PBR'});
         }
 
         let program;
@@ -177,7 +174,10 @@ export class Parse {
                 }
             }
         }
-
+        if (material.normalTexture && p.attributes.TANGENT === undefined) {
+            vertexAccessor.TANGENT = calculateBinormals(indicesBuffer, vertexAccessor.POSITION, vertexAccessor.NORMAL, vertexAccessor.TEXCOORD_0);
+        }
+debugger
         const mesh = skin !== undefined ? new SkinnedMesh(name, parent) : new Mesh(name, parent);
         
         mesh.setProgram(program);
@@ -523,7 +523,7 @@ export class Parse {
     }
 
     handleTextureLoaded(sampler, image) {
-        const t ={};
+        const t = {};
         t.image = image.src.substr(image.src.lastIndexOf('/'));
         t.data = gl.createTexture();
         t.count = sceneTextureCount;

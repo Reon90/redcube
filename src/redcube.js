@@ -23,7 +23,7 @@ class RedCube {
             type: 'perspective', 
             perspective: {
                 yfov: 0.6,
-                znear: 0.1,
+                znear: 0.05,
                 zfar: 2e6,
                 aspectRatio: null
             }

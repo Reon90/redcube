@@ -645,6 +645,10 @@ Vector3.prototype.subtract = function(b) {
     return this;
 };
 
+Vector3.prototype.clone = function() {
+    return new Vector3(this.elements);
+};
+
 
 /**
  * Constructor of Vector4
@@ -789,12 +793,36 @@ Vector3.prototype.lerp = function(a, b, t) {
     return this;
 };
 
+Vector3.prototype.lengthSq = function() {
+    return this.elements[0] * this.elements[0] + this.elements[1] * this.elements[1] + this.elements[2] * this.elements[2];
+}
+
+Vector3.prototype.multiply = function ( v) {
+    this.elements[0] *= v.elements[0];
+    this.elements[1] *= v.elements[1];
+    this.elements[2] *= v.elements[2];
+
+    return this;
+};
+
 const Vector2 = function(opt_src) {
     const v = new Float32Array(2);
     if (opt_src && typeof opt_src === 'object') {
         v[0] = opt_src[0]; v[1] = opt_src[1];
     } 
     this.elements = v;
+};
+
+Vector2.prototype.subtract = function(b) {
+    const out = this.elements;
+    b = b.elements;
+    out[0] = out[0] - b[0];
+    out[1] = out[1] - b[1];
+    return this;
+};
+
+Vector2.prototype.clone = function() {
+    return new Vector2(this.elements);
 };
 
 Vector2.prototype.lerp = function(a, b, t) {

@@ -1,4 +1,4 @@
-import { Matrix2, Matrix3, Matrix4, Vector3, Vector4 } from './matrix';
+import { Matrix2, Matrix3, Matrix4, Vector2, Vector3, Vector4 } from './matrix';
 
 let glEnum;
 let gl;
@@ -306,4 +306,60 @@ export function getAttributeIndex(name) {
         break;
     }
     return index;
+}
+
+const BINORLMAL_SQUARE_EPSILON = 1.0e-7;
+export function calculateBinormals(index, vertex, normal, uv) {
+    const VECTOR_SIZE = 3;
+    let normalsAmount = normal.length;
+    let floatElements = VECTOR_SIZE * normalsAmount;
+    let bnArray = new Float32Array(floatElements);
+    let tan1 = new Float32Array(floatElements);
+    let tan2 = new Float32Array(floatElements);
+
+    for(let i =0; i < index.length; i+=3) {
+        let faceIndexes = [index[i],index[i+1], index[i+2]];
+        let faceVertices = faceIndexes.map(ix=>vectorFromArray(vertex, ix));
+        let faceUVs = faceIndexes.map(ix=>vectorFromArray(uv, ix, 2));
+        let faceNormals = faceIndexes.map(ix=>vectorFromArray(normal, ix));
+
+        let dv1 = faceVertices[1].clone().subtract(faceVertices[0]);
+        let dv2 = faceVertices[2].clone().subtract(faceVertices[1]);
+
+        let duv1  = faceUVs[1].clone().subtract(faceUVs[0]);
+        let duv2  = faceUVs[2].clone().subtract(faceUVs[1]);
+
+        let r = (duv1.elements[0] * duv2.elements[1] - duv1.elements[1] * duv2.elements[0]);
+        r = (r != 0) ? 1.0 / r : 1.0;
+        let udir = new Vector3([(duv2.elements[1] * dv1.elements[0] - duv1.elements[1] * dv2.elements[0]) * r, (duv2.elements[1] * dv1.elements[1] - duv1.elements[1] * dv2.elements[1]) * r, (duv2.elements[1] * dv1.elements[2] - duv1.elements[1] * dv2.elements[2]) * r]);
+        let vdir = new Vector3([(duv1.elements[0] * dv2.elements[0] - duv2.elements[0] * dv1.elements[0]) * r, (duv1.elements[0] * dv2.elements[1] - duv2.elements[0] * dv1.elements[1]) * r, (duv1.elements[0] * dv2.elements[2] - duv2.elements[0] * dv1.elements[2]) * r]);
+
+        faceIndexes.forEach(ix=>{
+            accumulateVectorInArray(tan1, ix, udir);
+            accumulateVectorInArray(tan2, ix, vdir);
+        });
+    }
+
+    for(let i = 0 ; i < normalsAmount; ++i){
+        let n = vectorFromArray(normal, i);
+        let t = vectorFromArray(tan1, i);
+        t.subtract(n.multiply(n).multiply(t));
+        if(t.lengthSq() < BINORLMAL_SQUARE_EPSILON) t.normalize();
+        accumulateVectorInArray(bnArray, i, t, 3, (_acc_, x)=>x);
+    }
+
+    return bnArray;
+
+    function vectorFromArray(array, index, elements=3){
+        index = index*elements;
+        if(elements === 4) return new Vector4([array[index], array[index+1], array[index+2], array[index+3]]);
+        if(elements === 3) return new Vector3([array[index], array[index+1], array[index+2]]);
+        if(elements === 2) return new Vector2([array[index], array[index+1]]);
+    }
+    function accumulateVectorInArray(array, index, vector, elements = 3, accumulator=(acc, x)=>acc+x){
+        index = index * elements;
+        for(let i = 0; i < elements; ++i){
+            array[index + i] = accumulator(array[index+i], vector.elements[i]);
+        }
+    }
 }
