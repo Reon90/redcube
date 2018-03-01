@@ -27,7 +27,6 @@ const float ambientStrength = 0.1;
 const float specularStrength = 0.5;
 const float specularPower = 32.0;
 const vec3 lightColor = vec3(1.0, 1.0, 1.0);
-const float occlusionStrength = 0.5;
 const vec3 emissiveFactor = vec3(1.0, 1.0, 1.0);
 
 vec3 srgbToLinear(vec4 srgbIn) {
@@ -86,11 +85,6 @@ void main() {
         float metallic = texture(metallicRoughnessTexture, outUV).b;
     #endif
 
-    #ifdef EMISSIVEMAP
-        vec3 emissive = srgbToLinear(texture(emissiveTexture, outUV)) * emissiveFactor;
-        baseColor.rgb += emissive;
-    #endif
-
     #ifdef TANGENT
         #ifdef NORMALMAP
             vec3 n = texture(normalTexture, outUV).rgb;
@@ -107,7 +101,7 @@ void main() {
     vec3 H = normalize(viewDir + lightDir);
     float distance = length(lightPos - outPosition);
     float attenuation = 1.0 / (distance * distance);
-    vec3 radiance = lightColor * attenuation;
+    vec3 radiance = lightColor * 2.0;
 
     #ifdef USE_PBR
         vec3 F0 = vec3(0.04); 
@@ -130,8 +124,17 @@ void main() {
         float NdotL = max(dot(n, lightDir), 0.0);                
         light += (kD * baseColor / PI + specular) * radiance * NdotL;
 
-        vec3 ambient = vec3(0.03) * baseColor * ao;
+        #ifdef OCCLUSIONMAP
+            vec3 ambient = vec3(0.03) * baseColor * ao;
+        #else
+            vec3 ambient = baseColor;
+        #endif
         baseColor = ambient + light;
+
+        #ifdef EMISSIVEMAP
+            vec3 emissive = srgbToLinear(texture(emissiveTexture, outUV)) * emissiveFactor;
+            baseColor.rgb += emissive;
+        #endif
 
         baseColor = baseColor / (baseColor + vec3(1.0));
         baseColor = pow(baseColor, vec3(1.0 / 2.2));  
