@@ -177,7 +177,7 @@ export class Parse {
         if (material.normalTexture && p.attributes.TANGENT === undefined) {
             vertexAccessor.TANGENT = calculateBinormals(indicesBuffer, vertexAccessor.POSITION, vertexAccessor.NORMAL, vertexAccessor.TEXCOORD_0);
         }
-debugger
+
         const mesh = skin !== undefined ? new SkinnedMesh(name, parent) : new Mesh(name, parent);
         
         mesh.setProgram(program);
