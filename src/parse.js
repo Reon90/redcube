@@ -1,4 +1,4 @@
-import { isMatrix, buildArray, getDataType, walk, getMatrixType, getAnimationComponent, calculateProjection, compileShader, calculateOffset, getAttributeIndex, calculateBinormals } from './utils';
+import { buildArray, getDataType, walk, getAnimationComponent, calculateProjection, compileShader, calculateOffset, getAttributeIndex, calculateBinormals } from './utils';
 import { Mesh, SkinnedMesh, Bone, Camera, Object3D } from './objects';
 import { Matrix4 } from './matrix';
 
@@ -6,7 +6,6 @@ import vertexShader from './shaders/vertex.glsl';
 import fragmentShader from './shaders/fragment.glsl';
 
 let gl;
-let glEnum;
 let sceneTextureCount = 0;
 
 export class Parse {
@@ -31,10 +30,6 @@ export class Parse {
 
     setGl(g) {
         gl = g;
-    }
-
-    setGlEnum(g) {
-        glEnum = g;
     }
 
     setCamera(camera, aspect, zoom) {
@@ -143,7 +138,7 @@ export class Parse {
             program = this.programs[defines.map(define => define.name).join('')];
         } else {
             const defineStr = defines.map(define => `#define ${define.name} ${define.value || 1}` + '\n').join('');
-            program = this.compileShader(vertexShader.replace(/\n/, '\n' + defineStr), fragmentShader.replace(/\n/, '\n' + defineStr));
+            program = this.compileShader(vertexShader.replace(/\n/, `\n${ defineStr}`), fragmentShader.replace(/\n/, `\n${ defineStr}`));
             this.programs[defines.map(define => define.name).join('')] = program;
         }
 

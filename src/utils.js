@@ -202,6 +202,7 @@ export function buildArray(arrayBuffer, type, offset, length, stride, count) {
         break;
     case 'UNSIGNED_INT':
         arr = new Uint32Array(arrayBuffer, offset, length);
+        break;
     case 'FLOAT':
         arr = new Float32Array(arrayBuffer, offset, length);
         break;
@@ -211,8 +212,8 @@ export function buildArray(arrayBuffer, type, offset, length, stride, count) {
         let j = 0;
         for (let i = 0; i < stridedArr.length; i = i + c) {
             stridedArr[i] = arr[j];
-            stridedArr[i+1] = arr[j+1];
-            stridedArr[i+2] = arr[j+2];
+            stridedArr[i + 1] = arr[j + 1];
+            stridedArr[i + 2] = arr[j + 2];
             j = j + c * (stride / getCount(type) / c);
         }
         return stridedArr;
@@ -308,52 +309,56 @@ export function getAttributeIndex(name) {
     return index;
 }
 
-const BINORLMAL_SQUARE_EPSILON = 1.0e-7;
 export function calculateBinormals(index, vertex, normal, uv) {
     const tangent = new Float32Array(normal.length / 3 * 4);
 
-    for(let i =0; i < index.length; i+=3) {
-        let faceIndexes = [index[i],index[i+1], index[i+2]];
-        let faceVertices = faceIndexes.map(ix=>vectorFromArray(vertex, ix));
-        let faceUVs = faceIndexes.map(ix=>vectorFromArray(uv, ix, 2));
-        let faceNormals = faceIndexes.map(ix=>vectorFromArray(normal, ix));
+    for (let i = 0; i < index.length; i += 3) {
+        const faceIndexes = [index[i], index[i + 1], index[i + 2]];
+        const faceVertices = faceIndexes.map(ix => vectorFromArray(vertex, ix));
+        const faceUVs = faceIndexes.map(ix => vectorFromArray(uv, ix, 2));
 
-        let dv1 = faceVertices[1].clone().subtract(faceVertices[0]);
-        let dv2 = faceVertices[2].clone().subtract(faceVertices[0]);
+        const dv1 = faceVertices[1].clone().subtract(faceVertices[0]);
+        const dv2 = faceVertices[2].clone().subtract(faceVertices[0]);
 
-        let duv1  = faceUVs[1].clone().subtract(faceUVs[0]);
-        let duv2  = faceUVs[2].clone().subtract(faceUVs[0]);
+        const duv1 = faceUVs[1].clone().subtract(faceUVs[0]);
+        const duv2 = faceUVs[2].clone().subtract(faceUVs[0]);
 
         let r = (duv1.elements[0] * duv2.elements[1] - duv1.elements[1] * duv2.elements[0]);
-        r = (r != 0) ? 1.0 / r : 1.0;
-        let udir = new Vector3([
+        r = (r !== 0) ? 1.0 / r : 1.0;
+        const udir = new Vector3([
             (duv2.elements[1] * dv1.elements[0] - duv1.elements[1] * dv2.elements[0]) * r,
             (duv2.elements[1] * dv1.elements[1] - duv1.elements[1] * dv2.elements[1]) * r,
             (duv2.elements[1] * dv1.elements[2] - duv1.elements[1] * dv2.elements[2]) * r
         ]);
         udir.normalize();
 
-        faceIndexes.forEach(ix=>{
+        faceIndexes.forEach(ix => {
             accumulateVectorInArray(tangent, ix, udir);
         });
     }
 
     return tangent;
 
-    function vectorFromArray(array, index, elements=3){
-        index = index*elements;
-        if (elements === 4) return new Vector4([array[index], array[index+1], array[index+2], array[index+3]]);
-        if (elements === 3) return new Vector3([array[index], array[index+1], array[index+2]]);
-        if (elements === 2) return new Vector2([array[index], array[index+1]]);
+    function vectorFromArray(array, index, elements = 3) {
+        index = index * elements;
+        if (elements === 4) {
+            return new Vector4([array[index], array[index + 1], array[index + 2], array[index + 3]]);
+        }
+        if (elements === 3) {
+            return new Vector3([array[index], array[index + 1], array[index + 2]]);
+        }
+        if (elements === 2) {
+            return new Vector2([array[index], array[index + 1]]);
+        }
     }
 
-    function accumulateVectorInArray(array, index, vector, elements = 4, accumulator=(acc, x)=>acc+x){
+    function accumulateVectorInArray(array, index, vector, elements = 4, accumulator = (acc, x) => acc + x) {
         index = index * elements;
         for (let i = 0; i < elements; ++i) {
             if (i === 3) {
                 array[index + i] = -1;
             } else {
-                array[index + i] = accumulator(array[index+i], vector.elements[i]);
+                array[index + i] = accumulator(array[index + i], vector.elements[i]);
             }
         }
     }

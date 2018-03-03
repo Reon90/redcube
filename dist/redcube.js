@@ -81,9 +81,10 @@ return /******/ (function(modules) { // webpackBootstrap
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
-/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "e", function() { return Matrix2; });
-/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "d", function() { return Matrix3; });
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "f", function() { return Matrix2; });
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "e", function() { return Matrix3; });
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "c", function() { return Matrix4; });
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "d", function() { return Vector2; });
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "a", function() { return Vector3; });
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "b", function() { return Vector4; });
 /* unused harmony export Frustum */
@@ -363,37 +364,33 @@ Matrix4.prototype.invert = function() {
  * @param far The distances to the farther depth clipping plane. This value is minus if the plane is to be behind the viewer.
  * @return this
  */
-Matrix4.prototype.setOrtho = function(left, right, bottom, top, near, far) {
+Matrix4.prototype.setOrtho = function(r, t, near, far) {
     let e, rw, rh, rd;
 
-    if (left === right || bottom === top || near === far) {
-        throw 'null frustum';
-    }
-
-    rw = 1 / (right - left);
-    rh = 1 / (top - bottom);
-    rd = 1 / (far - near);
+    rw = 1 / r;
+    rh = 1 / t;
+    rd = 2 / (near - far);
 
     e = this.elements;
 
-    e[0] = 2 * rw;
+    e[0] = rw;
     e[1] = 0;
     e[2] = 0;
     e[3] = 0;
 
     e[4] = 0;
-    e[5] = 2 * rh;
+    e[5] = rh;
     e[6] = 0;
     e[7] = 0;
 
     e[8] = 0;
     e[9] = 0;
-    e[10] = -2 * rd;
-    e[11] = 0;
+    e[10] = rd;
+    e[11] = (far + near) / (near - far);
 
-    e[12] = -(right + left) * rw;
-    e[13] = -(top + bottom) * rh;
-    e[14] = -(far + near) * rd;
+    e[12] = 0;
+    e[13] = 0;
+    e[14] = 0;
     e[15] = 1;
 
     return this;
@@ -646,6 +643,28 @@ Vector3.dot = function(a, b) {
     return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 };
 
+Vector3.prototype.applyQuaternion = function ( q ) {
+
+    var x = this.elements[0], y = this.elements[1], z = this.elements[2];
+    var qx = q.elements[0], qy = q.elements[1], qz = q.elements[2], qw = q.elements[3];
+
+    // calculate quat * vector
+
+    var ix = qw * x + qy * z - qz * y;
+    var iy = qw * y + qz * x - qx * z;
+    var iz = qw * z + qx * y - qy * x;
+    var iw = - qx * x - qy * y - qz * z;
+
+    // calculate result * inverse quat
+
+    this.elements[0] = ix * qw + iw * - qx + iy * - qz - iz * - qy;
+    this.elements[1] = iy * qw + iw * - qy + iz * - qx - ix * - qz;
+    this.elements[2] = iz * qw + iw * - qz + ix * - qy - iy * - qx;
+
+    return this;
+
+}
+
 /**
   * Normalize.
   * @return this
@@ -716,6 +735,10 @@ Vector3.prototype.subtract = function(b) {
     return this;
 };
 
+Vector3.prototype.clone = function() {
+    return new Vector3(this.elements);
+};
+
 
 /**
  * Constructor of Vector4
@@ -765,6 +788,59 @@ Vector4.prototype.normalize = function() {
     return this;
 };
 
+Vector4.prototype.setFromRotationMatrix = function ( m ) {
+
+    var te = m.elements,
+
+        m11 = te[ 0 ], m12 = te[ 4 ], m13 = te[ 8 ],
+        m21 = te[ 1 ], m22 = te[ 5 ], m23 = te[ 9 ],
+        m31 = te[ 2 ], m32 = te[ 6 ], m33 = te[ 10 ],
+
+        trace = m11 + m22 + m33,
+        s;
+
+    if ( trace > 0 ) {
+
+        s = 0.5 / Math.sqrt( trace + 1.0 );
+
+        this.elements[3] = 0.25 / s;
+        this.elements[0] = ( m32 - m23 ) * s;
+        this.elements[1] = ( m13 - m31 ) * s;
+        this.elements[2] = ( m21 - m12 ) * s;
+
+    } else if ( m11 > m22 && m11 > m33 ) {
+
+        s = 2.0 * Math.sqrt( 1.0 + m11 - m22 - m33 );
+
+        this.elements[3] = ( m32 - m23 ) / s;
+        this.elements[0] = 0.25 * s;
+        this.elements[1] = ( m12 + m21 ) / s;
+        this.elements[2] = ( m13 + m31 ) / s;
+
+    } else if ( m22 > m33 ) {
+
+        s = 2.0 * Math.sqrt( 1.0 + m22 - m11 - m33 );
+
+        this.elements[3] = ( m13 - m31 ) / s;
+        this.elements[0] = ( m12 + m21 ) / s;
+        this.elements[1] = 0.25 * s;
+        this.elements[2] = ( m23 + m32 ) / s;
+
+    } else {
+
+        s = 2.0 * Math.sqrt( 1.0 + m33 - m11 - m22 );
+
+        this.elements[3] = ( m21 - m12 ) / s;
+        this.elements[0] = ( m13 + m31 ) / s;
+        this.elements[1] = ( m23 + m32 ) / s;
+        this.elements[2] = 0.25 * s;
+
+    }
+
+    return this;
+
+}
+
 Vector3.prototype.divideScalar = function( scalar ) {
     return this.scale( 1 / scalar );
 };
@@ -807,6 +883,47 @@ Vector3.prototype.lerp = function(a, b, t) {
     return this;
 };
 
+Vector3.prototype.lengthSq = function() {
+    return this.elements[0] * this.elements[0] + this.elements[1] * this.elements[1] + this.elements[2] * this.elements[2];
+}
+
+Vector3.prototype.multiply = function ( v) {
+    this.elements[0] *= v.elements[0];
+    this.elements[1] *= v.elements[1];
+    this.elements[2] *= v.elements[2];
+
+    return this;
+};
+
+const Vector2 = function(opt_src) {
+    const v = new Float32Array(2);
+    if (opt_src && typeof opt_src === 'object') {
+        v[0] = opt_src[0]; v[1] = opt_src[1];
+    } 
+    this.elements = v;
+};
+
+Vector2.prototype.subtract = function(b) {
+    const out = this.elements;
+    b = b.elements;
+    out[0] = out[0] - b[0];
+    out[1] = out[1] - b[1];
+    return this;
+};
+
+Vector2.prototype.clone = function() {
+    return new Vector2(this.elements);
+};
+
+Vector2.prototype.lerp = function(a, b, t) {
+    const out = this.elements;
+    let ax = a[0],
+        ay = a[1];
+    out[0] = ax + t * (b[0] - ax);
+    out[1] = ay + t * (b[1] - ay);
+    return this;
+};
+
 function Frustum( m ) {
     const planes = [new Vector4, new Vector4, new Vector4, new Vector4, new Vector4, new Vector4];
     const me = m.elements;
@@ -837,21 +954,24 @@ function Frustum( m ) {
 /* harmony export (immutable) */ __webpack_exports__["d"] = setGlEnum;
 /* harmony export (immutable) */ __webpack_exports__["e"] = setGl;
 /* unused harmony export isMatrix */
-/* harmony export (immutable) */ __webpack_exports__["m"] = random;
+/* harmony export (immutable) */ __webpack_exports__["p"] = random;
 /* unused harmony export getMatrixType */
-/* harmony export (immutable) */ __webpack_exports__["l"] = getDataType;
+/* harmony export (immutable) */ __webpack_exports__["n"] = getDataType;
 /* unused harmony export getComponentType */
 /* unused harmony export getMethod */
 /* harmony export (immutable) */ __webpack_exports__["g"] = getAnimationComponent;
 /* harmony export (immutable) */ __webpack_exports__["h"] = getAnimationMethod;
 /* unused harmony export range */
 /* harmony export (immutable) */ __webpack_exports__["f"] = interpolation;
-/* harmony export (immutable) */ __webpack_exports__["k"] = buildArray;
-/* harmony export (immutable) */ __webpack_exports__["j"] = compileShader;
-/* harmony export (immutable) */ __webpack_exports__["i"] = walk;
+/* harmony export (immutable) */ __webpack_exports__["l"] = buildArray;
+/* harmony export (immutable) */ __webpack_exports__["k"] = compileShader;
+/* harmony export (immutable) */ __webpack_exports__["j"] = walk;
 /* harmony export (immutable) */ __webpack_exports__["b"] = sceneToArcBall;
 /* harmony export (immutable) */ __webpack_exports__["c"] = canvasToWorld;
 /* harmony export (immutable) */ __webpack_exports__["a"] = calculateProjection;
+/* harmony export (immutable) */ __webpack_exports__["m"] = calculateOffset;
+/* harmony export (immutable) */ __webpack_exports__["i"] = getAttributeIndex;
+/* harmony export (immutable) */ __webpack_exports__["o"] = calculateBinormals;
 
 
 let glEnum;
@@ -877,10 +997,10 @@ function getMatrixType(type) {
         return __WEBPACK_IMPORTED_MODULE_0__matrix__["c" /* Matrix4 */];
     }
     if (glEnum[type] === 'FLOAT_MAT3') {
-        return __WEBPACK_IMPORTED_MODULE_0__matrix__["d" /* Matrix3 */];
+        return __WEBPACK_IMPORTED_MODULE_0__matrix__["e" /* Matrix3 */];
     }
     if (glEnum[type] === 'FLOAT_MAT2') {
-        return __WEBPACK_IMPORTED_MODULE_0__matrix__["e" /* Matrix2 */];
+        return __WEBPACK_IMPORTED_MODULE_0__matrix__["f" /* Matrix2 */];
     }
 }
 
@@ -962,6 +1082,8 @@ function getMethod(type) {
 function getAnimationComponent(type) {
     if (type === 'rotation') {
         return 4;
+    } else if (type === 'weights') {
+        return 2;
     } else {
         return 3;
     }
@@ -1012,7 +1134,32 @@ function interpolation(time, frames) {
     }
 }
 
-function buildArray(arrayBuffer, type, offset, length) {
+function getCount(type) {
+    let arr;
+    switch (glEnum[type]) {
+    case 'BYTE':
+    case 'UNSIGNED_BYTE':
+        arr = 1;
+        break;
+    case 'SHORT':
+    case 'UNSIGNED_SHORT':
+        arr = 2;
+        break;
+    case 'UNSIGNED_INT':
+    case 'FLOAT':
+        arr = 4;
+        break;
+    }
+    return arr;
+}
+
+function buildArray(arrayBuffer, type, offset, length, stride, count) {
+    const l = length;
+    const c = length / count;
+    if (stride && stride !== getCount(type) * c) {
+        length = stride * count / getCount(type) - offset / getCount(type);
+    }
+
     let arr;
     switch (glEnum[type]) {
     case 'BYTE':
@@ -1027,9 +1174,23 @@ function buildArray(arrayBuffer, type, offset, length) {
     case 'UNSIGNED_SHORT':
         arr = new Uint16Array(arrayBuffer, offset, length);
         break;
+    case 'UNSIGNED_INT':
+        arr = new Uint32Array(arrayBuffer, offset, length);
+        break;
     case 'FLOAT':
         arr = new Float32Array(arrayBuffer, offset, length);
         break;
+    }
+    if (stride && stride !== getCount(type) * c) {
+        const stridedArr = new Float32Array(l);
+        let j = 0;
+        for (let i = 0; i < stridedArr.length; i = i + c) {
+            stridedArr[i] = arr[j];
+            stridedArr[i + 1] = arr[j + 1];
+            stridedArr[i + 2] = arr[j + 2];
+            j = j + c * (stride / getCount(type) / c);
+        }
+        return stridedArr;
     }
     return arr;
 }
@@ -1083,19 +1244,98 @@ function calculateProjection(cam, aspect, zoom) {
     let proj;
     if ( cam.type === 'perspective' && cam.perspective ) {
         const {yfov} = cam.perspective;
-        const aspectRatio = cam.perspective.aspectRatio || aspect;
         const xfov = yfov * aspect;
-
-        if (aspect !== aspectRatio) {
-            console.warn('this.canvas size and this.canvas size from scene dont equal');
-        }
 
         proj = new __WEBPACK_IMPORTED_MODULE_0__matrix__["c" /* Matrix4 */]().setPerspective(xfov * zoom * (180 / Math.PI), aspect, cam.perspective.znear || 1, cam.perspective.zfar || 2e6);
     } else if ( cam.type === 'orthographic' && cam.orthographic ) {
-        proj = new __WEBPACK_IMPORTED_MODULE_0__matrix__["c" /* Matrix4 */]().setOrtho( window.innerWidth / -2, window.innerWidth / 2, window.innerHeight / 2, window.innerHeight / -2, cam.orthographic.znear, cam.orthographic.zfar);
+        proj = new __WEBPACK_IMPORTED_MODULE_0__matrix__["c" /* Matrix4 */]().setOrtho( cam.orthographic.xmag, cam.orthographic.ymag, cam.orthographic.znear, cam.orthographic.zfar);
     }
 
     return proj;
+}
+
+function calculateOffset(a = 0, b = 0) {
+    return a + b;
+}
+
+function getAttributeIndex(name) {
+    let index;
+    switch (name) {
+    case 'POSITION':
+        index = [0, 3, gl.FLOAT];
+        break;
+    case 'NORMAL':
+        index = [1, 3, gl.FLOAT];
+        break;
+    case 'TEXCOORD_0':
+        index = [2, 2, gl.FLOAT];
+        break;
+    case 'JOINTS_0':
+        index = [3, 4, gl.UNSIGNED_SHORT];
+        break;
+    case 'WEIGHTS_0':
+        index = [4, 4, gl.FLOAT];
+        break;
+    case 'TANGENT':
+        index = [5, 4, gl.FLOAT];
+        break;
+    }
+    return index;
+}
+
+function calculateBinormals(index, vertex, normal, uv) {
+    const tangent = new Float32Array(normal.length / 3 * 4);
+
+    for (let i = 0; i < index.length; i += 3) {
+        const faceIndexes = [index[i], index[i + 1], index[i + 2]];
+        const faceVertices = faceIndexes.map(ix => vectorFromArray(vertex, ix));
+        const faceUVs = faceIndexes.map(ix => vectorFromArray(uv, ix, 2));
+
+        const dv1 = faceVertices[1].clone().subtract(faceVertices[0]);
+        const dv2 = faceVertices[2].clone().subtract(faceVertices[0]);
+
+        const duv1 = faceUVs[1].clone().subtract(faceUVs[0]);
+        const duv2 = faceUVs[2].clone().subtract(faceUVs[0]);
+
+        let r = (duv1.elements[0] * duv2.elements[1] - duv1.elements[1] * duv2.elements[0]);
+        r = (r !== 0) ? 1.0 / r : 1.0;
+        const udir = new __WEBPACK_IMPORTED_MODULE_0__matrix__["a" /* Vector3 */]([
+            (duv2.elements[1] * dv1.elements[0] - duv1.elements[1] * dv2.elements[0]) * r,
+            (duv2.elements[1] * dv1.elements[1] - duv1.elements[1] * dv2.elements[1]) * r,
+            (duv2.elements[1] * dv1.elements[2] - duv1.elements[1] * dv2.elements[2]) * r
+        ]);
+        udir.normalize();
+
+        faceIndexes.forEach(ix => {
+            accumulateVectorInArray(tangent, ix, udir);
+        });
+    }
+
+    return tangent;
+
+    function vectorFromArray(array, index, elements = 3) {
+        index = index * elements;
+        if (elements === 4) {
+            return new __WEBPACK_IMPORTED_MODULE_0__matrix__["b" /* Vector4 */]([array[index], array[index + 1], array[index + 2], array[index + 3]]);
+        }
+        if (elements === 3) {
+            return new __WEBPACK_IMPORTED_MODULE_0__matrix__["a" /* Vector3 */]([array[index], array[index + 1], array[index + 2]]);
+        }
+        if (elements === 2) {
+            return new __WEBPACK_IMPORTED_MODULE_0__matrix__["d" /* Vector2 */]([array[index], array[index + 1]]);
+        }
+    }
+
+    function accumulateVectorInArray(array, index, vector, elements = 4, accumulator = (acc, x) => acc + x) {
+        index = index * elements;
+        for (let i = 0; i < elements; ++i) {
+            if (i === 3) {
+                array[index + i] = -1;
+            } else {
+                array[index + i] = accumulator(array[index + i], vector.elements[i]);
+            }
+        }
+    }
 }
 
 
@@ -1108,8 +1348,8 @@ function calculateProjection(cam, aspect, zoom) {
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "a", function() { return Scene; });
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "f", function() { return Object3D; });
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "d", function() { return Mesh; });
-/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "c", function() { return SkinnedMesh; });
-/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "e", function() { return Bone; });
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "e", function() { return SkinnedMesh; });
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "c", function() { return Bone; });
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "b", function() { return Camera; });
 
 
@@ -1120,21 +1360,23 @@ class Object3D {
         this.children = [];
         this.matrix = new __WEBPACK_IMPORTED_MODULE_0__matrix__["c" /* Matrix4 */]();
         this.matrixWorld = new __WEBPACK_IMPORTED_MODULE_0__matrix__["c" /* Matrix4 */]();
-        this.matrixAnimation = new __WEBPACK_IMPORTED_MODULE_0__matrix__["c" /* Matrix4 */]();
         this.parent = parent;
     }
 
     setPosition(translation, rotation, scale) {
-        this.hasPosition = true;
-        this.matrix.makeRotationFromQuaternion(rotation);
-        this.matrix.scale(...scale);
-        this.matrix.setTranslate(...translation);
-        this.matrixAnimation.set(this.matrix.elements);
+        if (rotation) {
+            this.matrix.makeRotationFromQuaternion(rotation);
+        }
+        if (scale) {
+            this.matrix.scale(...scale);
+        }
+        if (translation) {
+            this.matrix.setTranslate(...translation);
+        }
     }
 
     setMatrix(matrix) {
         this.matrix.set(matrix);
-        this.matrixAnimation.set(matrix);
     }
 
     setMatrixWorld(matrix) {
@@ -1166,29 +1408,12 @@ class Mesh extends Object3D {
 
     setMaterial(material) {
         this.material = material;
+        this.material.uniforms = {};
     }
 
     calculateBounding() {
         const vertices = this.geometry.attributes.POSITION;
         let maxRadiusSq = 0;
-
-        const min = [Infinity, Infinity, Infinity], max = [-Infinity, -Infinity, -Infinity];
-        for (let i = 0; i < vertices.length; i = i + 3) {
-            const x = vertices[i];
-            const y = vertices[i + 1];
-            const z = vertices[i + 2];
-
-            min[0] = Math.min(min[0], x);
-            min[1] = Math.min(min[1], y);
-            min[2] = Math.min(min[2], z);
-
-            max[0] = Math.max(max[0], x);
-            max[1] = Math.max(max[1], y);
-            max[2] = Math.max(max[2], z);
-        }
-
-        this.geometry.boundingSphere.min = new __WEBPACK_IMPORTED_MODULE_0__matrix__["a" /* Vector3 */](min);
-        this.geometry.boundingSphere.max = new __WEBPACK_IMPORTED_MODULE_0__matrix__["a" /* Vector3 */](max);
 
         this.geometry.boundingSphere.center
             .add( this.geometry.boundingSphere.min )
@@ -1201,13 +1426,18 @@ class Mesh extends Object3D {
         this.geometry.boundingSphere.radius = Math.sqrt( maxRadiusSq );
     }
 
+    setBoundingBox({min, max}) {
+        this.geometry.boundingSphere.min = new __WEBPACK_IMPORTED_MODULE_0__matrix__["a" /* Vector3 */](min);
+        this.geometry.boundingSphere.max = new __WEBPACK_IMPORTED_MODULE_0__matrix__["a" /* Vector3 */](max);
+        this.calculateBounding();
+    }
+
     setIndicesBuffer(value) {
         this.geometry.indicesBuffer = value;
     }
 
     setAttributes(value) {
         this.geometry.attributes = value;
-        this.calculateBounding();
     }
 
     setTextures(value) {
@@ -1231,16 +1461,15 @@ class Mesh extends Object3D {
     }
 
     getJointMatrix() {
-        const m4v = this.material.uniforms.u_jointMat.value;
+        const m4v = this.boneInverses;
         const m = new __WEBPACK_IMPORTED_MODULE_0__matrix__["c" /* Matrix4 */](this.matrixWorld).invert();
         const resArray = [];
 
         for ( let mi = 0; mi < m4v.length; mi++ ) {
-            const res = new __WEBPACK_IMPORTED_MODULE_0__matrix__["c" /* Matrix4 */](m4v[ mi ])
+            const res = new __WEBPACK_IMPORTED_MODULE_0__matrix__["c" /* Matrix4 */]()
                 .multiply( m )
                 .multiply( this.bones[ mi ].matrixWorld )
-                .multiply( this.boneInverses[ mi ] )
-                .multiply( this.bindShapeMatrix );
+                .multiply( this.boneInverses[ mi ] );
             resArray.push(res);
         }
 
@@ -1271,7 +1500,7 @@ class Mesh extends Object3D {
         return _camera.projection;
     }
     getNormalMatrix() {
-        const normalMatrix = new __WEBPACK_IMPORTED_MODULE_0__matrix__["d" /* Matrix3 */]();
+        const normalMatrix = new __WEBPACK_IMPORTED_MODULE_0__matrix__["e" /* Matrix3 */]();
         normalMatrix.normalFromMat4(this.material.uniforms.u_modelViewMatrix.value);
         return normalMatrix;
     }
@@ -1389,8 +1618,8 @@ class Env {
 
     createEnvironment() {
         const program = gl.createProgram();
-        __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_0__utils__["j" /* compileShader */])(gl.VERTEX_SHADER, __WEBPACK_IMPORTED_MODULE_3__shaders_env_glsl___default.a, program);
-        __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_0__utils__["j" /* compileShader */])(gl.FRAGMENT_SHADER, __WEBPACK_IMPORTED_MODULE_4__shaders_blurEnv_glsl___default.a, program);
+        __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_0__utils__["k" /* compileShader */])(gl.VERTEX_SHADER, __WEBPACK_IMPORTED_MODULE_3__shaders_env_glsl___default.a, program);
+        __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_0__utils__["k" /* compileShader */])(gl.FRAGMENT_SHADER, __WEBPACK_IMPORTED_MODULE_4__shaders_blurEnv_glsl___default.a, program);
         gl.linkProgram(program);
         gl.useProgram(program);
 
@@ -1623,8 +1852,7 @@ class Events {
 
 
 let gl;
-let glEnum;
-let sceneTextureCount = 13;
+let sceneTextureCount = 0;
 
 class Parse {
     constructor(url) {
@@ -1633,11 +1861,13 @@ class Parse {
         this.unblendEnable = {};
         this.blendEnable = {};
         this.tracks = [];
-        this.skins = {};
+        this.skins = [];
         this.textures = null;
         this.samplers = null;
+        this.arrayBuffer = null;
         this.blendTechnique = {};
         this.cameras = [];
+        this.programs = {};
     }
 
     setScene(scene) {
@@ -1646,10 +1876,6 @@ class Parse {
 
     setGl(g) {
         gl = g;
-    }
-
-    setGlEnum(g) {
-        glEnum = g;
     }
 
     setCamera(camera, aspect, zoom) {
@@ -1675,52 +1901,125 @@ class Parse {
     }
 
     getBuffer() {
-        return fetch(`${this.host}${this.scene.bin[0]}`)
-            .then(res => res.arrayBuffer())
-            .then(res => {
-                this.arrayBuffer = res;
-                return true;
+        return Promise.all(
+            this.scene.bin.map(url => fetch(`${this.host}${url}`).then(res => res.arrayBuffer())))
+            .then(buffers => {
+                this.arrayBuffer = buffers;
             });
     }
 
     compileShader(vertexShader, fragmentShader) {
         const program = gl.createProgram();
-        __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_0__utils__["j" /* compileShader */])(gl.VERTEX_SHADER, vertexShader, program);
-        __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_0__utils__["j" /* compileShader */])(gl.FRAGMENT_SHADER, fragmentShader, program);
+        __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_0__utils__["k" /* compileShader */])(gl.VERTEX_SHADER, vertexShader, program);
+        __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_0__utils__["k" /* compileShader */])(gl.FRAGMENT_SHADER, fragmentShader, program);
         gl.linkProgram(program);
 
         return program;
     }
 
-    buildPrim(parent, name, matrix, p) {
+    buildPrim(parent, name, skin, weights, p) {
         const indicesAccessor = this.json.accessors[p.indices];
         const vertexAccessor = {};
         for (const a in p.attributes) {
             vertexAccessor[a] = this.json.accessors[p.attributes[a]];
         }
 
-        const material = this.json.materials[p.material];
-        const defines = [];
-        if (material.pbrMetallicRoughness.baseColorTexture) {
-            material.pbrMetallicRoughness.baseColorTexture = this.textures[material.pbrMetallicRoughness.baseColorTexture.index];
-            defines.push('BASECOLORTEXTURE');
+        const targets = [];
+        if (p.targets) {
+            for (const target of p.targets) {
+                const vertexAcc = {};
+                for (const a in target) {
+                    vertexAcc[a] = this.json.accessors[target[a]];
+                    const accessor = vertexAcc[a];
+                    const bufferView = this.json.bufferViews[accessor.bufferView];
+                    vertexAcc[a] = __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_0__utils__["l" /* buildArray */])(this.arrayBuffer[bufferView.buffer], accessor.componentType, __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_0__utils__["m" /* calculateOffset */])(bufferView.byteOffset, accessor.byteOffset), __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_0__utils__["n" /* getDataType */])(accessor.type) * accessor.count);
+                }
+                targets.push(vertexAcc);
+            }
         }
 
-        const defineStr = defines.map(define => `#define ${define} 1` + '\n').join('');
-        const program = this.compileShader(__WEBPACK_IMPORTED_MODULE_3__shaders_vertex_glsl___default.a.replace(/\n/, '\n' + defineStr), __WEBPACK_IMPORTED_MODULE_4__shaders_fragment_glsl___default.a.replace(/\n/, '\n' + defineStr));
+        const material = p.material !== undefined ? Object.assign({}, this.json.materials[p.material]) : {pbrMetallicRoughness: {baseColorFactor: [0.8, 0.8, 0.8, 1.0]}};
+        const defines = [];
+        if (material.pbrMetallicRoughness.metallicRoughnessTexture) {
+            if (material.pbrMetallicRoughness.metallicRoughnessTexture.index !== undefined) {
+                material.pbrMetallicRoughness.metallicRoughnessTexture = Object.assign({}, this.textures[material.pbrMetallicRoughness.metallicRoughnessTexture.index]);
+            }
+            defines.push({name: 'USE_PBR'});
+            defines.push({name: 'METALROUGHNESSMAP'});
+        }
+        if (material.normalTexture) {
+            if (material.normalTexture.index !== undefined) {
+                material.normalTexture = Object.assign({}, this.textures[material.normalTexture.index]);
+            }
+            defines.push({name: 'NORMALMAP'});
+        }
+        if (material.occlusionTexture) {
+            if (material.occlusionTexture.index !== undefined) {
+                material.occlusionTexture = Object.assign({}, this.textures[material.occlusionTexture.index]);
+            }
+            defines.push({name: 'OCCLUSIONMAP'});
+        }
+        if (material.pbrMetallicRoughness.baseColorTexture) {
+            if (material.pbrMetallicRoughness.baseColorTexture.index !== undefined) {
+                material.pbrMetallicRoughness.baseColorTexture = Object.assign({}, this.textures[material.pbrMetallicRoughness.baseColorTexture.index]);
+            }
+            defines.push({name: 'BASECOLORTEXTURE'});
+        }
+        if (material.emissiveTexture) {
+            if (material.emissiveTexture.index !== undefined) {
+                material.emissiveTexture = Object.assign({}, this.textures[material.emissiveTexture.index]);
+            }
+            defines.push({name: 'EMISSIVEMAP'});
+        }
+
+        if (skin !== undefined) {
+            defines.push({name: 'JOINTNUMBER', value: this.skins[skin].jointNames.length});
+        }
+        if (p.attributes.TANGENT || material.normalTexture) {
+            defines.push({name: 'TANGENT'});
+        }
+
+        let program;
+        if (this.programs[defines.map(define => define.name).join('')]) {
+            program = this.programs[defines.map(define => define.name).join('')];
+        } else {
+            const defineStr = defines.map(define => `#define ${define.name} ${define.value || 1}` + '\n').join('');
+            program = this.compileShader(__WEBPACK_IMPORTED_MODULE_3__shaders_vertex_glsl___default.a.replace(/\n/, `\n${ defineStr}`), __WEBPACK_IMPORTED_MODULE_4__shaders_fragment_glsl___default.a.replace(/\n/, `\n${ defineStr}`));
+            this.programs[defines.map(define => define.name).join('')] = program;
+        }
 
         let indicesBuffer;
         if (indicesAccessor) {
             const bufferView = this.json.bufferViews[indicesAccessor.bufferView];
-            indicesBuffer = __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_0__utils__["k" /* buildArray */])(this.arrayBuffer, indicesAccessor.componentType, bufferView.byteOffset + indicesAccessor.byteOffset, __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_0__utils__["l" /* getDataType */])(indicesAccessor.type) * indicesAccessor.count);
+            indicesBuffer = __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_0__utils__["l" /* buildArray */])(this.arrayBuffer[bufferView.buffer], indicesAccessor.componentType, __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_0__utils__["m" /* calculateOffset */])(bufferView.byteOffset, indicesAccessor.byteOffset), __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_0__utils__["n" /* getDataType */])(indicesAccessor.type) * indicesAccessor.count);
         }
+        const boundingBox = {
+            min: vertexAccessor.POSITION.min,
+            max: vertexAccessor.POSITION.max
+        };
         for (const k in vertexAccessor) {
             const accessor = vertexAccessor[k];
             const bufferView = this.json.bufferViews[accessor.bufferView];
-            vertexAccessor[k] = __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_0__utils__["k" /* buildArray */])(this.arrayBuffer, accessor.componentType, bufferView.byteOffset + accessor.byteOffset, __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_0__utils__["l" /* getDataType */])(accessor.type) * accessor.count);
+            vertexAccessor[k] = __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_0__utils__["l" /* buildArray */])(this.arrayBuffer[bufferView.buffer], accessor.componentType, __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_0__utils__["m" /* calculateOffset */])(bufferView.byteOffset, accessor.byteOffset), __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_0__utils__["n" /* getDataType */])(accessor.type) * accessor.count, bufferView.byteStride, accessor.count);
+
+            if (p.targets) {
+                let offset = 0;
+                const geometry = vertexAccessor[k];
+                vertexAccessor[k] = new Float32Array(geometry.length);
+                for (let i = 0; i < vertexAccessor[k].length; i++) {
+                    if (k === 'TANGENT' && (i + 1) % 4 === 0) {
+                        offset++;
+                        continue;
+                    }
+                    vertexAccessor[k][i] = geometry[i] + weights[0] * targets[0][k][i - offset] + weights[1] * targets[1][k][i - offset];
+                }
+            }
+        }
+        if (material.normalTexture && p.attributes.TANGENT === undefined) {
+            vertexAccessor.TANGENT = __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_0__utils__["o" /* calculateBinormals */])(indicesBuffer, vertexAccessor.POSITION, vertexAccessor.NORMAL, vertexAccessor.TEXCOORD_0);
         }
 
-        const mesh = new __WEBPACK_IMPORTED_MODULE_1__objects__["d" /* Mesh */](name, parent);
+        const mesh = skin !== undefined ? new __WEBPACK_IMPORTED_MODULE_1__objects__["e" /* SkinnedMesh */](name, parent) : new __WEBPACK_IMPORTED_MODULE_1__objects__["d" /* Mesh */](name, parent);
         
         mesh.setProgram(program);
         mesh.setMode(p.mode);
@@ -1728,9 +2027,11 @@ class Parse {
         //mesh.setUniforms(uniforms);
         mesh.setAttributes(vertexAccessor);
         mesh.setIndicesBuffer(indicesBuffer);
-        if (matrix) {
-            mesh.setMatrix(matrix);
+        mesh.setBoundingBox(boundingBox);
+        if (skin !== undefined) {
+            mesh.setSkin(skin);
         }
+        mesh.geometry.targets = targets;
         //mesh.setTextures(textures);
 
         const m = new __WEBPACK_IMPORTED_MODULE_2__matrix__["c" /* Matrix4 */];
@@ -1745,84 +2046,64 @@ class Parse {
             const VBO = gl.createBuffer();
             gl.bindBuffer(gl.ARRAY_BUFFER, VBO);
             gl.bufferData(gl.ARRAY_BUFFER, vertexAccessor[k], gl.STATIC_DRAW);
-            const index = this.getAttributeIndex(k);
+            const index = __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_0__utils__["i" /* getAttributeIndex */])(k);
             gl.enableVertexAttribArray(index[0]);
-            gl.vertexAttribPointer(index[0], index[1], gl.FLOAT, false, 0, 0);
+            gl.vertexAttribPointer(index[0], index[1], index[2], false, 0, 0);
         }
-        const VBO = gl.createBuffer();
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, VBO);
-        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indicesBuffer, gl.STATIC_DRAW);
+        if (indicesBuffer) {
+            const VBO = gl.createBuffer();
+            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, VBO);
+            gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indicesBuffer, gl.STATIC_DRAW);
+        }
         mesh.geometry.VAO = VAO;
 
         gl.bindVertexArray(null);
 
-        if (mesh.material.pbrMetallicRoughness.baseColorFactor) {
-            const materials = new Float32Array(8);
-            materials.set(mesh.material.pbrMetallicRoughness.baseColorFactor);
-            materials.set([336.34771728515625,258.2054748535156,330.2711181640625], 4);
-            const mIndex = gl.getUniformBlockIndex(mesh.program, 'Material');
-            gl.uniformBlockBinding(mesh.program, mIndex, 1);
-            const mUBO = gl.createBuffer();
-            gl.bindBuffer(gl.UNIFORM_BUFFER, mUBO);
-            gl.bufferData(gl.UNIFORM_BUFFER, materials, gl.STATIC_DRAW);
-            mesh.material.UBO = mUBO;
-        }
         if (material.pbrMetallicRoughness.baseColorTexture) {
-            mesh.material.baseColorTexture = gl.getUniformLocation(mesh.program, 'baseColorTexture');
+            mesh.material.uniforms.baseColorTexture = gl.getUniformLocation(mesh.program, 'baseColorTexture');
         }
-
-        gl.bindBuffer(gl.UNIFORM_BUFFER, null);
+        if (material.pbrMetallicRoughness.metallicRoughnessTexture) {
+            mesh.material.uniforms.metallicRoughnessTexture = gl.getUniformLocation(mesh.program, 'metallicRoughnessTexture');
+        }
+        if (material.normalTexture) {
+            mesh.material.uniforms.normalTexture = gl.getUniformLocation(mesh.program, 'normalTexture');
+        }
+        if (material.occlusionTexture) {
+            mesh.material.uniforms.occlusionTexture = gl.getUniformLocation(mesh.program, 'occlusionTexture');
+        }
+        if (material.emissiveTexture) {
+            mesh.material.uniforms.emissiveTexture = gl.getUniformLocation(mesh.program, 'emissiveTexture');
+        }
 
         return mesh;
-    }
-
-    getAttributeIndex(name) {
-        let index;
-        switch (name) {
-        case 'POSITION':
-            index = [0, 3];
-            break;
-        case 'NORMAL':
-            index = [1, 3];
-            break;
-        case 'TEXCOORD_0':
-            index = [2, 2];
-            break;
-        }
-        return index;
     }
 
     walkByMesh(parent, name) {
         const el = this.json.nodes[name];
         let child;
-        
+
         if (el.camera !== undefined) {
             const proj = __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_0__utils__["a" /* calculateProjection */])(this.json.cameras[el.camera], this.aspect, this.zoom);
             child = new __WEBPACK_IMPORTED_MODULE_1__objects__["b" /* Camera */](name, parent);
             child.props = this.json.cameras[el.camera];
             child.setProjection(proj.elements);
-            child.setMatrix(el.matrix);
-            child.setMatrixWorld(el.matrix);
             
             this._camera = child;
             this.updateCamera(this._camera);
 
             this.cameras.push(child);
         } else {
-            if (el.jointName !== undefined) {
-                child = new __WEBPACK_IMPORTED_MODULE_1__objects__["e" /* Bone */](name, parent);
-                child.setJointName(el.jointName);
-            } else if (el.mesh !== undefined) {
-                parent.children.push(...this.json.meshes[el.mesh].primitives.map(this.buildPrim.bind(this, parent, this.json.meshes[el.mesh].name, el.matrix)));
-                return;
+            if (el.isBone !== undefined) {
+                child = new __WEBPACK_IMPORTED_MODULE_1__objects__["c" /* Bone */](name, parent);
             } else {
                 child = new __WEBPACK_IMPORTED_MODULE_1__objects__["f" /* Object3D */](name, parent);
             }
-            if (el.translation && el.rotation && el.scale) {
-                child.setPosition(el.translation, el.rotation, el.scale);
-            } else if (el.matrix) {
-                child.setMatrix(el.matrix);
-            }
+        }
+
+        if (el.translation || el.rotation || el.scale) {
+            child.setPosition(el.translation, el.rotation, el.scale);
+        } else if (el.matrix) {
+            child.setMatrix(el.matrix);
         }
 
         const m = new __WEBPACK_IMPORTED_MODULE_2__matrix__["c" /* Matrix4 */];
@@ -1833,6 +2114,15 @@ class Parse {
         parent.children.push(child);
         parent = child;
 
+        if (el.mesh !== undefined) {
+            if (el.skin !== undefined) {
+                for (const join of this.skins[el.skin].jointNames) {
+                    __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_0__utils__["j" /* walk */])(this.scene, this.buildBones.bind(this, join, this.skins[el.skin]));
+                }
+            }
+            parent.children.push(...this.json.meshes[el.mesh].primitives.map(this.buildPrim.bind(this, parent, this.json.meshes[el.mesh].name, el.skin, this.json.meshes[el.mesh].weights)));
+        }
+
         if (el.children && el.children.length) {
             el.children.forEach(this.walkByMesh.bind(this, parent));
         }
@@ -1840,8 +2130,8 @@ class Parse {
 
     calculateFov() {
         let biggestMesh;
-        __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_0__utils__["i" /* walk */])(this.scene, node => {
-            if (node instanceof __WEBPACK_IMPORTED_MODULE_1__objects__["c" /* SkinnedMesh */] || node instanceof __WEBPACK_IMPORTED_MODULE_1__objects__["d" /* Mesh */]) {
+        __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_0__utils__["j" /* walk */])(this.scene, node => {
+            if (node instanceof __WEBPACK_IMPORTED_MODULE_1__objects__["d" /* Mesh */]) {
                 if (!biggestMesh) {
                     biggestMesh = node;
                 }
@@ -1857,48 +2147,63 @@ class Parse {
         this._camera.modelYSize = Math.max(a(min[1]), a(min[2]), a(max[1]), a(max[2]));
         this._camera.modelSize = Math.max(this._camera.modelYSize, this._camera.modelXSize);
 
-        if (!this._camera.props.perspective.yfov) {
-            console.warn('Camera not found');
-            const z = this._camera.modelSize / (this.width / 100) * 30;
-            this._camera.setZ(z);
-            this._camera.props.perspective.yfov = 0.6;
-        }
         this.resize();
     }
 
     buildMesh() {
-        this.json.scenes[this.json.scene].nodes.forEach(n => {
+        this.json.scenes[this.json.scene !== undefined ? this.json.scene : 0].nodes.forEach(n => {
             if (this.json.nodes[n].children && this.json.nodes[n].children.length) {
                 this.walkByMesh(this.scene, n);
             }
-            // if (this.json.nodes[n].meshes && this.json.nodes[n].meshes.length) {
-            //     this.json.nodes[n].meshes.forEach(m => {
-            //         this.scene.children.push(...this.json.meshes[m].primitives.map(this.buildPrim.bind(this, this.scene, this.json.nodes[n], m)));
-            //     });
-            // }
+            if (this.json.nodes[n].mesh !== undefined) {
+                this.walkByMesh(this.scene, n);
+            }
             if (this.json.nodes[n].camera !== undefined) {
-                const proj = __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_0__utils__["a" /* calculateProjection */])(this.json.cameras[this.json.nodes[n].camera], this.aspect, this.zoom);
-                
-                this._camera = new __WEBPACK_IMPORTED_MODULE_1__objects__["b" /* Camera */]();
-                this._camera.props = this.json.cameras[this.json.nodes[n].camera];
-                this._camera.setProjection(proj.elements);
-                this._camera.setMatrix(this.json.nodes[n].matrix);
-                this._camera.setMatrixWorld(this.json.nodes[n].matrix);
-                this.updateCamera(this._camera);
+                this.walkByMesh(this.scene, n);
             }
         });
 
-        //this.calculateFov();
+        this.calculateFov();
 
-        __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_0__utils__["i" /* walk */])(this.scene, mesh => {
-            if (mesh instanceof __WEBPACK_IMPORTED_MODULE_1__objects__["c" /* SkinnedMesh */] || mesh instanceof __WEBPACK_IMPORTED_MODULE_1__objects__["d" /* Mesh */]) {
-                const normalMatrix = new __WEBPACK_IMPORTED_MODULE_2__matrix__["c" /* Matrix4 */](mesh.matrixWorld.elements);
+        __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_0__utils__["j" /* walk */])(this.scene, mesh => {
+            if (mesh instanceof __WEBPACK_IMPORTED_MODULE_1__objects__["e" /* SkinnedMesh */]) {
+                mesh.bones = this.skins[mesh.skin].bones;
+                mesh.boneInverses = this.skins[mesh.skin].boneInverses;
+
+                const jointMatrix = mesh.getJointMatrix();
+                const matrices = new Float32Array(jointMatrix.length * 16);
+                let i = 0;
+                for (const j of jointMatrix) {
+                    matrices.set(j.elements, 0 + 16 * i);
+                    i++;
+                }
+                const uIndex = gl.getUniformBlockIndex(mesh.program, 'Skin');
+                gl.uniformBlockBinding(mesh.program, uIndex, 2);
+                const UBO = gl.createBuffer();
+                gl.bindBuffer(gl.UNIFORM_BUFFER, UBO);
+                gl.bufferData(gl.UNIFORM_BUFFER, matrices, gl.DYNAMIC_DRAW);
+                mesh.geometry.SKIN = UBO;
+                gl.bindBuffer(gl.UNIFORM_BUFFER, null);
+            }
+            if (mesh instanceof __WEBPACK_IMPORTED_MODULE_1__objects__["d" /* Mesh */]) {
+                const materials = new Float32Array(12);
+                materials.set(mesh.material.pbrMetallicRoughness.baseColorFactor || [0.8, 0.8, 0.8, 1.0]);
+                materials.set([this._camera.matrixWorld.elements[12], this._camera.matrixWorld.elements[13], this._camera.matrixWorld.elements[14]], 4);
+                materials.set([this._camera.matrixWorld.elements[12], this._camera.matrixWorld.elements[13], this._camera.matrixWorld.elements[14]], 8);
+                const mIndex = gl.getUniformBlockIndex(mesh.program, 'Material');
+                gl.uniformBlockBinding(mesh.program, mIndex, 1);
+                const mUBO = gl.createBuffer();
+                gl.bindBuffer(gl.UNIFORM_BUFFER, mUBO);
+                gl.bufferData(gl.UNIFORM_BUFFER, materials, gl.STATIC_DRAW);
+                mesh.material.UBO = mUBO;
+
+                const normalMatrix = new __WEBPACK_IMPORTED_MODULE_2__matrix__["c" /* Matrix4 */](mesh.matrixWorld);
                 normalMatrix.invert().transpose();
                 const matrices = new Float32Array(64);
-                matrices.set(mesh.matrixWorld.elements);
-                matrices.set(this._camera.matrixWorldInvert.elements, 16);
-                matrices.set(this._camera.projection.elements, 32);
-                matrices.set(normalMatrix.elements, 48);
+                matrices.set(mesh.matrixWorld.elements, 0);
+                matrices.set(normalMatrix.elements, 16);
+                matrices.set(this._camera.matrixWorldInvert.elements, 32);
+                matrices.set(this._camera.projection.elements, 48);
                 const uIndex = gl.getUniformBlockIndex(mesh.program, 'Matrices');
                 gl.uniformBlockBinding(mesh.program, uIndex, 0);
                 const UBO = gl.createBuffer();
@@ -1913,15 +2218,16 @@ class Parse {
     }
 
     buildAnimation() {
-        for (const k in this.json.animations) {
-            const animation = this.json.animations[k];
-            for ( const channelId in animation.channels ) {
-                const channel = animation.channels[ channelId ];
+        if (!this.json.animations) {
+            return true;
+        }
+        for (const animation of this.json.animations) {
+            for ( const channel of animation.channels ) {
                 const sampler = animation.samplers[ channel.sampler ];
 
                 if ( sampler ) {
                     const {target} = channel;
-                    const name = target.id;
+                    const name = target.node;
                     const input = animation.parameters !== undefined ? animation.parameters[ sampler.input ] : sampler.input;
                     const output = animation.parameters !== undefined ? animation.parameters[ sampler.output ] : sampler.output;
 
@@ -1930,8 +2236,8 @@ class Parse {
                     const inputBuffer = this.json.bufferViews[ inputAccessor.bufferView ];
                     const outputBuffer = this.json.bufferViews[ outputAccessor.bufferView ];
 
-                    const inputArray = __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_0__utils__["k" /* buildArray */])(this.arrayBuffer, inputAccessor.componentType, inputBuffer.byteOffset + inputAccessor.byteOffset, __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_0__utils__["l" /* getDataType */])(inputAccessor.type) * inputAccessor.count);
-                    const outputArray = __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_0__utils__["k" /* buildArray */])(this.arrayBuffer, outputAccessor.componentType, outputBuffer.byteOffset + outputAccessor.byteOffset, __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_0__utils__["l" /* getDataType */])(outputAccessor.type) * outputAccessor.count);
+                    const inputArray = __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_0__utils__["l" /* buildArray */])(this.arrayBuffer[inputBuffer.buffer], inputAccessor.componentType, __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_0__utils__["m" /* calculateOffset */])(inputBuffer.byteOffset, inputAccessor.byteOffset), __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_0__utils__["n" /* getDataType */])(inputAccessor.type) * inputAccessor.count);
+                    const outputArray = __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_0__utils__["l" /* buildArray */])(this.arrayBuffer[outputBuffer.buffer], outputAccessor.componentType, __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_0__utils__["m" /* calculateOffset */])(outputBuffer.byteOffset, outputAccessor.byteOffset), __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_0__utils__["n" /* getDataType */])(outputAccessor.type) * outputAccessor.count);
 
                     const component = __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_0__utils__["g" /* getAnimationComponent */])(target.path);
 
@@ -1946,29 +2252,18 @@ class Parse {
                         });
                     }
 
-                    const node = this.json.nodes[name];
-                    let mesh;
-                    let exist;
-                    // eslint-disable-next-line
-                    function walk(node) {
-                        if (exist) {
-                            return;
+                    const meshes = [];
+                    __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_0__utils__["j" /* walk */])(this.scene, node => {
+                        if (node.name === name) {
+                            meshes.push(node);
                         }
-                        if (`${node.name }Node` === name || node.name === name) {
-                            mesh = node;
-                            exist = true;
-                        }
-                        if (node.children) {
-                            node.children.forEach(walk);
-                        }
-                    }
-                    walk(this.scene);
+                    });
 
-                    if ( node ) {
+                    if ( meshes.length ) {
                         this.tracks.push({
-                            mesh: mesh,
+                            meshes: meshes,
                             type: target.path,
-                            name: `${node.name}.${target.path}`,
+                            name: `${meshes[0].name}.${target.path}`,
                             keys: keys,
                             interpolation: sampler.interpolation
                         });
@@ -1981,43 +2276,39 @@ class Parse {
     }
 
     buildSkin() {
-        for (const k in this.json.skins) {
-            const skin = this.json.skins[k];
-            const bindShapeMatrix = new __WEBPACK_IMPORTED_MODULE_2__matrix__["c" /* Matrix4 */]();
-
-            if ( skin.bindShapeMatrix !== undefined ) {
-                bindShapeMatrix.set(skin.bindShapeMatrix);
-            }
-
+        if (!this.json.skins) {
+            return true;
+        }
+        for (const skin of this.json.skins) {
             const acc = this.json.accessors[ skin.inverseBindMatrices ];
             const buffer = this.json.bufferViews[ acc.bufferView ];
-            const array = __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_0__utils__["k" /* buildArray */])(this.arrayBuffer, acc.componentType, buffer.byteOffset + acc.byteOffset, __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_0__utils__["l" /* getDataType */])(acc.type) * acc.count);
+            const array = __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_0__utils__["l" /* buildArray */])(this.arrayBuffer[buffer.buffer], acc.componentType, __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_0__utils__["m" /* calculateOffset */])(buffer.byteOffset, acc.byteOffset), __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_0__utils__["n" /* getDataType */])(acc.type) * acc.count);
 
-            this.skins[k] = {
-                bindShapeMatrix: bindShapeMatrix,
-                jointNames: skin.jointNames,
+            const v = {
+                jointNames: skin.joints,
                 inverseBindMatrices: array
             };
 
             let i = 0;
-            const v = this.skins[k];
             v.bones = [];
             v.boneInverses = [];
 
             for (const join of v.jointNames) {
-                __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_0__utils__["i" /* walk */])(this.scene, this.buildBones.bind(this, join, v));
+                //walk(this.scene, this.buildBones.bind(this, join, v));
+                this.json.nodes[join].isBone = true;
                 const m = v.inverseBindMatrices;
                 const mat = new __WEBPACK_IMPORTED_MODULE_2__matrix__["c" /* Matrix4 */]().set( m.slice(i * 16, (i + 1) * 16) );
                 v.boneInverses.push( mat );
                 i++;
             }
+            this.skins.push(v);
         }
 
         return true;
     }
 
     buildBones(join, v, node) {
-        if (node.jointName === join) {
+        if (node.name === join) {
             v.bones.push(node);
         }
     }
@@ -2039,18 +2330,19 @@ class Parse {
         if (!this.json.textures) {
             return true;
         }
-        this.samplers = this.json.samplers.map(s => {
+        const samplers = this.json.samplers || [{}];
+        this.samplers = samplers.map(s => {
             const sampler = gl.createSampler();
-            gl.samplerParameteri(sampler, gl.TEXTURE_MIN_FILTER, s.minFilter);
-            gl.samplerParameteri(sampler, gl.TEXTURE_MAG_FILTER, s.magFilter);
-            gl.samplerParameteri(sampler, gl.TEXTURE_WRAP_S, s.wrapS);
-            gl.samplerParameteri(sampler, gl.TEXTURE_WRAP_T, s.wrapT);
+            gl.samplerParameteri(sampler, gl.TEXTURE_MIN_FILTER, s.minFilter || 9986);
+            gl.samplerParameteri(sampler, gl.TEXTURE_MAG_FILTER, s.magFilter || 9729);
+            gl.samplerParameteri(sampler, gl.TEXTURE_WRAP_S, s.wrapS || 10497);
+            gl.samplerParameteri(sampler, gl.TEXTURE_WRAP_T, s.wrapT || 10497);
             return sampler;
         });
 
         const promiseArr = this.json.textures.map(t => {
             return new Promise((resolve, reject) => {
-                const sampler = this.samplers[t.sampler];
+                const sampler = this.samplers[t.sampler !== undefined ? t.sampler : 0];
                 const source = this.json.images[t.source];
                 const image = new Image();
                 image.onload = () => {
@@ -2072,7 +2364,8 @@ class Parse {
     }
 
     handleTextureLoaded(sampler, image) {
-        const t ={};
+        const t = {};
+        t.image = image.src.substr(image.src.lastIndexOf('/'));
         t.data = gl.createTexture();
         t.count = sceneTextureCount;
         gl.activeTexture(gl[`TEXTURE${sceneTextureCount}`]);
@@ -2155,8 +2448,8 @@ class PostProcessing {
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENSIL_BUFFER_BIT);
 
         const ssaoProgram = gl.createProgram();
-        __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_1__utils__["j" /* compileShader */])(gl.VERTEX_SHADER, __WEBPACK_IMPORTED_MODULE_2__shaders_quad_glsl___default.a, ssaoProgram);
-        __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_1__utils__["j" /* compileShader */])(gl.FRAGMENT_SHADER, __WEBPACK_IMPORTED_MODULE_5__shaders_ssao_glsl___default.a, ssaoProgram);
+        __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_1__utils__["k" /* compileShader */])(gl.VERTEX_SHADER, __WEBPACK_IMPORTED_MODULE_2__shaders_quad_glsl___default.a, ssaoProgram);
+        __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_1__utils__["k" /* compileShader */])(gl.FRAGMENT_SHADER, __WEBPACK_IMPORTED_MODULE_5__shaders_ssao_glsl___default.a, ssaoProgram);
         gl.linkProgram(ssaoProgram);
         gl.useProgram(ssaoProgram);
 
@@ -2177,8 +2470,8 @@ class PostProcessing {
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.ssaoBlurTexture, 0);
 
         const ssaoBlurProgram = gl.createProgram();
-        __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_1__utils__["j" /* compileShader */])(gl.VERTEX_SHADER, __WEBPACK_IMPORTED_MODULE_2__shaders_quad_glsl___default.a, ssaoBlurProgram);
-        __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_1__utils__["j" /* compileShader */])(gl.FRAGMENT_SHADER, __WEBPACK_IMPORTED_MODULE_6__shaders_blurSsao_glsl___default.a, ssaoBlurProgram);
+        __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_1__utils__["k" /* compileShader */])(gl.VERTEX_SHADER, __WEBPACK_IMPORTED_MODULE_2__shaders_quad_glsl___default.a, ssaoBlurProgram);
+        __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_1__utils__["k" /* compileShader */])(gl.FRAGMENT_SHADER, __WEBPACK_IMPORTED_MODULE_6__shaders_blurSsao_glsl___default.a, ssaoBlurProgram);
         gl.linkProgram(ssaoBlurProgram);
         gl.useProgram(ssaoBlurProgram);
 
@@ -2187,8 +2480,8 @@ class PostProcessing {
         gl.drawArrays( gl.TRIANGLES, 0, 6 );
 
         const program = gl.createProgram();
-        __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_1__utils__["j" /* compileShader */])(gl.VERTEX_SHADER, __WEBPACK_IMPORTED_MODULE_2__shaders_quad_glsl___default.a, program);
-        __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_1__utils__["j" /* compileShader */])(gl.FRAGMENT_SHADER, __WEBPACK_IMPORTED_MODULE_3__shaders_blur_glsl___default.a, program);
+        __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_1__utils__["k" /* compileShader */])(gl.VERTEX_SHADER, __WEBPACK_IMPORTED_MODULE_2__shaders_quad_glsl___default.a, program);
+        __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_1__utils__["k" /* compileShader */])(gl.FRAGMENT_SHADER, __WEBPACK_IMPORTED_MODULE_3__shaders_blur_glsl___default.a, program);
         gl.linkProgram(program);
         gl.useProgram(program);
 
@@ -2203,8 +2496,8 @@ class PostProcessing {
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
         const program2 = gl.createProgram();
-        __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_1__utils__["j" /* compileShader */])(gl.VERTEX_SHADER, __WEBPACK_IMPORTED_MODULE_2__shaders_quad_glsl___default.a, program2);
-        __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_1__utils__["j" /* compileShader */])(gl.FRAGMENT_SHADER, __WEBPACK_IMPORTED_MODULE_4__shaders_bloom_glsl___default.a, program2);
+        __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_1__utils__["k" /* compileShader */])(gl.VERTEX_SHADER, __WEBPACK_IMPORTED_MODULE_2__shaders_quad_glsl___default.a, program2);
+        __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_1__utils__["k" /* compileShader */])(gl.FRAGMENT_SHADER, __WEBPACK_IMPORTED_MODULE_4__shaders_bloom_glsl___default.a, program2);
         gl.linkProgram(program2);
         gl.useProgram(program2);
 
@@ -2266,7 +2559,7 @@ class PostProcessing {
     buildRandomTexture() {
         const rnd = new Uint8Array(randSize * randSize * 3);
         for (let i = 0; i < randSize * randSize; i++) {
-            const v = new __WEBPACK_IMPORTED_MODULE_0__matrix__["a" /* Vector3 */]([__webpack_require__.i(__WEBPACK_IMPORTED_MODULE_1__utils__["m" /* random */])(-1, 1), __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_1__utils__["m" /* random */])(-1, 1), 0]);
+            const v = new __WEBPACK_IMPORTED_MODULE_0__matrix__["a" /* Vector3 */]([__webpack_require__.i(__WEBPACK_IMPORTED_MODULE_1__utils__["p" /* random */])(-1, 1), __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_1__utils__["p" /* random */])(-1, 1), 0]);
             v.normalize();
             v.scale(0.5);
             v.addS(0.5);
@@ -2288,7 +2581,7 @@ class PostProcessing {
         const rndTable = [];
         const kernels = 64;
         for (let i = 0; i < kernels; i++) {
-            rndTable[i] = new __WEBPACK_IMPORTED_MODULE_0__matrix__["a" /* Vector3 */]([__webpack_require__.i(__WEBPACK_IMPORTED_MODULE_1__utils__["m" /* random */])(-1, 1), __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_1__utils__["m" /* random */])(-1, 1), __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_1__utils__["m" /* random */])(-1, 0)]);
+            rndTable[i] = new __WEBPACK_IMPORTED_MODULE_0__matrix__["a" /* Vector3 */]([__webpack_require__.i(__WEBPACK_IMPORTED_MODULE_1__utils__["p" /* random */])(-1, 1), __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_1__utils__["p" /* random */])(-1, 1), __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_1__utils__["p" /* random */])(-1, 0)]);
             rndTable[i].normalize();
             rndTable[i].scale((i + 1) / kernels);
         }
@@ -2391,7 +2684,7 @@ module.exports = "#version 300 es\r\nprecision highp float;\r\n\r\nlayout (locat
 /* 12 */
 /***/ (function(module, exports) {
 
-module.exports = "#version 300 es\r\nprecision highp float;\r\n\r\nin vec2 outUV;\r\nin vec3 outNormal;\r\nin vec3 outPosition;\r\n\r\nout vec4 color;\r\n\r\nuniform Material {\r\n\tvec4 baseColorFactor;\r\n\tvec3 lightPos;\r\n};\r\nuniform sampler2D baseColorTexture;\r\n\r\nvoid main() {\r\n\t#ifdef BASECOLORTEXTURE\r\n\t    vec4 baseColor = texture(baseColorTexture, outUV);\r\n\t#else\r\n\t    vec4 baseColor = baseColorFactor;\r\n\t#endif\r\n\r\n\tvec3 lightDir = normalize(lightPos - outPosition);\r\n\tfloat diffuse = max(dot(outNormal, lightDir), 0.0);\r\n\r\n    color = vec4(baseColor.rgb * diffuse, 1.0);\r\n}\r\n"
+module.exports = "#version 300 es\r\nprecision highp float;\r\n\r\nin vec2 outUV;\r\nin vec3 outPosition;\r\n#ifdef TANGENT\r\n    in mat3 outTBN;\r\n#else\r\n    in vec3 outNormal;\r\n#endif\r\n\r\nout vec4 color;\r\n\r\nuniform Material {\r\n    vec4 baseColorFactor;\r\n    vec3 lightPos;\r\n    vec3 viewPos;\r\n};\r\nuniform sampler2D baseColorTexture;\r\nuniform sampler2D metallicRoughnessTexture;\r\nuniform sampler2D normalTexture;\r\nuniform sampler2D emissiveTexture;\r\nuniform sampler2D occlusionTexture;\r\n\r\nconst float PI = 3.14159265359;\r\nconst float ambientStrength = 0.1;\r\nconst float specularStrength = 0.5;\r\nconst float specularPower = 32.0;\r\nconst vec3 lightColor = vec3(1.0, 1.0, 1.0);\r\nconst vec3 emissiveFactor = vec3(1.0, 1.0, 1.0);\r\n\r\nvec3 srgbToLinear(vec4 srgbIn) {\r\n    return pow(srgbIn.rgb, vec3(2.2));\r\n}\r\n\r\nfloat DistributionGGX(vec3 N, vec3 H, float roughness) {\r\n    float a = roughness*roughness;\r\n    float a2 = max(a*a, 0.0001);\r\n    float NdotH = max(dot(N, H), 0.0);\r\n    float NdotH2 = NdotH*NdotH;\r\n\r\n    float nom   = a2;\r\n    float denom = (NdotH2 * (a2 - 1.0) + 1.0);\r\n    denom = PI * denom * denom;\r\n\r\n    return nom / max(denom, 0.0001);\r\n}\r\n\r\nfloat GeometrySchlickGGX(float NdotV, float roughness) {\r\n    float r = (roughness + 1.0);\r\n    float k = (r*r) / 8.0;\r\n\r\n    float nom   = NdotV;\r\n    float denom = NdotV * (1.0 - k) + k;\r\n\r\n    return nom / denom;\r\n}\r\n\r\nfloat GeometrySmith(vec3 N, vec3 V, vec3 L, float roughness) {\r\n    float NdotV = max(dot(N, V), 0.0);\r\n    float NdotL = max(dot(N, L), 0.0);\r\n    float ggx2 = GeometrySchlickGGX(NdotV, roughness);\r\n    float ggx1 = GeometrySchlickGGX(NdotL, roughness);\r\n\r\n    return ggx1 * ggx2;\r\n}\r\n\r\nvec3 fresnelSchlick(float cosTheta, vec3 F0) {\r\n    return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);\r\n}\r\n\r\nvoid main() {\r\n    #ifdef BASECOLORTEXTURE\r\n        vec3 baseColor = srgbToLinear(texture(baseColorTexture, outUV));\r\n    #else\r\n        vec4 baseColor = baseColorFactor;\r\n    #endif\r\n\r\n    #ifdef OCCLUSIONMAP\r\n        float ao = texture(occlusionTexture, outUV).r;\r\n    #endif\r\n\r\n    #ifdef METALROUGHNESSMAP\r\n        float roughness = texture(metallicRoughnessTexture, outUV).g;\r\n        float metallic = texture(metallicRoughnessTexture, outUV).b;\r\n    #endif\r\n\r\n    #ifdef TANGENT\r\n        #ifdef NORMALMAP\r\n            vec3 n = texture(normalTexture, outUV).rgb;\r\n            n = normalize(outTBN * (2.0 * n - 1.0));\r\n        #else\r\n            vec3 n = outTBN[2].xyz;\r\n        #endif\r\n    #else\r\n        vec3 n = outNormal;\r\n    #endif\r\n\r\n    vec3 viewDir = normalize(viewPos - outPosition);\r\n    vec3 lightDir = normalize(lightPos - outPosition);\r\n    vec3 H = normalize(viewDir + lightDir);\r\n    float distance = length(lightPos - outPosition);\r\n    float attenuation = 1.0 / (distance * distance);\r\n    vec3 radiance = lightColor * 2.0;\r\n\r\n    #ifdef USE_PBR\r\n        vec3 F0 = vec3(0.04); \r\n        F0 = mix(F0, baseColor, metallic);\r\n\r\n        vec3 light = vec3(0.0);\r\n\r\n        float NDF = DistributionGGX(n, H, roughness);        \r\n        float G = GeometrySmith(n, viewDir, lightDir, roughness);      \r\n        vec3 F = fresnelSchlick(max(dot(H, viewDir), 0.0), F0);       \r\n        \r\n        vec3 kS = F;\r\n        vec3 kD = vec3(1.0) - kS;\r\n        kD *= 1.0 - metallic;     \r\n        \r\n        vec3 nominator = NDF * G * F;\r\n        float denominator = 4.0 * max(dot(n, viewDir), 0.0) * max(dot(n, lightDir), 0.0);\r\n        vec3 specular = nominator / max(denominator, 0.001);  \r\n\r\n        float NdotL = max(dot(n, lightDir), 0.0);                \r\n        light += (kD * baseColor / PI + specular) * radiance * NdotL;\r\n\r\n        #ifdef OCCLUSIONMAP\r\n            vec3 ambient = vec3(0.03) * baseColor * ao;\r\n        #else\r\n            vec3 ambient = baseColor;\r\n        #endif\r\n        baseColor = ambient + light;\r\n\r\n        #ifdef EMISSIVEMAP\r\n            vec3 emissive = srgbToLinear(texture(emissiveTexture, outUV)) * emissiveFactor;\r\n            baseColor.rgb += emissive;\r\n        #endif\r\n\r\n        baseColor = baseColor / (baseColor + vec3(1.0));\r\n        baseColor = pow(baseColor, vec3(1.0 / 2.2));  \r\n   \r\n        color = vec4(baseColor, 1.0);\r\n    #else\r\n        vec3 ambient = ambientStrength * lightColor;\r\n\r\n        float diff = max(dot(n, lightDir), 0.0);\r\n        vec3 diffuse = diff * lightColor;\r\n\r\n        vec3 reflectDir = reflect(-lightDir, n);\r\n        float spec = pow(max(dot(viewDir, reflectDir), 0.0), specularPower);\r\n        vec3 specular = specularStrength * spec * lightColor;\r\n\r\n        color = vec4(baseColor.rgb * (ambient + diffuse + specular), 1.0);\r\n    #endif\r\n}\r\n"
 
 /***/ }),
 /* 13 */
@@ -2409,7 +2702,7 @@ module.exports = "#version 300 es\nprecision highp float;\n\nin vec2 uv;\nout fl
 /* 15 */
 /***/ (function(module, exports) {
 
-module.exports = "#version 300 es\r\nprecision highp float;\r\n\r\nlayout (location = 0) in vec3 inPosition;\r\nlayout (location = 1) in vec3 inNormal;\r\nlayout (location = 2) in vec2 inUV;\r\n\r\nout vec2 outUV;\r\nout vec3 outNormal;\r\nout vec3 outPosition;\r\n\r\nuniform Matrices {\r\n\tmat4 model;\r\n\tmat4 view;\r\n\tmat4 projection;\r\n\tmat4 normalMatrix;\r\n};\r\n\r\nvoid main() {\r\n\toutUV = inUV;\r\n\toutNormal = normalize(mat3(normalMatrix) * inNormal);\r\n\toutPosition = vec3(model * vec4(inPosition, 1.0));\r\n\tgl_Position = projection * view * model * vec4(inPosition, 1.0);\r\n}\r\n"
+module.exports = "#version 300 es\r\nprecision highp float;\r\n\r\nlayout (location = 0) in vec3 inPosition;\r\nlayout (location = 1) in vec3 inNormal;\r\nlayout (location = 2) in vec2 inUV;\r\nlayout (location = 3) in vec4 inJoint;\r\nlayout (location = 4) in vec4 inWeight;\r\nlayout (location = 5) in vec4 inTangent;\r\n\r\nout vec2 outUV;\r\nout vec3 outPosition;\r\n#ifdef TANGENT\r\n    out mat3 outTBN;\r\n#else\r\n    out vec3 outNormal;\r\n#endif\r\n\r\nuniform Matrices {\r\n    mat4 model;\r\n    mat4 normalMatrix;\r\n    mat4 view;\r\n    mat4 projection;\r\n};\r\n\r\n#ifdef JOINTNUMBER\r\nuniform Skin {\r\n    mat4 joint[JOINTNUMBER];\r\n};\r\n#endif\r\n\r\nvoid main() {\r\n    #ifdef JOINTNUMBER\r\n        mat4 skin = inWeight.x * joint[int(inJoint.x)];\r\n        skin += inWeight.y * joint[int(inJoint.y)];\r\n        skin += inWeight.z * joint[int(inJoint.z)];\r\n        skin += inWeight.w * joint[int(inJoint.w)];\r\n    #else\r\n        mat4 skin = mat4(1.0);\r\n    #endif\r\n\r\n    outUV = inUV;\r\n    #ifdef TANGENT\r\n        vec3 normalW = normalize(vec3(model * vec4(inNormal.xyz, 0.0)));\r\n        vec3 tangentW = normalize(vec3(model * vec4(inTangent.xyz, 0.0)));\r\n        vec3 bitangentW = cross(normalW, tangentW) * inTangent.w;\r\n        outTBN = mat3(tangentW, bitangentW, normalW);\r\n    #else\r\n        outNormal = normalize(mat3(normalMatrix) * mat3(skin) * inNormal);\r\n    #endif\r\n    outPosition = vec3(model * skin * vec4(inPosition, 1.0));\r\n    gl_Position = projection * view * model * skin * vec4(inPosition, 1.0);\r\n}\r\n"
 
 /***/ }),
 /* 16 */
@@ -2445,17 +2738,18 @@ class RedCube {
     constructor(url, canvas) {
         this.reflow = true;
         this.scene = new __WEBPACK_IMPORTED_MODULE_0__objects__["a" /* Scene */]();
-        this.color = [0.6, 0.6, 0.6, 1.0];
+        this.color = [0.8, 0.8, 0.8, 1.0];
         this.url = url;
         this.host = url.substr(0, url.lastIndexOf('/') + 1);
         this.canvas = canvas;
         this.aspect = this.canvas.offsetWidth / this.canvas.offsetHeight;
         this._camera = new __WEBPACK_IMPORTED_MODULE_0__objects__["b" /* Camera */];
+        this._camera.isInitial = true;
         this._camera.props = {
             type: 'perspective', 
             perspective: {
                 yfov: 0.6,
-                znear: 1,
+                znear: 0.01,
                 zfar: 2e6,
                 aspectRatio: null
             }
@@ -2485,8 +2779,8 @@ class RedCube {
         this.parse.setScene(this.scene);
         this.parse.setCamera(this._camera, this.aspect, this.zoom);
         this.parse.setUpdateCamera(this.updateCamera.bind(this));
-        // this.parse.setCanvas(this.canvas);
-        // this.parse.setResize(this.resize.bind(this));    
+        this.parse.setCanvas(this.canvas);
+        this.parse.setResize(this.resize.bind(this));    
     }
 
     init() {
@@ -2495,9 +2789,9 @@ class RedCube {
             .then(this.parse.initTextures.bind(this.parse))
             // .then(this.PP.buildScreenBuffer.bind(this.PP))
             .then(this.parse.getBuffer.bind(this.parse))
+            .then(this.parse.buildSkin.bind(this.parse))
             .then(this.parse.buildMesh.bind(this.parse))
-            // .then(this.parse.buildAnimation.bind(this.parse))
-            // .then(this.parse.buildSkin.bind(this.parse))
+            .then(this.parse.buildAnimation.bind(this.parse))
             // .then(this.env.createEnvironmentBuffer.bind(this.env))
             .then(this.draw.bind(this))
             .catch(console.error);
@@ -2515,24 +2809,30 @@ class RedCube {
         if (type === 'zoom') {
             this.zoom = coordsStart;
             this._camera.setProjection(__webpack_require__.i(__WEBPACK_IMPORTED_MODULE_6__utils__["a" /* calculateProjection */])(this._camera.props, this.aspect, this.zoom).elements);
+            this.needUpdateProjection = true;
         }
         if (type === 'rotate') {
             const p0 = new __WEBPACK_IMPORTED_MODULE_1__matrix__["a" /* Vector3 */](__webpack_require__.i(__WEBPACK_IMPORTED_MODULE_6__utils__["b" /* sceneToArcBall */])(__webpack_require__.i(__WEBPACK_IMPORTED_MODULE_6__utils__["c" /* canvasToWorld */])(...coordsStart, this._camera.projection, this.canvas.offsetWidth, this.canvas.offsetHeight)));
             const p1 = new __WEBPACK_IMPORTED_MODULE_1__matrix__["a" /* Vector3 */](__webpack_require__.i(__WEBPACK_IMPORTED_MODULE_6__utils__["b" /* sceneToArcBall */])(__webpack_require__.i(__WEBPACK_IMPORTED_MODULE_6__utils__["c" /* canvasToWorld */])(...coordsMove, this._camera.projection, this.canvas.offsetWidth, this.canvas.offsetHeight)));
-            const angle = __WEBPACK_IMPORTED_MODULE_1__matrix__["a" /* Vector3 */].angle(p0, p1) * 2;
+            const angle = __WEBPACK_IMPORTED_MODULE_1__matrix__["a" /* Vector3 */].angle(p0, p1) * 5;
             if (angle < 1e-6 || isNaN(angle)) {
                 return;
             }
 
             const v = __WEBPACK_IMPORTED_MODULE_1__matrix__["a" /* Vector3 */].cross(p0, p1).normalize();
             const sin = Math.sin(angle / 2);
-            const q = new __WEBPACK_IMPORTED_MODULE_1__matrix__["b" /* Vector4 */]([v.elements[0] * -sin, v.elements[1] * -sin, v.elements[2] * -sin, Math.cos(angle / 2)]);
+            const q = new __WEBPACK_IMPORTED_MODULE_1__matrix__["b" /* Vector4 */]([v.elements[0] * sin, v.elements[1] * sin, v.elements[2] * sin, Math.cos(angle / 2)]);
 
             const m = new __WEBPACK_IMPORTED_MODULE_1__matrix__["c" /* Matrix4 */]();
             m.makeRotationFromQuaternion(q.elements);
+            m.multiply(this._camera.matrixWorld);
+            this._camera.setMatrixWorld(m.elements);
+            this.needUpdateView = true;          
 
-            this.scene.matrixWorld.multiply(m);
-            //this.env.envMatrix.multiply(m);
+            // const diff = Vector3.angle(new Vector3([0, 1, 0]).applyQuaternion(new Vector4().setFromRotationMatrix(m)), new Vector3([0, 1, 0]));
+            // if (diff <= Math.PI / 2) {
+            //     this.needUpdateView = true;
+            // }
         }
         if (type === 'pan') {
             const p0 = new __WEBPACK_IMPORTED_MODULE_1__matrix__["a" /* Vector3 */](__webpack_require__.i(__WEBPACK_IMPORTED_MODULE_6__utils__["c" /* canvasToWorld */])(...coordsStart, this._camera.projection, this.canvas.offsetWidth, this.canvas.offsetHeight).elements);
@@ -2540,10 +2840,13 @@ class RedCube {
             const pan = this._camera.modelSize * 100;
             const delta = p1.subtract(p0).scale(pan);
 
-            this.scene.matrixWorld.translate(-delta.elements[0], -delta.elements[1], 0);
+            this._camera.matrixWorld.translate(delta.elements[0], delta.elements[1], 0);
+            this._camera.setMatrixWorld(this._camera.matrixWorld.elements);
+            this.needUpdateView = true;
         }
         if (type === 'resize') {
             this.resize();
+            this.needUpdateProjection = true;
         }
         
         this.reflow = true;
@@ -2551,10 +2854,16 @@ class RedCube {
 
     resize() {
         this.aspect = this.canvas.offsetWidth / this.canvas.offsetHeight;
-        this.canvas.width = this.canvas.offsetWidth;
-        this.canvas.height = this.canvas.offsetHeight;
-        gl.viewport( 0, 0, this.canvas.offsetWidth, this.canvas.offsetHeight );
+        this.canvas.width = this.canvas.offsetWidth * devicePixelRatio;
+        this.canvas.height = this.canvas.offsetHeight * devicePixelRatio;
+        gl.viewport( 0, 0, this.canvas.offsetWidth * devicePixelRatio, this.canvas.offsetHeight * devicePixelRatio);
         this._camera.setProjection(__webpack_require__.i(__WEBPACK_IMPORTED_MODULE_6__utils__["a" /* calculateProjection */])(this._camera.props, this.aspect, this.zoom).elements);
+
+        if (this._camera.isInitial) {
+            const z = 1 / this.canvas.width * this._camera.modelSize * 5000;
+            this._camera.setZ(z);
+            this.needUpdateView = true;
+        }
     }
 
     buildBuffer(indexBuffer, ...buffer) {
@@ -2594,9 +2903,6 @@ class RedCube {
         //this.env.setGl(gl);
         //this.PP.setGl(gl);
         this.parse.setGl(gl);
-        this.parse.setGlEnum(this.glEnum);
-
-        this.resize();
 
         return true;
     }
@@ -2618,7 +2924,14 @@ class RedCube {
             const t = val[2];
             
             const component = __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_6__utils__["g" /* getAnimationComponent */])(v.type);
-            const vectorC = component === 3 ? __WEBPACK_IMPORTED_MODULE_1__matrix__["a" /* Vector3 */] : __WEBPACK_IMPORTED_MODULE_1__matrix__["b" /* Vector4 */];
+            let vectorC;
+            if (component === 3) {
+                vectorC = __WEBPACK_IMPORTED_MODULE_1__matrix__["a" /* Vector3 */];
+            } else if (component === 4) {
+                vectorC = __WEBPACK_IMPORTED_MODULE_1__matrix__["b" /* Vector4 */];
+            } else if (component === 2) {
+                vectorC = __WEBPACK_IMPORTED_MODULE_1__matrix__["d" /* Vector2 */];
+            }
             const vector = new vectorC(startFrame.value);
             const vector2 = new vectorC(endFrame.value);
 
@@ -2626,12 +2939,79 @@ class RedCube {
                 const out = new __WEBPACK_IMPORTED_MODULE_1__matrix__["b" /* Vector4 */];
                 out.lerp(vector.elements, vector2.elements, t);
                 
-                v.mesh.matrixAnimation[__webpack_require__.i(__WEBPACK_IMPORTED_MODULE_6__utils__["h" /* getAnimationMethod */])(v.type)](out.elements);
-            } else {
+                for (const mesh of v.meshes) {
+                    mesh.matrix[__webpack_require__.i(__WEBPACK_IMPORTED_MODULE_6__utils__["h" /* getAnimationMethod */])(v.type)](out.elements);
+                }
+            } else if (v.type === 'scale') {
                 const out = new __WEBPACK_IMPORTED_MODULE_1__matrix__["a" /* Vector3 */];
                 out.lerp(vector.elements, vector2.elements, t);
 
-                v.mesh.matrixAnimation[__webpack_require__.i(__WEBPACK_IMPORTED_MODULE_6__utils__["h" /* getAnimationMethod */])(v.type)](...out.elements);
+                for (const mesh of v.meshes) {
+                    mesh.matrix[__webpack_require__.i(__WEBPACK_IMPORTED_MODULE_6__utils__["h" /* getAnimationMethod */])(v.type)](...out.elements);
+                }
+            } else if (v.type === 'weights') {
+                const out = new __WEBPACK_IMPORTED_MODULE_1__matrix__["d" /* Vector2 */];
+                out.lerp(vector.elements, vector2.elements, t);
+
+                for (const m of v.meshes) {
+                    const [mesh] = m.children;
+                    const geometry = {};
+
+                    for (const k in mesh.geometry.attributes) {
+                        let offset = 0;
+                        geometry[k] = new Float32Array(mesh.geometry.attributes[k].length);
+                        for (let i = 0; i < geometry[k].length; i++) {
+                            if (k === 'TANGENT' && (i + 1) % 4 === 0) {
+                                offset++;
+                                continue;
+                            }
+                            geometry[k][i] = mesh.geometry.attributes[k][i] + out.elements[0] * mesh.geometry.targets[0][k][i - offset] + out.elements[1] * mesh.geometry.targets[1][k][i - offset];
+                        }
+                    }
+
+                    gl.bindVertexArray(mesh.geometry.VAO);
+
+                    for (const k in geometry) {
+                        const VBO = gl.createBuffer();
+                        gl.bindBuffer(gl.ARRAY_BUFFER, VBO);
+                        gl.bufferData(gl.ARRAY_BUFFER, geometry[k], gl.STATIC_DRAW);
+                        const index = __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_6__utils__["i" /* getAttributeIndex */])(k);
+                        gl.enableVertexAttribArray(index[0]);
+                        gl.vertexAttribPointer(index[0], index[1], index[2], false, 0, 0);
+                    }
+
+                    gl.bindVertexArray(null);
+                }
+            } else if (v.type === 'translation') {
+                const out = new __WEBPACK_IMPORTED_MODULE_1__matrix__["a" /* Vector3 */];
+                out.lerp(vector.elements, vector2.elements, t);
+
+                for (const mesh of v.meshes) {
+                    mesh.matrix[__webpack_require__.i(__WEBPACK_IMPORTED_MODULE_6__utils__["h" /* getAnimationMethod */])(v.type)](...out.elements);
+                }
+            } else {
+                console.error('ERROR');
+            }
+
+            for (const mesh of v.meshes) {
+                __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_6__utils__["j" /* walk */])(mesh, node => {
+                    const m = new __WEBPACK_IMPORTED_MODULE_1__matrix__["c" /* Matrix4 */];
+                    m.multiply( node.parent.matrixWorld );
+                    m.multiply(node.matrix);
+                    node.setMatrixWorld(m.elements);
+
+                    if (node instanceof __WEBPACK_IMPORTED_MODULE_0__objects__["c" /* Bone */]) {
+                        node.reflow = true;
+                    }
+
+                    if (node instanceof __WEBPACK_IMPORTED_MODULE_0__objects__["d" /* Mesh */]) {
+                        node.reflow = true;
+                    }
+
+                    if (node instanceof __WEBPACK_IMPORTED_MODULE_0__objects__["b" /* Camera */] && node === this._camera) {
+                        this.needUpdateView = true;
+                    }
+                });
             }
 
             this.reflow = true;
@@ -2647,13 +3027,13 @@ class RedCube {
             node.setMatrixWorld(m.elements);
         }
 
-        if (node instanceof __WEBPACK_IMPORTED_MODULE_0__objects__["c" /* SkinnedMesh */]) {
+        if (node instanceof __WEBPACK_IMPORTED_MODULE_0__objects__["e" /* SkinnedMesh */]) {
             node.bones = this.parse.skins[node.skin].bones;
             node.boneInverses = this.parse.skins[node.skin].boneInverses;
             node.bindShapeMatrix = this.parse.skins[node.skin].bindShapeMatrix;
         }
 
-        if (node instanceof __WEBPACK_IMPORTED_MODULE_0__objects__["c" /* SkinnedMesh */] || node instanceof __WEBPACK_IMPORTED_MODULE_0__objects__["d" /* Mesh */]) {
+        if (node instanceof __WEBPACK_IMPORTED_MODULE_0__objects__["d" /* Mesh */]) {
             if (node.material.blend) {
                 blends.push(node);
             } else {
@@ -2681,11 +3061,24 @@ class RedCube {
             gl.enable(gl.DEPTH_TEST);
             gl.enable(gl.CULL_FACE);
 
-            __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_6__utils__["i" /* walk */])(this.scene, node => {
+            gl.disable(gl.BLEND);
+            gl.depthMask(true);
+            gl.blendFuncSeparate(gl.ONE, gl.ZERO, gl.ONE, gl.ZERO);
+            gl.blendEquationSeparate(gl.FUNC_ADD, gl.FUNC_ADD);
+
+            __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_6__utils__["j" /* walk */])(this.scene, node => {
                 if (node instanceof __WEBPACK_IMPORTED_MODULE_0__objects__["d" /* Mesh */]) {
                     this._draw(node);
                 }
             });
+
+            __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_6__utils__["j" /* walk */])(this.scene, node => {
+                if (node instanceof __WEBPACK_IMPORTED_MODULE_0__objects__["c" /* Bone */]) {
+                    node.reflow = false;
+                }
+            });
+            this.needUpdateView = false;
+            this.needUpdateProjection = false;
 
             //this.env.createEnvironment();
 
@@ -2768,12 +3161,68 @@ class RedCube {
 
         gl.bindVertexArray(mesh.geometry.VAO);
         gl.bindBufferBase(gl.UNIFORM_BUFFER, 0, mesh.geometry.UBO);
-        //gl.bufferSubData(gl.UNIFORM_BUFFER, 0, transforms);
+        if (mesh.reflow) { // matrixWorld changed
+            const normalMatrix = new __WEBPACK_IMPORTED_MODULE_1__matrix__["c" /* Matrix4 */](mesh.matrixWorld);
+            normalMatrix.invert().transpose();
+            const matrices = new Float32Array(32);
+            matrices.set(mesh.matrixWorld.elements);
+            matrices.set(normalMatrix.elements, 16);
+            gl.bufferSubData(gl.UNIFORM_BUFFER, 0, matrices);
+            mesh.reflow = false;
+        }
+
+        if (this.needUpdateView) {
+            gl.bufferSubData(gl.UNIFORM_BUFFER, 32 * Float32Array.BYTES_PER_ELEMENT, this._camera.matrixWorldInvert.elements);
+        }
+
+        if (this.needUpdateProjection) {
+            gl.bufferSubData(gl.UNIFORM_BUFFER, 48 * Float32Array.BYTES_PER_ELEMENT, this._camera.projection.elements);
+        }
+
+        if (mesh instanceof __WEBPACK_IMPORTED_MODULE_0__objects__["e" /* SkinnedMesh */]) {
+            gl.bindBufferBase(gl.UNIFORM_BUFFER, 2, mesh.geometry.SKIN);
+            if (mesh.bones.some(bone => bone.reflow)) {
+                const jointMatrix = mesh.getJointMatrix();
+                const matrices = new Float32Array(jointMatrix.length * 16);
+                let i = 0;
+                for (const j of jointMatrix) {
+                    matrices.set(j.elements, 0 + 16 * i);
+                    i++;
+                }
+                gl.bufferSubData(gl.UNIFORM_BUFFER, 0, matrices);
+            }
+        }
         if (mesh.material.UBO) {
             gl.bindBufferBase(gl.UNIFORM_BUFFER, 1, mesh.material.UBO);
+
+            if (this.needUpdateView) {
+                gl.bufferSubData(gl.UNIFORM_BUFFER, 4 * Float32Array.BYTES_PER_ELEMENT, new Float32Array([this._camera.matrixWorld.elements[12], this._camera.matrixWorld.elements[13], this._camera.matrixWorld.elements[14]]));
+                gl.bufferSubData(gl.UNIFORM_BUFFER, 8 * Float32Array.BYTES_PER_ELEMENT, new Float32Array([this._camera.matrixWorld.elements[12], this._camera.matrixWorld.elements[13], this._camera.matrixWorld.elements[14]]));
+            }
         }
-        if (mesh.material.baseColorTexture) {
-            gl.uniform1i(mesh.material.baseColorTexture, mesh.material.pbrMetallicRoughness.baseColorTexture.count);
+        if (mesh.material.pbrMetallicRoughness.baseColorTexture) {
+            gl.uniform1i(mesh.material.uniforms.baseColorTexture, mesh.material.pbrMetallicRoughness.baseColorTexture.count);
+        }
+        if (mesh.material.pbrMetallicRoughness.metallicRoughnessTexture) {
+            gl.uniform1i(mesh.material.uniforms.metallicRoughnessTexture, mesh.material.pbrMetallicRoughness.metallicRoughnessTexture.count);
+        }
+        if (mesh.material.normalTexture) {
+            gl.uniform1i(mesh.material.uniforms.normalTexture, mesh.material.normalTexture.count);
+        }
+        if (mesh.material.occlusionTexture) {
+            gl.uniform1i(mesh.material.uniforms.occlusionTexture, mesh.material.occlusionTexture.count);
+        }
+        if (mesh.material.emissiveTexture) {
+            gl.uniform1i(mesh.material.uniforms.emissiveTexture, mesh.material.emissiveTexture.count);
+        }
+        if (mesh.material.doubleSided) {
+            gl.disable(gl.CULL_FACE);
+        }
+        if (mesh.material.alphaMode === 'BLEND') {
+            gl.enable(gl.BLEND);
+            gl.depthMask(false);
+            gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+            gl.blendEquationSeparate(gl.FUNC_ADD, gl.FUNC_ADD);
         }
 
         // const {_camera} = this;
@@ -2887,9 +3336,9 @@ class RedCube {
         // }
 
         if (mesh.geometry.indicesBuffer) {
-            gl.drawElements(mesh.mode, mesh.geometry.indicesBuffer.length, gl.UNSIGNED_SHORT, 0);
+            gl.drawElements(mesh.mode || gl.TRIANGLES, mesh.geometry.indicesBuffer.length, mesh.geometry.indicesBuffer.BYTES_PER_ELEMENT === 4 ? gl.UNSIGNED_INT : gl.UNSIGNED_SHORT, 0);
         } else {
-            gl.drawArrays(mesh.mode, 0, mesh.geometry.attributes.POSITION.length / 3);
+            gl.drawArrays(mesh.mode || gl.TRIANGLES, 0, mesh.geometry.attributes.POSITION.length / 3);
         }
     }
 }

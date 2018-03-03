@@ -31,7 +31,6 @@
         const name = localStorage.getItem('sample') || 'BrainStem';
         const canvas = document.getElementById('canvas');
         const samples = [
-        "pony_cartoon",
         "2CylinderEngine",
         "AnimatedCube",
         "AnimatedMorphCube",
@@ -89,7 +88,7 @@
         select.value = name;
         selector.appendChild(select);
 
-        const renderer = new redcube.RedCube('' + name + '/glTF/' + name + '.gltf', canvas);
+        const renderer = new redcube.RedCube('https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/' + name + '/glTF/' + name + '.gltf', canvas);
         renderer.init().then(function() {
             if (renderer.parse.cameras.length) {
                 const select = document.createElement('select');

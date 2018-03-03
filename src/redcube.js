@@ -23,7 +23,7 @@ class RedCube {
             type: 'perspective', 
             perspective: {
                 yfov: 0.6,
-                znear: 0.05,
+                znear: 0.01,
                 zfar: 2e6,
                 aspectRatio: null
             }
@@ -128,9 +128,9 @@ class RedCube {
 
     resize() {
         this.aspect = this.canvas.offsetWidth / this.canvas.offsetHeight;
-        this.canvas.width = this.canvas.offsetWidth;
-        this.canvas.height = this.canvas.offsetHeight;
-        gl.viewport( 0, 0, this.canvas.offsetWidth, this.canvas.offsetHeight );
+        this.canvas.width = this.canvas.offsetWidth * devicePixelRatio;
+        this.canvas.height = this.canvas.offsetHeight * devicePixelRatio;
+        gl.viewport( 0, 0, this.canvas.offsetWidth * devicePixelRatio, this.canvas.offsetHeight * devicePixelRatio);
         this._camera.setProjection(calculateProjection(this._camera.props, this.aspect, this.zoom).elements);
 
         if (this._camera.isInitial) {
@@ -177,7 +177,6 @@ class RedCube {
         //this.env.setGl(gl);
         //this.PP.setGl(gl);
         this.parse.setGl(gl);
-        this.parse.setGlEnum(this.glEnum);
 
         return true;
     }
@@ -229,7 +228,7 @@ class RedCube {
                 out.lerp(vector.elements, vector2.elements, t);
 
                 for (const m of v.meshes) {
-                    const mesh = m.children[0];
+                    const [mesh] = m.children;
                     const geometry = {};
 
                     for (const k in mesh.geometry.attributes) {
