@@ -1,12 +1,20 @@
 import { Matrix3, Matrix4, Vector3 } from './matrix';
 
 class Object3D {
+    uuid: number;
+    name: string;
+    children: Array<Object3D>;
+    matrix: Matrix4;
+    matrixWorld: Matrix4;
+    parent: Object3D;
+    reflow: boolean;
+
     constructor(name, parent) {
         this.uuid = Math.floor(Date.now() * Math.random());
         this.name = name;
         this.children = [];
-        this.matrix = new Matrix4();
-        this.matrixWorld = new Matrix4();
+        this.matrix = new Matrix4;
+        this.matrixWorld = new Matrix4;
         this.parent = parent;
     }
 
@@ -15,10 +23,10 @@ class Object3D {
             this.matrix.makeRotationFromQuaternion(rotation);
         }
         if (scale) {
-            this.matrix.scale(...scale);
+            this.matrix.scale(new Vector3(scale));
         }
         if (translation) {
-            this.matrix.setTranslate(...translation);
+            this.matrix.setTranslate(new Vector3(translation));
         }
     }
 
@@ -31,7 +39,58 @@ class Object3D {
     }
 }
 
+interface Material {
+    blend: string;
+    uniforms: Uniforms;
+    alphaMode: string;
+    UBO: WebGLBuffer;
+    pbrMetallicRoughness: PBR;
+}
+interface PBR {
+    baseColorFactor: Array<number>;
+}
+interface Uniforms {
+    baseColorTexture: WebGLUniformLocation;
+    metallicRoughnessTexture: WebGLUniformLocation;
+    normalTexture: WebGLUniformLocation;
+    occlusionTexture: WebGLUniformLocation;
+    emissiveTexture: WebGLUniformLocation;
+}
+
+interface Geometry {
+    UBO: WebGLBuffer;
+    VAO: WebGLBuffer;
+    indicesBuffer: WebGLBuffer;
+    attributes: Attributes;
+    targets: Attributes;
+    blend: string;
+    uniforms: object;
+    SKIN: WebGLBuffer;
+    boundingSphere: BoundingSphere;
+}
+interface Attributes {
+    'POSITION': Float32Array;
+    'NORMAL': Float32Array;
+    'TEXCOORD_0': Float32Array;
+    'JOINTS_0': Float32Array;
+    'WEIGHTS_0': Float32Array;
+    'TANGENT': Float32Array;
+}
+interface BoundingSphere {
+    min: Vector3;
+    max: Vector3;
+    center: Vector3;
+    radius: number;
+}
+
 class Mesh extends Object3D {
+    geometry: Geometry;
+    material: Material;
+    program: WebGLProgram;
+    defines: Array<string>;
+    mode: number;
+    distance: number;
+
     constructor(name, parent) {
         super(name, parent);
 
@@ -41,9 +100,23 @@ class Mesh extends Object3D {
                 radius: null,
                 min: null,
                 max: null
-            }
+            },
+            UBO: null,
+            VAO: null,
+            indicesBuffer: null,
+            attributes: null,
+            targets: null,
+            blend: null,
+            uniforms: null,
+            SKIN: null
         };
-        this.material = {};
+        this.material = {
+            blend: null,
+            uniforms: null,
+            alphaMode: null,
+            UBO: null,
+            pbrMetallicRoughness: null
+        };
         this.program = null;
         this.defines = null;
         this.mode = 4;
@@ -55,7 +128,13 @@ class Mesh extends Object3D {
 
     setMaterial(material) {
         this.material = material;
-        this.material.uniforms = {};
+        this.material.uniforms = {
+            baseColorTexture: null,
+            metallicRoughnessTexture: null,
+            normalTexture: null,
+            occlusionTexture: null,
+            emissiveTexture: null
+        };
     }
 
     calculateBounding() {
@@ -87,16 +166,8 @@ class Mesh extends Object3D {
         this.geometry.attributes = value;
     }
 
-    setTextures(value) {
-        this.material.texture = value;
-    }
-
-    setUniforms(value) {
-        this.material.uniforms = value;
-    }
-
-    setTechnique(value) {
-        this.material.technique = value;
+    setTargets(value) {
+        this.geometry.targets = value;
     }
 
     setProgram(value) {
@@ -105,51 +176,6 @@ class Mesh extends Object3D {
 
     setMode(value) {
         this.mode = value;
-    }
-
-    getJointMatrix() {
-        const m4v = this.boneInverses;
-        const m = new Matrix4(this.matrixWorld).invert();
-        const resArray = [];
-
-        for ( let mi = 0; mi < m4v.length; mi++ ) {
-            const res = new Matrix4()
-                .multiply( m )
-                .multiply( this.bones[ mi ].matrixWorld )
-                .multiply( this.boneInverses[ mi ] );
-            resArray.push(res);
-        }
-
-        return resArray;
-    }
-    getModelViewProjMatrix(_camera) {
-        const m = new Matrix4();
-        m.multiply(_camera.projection);
-        m.multiply(_camera.matrixWorldInvert);
-        m.multiply(this.matrixWorld);
-
-        return m;
-    }
-    getViewMatrix(_camera) {
-        const m = new Matrix4();
-        m.multiply(_camera.matrixWorldInvert);
-
-        return m;
-    }
-    getModelViewMatrix(value, _camera) {
-        const m = new Matrix4();
-        m.multiply(_camera.matrixWorldInvert);
-        m.multiply(value ? value : this.matrixWorld);
-
-        return m;
-    }
-    getProjectionMatrix(_camera) {
-        return _camera.projection;
-    }
-    getNormalMatrix() {
-        const normalMatrix = new Matrix3();
-        normalMatrix.normalFromMat4(this.material.uniforms.u_modelViewMatrix.value);
-        return normalMatrix;
     }
 
     isVisible(planes) {
@@ -171,27 +197,49 @@ class Mesh extends Object3D {
 }
 
 class SkinnedMesh extends Mesh {
+    bones: Array<Bone>;
+    skin: string;
+    boneInverses: Array<Matrix4>;
+
     constructor(name, parent) {
         super(name, parent);
     }
 
     setSkin(value) {
         this.skin = value;
+        return this;
+    }
+
+    getJointMatrix() {
+        const m = new Matrix4(this.matrixWorld).invert();
+        const resArray = [];
+
+        for ( let mi = 0; mi < this.boneInverses.length; mi++ ) {
+            const res = new Matrix4()
+                .multiply( m )
+                .multiply( this.bones[ mi ].matrixWorld )
+                .multiply( this.boneInverses[ mi ] );
+            resArray.push(res);
+        }
+
+        return resArray;
     }
 }
 
 class Bone extends Object3D {
-    constructor(name, parent) {
-        super(name, parent);
-    }
-
-    setJointName(value) {
-        this.jointName = value;
-    }
+    
 }
 
 class Camera extends Object3D {
-    constructor(name, parent) {
+    isInitial: boolean;
+    props: object;
+    matrixWorldInvert: Matrix4;
+    projection: Matrix4;
+    modelSize: number;
+    modelXSize: number;
+    modelYSize: number;
+
+    constructor(name?, parent?) {
         super(name, parent);
 
         this.matrixWorldInvert = new Matrix4();
@@ -222,11 +270,18 @@ class Camera extends Object3D {
 }
 
 class Scene {
+    children: Array<Object3D>;
+    bin: Array<object>;
+    matrixWorld: Matrix4;
+    transparentChildren: Array<Mesh>;
+    opaqueChildren: Array<Mesh>;
+
     constructor() {
+        this.opaqueChildren = [];
+        this.transparentChildren = [];
         this.children = [];
-        this.program = [];
-        this.matrixWorld = new Matrix4();
         this.bin = [];
+        this.matrixWorld = new Matrix4();
     }
 }
 

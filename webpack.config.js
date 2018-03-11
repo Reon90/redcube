@@ -3,7 +3,7 @@ const path = require('path');
 const libraryName = 'redcube';
 
 const config = {
-    entry: path.join(__dirname, `/src/${libraryName}`),
+    entry: path.join(__dirname, `/src/${libraryName}.ts`),
     output: {
         path: path.join(__dirname, '/dist'),
         filename: `${libraryName}.js`,
@@ -11,18 +11,23 @@ const config = {
         libraryTarget: 'umd',
         umdNamedDefine: true
     },
+    devtool: "cheap-eval-source-map",
+    resolve: {extensions: ['.ts', '.js']},
     module: {
-        loaders: [{
-            test: /(\.jsx)$/,
-            loader: 'babel-loader',
-            exclude: /(node_modules|bower_components)/
-        }, {
-            test: /\.glsl$/,
-            loader: 'raw-loader'
-        }, {
-          test: /\.(jpeg|jpg|png|gif)$/,
-          use: 'url-loader'
-        }]
+        rules: [ 
+            { 
+                test: /\.ts$/, 
+                use: "awesome-typescript-loader" 
+            },
+            {
+                test: /\.glsl$/,
+                use: 'raw-loader'
+            }, 
+            {
+                test: /\.(jpeg|jpg|png|gif)$/,
+                use: 'url-loader'
+            } 
+        ]
     }
 };
 

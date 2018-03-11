@@ -1,12 +1,24 @@
 import { compileShader } from './utils';
 import { Matrix4 } from './matrix';
+import { Camera } from './objects';
 import envTexture from './images/env.jpg';
 import envShader from './shaders/env.glsl';
 import envBlurShader from './shaders/blurEnv.glsl';
 
 let gl;
 
+interface Buffer extends WebGLBuffer {
+    itemSize: number;
+    numItems: number;
+}
+
 export class Env {
+    _camera: Camera;
+    envVertexPositionBuffer: Buffer;
+    envVertexTextureCoordBuffer: Buffer;
+    envVertexIndexBuffer: Buffer;
+    envMatrix: Matrix4;
+
     setCamera(camera) {
         this._camera = camera;
     }

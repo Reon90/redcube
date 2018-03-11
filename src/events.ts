@@ -1,6 +1,14 @@
 class Events {
+    redraw: Function;
+    isPan: boolean;
+    isDrag: boolean;
+    x: number;
+    y: number;
+    zoomValue: number;
+
     constructor(redraw) {
         this.redraw = redraw;
+        this.zoomValue = 0;
         document.addEventListener('wheel', this);
         document.addEventListener('mousedown', this);
         document.addEventListener('mousemove', this);
@@ -8,8 +16,6 @@ class Events {
         document.addEventListener('keyup', this);
         document.addEventListener('keydown', this);
         addEventListener('resize', this);
-
-        this.position = [0, 0, 0];
     }
 
     handleEvent(e) {
@@ -24,16 +30,16 @@ class Events {
             this.onMove(e);
             break;
         case 'mouseup':
-            this.onEnd(e);
+            this.onEnd();
             break;
         case 'keyup':
-            this.onKeyUp(e);
+            this.onKeyUp();
             break;
         case 'keydown':
             this.onKeyDown(e);
             break;
         case 'resize':
-            this.onResize(e);
+            this.onResize();
             break;
         }
     }
@@ -75,11 +81,8 @@ class Events {
     }
 
     zoom(e) {
-        if (!this.zoom.v) {
-            this.zoom.v = 0;
-        } 
-        this.zoom.v = Math.min(this.zoom.v + e.deltaY, 1250);
-        this.redraw('zoom', Math.pow(1.001, this.zoom.v));
+        this.zoomValue = Math.min(this.zoomValue + e.deltaY, 1250);
+        this.redraw('zoom', Math.pow(1.001, this.zoomValue));
     }
 }
 

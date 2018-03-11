@@ -72,8 +72,10 @@ vec3 fresnelSchlick(float cosTheta, vec3 F0) {
 void main() {
     #ifdef BASECOLORTEXTURE
         vec3 baseColor = srgbToLinear(texture(baseColorTexture, outUV));
+        float alpha = texture(baseColorTexture, outUV).a;
     #else
-        vec4 baseColor = baseColorFactor;
+        vec3 baseColor = baseColorFactor.rgb;
+        float alpha = baseColorFactor.a;
     #endif
 
     #ifdef OCCLUSIONMAP
@@ -150,6 +152,6 @@ void main() {
         float spec = pow(max(dot(viewDir, reflectDir), 0.0), specularPower);
         vec3 specular = specularStrength * spec * lightColor;
 
-        color = vec4(baseColor.rgb * (ambient + diffuse + specular), 1.0);
+        color = vec4(baseColor.rgb * (ambient + diffuse + specular), alpha);
     #endif
 }

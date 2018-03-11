@@ -1,13 +1,16 @@
 import { Matrix2, Matrix3, Matrix4, Vector2, Vector3, Vector4 } from './matrix';
 
-let glEnum;
+const glEnum = {};
 let gl;
 
-export function setGlEnum(g) {
-    glEnum = g;
-}
-export function setGl(g) {
-    gl = g;
+export function setGl(_gl) {
+    gl = _gl;
+    for (const k in gl) {
+        const v = gl[k];
+        if (typeof v === 'number') {
+            glEnum[v] = k;
+        }
+    }
 }
 
 export function isMatrix(type) {
@@ -115,18 +118,6 @@ export function getAnimationComponent(type) {
     }
 }
 
-export function getAnimationMethod(type) {
-    if (type === 'rotation') {
-        return 'makeRotationFromQuaternion';
-    }
-    if (type === 'scale') {
-        return 'scale';
-    }
-    if (type === 'translation') {
-        return 'setTranslate';
-    }
-}
-
 export function range(min, max, value) {
     return (value - min) / (max - min);
 }
@@ -179,7 +170,7 @@ function getCount(type) {
     return arr;
 }
 
-export function buildArray(arrayBuffer, type, offset, length, stride, count) {
+export function buildArray(arrayBuffer, type, offset, length, stride?, count?) {
     const l = length;
     const c = length / count;
     if (stride && stride !== getCount(type) * c) {
@@ -243,19 +234,20 @@ export function walk(node, callback) {
 }
 
 export function sceneToArcBall(pos) {
-    let len = pos.elements[0] * pos.elements[0] + pos.elements[1] * pos.elements[1];
+    let len = pos[0] * pos[0] + pos[1] * pos[1];
     const sz = 0.04 * 0.04 - len;
     if (sz > 0) {
-        return [pos.elements[0], pos.elements[1], Math.sqrt(sz)];
+        return [pos[0], pos[1], Math.sqrt(sz)];
     } else {
         len = Math.sqrt(len);
-        return [0.04 * pos.elements[0] / len, 0.04 * pos.elements[1] / len, 0];
+        return [0.04 * pos[0] / len, 0.04 * pos[1] / len, 0];
     }
 }
 
-export function canvasToWorld(x, y, projection, width, height) {
+export function canvasToWorld(vec2, projection, width, height) {
+    const [x, y] = vec2;
     const newM = new Matrix4();
-    newM.setTranslate(...(new Vector3([0, 0, 0.05]).elements));
+    newM.setTranslate(new Vector3([0, 0, 0.05]));
     const m = new Matrix4(projection);
     m.multiply(newM);
 
@@ -263,7 +255,8 @@ export function canvasToWorld(x, y, projection, width, height) {
     mp.elements[0] = (2 * x / width - 1) * mp.elements[3];
     mp.elements[1] = (-2 * y / height + 1) * mp.elements[3];
 
-    return m.invert().multiplyVector4(mp);
+    const v = m.invert().multiplyVector4(mp);
+    return [v.elements[0], v.elements[1]];
 }
 
 export function calculateProjection(cam, aspect, zoom) {
@@ -317,11 +310,11 @@ export function calculateBinormals(index, vertex, normal, uv) {
         const faceVertices = faceIndexes.map(ix => vectorFromArray(vertex, ix));
         const faceUVs = faceIndexes.map(ix => vectorFromArray(uv, ix, 2));
 
-        const dv1 = faceVertices[1].clone().subtract(faceVertices[0]);
-        const dv2 = faceVertices[2].clone().subtract(faceVertices[0]);
+        const dv1 = faceVertices[1].subtract(faceVertices[0]);
+        const dv2 = faceVertices[2].subtract(faceVertices[0]);
 
-        const duv1 = faceUVs[1].clone().subtract(faceUVs[0]);
-        const duv2 = faceUVs[2].clone().subtract(faceUVs[0]);
+        const duv1 = faceUVs[1].subtract(faceUVs[0]);
+        const duv2 = faceUVs[2].subtract(faceUVs[0]);
 
         let r = (duv1.elements[0] * duv2.elements[1] - duv1.elements[1] * duv2.elements[0]);
         r = (r !== 0) ? 1.0 / r : 1.0;
@@ -341,9 +334,6 @@ export function calculateBinormals(index, vertex, normal, uv) {
 
     function vectorFromArray(array, index, elements = 3) {
         index = index * elements;
-        if (elements === 4) {
-            return new Vector4([array[index], array[index + 1], array[index + 2], array[index + 3]]);
-        }
         if (elements === 3) {
             return new Vector3([array[index], array[index + 1], array[index + 2]]);
         }

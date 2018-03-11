@@ -1,5 +1,6 @@
 import { Vector3 } from './matrix';
 import { random, compileShader } from './utils';
+import { Camera } from './objects';
 
 import quadShader from './shaders/quad.glsl';
 import blurShader from './shaders/blur.glsl';
@@ -11,7 +12,30 @@ let gl;
 let screenTextureCount = 1;
 const randSize = 4;
 
+interface Texture extends WebGLTexture {
+    index: number;
+}
+
 export class PostProcessing {
+    screenTexture: Texture;
+    tempBlurTexture: Texture;
+    blurTexture: Texture;
+    blurTexture2: Texture;
+    blurTexture3: Texture;
+    blurTexture4: Texture;
+    normalTexture: Texture;
+    depthTexture: Texture;
+    positionTexture: Texture;
+    ssaoBlurTexture: Texture;
+    ssaoTexture: Texture;
+    randMap: Texture;
+    _camera: Camera;
+    canvas: HTMLCanvasElement;
+    framebuffer: WebGLFramebuffer;
+    ssaobuffer: WebGLFramebuffer;
+    screenQuadVBO: WebGLBuffer;
+    rndTable: Float32Array;
+
     setCamera(camera) {
         this._camera = camera;
     }
@@ -111,7 +135,7 @@ export class PostProcessing {
         gl.drawArrays( gl.TRIANGLES, 0, 6 );
     }
 
-    renderBlur(program, level, out, needMipmap) {
+    renderBlur(program, level, out, needMipmap?) {
         gl.uniform1i( gl.getUniformLocation(program, 'uTexture'), this.screenTexture.index);
         gl.uniform2f(gl.getUniformLocation(program, 'offset'), 1.2 / this.width, 0);
         gl.uniform1f(gl.getUniformLocation(program, 'level'), level);
@@ -129,7 +153,7 @@ export class PostProcessing {
         gl.drawArrays( gl.TRIANGLES, 0, 6 );
     }
 
-    createTexture(needMipmap, type) {
+    createTexture(needMipmap?, type?) {
         const texture = gl.createTexture();
         gl.activeTexture(gl[`TEXTURE${screenTextureCount}`]);
         gl.bindTexture(gl.TEXTURE_2D, texture);

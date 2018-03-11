@@ -1,6 +1,7 @@
 import { buildArray, getDataType, walk, getAnimationComponent, calculateProjection, compileShader, calculateOffset, getAttributeIndex, calculateBinormals } from './utils';
-import { Mesh, SkinnedMesh, Bone, Camera, Object3D } from './objects';
-import { Matrix4 } from './matrix';
+import { Mesh, SkinnedMesh, Bone, Camera, Object3D, Scene } from './objects';
+import { Matrix4, Frustum } from './matrix';
+import { GlTf } from './GLTF';
 
 import vertexShader from './shaders/vertex.glsl';
 import fragmentShader from './shaders/fragment.glsl';
@@ -8,18 +9,56 @@ import fragmentShader from './shaders/fragment.glsl';
 let gl;
 let sceneTextureCount = 0;
 
+interface Track {
+    keys: Array<Key>;
+    stoped: boolean;
+    type: string;
+    meshes: Array<Mesh>;
+    name: string;
+    interpolation: string;
+}
+interface Key {
+    value: number;
+}
+interface Skin {
+    jointNames: Array<number>;
+}
+interface Attributes {
+    'POSITION'?: Float32Array;
+    'NORMAL'?: Float32Array;
+    'TEXCOORD_0'?: Float32Array;
+    'JOINTS_0'?: Float32Array;
+    'WEIGHTS_0'?: Float32Array;
+    'TANGENT'?: Float32Array;
+}
+
 export class Parse {
+    tracks: Array<Track>;
+    url: string;
+    host: string;
+    skins: Array<Skin>;
+    textures: Array<object>;
+    samplers: Array<object>;
+    arrayBuffer: object;
+    cameras: Array<Camera>;
+    programs: object;
+    scene: Scene;
+    _camera: Camera;
+    aspect: number;
+    zoom: number;
+    canvas: HTMLCanvasElement;
+    resize: Function;
+    updateCamera: Function;
+    json: GlTf;
+
     constructor(url) {
         this.url = url;
         this.host = url.substr(0, url.lastIndexOf('/') + 1);
-        this.unblendEnable = {};
-        this.blendEnable = {};
         this.tracks = [];
         this.skins = [];
         this.textures = null;
         this.samplers = null;
         this.arrayBuffer = null;
-        this.blendTechnique = {};
         this.cameras = [];
         this.programs = {};
     }
@@ -73,9 +112,9 @@ export class Parse {
 
     buildPrim(parent, name, skin, weights, p) {
         const indicesAccessor = this.json.accessors[p.indices];
-        const vertexAccessor = {};
+        const vertexAccessor = new Map;
         for (const a in p.attributes) {
-            vertexAccessor[a] = this.json.accessors[p.attributes[a]];
+            vertexAccessor.set(a, this.json.accessors[p.attributes[a]]);
         }
 
         const targets = [];
@@ -86,43 +125,38 @@ export class Parse {
                     vertexAcc[a] = this.json.accessors[target[a]];
                     const accessor = vertexAcc[a];
                     const bufferView = this.json.bufferViews[accessor.bufferView];
-                    vertexAcc[a] = buildArray(this.arrayBuffer[bufferView.buffer], accessor.componentType, calculateOffset(bufferView.byteOffset, accessor.byteOffset), getDataType(accessor.type) * accessor.count);
+                    vertexAcc[a] = buildArray(
+                        this.arrayBuffer[bufferView.buffer], 
+                        accessor.componentType, 
+                        calculateOffset(bufferView.byteOffset, accessor.byteOffset), 
+                        getDataType(accessor.type) * accessor.count
+                    );
                 }
                 targets.push(vertexAcc);
             }
         }
 
-        const material = p.material !== undefined ? Object.assign({}, this.json.materials[p.material]) : {pbrMetallicRoughness: {baseColorFactor: [0.8, 0.8, 0.8, 1.0]}};
+        const material = p.material !== undefined ? JSON.parse(JSON.stringify(this.json.materials[p.material])) : {pbrMetallicRoughness: {baseColorFactor: [0.8, 0.8, 0.8, 1.0]}};
         const defines = [];
         if (material.pbrMetallicRoughness.metallicRoughnessTexture) {
-            if (material.pbrMetallicRoughness.metallicRoughnessTexture.index !== undefined) {
-                material.pbrMetallicRoughness.metallicRoughnessTexture = Object.assign({}, this.textures[material.pbrMetallicRoughness.metallicRoughnessTexture.index]);
-            }
+            material.pbrMetallicRoughness.metallicRoughnessTexture = Object.assign({}, this.textures[material.pbrMetallicRoughness.metallicRoughnessTexture.index]);
             defines.push({name: 'USE_PBR'});
             defines.push({name: 'METALROUGHNESSMAP'});
         }
         if (material.normalTexture) {
-            if (material.normalTexture.index !== undefined) {
-                material.normalTexture = Object.assign({}, this.textures[material.normalTexture.index]);
-            }
+            material.normalTexture = Object.assign({}, this.textures[material.normalTexture.index]);
             defines.push({name: 'NORMALMAP'});
         }
         if (material.occlusionTexture) {
-            if (material.occlusionTexture.index !== undefined) {
-                material.occlusionTexture = Object.assign({}, this.textures[material.occlusionTexture.index]);
-            }
+            material.occlusionTexture = Object.assign({}, this.textures[material.occlusionTexture.index]);
             defines.push({name: 'OCCLUSIONMAP'});
         }
         if (material.pbrMetallicRoughness.baseColorTexture) {
-            if (material.pbrMetallicRoughness.baseColorTexture.index !== undefined) {
-                material.pbrMetallicRoughness.baseColorTexture = Object.assign({}, this.textures[material.pbrMetallicRoughness.baseColorTexture.index]);
-            }
+            material.pbrMetallicRoughness.baseColorTexture = Object.assign({}, this.textures[material.pbrMetallicRoughness.baseColorTexture.index]);
             defines.push({name: 'BASECOLORTEXTURE'});
         }
         if (material.emissiveTexture) {
-            if (material.emissiveTexture.index !== undefined) {
-                material.emissiveTexture = Object.assign({}, this.textures[material.emissiveTexture.index]);
-            }
+            material.emissiveTexture = Object.assign({}, this.textures[material.emissiveTexture.index]);
             defines.push({name: 'EMISSIVEMAP'});
         }
 
@@ -148,45 +182,41 @@ export class Parse {
             indicesBuffer = buildArray(this.arrayBuffer[bufferView.buffer], indicesAccessor.componentType, calculateOffset(bufferView.byteOffset, indicesAccessor.byteOffset), getDataType(indicesAccessor.type) * indicesAccessor.count);
         }
         const boundingBox = {
-            min: vertexAccessor.POSITION.min,
-            max: vertexAccessor.POSITION.max
+            min: vertexAccessor.get('POSITION').min,
+            max: vertexAccessor.get('POSITION').max
         };
-        for (const k in vertexAccessor) {
-            const accessor = vertexAccessor[k];
+        const vertexBuffers: Attributes = {};
+        for (const k of vertexAccessor.keys()) {
+            const accessor = vertexAccessor.get(k);
             const bufferView = this.json.bufferViews[accessor.bufferView];
-            vertexAccessor[k] = buildArray(this.arrayBuffer[bufferView.buffer], accessor.componentType, calculateOffset(bufferView.byteOffset, accessor.byteOffset), getDataType(accessor.type) * accessor.count, bufferView.byteStride, accessor.count);
+            vertexBuffers[k] = buildArray(this.arrayBuffer[bufferView.buffer], accessor.componentType, calculateOffset(bufferView.byteOffset, accessor.byteOffset), getDataType(accessor.type) * accessor.count, bufferView.byteStride, accessor.count);
 
-            if (p.targets) {
+            if (p.targets && k in p.targets[0]) {
                 let offset = 0;
-                const geometry = vertexAccessor[k];
-                vertexAccessor[k] = new Float32Array(geometry.length);
-                for (let i = 0; i < vertexAccessor[k].length; i++) {
+                const geometry = vertexBuffers[k];
+                vertexBuffers[k] = new Float32Array(geometry.length);
+                for (let i = 0; i < vertexBuffers[k].length; i++) {
                     if (k === 'TANGENT' && (i + 1) % 4 === 0) {
                         offset++;
                         continue;
                     }
-                    vertexAccessor[k][i] = geometry[i] + weights[0] * targets[0][k][i - offset] + weights[1] * targets[1][k][i - offset];
+                    vertexBuffers[k][i] = geometry[i] + weights[0] * targets[0][k][i - offset] + weights[1] * targets[1][k][i - offset];
                 }
             }
         }
         if (material.normalTexture && p.attributes.TANGENT === undefined) {
-            vertexAccessor.TANGENT = calculateBinormals(indicesBuffer, vertexAccessor.POSITION, vertexAccessor.NORMAL, vertexAccessor.TEXCOORD_0);
+            vertexBuffers.TANGENT = calculateBinormals(indicesBuffer, vertexBuffers.POSITION, vertexBuffers.NORMAL, vertexBuffers.TEXCOORD_0);
         }
 
-        const mesh = skin !== undefined ? new SkinnedMesh(name, parent) : new Mesh(name, parent);
+        const mesh = skin !== undefined ? new SkinnedMesh(name, parent).setSkin(skin) : new Mesh(name, parent);
         
         mesh.setProgram(program);
         mesh.setMode(p.mode);
         mesh.setMaterial(material);
-        //mesh.setUniforms(uniforms);
-        mesh.setAttributes(vertexAccessor);
+        mesh.setAttributes(vertexBuffers);
         mesh.setIndicesBuffer(indicesBuffer);
         mesh.setBoundingBox(boundingBox);
-        if (skin !== undefined) {
-            mesh.setSkin(skin);
-        }
-        mesh.geometry.targets = targets;
-        //mesh.setTextures(textures);
+        mesh.setTargets(targets);
 
         const m = new Matrix4;
         m.multiply( mesh.parent.matrixWorld );
@@ -196,10 +226,10 @@ export class Parse {
         const VAO = gl.createVertexArray();
         gl.bindVertexArray(VAO);
 
-        for (const k in vertexAccessor) {
+        for (const k in vertexBuffers) {
             const VBO = gl.createBuffer();
             gl.bindBuffer(gl.ARRAY_BUFFER, VBO);
-            gl.bufferData(gl.ARRAY_BUFFER, vertexAccessor[k], gl.STATIC_DRAW);
+            gl.bufferData(gl.ARRAY_BUFFER, vertexBuffers[k], gl.STATIC_DRAW);
             const index = getAttributeIndex(k);
             gl.enableVertexAttribArray(index[0]);
             gl.vertexAttribPointer(index[0], index[1], index[2], false, 0, 0);
@@ -319,6 +349,8 @@ export class Parse {
 
         this.calculateFov();
 
+        const planes = Frustum(this._camera.getViewProjMatrix());
+
         walk(this.scene, mesh => {
             if (mesh instanceof SkinnedMesh) {
                 mesh.bones = this.skins[mesh.skin].bones;
@@ -365,8 +397,18 @@ export class Parse {
                 gl.bufferData(gl.UNIFORM_BUFFER, matrices, gl.DYNAMIC_DRAW);
                 mesh.geometry.UBO = UBO;
                 gl.bindBuffer(gl.UNIFORM_BUFFER, null);
+
+                if (mesh.isVisible(planes)) {
+                    if (mesh.material.alphaMode) {
+                        this.scene.transparentChildren.push(mesh);
+                    } else {
+                        this.scene.opaqueChildren.push(mesh);
+                    }
+                }
             }
         });
+
+        this.scene.transparentChildren.sort((a, b) => b.distance - a.distance);
 
         return true;
     }
@@ -409,12 +451,16 @@ export class Parse {
                     const meshes = [];
                     walk(this.scene, node => {
                         if (node.name === name) {
+                            if (target.path === 'weights' && node instanceof Object3D) {
+                                node = node.children[0];
+                            }
                             meshes.push(node);
                         }
                     });
 
                     if ( meshes.length ) {
                         this.tracks.push({
+                            stoped: false,
                             meshes: meshes,
                             type: target.path,
                             name: `${meshes[0].name}.${target.path}`,
@@ -440,13 +486,12 @@ export class Parse {
 
             const v = {
                 jointNames: skin.joints,
-                inverseBindMatrices: array
+                inverseBindMatrices: array,
+                bones: [],
+                boneInverses: []
             };
 
             let i = 0;
-            v.bones = [];
-            v.boneInverses = [];
-
             for (const join of v.jointNames) {
                 //walk(this.scene, this.buildBones.bind(this, join, v));
                 this.json.nodes[join].isBone = true;
@@ -518,10 +563,11 @@ export class Parse {
     }
 
     handleTextureLoaded(sampler, image) {
-        const t = {};
-        t.image = image.src.substr(image.src.lastIndexOf('/'));
-        t.data = gl.createTexture();
-        t.count = sceneTextureCount;
+        const t = {
+            image: image.src.substr(image.src.lastIndexOf('/')),
+            data: gl.createTexture(),
+            count: sceneTextureCount
+        };
         gl.activeTexture(gl[`TEXTURE${sceneTextureCount}`]);
         gl.bindTexture(gl.TEXTURE_2D, t.data);
         gl.bindSampler(0, sampler);
