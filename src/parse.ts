@@ -7,7 +7,7 @@ import vertexShader from './shaders/vertex.glsl';
 import fragmentShader from './shaders/fragment.glsl';
 
 let gl;
-let sceneTextureCount = 0;
+let sceneTextureCount = 1;
 
 interface Track {
     keys: Array<Key>;
@@ -71,10 +71,8 @@ export class Parse {
         gl = g;
     }
 
-    setCamera(camera, aspect, zoom) {
+    setCamera(camera) {
         this._camera = camera;
-        this.aspect = aspect;
-        this.zoom = zoom;
     }
 
     setCanvas(canvas) {
@@ -217,11 +215,7 @@ export class Parse {
         mesh.setIndicesBuffer(indicesBuffer);
         mesh.setBoundingBox(boundingBox);
         mesh.setTargets(targets);
-
-        const m = new Matrix4;
-        m.multiply( mesh.parent.matrixWorld );
-        m.multiply(mesh.matrix);
-        mesh.setMatrixWorld(m.elements);
+        mesh.updateMatrix();
 
         const VAO = gl.createVertexArray();
         gl.bindVertexArray(VAO);
@@ -267,10 +261,13 @@ export class Parse {
         let child;
 
         if (el.camera !== undefined) {
-            const proj = calculateProjection(this.json.cameras[el.camera], this.aspect, this.zoom);
+            const proj = calculateProjection(this.json.cameras[el.camera]);
             child = new Camera(name, parent);
-            child.props = this.json.cameras[el.camera];
-            child.setProjection(proj.elements);
+            child.setProps(Object.assign({
+                zoom: 1,
+                aspect: this.canvas.offsetWidth / this.canvas.offsetHeight
+            }, this.json.cameras[el.camera]));
+            child.setProjection(proj);
             
             this._camera = child;
             this.updateCamera(this._camera);
@@ -290,10 +287,7 @@ export class Parse {
             child.setMatrix(el.matrix);
         }
 
-        const m = new Matrix4;
-        m.multiply( child.parent.matrixWorld );
-        m.multiply(child.matrix);
-        child.setMatrixWorld(m.elements);
+        child.updateMatrix();
 
         parent.children.push(child);
         parent = child;
@@ -452,6 +446,7 @@ export class Parse {
                     walk(this.scene, node => {
                         if (node.name === name) {
                             if (target.path === 'weights' && node instanceof Object3D) {
+                                // eslint-disable-next-line
                                 node = node.children[0];
                             }
                             meshes.push(node);
@@ -570,7 +565,7 @@ export class Parse {
         };
         gl.activeTexture(gl[`TEXTURE${sceneTextureCount}`]);
         gl.bindTexture(gl.TEXTURE_2D, t.data);
-        gl.bindSampler(0, sampler);
+        gl.bindSampler(sceneTextureCount, sampler);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
         gl.generateMipmap(gl.TEXTURE_2D);
         sceneTextureCount++;

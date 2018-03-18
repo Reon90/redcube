@@ -1,14 +1,14 @@
 #version 300 es
 precision highp float;
 
-layout (location = 0) in vec3 pos;
-layout (location = 1) in vec2 aUV;
+layout (location = 0) in vec3 inPosition;
+layout (location = 1) in vec2 inUV;
 
-uniform mat4 uMVPMatrix;
+uniform mat4 MVPMatrix;
 
-out vec2 uv;
+out vec2 outUV;
 
 void main() {
-	uv = aUV;
-    gl_Position = uMVPMatrix * vec4(pos, 1.0);
+	outUV = inUV;
+    gl_Position = MVPMatrix * vec4(inPosition, 1.0);
 }

@@ -11,8 +11,7 @@ uniform sampler2D uTexture2;
 uniform sampler2D uTexture3;
 uniform sampler2D uTexture4;
 
-void main() 
-{
+void main() {
     vec4 vOriginal = texture(uOriginal, uv);
     vec4 vT1 = texture(uTexture1, uv);
     vec4 vT2 = texture(uTexture2, uv);

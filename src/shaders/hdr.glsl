@@ -6,8 +6,7 @@ out vec4 color;
 
 uniform sampler2D uTexture;
 
-void main() 
-{
+void main() {
     const float gamma = 2.2;
     const float exposure = 1.0;
     vec3 hdrColor = texture(uTexture, uv).rgb;

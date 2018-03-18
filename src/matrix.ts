@@ -1,3 +1,5 @@
+/* eslint-disable */
+
 /** 
  * This is a class treating 4x4 matrix.
  * This class contains the function that is equivalent to OpenGL matrix stack.
@@ -92,37 +94,37 @@ class Matrix3 {
         const e = this.elements;
         a = a.elements;
 
-        let a00 = a[0];
-        let a01 = a[1];
-        let a02 = a[2];
-        let a03 = a[3];
-        let a10 = a[4];
-        let a11 = a[5];
-        let a12 = a[6];
-        let a13 = a[7];
-        let a20 = a[8];
-        let a21 = a[9];
-        let a22 = a[10];
-        let a23 = a[11];
-        let a30 = a[12];
-        let a31 = a[13];
-        let a32 = a[14];
-        let a33 = a[15];
-        let b00 = a00 * a11 - a01 * a10;
-        let b01 = a00 * a12 - a02 * a10;
-        let b02 = a00 * a13 - a03 * a10;
-        let b03 = a01 * a12 - a02 * a11;
-        let b04 = a01 * a13 - a03 * a11;
-        let b05 = a02 * a13 - a03 * a12;
-        let b06 = a20 * a31 - a21 * a30;
-        let b07 = a20 * a32 - a22 * a30;
-        let b08 = a20 * a33 - a23 * a30;
-        let b09 = a21 * a32 - a22 * a31;
-        let b10 = a21 * a33 - a23 * a31;
-        let b11 = a22 * a33 - a23 * a32;
+        const a00 = a[0];
+        const a01 = a[1];
+        const a02 = a[2];
+        const a03 = a[3];
+        const a10 = a[4];
+        const a11 = a[5];
+        const a12 = a[6];
+        const a13 = a[7];
+        const a20 = a[8];
+        const a21 = a[9];
+        const a22 = a[10];
+        const a23 = a[11];
+        const a30 = a[12];
+        const a31 = a[13];
+        const a32 = a[14];
+        const a33 = a[15];
+        const b00 = a00 * a11 - a01 * a10;
+        const b01 = a00 * a12 - a02 * a10;
+        const b02 = a00 * a13 - a03 * a10;
+        const b03 = a01 * a12 - a02 * a11;
+        const b04 = a01 * a13 - a03 * a11;
+        const b05 = a02 * a13 - a03 * a12;
+        const b06 = a20 * a31 - a21 * a30;
+        const b07 = a20 * a32 - a22 * a30;
+        const b08 = a20 * a33 - a23 * a30;
+        const b09 = a21 * a32 - a22 * a31;
+        const b10 = a21 * a33 - a23 * a31;
+        const b11 = a22 * a33 - a23 * a32;
 
         let // Calculate the determinant
-        det = b00 * b11 - b01 * b10 + b02 * b09 + b03 * b08 - b04 * b07 + b05 * b06;
+            det = b00 * b11 - b01 * b10 + b02 * b09 + b03 * b08 - b04 * b07 + b05 * b06;
 
         if (!det) {
             return null;
@@ -497,25 +499,57 @@ class Matrix4 {
 
     }
 
+    makeRotationAxis ( axis, angle ) {
+
+		// Based on http://www.gamedev.net/reference/articles/article1199.asp
+
+        const te = this.elements;
+		const c = Math.cos( angle );
+		const s = Math.sin( angle );
+		const t = 1 - c;
+		const x = axis.elements[0], y = axis.elements[1], z = axis.elements[2];
+		const tx = t * x, ty = t * y;
+
+        te[0] = tx * x + c;
+        te[1] = tx * y - s * z; 
+        te[2] = tx * z + s * y; 
+        te[3] = 0;
+        te[4] = tx * y + s * z; 
+        te[5] =  ty * y + c;
+        te[6] = ty * z - s * x; 
+        te[7] = 0;
+        te[8] = tx * z - s * y; 
+        te[9] = ty * z + s * x; 
+        te[10] = t * z * z + c;
+        te[11] = 0;
+        // te[12] = 0; 
+        // te[13] = 0; 
+        // te[14] = 0; 
+        te[15] = 1;
+
+		return this;
+
+	}
+
     makeRotationFromQuaternion(q) {
         const te = this.elements;
 
-        let x = q[0];
-        let y = q[1];
-        let z = q[2];
-        let w = q[3];
-        let x2 = x + x;
-        let y2 = y + y;
-        let z2 = z + z;
-        let xx = x * x2;
-        let xy = x * y2;
-        let xz = x * z2;
-        let yy = y * y2;
-        let yz = y * z2;
-        let zz = z * z2;
-        let wx = w * x2;
-        let wy = w * y2;
-        let wz = w * z2;
+        const x = q[0];
+        const y = q[1];
+        const z = q[2];
+        const w = q[3];
+        const x2 = x + x;
+        const y2 = y + y;
+        const z2 = z + z;
+        const xx = x * x2;
+        const xy = x * y2;
+        const xz = x * z2;
+        const yy = y * y2;
+        const yz = y * z2;
+        const zz = z * z2;
+        const wx = w * x2;
+        const wy = w * y2;
+        const wz = w * z2;
 
         te[ 0 ] = 1 - ( yy + zz );
         te[ 4 ] = xy - wz;
@@ -579,13 +613,13 @@ class Vector3 {
         const ix = qw * x + qy * z - qz * y;
         const iy = qw * y + qz * x - qx * z;
         const iz = qw * z + qx * y - qy * x;
-        const iw = - qx * x - qy * y - qz * z;
+        const iw = -qx * x - qy * y - qz * z;
 
         // calculate result * inverse quat
 
-        this.elements[0] = ix * qw + iw * - qx + iy * - qz - iz * - qy;
-        this.elements[1] = iy * qw + iw * - qy + iz * - qx - ix * - qz;
-        this.elements[2] = iz * qw + iw * - qz + ix * - qy - iy * - qx;
+        this.elements[0] = ix * qw + iw * -qx + iy * -qz - iz * -qy;
+        this.elements[1] = iy * qw + iw * -qy + iz * -qx - ix * -qz;
+        this.elements[2] = iz * qw + iw * -qz + ix * -qy - iy * -qx;
 
         return this;
     }
@@ -596,9 +630,9 @@ class Vector3 {
       */
     normalize() {
         const v = this.elements;
-        let c = v[0];
-        let d = v[1];
-        let e = v[2];
+        const c = v[0];
+        const d = v[1];
+        const e = v[2];
         let g = Math.sqrt(c * c + d * d + e * e);
         if (g) {
             if (g == 1) {
@@ -647,9 +681,9 @@ class Vector3 {
     }
 
     distanceToSquared(x, y, z) {
-        let dx = this.elements[0] - x;
-        let dy = this.elements[1] - y;
-        let dz = this.elements[2] - z;
+        const dx = this.elements[0] - x;
+        const dy = this.elements[1] - y;
+        const dz = this.elements[2] - z;
 
         return dx * dx + dy * dy + dz * dz;
     }
@@ -668,9 +702,9 @@ class Vector3 {
     }
 
     applyMatrix4({elements}) {
-        let x = this.elements[0];
-        let y = this.elements[1];
-        let z = this.elements[2];
+        const x = this.elements[0];
+        const y = this.elements[1];
+        const z = this.elements[2];
         const e = elements;
 
         this.elements[0] = e[ 0 ] * x + e[ 4 ] * y + e[ 8 ] * z + e[ 12 ];
@@ -683,9 +717,9 @@ class Vector3 {
 
     lerp(a, b, t) {
         const out = this.elements;
-        let ax = a[0];
-        let ay = a[1];
-        let az = a[2];
+        const ax = a[0];
+        const ay = a[1];
+        const az = a[2];
         out[0] = ax + t * (b[0] - ax);
         out[1] = ay + t * (b[1] - ay);
         out[2] = az + t * (b[2] - az);
@@ -723,12 +757,12 @@ class Vector3 {
     static cross(a, b) {
         a = a.elements;
         b = b.elements;
-        let ax = a[0];
-        let ay = a[1];
-        let az = a[2];
-        let bx = b[0];
-        let by = b[1];
-        let bz = b[2];
+        const ax = a[0];
+        const ay = a[1];
+        const az = a[2];
+        const bx = b[0];
+        const by = b[1];
+        const bz = b[2];
     
         const out = new Vector3();
         out.elements[0] = ay * bz - az * by;
@@ -741,7 +775,7 @@ class Vector3 {
         a = a.elements;
         b = b.elements;
         return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-    };
+    }
 }
 
 /**
@@ -780,10 +814,10 @@ class Vector4 {
     }
 
     normalize() {
-        let x = this.elements[0];
-        let y = this.elements[1];
-        let z = this.elements[2];
-        let w = this.elements[3];
+        const x = this.elements[0];
+        const y = this.elements[1];
+        const z = this.elements[2];
+        const w = this.elements[3];
         let len = x * x + y * y + z * z + w * w;
         if (len > 0) {
             len = 1 / Math.sqrt(len);
@@ -852,10 +886,10 @@ class Vector4 {
 
     lerp(a, b, t) {
         const out = this.elements;
-        let ax = a[0];
-        let ay = a[1];
-        let az = a[2];
-        let aw = a[3];
+        const ax = a[0];
+        const ay = a[1];
+        const az = a[2];
+        const aw = a[3];
         out[0] = ax + t * (b[0] - ax);
         out[1] = ay + t * (b[1] - ay);
         out[2] = az + t * (b[2] - az);
@@ -885,8 +919,8 @@ class Vector2 {
 
     lerp(a, b, t) {
         const out = this.elements;
-        let ax = a[0];
-        let ay = a[1];
+        const ax = a[0];
+        const ay = a[1];
         out[0] = ax + t * (b[0] - ax);
         out[1] = ay + t * (b[1] - ay);
         return this;

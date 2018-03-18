@@ -1,4 +1,4 @@
-import { Matrix3, Matrix4, Vector3 } from './matrix';
+import { Matrix4, Vector3 } from './matrix';
 
 class Object3D {
     uuid: number;
@@ -36,6 +36,13 @@ class Object3D {
 
     setMatrixWorld(matrix) {
         this.matrixWorld.set(matrix);
+    }
+
+    updateMatrix() {
+        const m = new Matrix4;
+        m.multiply( this.parent.matrixWorld );
+        m.multiply(this.matrix);
+        this.setMatrixWorld(m.elements);
     }
 }
 
@@ -230,9 +237,15 @@ class Bone extends Object3D {
     
 }
 
+interface CameraProps {
+    zoom: number;
+    isInitial: boolean;
+    aspect: number;
+}
+
 class Camera extends Object3D {
     isInitial: boolean;
-    props: object;
+    props: CameraProps;
     matrixWorldInvert: Matrix4;
     projection: Matrix4;
     modelSize: number;
@@ -242,12 +255,16 @@ class Camera extends Object3D {
     constructor(name?, parent?) {
         super(name, parent);
 
-        this.matrixWorldInvert = new Matrix4();
-        this.projection = new Matrix4();
+        this.matrixWorldInvert = new Matrix4;
+        this.projection = new Matrix4;
+    }
+
+    setProps(props) {
+        this.props = props;
     }
 
     setProjection(matrix) {
-        this.projection.set(matrix);
+        this.projection.set(matrix.elements);
     }
 
     setMatrixWorld(matrix) {
@@ -261,7 +278,7 @@ class Camera extends Object3D {
     }
 
     getViewProjMatrix() {
-        const m = new Matrix4();
+        const m = new Matrix4;
         m.multiply(this.projection);
         m.multiply(this.matrixWorldInvert);
 
@@ -281,7 +298,7 @@ class Scene {
         this.transparentChildren = [];
         this.children = [];
         this.bin = [];
-        this.matrixWorld = new Matrix4();
+        this.matrixWorld = new Matrix4;
     }
 }
 

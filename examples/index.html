@@ -92,7 +92,7 @@
         select.value = name;
         selector.appendChild(select);
 
-        const renderer = new redcube.RedCube('' + name + '/glTF/' + name + '.gltf', canvas, name === 'Avocado' || name === "WaterBottle" ? 0.01 : null);
+        const renderer = new redcube.RedCube('https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/' + name + '/glTF/' + name + '.gltf', canvas, name === 'Avocado' || name === "WaterBottle" ? 0.01 : null);
         if (name === "AnimatedMorphCube" || name === "AnimatedMorphSphere") {
             renderer.z = 5;
         }

@@ -9,6 +9,7 @@
         "sourceType": "module"
     },
     "rules": {
+        "no-undef": "off",
         "no-redeclare": [
             "error"
         ],

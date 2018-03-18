@@ -14,10 +14,14 @@ interface Buffer extends WebGLBuffer {
 
 export class Env {
     _camera: Camera;
-    envVertexPositionBuffer: Buffer;
-    envVertexTextureCoordBuffer: Buffer;
-    envVertexIndexBuffer: Buffer;
     envMatrix: Matrix4;
+    VAO: WebGLBuffer;
+    IndexBufferLength: number;
+    program: WebGLProgram;
+
+    constructor() {
+        this.envMatrix = new Matrix4;
+    }
 
     setCamera(camera) {
         this._camera = camera;
@@ -28,28 +32,18 @@ export class Env {
     }
 
     createEnvironment() {
-        const program = gl.createProgram();
-        compileShader(gl.VERTEX_SHADER, envShader, program);
-        compileShader(gl.FRAGMENT_SHADER, envBlurShader, program);
-        gl.linkProgram(program);
-        gl.useProgram(program);
+        gl.useProgram(this.program);
+        gl.bindVertexArray(this.VAO);
 
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.envVertexPositionBuffer);
-        gl.vertexAttribPointer(0, this.envVertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
-        gl.enableVertexAttribArray(0);
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.envVertexTextureCoordBuffer);
-        gl.vertexAttribPointer(1, this.envVertexTextureCoordBuffer.itemSize, gl.FLOAT, false, 0, 0);
-        gl.enableVertexAttribArray(1);
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.envVertexIndexBuffer);
-
-        const m = new Matrix4();
+        const m = new Matrix4;
         m.multiply(this._camera.projection);
         m.multiply(this._camera.matrixWorldInvert);
         m.multiply(this.envMatrix);
-        gl.uniform1i(gl.getUniformLocation(program, 'uTexture'), 0);
-        gl.uniformMatrix4fv(gl.getUniformLocation(program, 'uMVPMatrix'), false, m.elements);
+        gl.uniform1f(gl.getUniformLocation(this.program, 'level'), 3);
+        gl.uniform1i(gl.getUniformLocation(this.program, 'diffuse'), 0);
+        gl.uniformMatrix4fv(gl.getUniformLocation(this.program, 'MVPMatrix'), false, m.elements);
 
-        gl.drawElements(gl.TRIANGLES, this.envVertexIndexBuffer.numItems, gl.UNSIGNED_SHORT, 0);
+        gl.drawElements(gl.TRIANGLES, this.IndexBufferLength, gl.UNSIGNED_SHORT, 0);
     }
 
     createEnvironmentBuffer() {
@@ -102,28 +96,34 @@ export class Env {
             }
         }
 
-        const vertexTextureCoordBuffer = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, vertexTextureCoordBuffer);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(textureCoordData), gl.STATIC_DRAW);
-        vertexTextureCoordBuffer.itemSize = 2;
-        vertexTextureCoordBuffer.numItems = textureCoordData.length / 2;
+        this.VAO = gl.createVertexArray();
+        gl.bindVertexArray(this.VAO);
+        {
+            const VBO = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, VBO);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertexPositionData), gl.STATIC_DRAW);
+            gl.enableVertexAttribArray(0);
+            gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+        }
+        {
+            const VBO = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, VBO);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(textureCoordData), gl.STATIC_DRAW);
+            gl.enableVertexAttribArray(1);
+            gl.vertexAttribPointer(1, 2, gl.FLOAT, false, 0, 0);
+        }
+        {
+            const VBO = gl.createBuffer();
+            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, VBO);
+            gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indexData), gl.STATIC_DRAW);
+            this.IndexBufferLength = indexData.length;
+        }
+        gl.bindVertexArray(null);
 
-        const vertexPositionBuffer = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, vertexPositionBuffer);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertexPositionData), gl.STATIC_DRAW);
-        vertexPositionBuffer.itemSize = 3;
-        vertexPositionBuffer.numItems = vertexPositionData.length / 3;
-
-        const vertexIndexBuffer = gl.createBuffer();
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, vertexIndexBuffer);
-        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indexData), gl.STATIC_DRAW);
-        vertexIndexBuffer.itemSize = 1;
-        vertexIndexBuffer.numItems = indexData.length;
-
-        this.envMatrix = new Matrix4;
-        this.envVertexIndexBuffer = vertexIndexBuffer;
-        this.envVertexPositionBuffer = vertexPositionBuffer;
-        this.envVertexTextureCoordBuffer = vertexTextureCoordBuffer;
+        this.program = gl.createProgram();
+        compileShader(gl.VERTEX_SHADER, envShader, this.program);
+        compileShader(gl.FRAGMENT_SHADER, envBlurShader, this.program);
+        gl.linkProgram(this.program);
 
         return new Promise((resolve, reject) => {
             const texture = gl.createTexture();

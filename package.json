@@ -1,10 +1,12 @@
 {
   "name": "redcube.js",
-  "version": "0.1.0",
+  "version": "2.0.0",
   "description": "A javascript library for rendering webgl.",
   "main": "dist/redcube",
   "scripts": {
-    "build": "webpack"
+    "dev": "webpack --mode development --watch",
+    "prod": "webpack --mode production",
+    "lint": "eslint --fix --ext .ts ./src/"
   },
   "devDependencies": {
     "awesome-typescript-loader": "^5.0.0-1",

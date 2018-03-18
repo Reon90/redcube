@@ -1,28 +1,24 @@
 /// <reference path='../index.d.ts'/>
 
 import { Scene, Mesh, SkinnedMesh, Camera, Bone } from './objects';
-import { Matrix3, Matrix4, Vector2, Vector3, Vector4, Frustum } from './matrix';
+import { Matrix4, Vector2, Vector3, Vector4 } from './matrix';
 import { Events } from './events';
 import { Env } from './env';
 import { FPS } from './fps';
 import { Parse } from './parse';
 import { PostProcessing } from './postprocessing';
-import { setGl, getComponentType, getMethod, getAnimationComponent, interpolation, walk, sceneToArcBall, canvasToWorld, calculateProjection, getAttributeIndex } from './utils';
+import { setGl, getAnimationComponent, interpolation, walk, sceneToArcBall, canvasToWorld, calculateProjection, getAttributeIndex } from './utils';
 
 let gl;
 
 class RedCube {
     reflow: boolean;
-    url: string;
-    host: string;
     scene: Scene;
-    color: Array<number>;
-    _camera: Camera;
-    aspect: number;
+    camera: Camera;
     canvas: HTMLCanvasElement;
-    zoom: number;
     events: Events;
     parse: Parse;
+    env: Env;
     needUpdateProjection: boolean;
     needUpdateView: boolean;
     fps: FPS;
@@ -30,40 +26,36 @@ class RedCube {
 
     constructor(url, canvas, znear) {
         this.reflow = true;
-        this.scene = new Scene();
-        this.color = [0.8, 0.8, 0.8, 1.0];
-        this.url = url;
-        this.host = url.substr(0, url.lastIndexOf('/') + 1);
+        this.scene = new Scene;
         this.canvas = canvas;
-        this.aspect = this.canvas.offsetWidth / this.canvas.offsetHeight;
-        this._camera = new Camera;
-        this._camera.isInitial = true;
-        this._camera.props = {
+
+        this.camera = new Camera;
+        this.camera.setProps({
             type: 'perspective', 
+            isInitial: true,
+            zoom: 1,
+            aspect: this.canvas.offsetWidth / this.canvas.offsetHeight,
             perspective: {
                 yfov: 0.6,
                 znear: znear || 1,
-                zfar: 2e6,
-                aspectRatio: null
+                zfar: 2e6
             }
-        };
-        this.zoom = 1;
-        this._camera.setZ(5);
+        });
 
         this.events = new Events(this.redraw.bind(this));
 
         this.fps = new FPS;
 
-        //this.env = new Env;
-        //this.env.setCamera(this._camera);
+        this.env = new Env;
+        this.env.setCamera(this.camera);
 
         // this.PP = new PostProcessing;
         // this.PP.setCanvas(this.canvas);
-        // this.PP.setCamera(this._camera);
+        // this.PP.setCamera(this.camera);
 
         this.parse = new Parse(url);
         this.parse.setScene(this.scene);
-        this.parse.setCamera(this._camera, this.aspect, this.zoom);
+        this.parse.setCamera(this.camera);
         this.parse.setUpdateCamera(this.updateCamera.bind(this));
         this.parse.setCanvas(this.canvas);
         this.parse.setResize(this.resize.bind(this));    
@@ -78,60 +70,53 @@ class RedCube {
             .then(this.parse.buildSkin.bind(this.parse))
             .then(this.parse.buildMesh.bind(this.parse))
             .then(this.parse.buildAnimation.bind(this.parse))
-            // .then(this.env.createEnvironmentBuffer.bind(this.env))
+            .then(this.env.createEnvironmentBuffer.bind(this.env))
             .then(this.draw.bind(this))
             .catch(console.error);
     }
 
     updateCamera(camera) {
-        this._camera = camera;
-    }
-
-    setColor(color) {
-        this.color = color;
+        this.camera = camera;
+        this.env.setCamera(this.camera);
     }
 
     redraw(type, coordsStart, coordsMove) {
         if (type === 'zoom') {
-            this.zoom = coordsStart;
-            this._camera.setProjection(calculateProjection(this._camera.props, this.aspect, this.zoom).elements);
+            this.camera.props.zoom = coordsStart;
+            this.camera.setProjection(calculateProjection(this.camera.props));
             this.needUpdateProjection = true;
         }
         if (type === 'rotate') {
-            const coordsStartWorld = canvasToWorld(coordsStart, this._camera.projection, this.canvas.offsetWidth, this.canvas.offsetHeight);
-            const coordsMoveWorld = canvasToWorld(coordsMove, this._camera.projection, this.canvas.offsetWidth, this.canvas.offsetHeight);
+            const coordsStartWorld = canvasToWorld(coordsStart, this.camera.projection, this.canvas.offsetWidth, this.canvas.offsetHeight);
+            const coordsMoveWorld = canvasToWorld(coordsMove, this.camera.projection, this.canvas.offsetWidth, this.canvas.offsetHeight);
             const p0 = new Vector3(sceneToArcBall(coordsStartWorld));
             const p1 = new Vector3(sceneToArcBall(coordsMoveWorld));
-            const angle = Vector3.angle(p0, p1) * 5;
+            const angle = Vector3.angle(p1, p0) * 5;
             if (angle < 1e-6 || isNaN(angle)) {
                 return;
             }
 
-            const v = Vector3.cross(p0, p1).normalize();
-            const sin = Math.sin(angle / 2);
-            const q = new Vector4([v.elements[0] * sin, v.elements[1] * sin, v.elements[2] * sin, Math.cos(angle / 2)]);
+            p0.applyMatrix4(this.camera.matrixWorld);
+            p1.applyMatrix4(this.camera.matrixWorld);
+            const v = Vector3.cross(p1, p0).normalize();
 
-            const m = new Matrix4();
-            m.makeRotationFromQuaternion(q.elements);
-            m.multiply(this._camera.matrixWorld);
-            this._camera.setMatrixWorld(m.elements);
-            this.needUpdateView = true;          
+            const m = new Matrix4;
+            m.makeRotationAxis(v, angle);
+            m.multiply(this.camera.matrixWorld);
 
-            // const diff = Vector3.angle(new Vector3([0, 1, 0]).applyQuaternion(new Vector4().setFromRotationMatrix(m)), new Vector3([0, 1, 0]));
-            // if (diff <= Math.PI / 2) {
-            //     this.needUpdateView = true;
-            // }
+            this.camera.setMatrixWorld(m.elements);
+            this.needUpdateView = true;
         }
         if (type === 'pan') {
-            const coordsStartWorld = canvasToWorld(coordsStart, this._camera.projection, this.canvas.offsetWidth, this.canvas.offsetHeight);
-            const coordsMoveWorld = canvasToWorld(coordsMove, this._camera.projection, this.canvas.offsetWidth, this.canvas.offsetHeight);
+            const coordsStartWorld = canvasToWorld(coordsStart, this.camera.projection, this.canvas.offsetWidth, this.canvas.offsetHeight);
+            const coordsMoveWorld = canvasToWorld(coordsMove, this.camera.projection, this.canvas.offsetWidth, this.canvas.offsetHeight);
             const p0 = new Vector3([...coordsStartWorld, 0]);
             const p1 = new Vector3([...coordsMoveWorld, 0]);
-            const pan = this._camera.modelSize * 100;
+            const pan = this.camera.modelSize * 100;
             const delta = p1.subtract(p0).scale(pan);
 
-            this._camera.matrixWorld.translate(delta.elements[0], delta.elements[1], 0);
-            this._camera.setMatrixWorld(this._camera.matrixWorld.elements);
+            this.camera.matrixWorld.translate(delta.elements[0], delta.elements[1], 0);
+            this.camera.setMatrixWorld(this.camera.matrixWorld.elements);
             this.needUpdateView = true;
         }
         if (type === 'resize') {
@@ -143,46 +128,28 @@ class RedCube {
     }
 
     resize() {
-        this.aspect = this.canvas.offsetWidth / this.canvas.offsetHeight;
+        this.camera.props.aspect = this.canvas.offsetWidth / this.canvas.offsetHeight;
         this.canvas.width = this.canvas.offsetWidth * devicePixelRatio;
         this.canvas.height = this.canvas.offsetHeight * devicePixelRatio;
         gl.viewport( 0, 0, this.canvas.offsetWidth * devicePixelRatio, this.canvas.offsetHeight * devicePixelRatio);
-        this._camera.setProjection(calculateProjection(this._camera.props, this.aspect, this.zoom).elements);
+        this.camera.setProjection(calculateProjection(this.camera.props));
 
-        if (this._camera.isInitial) {
-            const z = 1 / this.canvas.width * this._camera.modelSize * 5000;
-            this._camera.setZ(this.z || z);
+        if (this.camera.props.isInitial) {
+            const z = 1 / this.canvas.width * this.camera.modelSize * 5000;
+            this.camera.setZ(this.z || z);
             this.needUpdateView = true;
         }
     }
 
-    buildBuffer(indexBuffer, ...buffer) {
-        if (indexBuffer) {
-            if (indexBuffer.buffer) {
-                gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer.buffer);
-            } else {
-                const bufferGL = gl.createBuffer();
-                gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, bufferGL);
-                gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indexBuffer.value, gl.STATIC_DRAW);
-                indexBuffer.buffer = bufferGL;
-            }
+    glInit() {
+        gl = this.canvas.getContext('webgl2');
+
+        if (!gl) {
+            throw new Error('Webgl 2 doesnt support');
         }
 
-        buffer.forEach(b => {
-            if (!b.buffer) {
-                const bufferGL = gl.createBuffer();
-                gl.bindBuffer(gl.ARRAY_BUFFER, bufferGL);
-                gl.bufferData(gl.ARRAY_BUFFER, b.value, gl.STATIC_DRAW);
-                b.buffer = bufferGL;
-            }
-        });
-    }
-
-    glInit() {
-        gl = this.canvas.getContext('webgl2') || this.canvas.getContext('webgl') || this.canvas.getContext('experimental-webgl');
-
         setGl(gl);
-        //this.env.setGl(gl);
+        this.env.setGl(gl);
         //this.PP.setGl(gl);
         this.parse.setGl(gl);
 
@@ -276,10 +243,7 @@ class RedCube {
 
             for (const mesh of v.meshes) {
                 walk(mesh, node => {
-                    const m = new Matrix4;
-                    m.multiply( node.parent.matrixWorld );
-                    m.multiply(node.matrix);
-                    node.setMatrixWorld(m.elements);
+                    node.updateMatrix();
 
                     if (node instanceof Bone) {
                         node.reflow = true;
@@ -289,7 +253,7 @@ class RedCube {
                         node.reflow = true;
                     }
 
-                    if (node instanceof Camera && node === this._camera) {
+                    if (node instanceof Camera && node === this.camera) {
                         this.needUpdateView = true;
                     }
                 });
@@ -300,7 +264,7 @@ class RedCube {
     }
 
     draw() {
-        gl.clearColor(...this.color);
+        gl.clearColor(0.8, 0.8, 0.8, 1.0);
 
         this.render();
     }
@@ -315,7 +279,7 @@ class RedCube {
 
             gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-            //this.env.createEnvironment();
+            this.env.createEnvironment();
 
             gl.enable(gl.DEPTH_TEST);
             gl.enable(gl.CULL_FACE);
@@ -367,11 +331,11 @@ class RedCube {
         }
 
         if (this.needUpdateView) {
-            gl.bufferSubData(gl.UNIFORM_BUFFER, 32 * Float32Array.BYTES_PER_ELEMENT, this._camera.matrixWorldInvert.elements);
+            gl.bufferSubData(gl.UNIFORM_BUFFER, 32 * Float32Array.BYTES_PER_ELEMENT, this.camera.matrixWorldInvert.elements);
         }
 
         if (this.needUpdateProjection) {
-            gl.bufferSubData(gl.UNIFORM_BUFFER, 48 * Float32Array.BYTES_PER_ELEMENT, this._camera.projection.elements);
+            gl.bufferSubData(gl.UNIFORM_BUFFER, 48 * Float32Array.BYTES_PER_ELEMENT, this.camera.projection.elements);
         }
 
         if (mesh instanceof SkinnedMesh) {
@@ -391,8 +355,8 @@ class RedCube {
             gl.bindBufferBase(gl.UNIFORM_BUFFER, 1, mesh.material.UBO);
 
             if (this.needUpdateView) {
-                gl.bufferSubData(gl.UNIFORM_BUFFER, 4 * Float32Array.BYTES_PER_ELEMENT, new Float32Array([this._camera.matrixWorld.elements[12], this._camera.matrixWorld.elements[13], this._camera.matrixWorld.elements[14]]));
-                gl.bufferSubData(gl.UNIFORM_BUFFER, 8 * Float32Array.BYTES_PER_ELEMENT, new Float32Array([this._camera.matrixWorld.elements[12], this._camera.matrixWorld.elements[13], this._camera.matrixWorld.elements[14]]));
+                gl.bufferSubData(gl.UNIFORM_BUFFER, 4 * Float32Array.BYTES_PER_ELEMENT, new Float32Array([this.camera.matrixWorld.elements[12], this.camera.matrixWorld.elements[13], this.camera.matrixWorld.elements[14]]));
+                gl.bufferSubData(gl.UNIFORM_BUFFER, 8 * Float32Array.BYTES_PER_ELEMENT, new Float32Array([this.camera.matrixWorld.elements[12], this.camera.matrixWorld.elements[13], this.camera.matrixWorld.elements[14]]));
             }
         }
         if (mesh.material.pbrMetallicRoughness.baseColorTexture) {

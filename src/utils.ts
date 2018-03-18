@@ -246,7 +246,7 @@ export function sceneToArcBall(pos) {
 
 export function canvasToWorld(vec2, projection, width, height) {
     const [x, y] = vec2;
-    const newM = new Matrix4();
+    const newM = new Matrix4;
     newM.setTranslate(new Vector3([0, 0, 0.05]));
     const m = new Matrix4(projection);
     m.multiply(newM);
@@ -259,7 +259,8 @@ export function canvasToWorld(vec2, projection, width, height) {
     return [v.elements[0], v.elements[1]];
 }
 
-export function calculateProjection(cam, aspect, zoom) {
+export function calculateProjection(cam) {
+    const {aspect, zoom} = cam;
     let proj;
     if ( cam.type === 'perspective' && cam.perspective ) {
         const {yfov} = cam.perspective;
