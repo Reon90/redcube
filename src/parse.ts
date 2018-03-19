@@ -321,9 +321,11 @@ export class Parse {
         const a = Math.abs;
         const min = biggestMesh.geometry.boundingSphere.min.elements;
         const max = biggestMesh.geometry.boundingSphere.max.elements;
+        const z = biggestMesh.matrixWorld.getScaleZ();
+
         this._camera.modelXSize = Math.max(a(min[0]), a(min[2]), a(max[0]), a(max[2]), Math.sqrt(min[0] * min[0] + min[2] * min[2]), Math.sqrt(max[0] * max[0] + max[2] * max[2]));
         this._camera.modelYSize = Math.max(a(min[1]), a(min[2]), a(max[1]), a(max[2]));
-        this._camera.modelSize = Math.max(this._camera.modelYSize, this._camera.modelXSize);
+        this._camera.modelSize = Math.max(this._camera.modelYSize, this._camera.modelXSize) * z;
 
         this.resize();
     }

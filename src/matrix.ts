@@ -172,6 +172,14 @@ class Matrix4 {
         }
     }
 
+    getScaleZ() {
+        const te = this.elements;
+        const x = te[ 8 ];
+        const y = te[ 9 ];
+        const z = te[ 10 ];
+        return Math.sqrt( x * x + y * y + z * z );
+    }
+
     /**
      * Copy matrix.
      * @param src source matrix

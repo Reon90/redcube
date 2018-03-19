@@ -92,17 +92,15 @@
         select.value = name;
         selector.appendChild(select);
 
-        const renderer = new redcube.RedCube('https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/' + name + '/glTF/' + name + '.gltf', canvas, name === 'Avocado' || name === "WaterBottle" ? 0.01 : null);
-        if (name === "AnimatedMorphCube" || name === "AnimatedMorphSphere") {
-            renderer.z = 5;
-        }
+        //https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/
+        const renderer = new redcube.RedCube('' + name + '/glTF/' + name + '.gltf', canvas);
         renderer.init().then(function() {
             if (renderer.parse.cameras.length) {
                 const select = document.createElement('select');
                 select.onchange = function() {
-                    renderer._camera = renderer.parse.cameras.find(function(it) { 
+                    renderer.updateCamera(renderer.parse.cameras.find(function(it) { 
                         return Number(select.value) === it.name; 
-                    });
+                    }));
                 }
                 renderer.parse.cameras.forEach(function(it) {
                     const option = document.createElement('option');

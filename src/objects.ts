@@ -241,6 +241,12 @@ interface CameraProps {
     zoom: number;
     isInitial: boolean;
     aspect: number;
+    perspective: CameraPerspective;
+}
+interface CameraPerspective {
+    yfov: number,
+    znear: number,
+    zfar: number
 }
 
 class Camera extends Object3D {

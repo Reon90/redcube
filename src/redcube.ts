@@ -22,7 +22,6 @@ class RedCube {
     needUpdateProjection: boolean;
     needUpdateView: boolean;
     fps: FPS;
-    z: number;
 
     constructor(url, canvas, znear) {
         this.reflow = true;
@@ -37,7 +36,7 @@ class RedCube {
             aspect: this.canvas.offsetWidth / this.canvas.offsetHeight,
             perspective: {
                 yfov: 0.6,
-                znear: znear || 1,
+                znear: 1,
                 zfar: 2e6
             }
         });
@@ -136,7 +135,11 @@ class RedCube {
 
         if (this.camera.props.isInitial) {
             const z = 1 / this.canvas.width * this.camera.modelSize * 5000;
-            this.camera.setZ(this.z || z);
+            this.camera.setZ(z);
+            if (this.camera.modelSize < 1) {
+                this.camera.props.perspective.znear = 0.01;
+                this.camera.setProjection(calculateProjection(this.camera.props));
+            }
             this.needUpdateView = true;
         }
     }
