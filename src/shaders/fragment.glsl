@@ -3,13 +3,16 @@ precision highp float;
 
 in vec2 outUV;
 in vec3 outPosition;
+in vec3 outPositionView;
 #ifdef TANGENT
     in mat3 outTBN;
 #else
     in vec3 outNormal;
 #endif
 
-out vec4 color;
+layout (location = 0) out vec4 color;
+layout (location = 1) out vec3 normalColor;
+layout (location = 2) out vec3 positionColor;
 
 uniform Material {
     vec4 baseColorFactor;
@@ -154,4 +157,6 @@ void main() {
 
         color = vec4(baseColor.rgb * (ambient + diffuse + specular), alpha);
     #endif
+    normalColor = n;
+    positionColor = outPositionView;
 }

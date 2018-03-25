@@ -22,6 +22,7 @@ class RedCube {
     needUpdateProjection: boolean;
     needUpdateView: boolean;
     fps: FPS;
+    PP: PostProcessing;
 
     constructor(url, canvas, znear) {
         this.reflow = true;
@@ -48,9 +49,9 @@ class RedCube {
         this.env = new Env;
         this.env.setCamera(this.camera);
 
-        // this.PP = new PostProcessing;
-        // this.PP.setCanvas(this.canvas);
-        // this.PP.setCamera(this.camera);
+        this.PP = new PostProcessing;
+        this.PP.setCanvas(this.canvas);
+        this.PP.setCamera(this.camera);
 
         this.parse = new Parse(url);
         this.parse.setScene(this.scene);
@@ -64,7 +65,7 @@ class RedCube {
         return this.parse.getJson()
             .then(this.glInit.bind(this))
             .then(this.parse.initTextures.bind(this.parse))
-            // .then(this.PP.buildScreenBuffer.bind(this.PP))
+            .then(this.PP.buildScreenBuffer.bind(this.PP))
             .then(this.parse.getBuffer.bind(this.parse))
             .then(this.parse.buildSkin.bind(this.parse))
             .then(this.parse.buildMesh.bind(this.parse))
@@ -76,7 +77,8 @@ class RedCube {
 
     updateCamera(camera) {
         this.camera = camera;
-        this.env.setCamera(this.camera);
+        this.env.setCamera(camera);
+        this.PP.setCamera(camera);
     }
 
     redraw(type, coordsStart, coordsMove) {
@@ -119,14 +121,14 @@ class RedCube {
             this.needUpdateView = true;
         }
         if (type === 'resize') {
-            this.resize();
+            this.resize(type);
             this.needUpdateProjection = true;
         }
         
         this.reflow = true;
     }
 
-    resize() {
+    resize(e) {
         this.camera.props.aspect = this.canvas.offsetWidth / this.canvas.offsetHeight;
         this.canvas.width = this.canvas.offsetWidth * devicePixelRatio;
         this.canvas.height = this.canvas.offsetHeight * devicePixelRatio;
@@ -142,6 +144,10 @@ class RedCube {
             }
             this.needUpdateView = true;
         }
+
+        if (e) {
+            //this.PP.createTextures();
+        }
     }
 
     glInit() {
@@ -153,7 +159,7 @@ class RedCube {
 
         setGl(gl);
         this.env.setGl(gl);
-        //this.PP.setGl(gl);
+        this.PP.setGl(gl);
         this.parse.setGl(gl);
 
         return true;
@@ -278,7 +284,7 @@ class RedCube {
         this.animate(sec);
         
         if (this.reflow) {
-            //this.PP.bindBuffer();
+            this.PP.bindBuffer();
 
             gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
@@ -309,7 +315,7 @@ class RedCube {
             this.needUpdateView = false;
             this.needUpdateProjection = false;
 
-            //this.PP.postProcessing();
+            this.PP.postProcessing();
         }
 
         this.fps.tick(time);

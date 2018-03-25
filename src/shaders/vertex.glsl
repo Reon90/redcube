@@ -10,6 +10,7 @@ layout (location = 5) in vec4 inTangent;
 
 out vec2 outUV;
 out vec3 outPosition;
+out vec3 outPositionView;
 #ifdef TANGENT
     out mat3 outTBN;
 #else
@@ -49,5 +50,6 @@ void main() {
         outNormal = normalize(mat3(normalMatrix) * mat3(skin) * inNormal);
     #endif
     outPosition = vec3(model * skin * vec4(inPosition, 1.0));
+    outPositionView = vec3(view * model * skin * vec4(inPosition, 1.0));
     gl_Position = projection * view * model * skin * vec4(inPosition, 1.0);
 }

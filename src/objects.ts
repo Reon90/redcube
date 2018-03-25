@@ -242,6 +242,7 @@ interface CameraProps {
     isInitial: boolean;
     aspect: number;
     perspective: CameraPerspective;
+    orthographic: CameraPerspective;
 }
 interface CameraPerspective {
     yfov: number,

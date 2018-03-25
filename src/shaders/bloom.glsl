@@ -12,11 +12,17 @@ uniform sampler2D uTexture3;
 uniform sampler2D uTexture4;
 
 void main() {
-    vec4 vOriginal = texture(uOriginal, uv);
-    vec4 vT1 = texture(uTexture1, uv);
-    vec4 vT2 = texture(uTexture2, uv);
-    vec4 vT3 = texture(uTexture3, uv);
-    vec4 vT4 = texture(uTexture4, uv);
-    vec4 c = vOriginal + vT1 + vT2 + vT3 + vT4;
-    color = vec4(c.rgb * texture(ssao, uv).r, 1.0);
+    vec3 c = texture(uOriginal, uv).rgb;
+    #ifdef BLOOM
+        vec3 vT1 = texture(uTexture1, uv).rgb;
+        vec3 vT2 = texture(uTexture2, uv).rgb;
+        vec3 vT3 = texture(uTexture3, uv).rgb;
+        vec3 vT4 = texture(uTexture4, uv).rgb;
+        c = c + vT1 + vT2 + vT3 + vT4;
+    #endif
+    #ifdef SSAO
+        c = c * texture(ssao, uv).r;
+    #endif
+
+    color = vec4(c, 1.0);
 }

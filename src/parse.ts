@@ -7,7 +7,7 @@ import vertexShader from './shaders/vertex.glsl';
 import fragmentShader from './shaders/fragment.glsl';
 
 let gl;
-let sceneTextureCount = 1;
+let sceneTextureCount = 13;
 
 interface Track {
     keys: Array<Key>;

@@ -21,6 +21,10 @@ export function random(min, max) {
     return Math.random() * (max - min) + min;
 }
 
+export function lerp(a, b, f) {
+    return a + f * (b - a);
+}
+
 export function getMatrixType(type) {
     if (glEnum[type] === 'FLOAT_MAT4') {
         return Matrix4;
