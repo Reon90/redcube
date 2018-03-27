@@ -83,6 +83,7 @@ export class SSAO extends PostProcessor {
 
         this.buildNoice(pp);
         this.buildKernels();
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
         return {name: 'SSAO'};
     }
 

@@ -76,23 +76,19 @@ export class PostProcessing {
 
         gl.bindFramebuffer(gl.READ_FRAMEBUFFER, this.renderframebuffer);
         gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, this.framebuffer);
-        
+
         gl.readBuffer(gl.COLOR_ATTACHMENT0);
         gl.drawBuffers([gl.COLOR_ATTACHMENT0]);
-        gl.clearBufferfv(gl.COLOR, 0, [0.0, 0.0, 0.0, 1.0]);
         gl.blitFramebuffer(0, 0, this.width, this.height, 0, 0, this.width, this.height, gl.COLOR_BUFFER_BIT, gl.NEAREST);
 
-        
         gl.readBuffer(gl.COLOR_ATTACHMENT1);
-        gl.drawBuffers([gl.COLOR_ATTACHMENT1]);
-        gl.clearBufferfv(gl.COLOR, 1, [0.0, 0.0, 0.0, 1.0]);
+        gl.drawBuffers([gl.NONE, gl.COLOR_ATTACHMENT1]);
         gl.blitFramebuffer(0, 0, this.width, this.height, 0, 0, this.width, this.height, gl.COLOR_BUFFER_BIT, gl.NEAREST);
-
         
         gl.readBuffer(gl.COLOR_ATTACHMENT2);
-        gl.drawBuffers([gl.COLOR_ATTACHMENT2]);
-        gl.clearBufferfv(gl.COLOR, 2, [0.0, 0.0, 0.0, 1.0]);
+        gl.drawBuffers([gl.NONE, gl.NONE, gl.COLOR_ATTACHMENT2]);
         gl.blitFramebuffer(0, 0, this.width, this.height, 0, 0, this.width, this.height, gl.COLOR_BUFFER_BIT, gl.NEAREST);
+
         gl.blitFramebuffer(0, 0, this.width, this.height, 0, 0, this.width, this.height, gl.DEPTH_BUFFER_BIT, gl.NEAREST);
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
@@ -103,6 +99,8 @@ export class PostProcessing {
         });
 
         gl.uniform1i( gl.getUniformLocation(this.program, 'uOriginal'), this.screenTexture.index);
+        gl.uniform1i( gl.getUniformLocation(this.program, 'position'), this.positionTexture.index);
+        gl.uniform1i( gl.getUniformLocation(this.program, 'normal'), this.normalTexture.index);
 
         gl.drawArrays( gl.TRIANGLES, 0, 6 );
     }
@@ -215,9 +213,9 @@ export class PostProcessing {
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
 
         this.screenTexture = this.createMipmapTexture();
-        this.normalTexture = this.createDefaultTexture();
+        this.normalTexture = this.createMipmapTexture();
         this.depthTexture = this.createDepthTexture();
-        this.positionTexture = this.createDefaultTexture();
+        this.positionTexture = this.createMipmapTexture();
 
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.screenTexture, 0);
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, gl.TEXTURE_2D, this.normalTexture, 0);

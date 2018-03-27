@@ -9,7 +9,7 @@ import { Parse } from './parse';
 import { PostProcessing } from './postprocessing';
 import { setGl, getAnimationComponent, interpolation, walk, sceneToArcBall, canvasToWorld, calculateProjection, getAttributeIndex } from './utils';
 
-window.gl = null;
+let gl;
 
 class RedCube {
     reflow: boolean;

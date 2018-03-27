@@ -5,6 +5,8 @@ in vec2 uv;
 out vec4 color;
 
 uniform sampler2D uOriginal;
+uniform sampler2D position;
+uniform sampler2D normal;
 uniform sampler2D ssao;
 uniform sampler2D uTexture1;
 uniform sampler2D uTexture2;
