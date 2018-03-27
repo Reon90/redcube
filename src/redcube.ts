@@ -9,7 +9,7 @@ import { Parse } from './parse';
 import { PostProcessing } from './postprocessing';
 import { setGl, getAnimationComponent, interpolation, walk, sceneToArcBall, canvasToWorld, calculateProjection, getAttributeIndex } from './utils';
 
-let gl;
+window.gl = null;
 
 class RedCube {
     reflow: boolean;
@@ -151,7 +151,7 @@ class RedCube {
     }
 
     glInit() {
-        gl = this.canvas.getContext('webgl2');
+        gl = this.canvas.getContext('webgl2', { antialias: false });
 
         if (!gl) {
             throw new Error('Webgl 2 doesnt support');
