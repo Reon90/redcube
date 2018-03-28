@@ -30,6 +30,7 @@ export class Bloom extends PostProcessor {
     }
 
     postProcessing(screenTexture) {
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
         gl.useProgram(this.program);
 
         gl.activeTexture(gl[`TEXTURE${screenTexture.index}`]);
@@ -39,14 +40,18 @@ export class Bloom extends PostProcessor {
         this.renderBlur(screenTexture, this.program, 1.0, this.blurTexture2);
         this.renderBlur(screenTexture, this.program, 2.0, this.blurTexture3);
         this.renderBlur(screenTexture, this.program, 3.0, this.blurTexture4);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     }
 
     buildScreenBuffer(pp) {
+        this.framebuffer = gl.createFramebuffer();
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
         this.tempBlurTexture = pp.createMipmapTexture();
         this.blurTexture = pp.createDefaultTexture();
         this.blurTexture2 = pp.createDefaultTexture();
         this.blurTexture3 = pp.createDefaultTexture();
         this.blurTexture4 = pp.createDefaultTexture();
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
         this.program = gl.createProgram();
         compileShader(gl.VERTEX_SHADER, quadShader, this.program);

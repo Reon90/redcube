@@ -18,7 +18,6 @@ export class SSAO extends PostProcessor {
     ssaoBlurTexture: Texture;
     ssaoTexture: Texture;
     noice: Texture;
-    ssaobuffer: WebGLFramebuffer;
     kernels: Float32Array;
     ssaoProgram: WebGLProgram;
     ssaoBlurProgram: WebGLProgram;
@@ -32,7 +31,7 @@ export class SSAO extends PostProcessor {
     }
 
     postProcessing(screenTexture, positionTexture, normalTexture, depthTexture) {
-        gl.bindFramebuffer(gl.FRAMEBUFFER, this.ssaobuffer);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.ssaoTexture, 0);
 
         gl.clearColor(1, 1, 1, 0);
@@ -62,11 +61,12 @@ export class SSAO extends PostProcessor {
         gl.uniform1i( gl.getUniformLocation(this.ssaoBlurProgram, 'ssaoInput'), this.ssaoTexture.index);
 
         gl.drawArrays( gl.TRIANGLES, 0, 6 );
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     }
 
     buildScreenBuffer(pp) {
-        this.ssaobuffer = gl.createFramebuffer();
-        gl.bindFramebuffer(gl.FRAMEBUFFER, this.ssaobuffer);
+        this.framebuffer = gl.createFramebuffer();
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
         this.ssaoTexture = pp.createOneChannelTexture();
         this.ssaoBlurTexture = pp.createOneChannelTexture();
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.ssaoTexture, 0);

@@ -30,8 +30,8 @@ export class PostProcessing {
 
     constructor() {
         this.postprocessors = [
-            new SSAO,
-            new Bloom
+            //new SSAO,
+            //new Bloom
         ];
     }
 

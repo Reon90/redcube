@@ -3,6 +3,7 @@ import { Camera } from '../objects';
 export abstract class PostProcessor {
     canvas: HTMLCanvasElement;
     camera: Camera;
+    framebuffer: WebGLFramebuffer;
     abstract postProcessing(screenTexture, positionTexture, normalTexture, depthTexture)
     abstract buildScreenBuffer(pp)
     abstract setGL(gl)
