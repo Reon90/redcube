@@ -93,7 +93,7 @@
         selector.appendChild(select);
 
         //https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/
-        const renderer = new redcube.RedCube('https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/' + name + '/glTF/' + name + '.gltf', canvas);
+        const renderer = new redcube.RedCube('' + name + '/glTF/' + name + '.gltf', canvas);
         renderer.init().then(function() {
             if (renderer.parse.cameras.length) {
                 const select = document.createElement('select');

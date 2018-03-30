@@ -4,7 +4,7 @@ export abstract class PostProcessor {
     canvas: HTMLCanvasElement;
     camera: Camera;
     framebuffer: WebGLFramebuffer;
-    abstract postProcessing(screenTexture, positionTexture, normalTexture, depthTexture)
+    abstract postProcessing(PP)
     abstract buildScreenBuffer(pp)
     abstract setGL(gl)
     abstract attachUniform(program)

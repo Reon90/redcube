@@ -30,7 +30,7 @@ export class SSAO extends PostProcessor {
         gl.uniform1i( gl.getUniformLocation(program, 'ssao'), this.ssaoBlurTexture.index);
     }
 
-    postProcessing(screenTexture, positionTexture, normalTexture, depthTexture) {
+    postProcessing(PP) {
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.ssaoTexture, 0);
 
@@ -39,9 +39,9 @@ export class SSAO extends PostProcessor {
 
         gl.useProgram(this.ssaoProgram);
         const cameraProps = this.camera.props.perspective || this.camera.props.orthographic;
-        gl.uniform1i( gl.getUniformLocation(this.ssaoProgram, 'posBuff'), positionTexture.index);
-        gl.uniform1i( gl.getUniformLocation(this.ssaoProgram, 'normBuff'), normalTexture.index);
-        gl.uniform1i( gl.getUniformLocation(this.ssaoProgram, 'depthBuff'), depthTexture.index);
+        gl.uniform1i( gl.getUniformLocation(this.ssaoProgram, 'posBuff'), PP.positionTexture.index);
+        gl.uniform1i( gl.getUniformLocation(this.ssaoProgram, 'normBuff'), PP.normalTexture.index);
+        gl.uniform1i( gl.getUniformLocation(this.ssaoProgram, 'depthBuff'), PP.depthTexture.index);
         gl.uniform1i( gl.getUniformLocation(this.ssaoProgram, 'noice'), this.noice.index);
         gl.uniform2f( gl.getUniformLocation(this.ssaoProgram, 'noiseScale'), this.width / noiceSize, this.height / noiceSize);
         gl.uniform1f( gl.getUniformLocation(this.ssaoProgram, 'zFar'), cameraProps.zfar);

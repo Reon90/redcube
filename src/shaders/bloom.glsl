@@ -4,23 +4,17 @@ precision highp float;
 in vec2 uv;
 out vec4 color;
 
-uniform sampler2D uOriginal;
+uniform sampler2D original;
 uniform sampler2D position;
 uniform sampler2D normal;
 uniform sampler2D ssao;
-uniform sampler2D uTexture1;
-uniform sampler2D uTexture2;
-uniform sampler2D uTexture3;
-uniform sampler2D uTexture4;
+uniform sampler2D bloom;
 
 void main() {
-    vec3 c = texture(uOriginal, uv).rgb;
+    vec3 c = texture(original, uv).rgb;
     #ifdef BLOOM
-        vec3 vT1 = texture(uTexture1, uv).rgb;
-        vec3 vT2 = texture(uTexture2, uv).rgb;
-        vec3 vT3 = texture(uTexture3, uv).rgb;
-        vec3 vT4 = texture(uTexture4, uv).rgb;
-        c = c + vT1 + vT2 + vT3 + vT4;
+        vec3 bloomColor = texture(bloom, uv).rgb;
+        c += bloomColor;
     #endif
     #ifdef SSAO
         c = c * texture(ssao, uv).r;

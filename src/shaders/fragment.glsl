@@ -13,6 +13,7 @@ in vec3 outPositionView;
 layout (location = 0) out vec4 color;
 layout (location = 1) out vec3 normalColor;
 layout (location = 2) out vec3 positionColor;
+layout (location = 3) out vec4 hdr;
 
 uniform Material {
     vec4 baseColorFactor;
@@ -25,6 +26,7 @@ uniform sampler2D normalTexture;
 uniform sampler2D emissiveTexture;
 uniform sampler2D occlusionTexture;
 
+const vec3 hdrColor = vec3(0.2126, 0.7152, 0.0722);
 const float PI = 3.14159265359;
 const float ambientStrength = 0.1;
 const float specularStrength = 0.5;
@@ -159,4 +161,11 @@ void main() {
     #endif
     normalColor = n;
     positionColor = outPositionView;
+    
+    float brightness = dot(color.rgb, hdrColor);
+    if (brightness > 1.0) {
+        hdr = vec4(color.rgb, 1.0);
+    } else {
+        hdr = vec4(0.0, 0.0, 0.0, 1.0);
+    }
 }

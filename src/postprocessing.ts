@@ -20,6 +20,7 @@ export class PostProcessing {
     normalTexture: Texture;
     depthTexture: Texture;
     positionTexture: Texture;
+    hdrTexture: Texture;
     camera: Camera;
     canvas: HTMLCanvasElement;
     framebuffer: WebGLFramebuffer;
@@ -31,7 +32,7 @@ export class PostProcessing {
     constructor() {
         this.postprocessors = [
             //new SSAO,
-            //new Bloom
+            new Bloom
         ];
     }
 
@@ -69,36 +70,40 @@ export class PostProcessing {
     }
 
     postProcessing() {
-        gl.bindVertexArray(this.VAO);
-        this.postprocessors.forEach(
-            postProcessor => postProcessor.postProcessing(this.screenTexture, this.positionTexture, this.normalTexture, this.depthTexture)
-        );
-
         gl.bindFramebuffer(gl.READ_FRAMEBUFFER, this.renderframebuffer);
         gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, this.framebuffer);
 
         gl.readBuffer(gl.COLOR_ATTACHMENT0);
         gl.drawBuffers([gl.COLOR_ATTACHMENT0]);
-        gl.blitFramebuffer(0, 0, this.width, this.height, 0, 0, this.width, this.height, gl.COLOR_BUFFER_BIT, gl.NEAREST);
+        gl.blitFramebuffer(0, 0, this.width, this.height, 0, 0, this.width, this.height, gl.COLOR_BUFFER_BIT, gl.LINEAR);
 
         gl.readBuffer(gl.COLOR_ATTACHMENT1);
         gl.drawBuffers([gl.NONE, gl.COLOR_ATTACHMENT1]);
-        gl.blitFramebuffer(0, 0, this.width, this.height, 0, 0, this.width, this.height, gl.COLOR_BUFFER_BIT, gl.NEAREST);
+        gl.blitFramebuffer(0, 0, this.width, this.height, 0, 0, this.width, this.height, gl.COLOR_BUFFER_BIT, gl.LINEAR);
         
         gl.readBuffer(gl.COLOR_ATTACHMENT2);
         gl.drawBuffers([gl.NONE, gl.NONE, gl.COLOR_ATTACHMENT2]);
-        gl.blitFramebuffer(0, 0, this.width, this.height, 0, 0, this.width, this.height, gl.COLOR_BUFFER_BIT, gl.NEAREST);
+        gl.blitFramebuffer(0, 0, this.width, this.height, 0, 0, this.width, this.height, gl.COLOR_BUFFER_BIT, gl.LINEAR);
+
+        gl.readBuffer(gl.COLOR_ATTACHMENT3);
+        gl.drawBuffers([gl.NONE, gl.NONE, gl.NONE, gl.COLOR_ATTACHMENT3]);
+        gl.blitFramebuffer(0, 0, this.width, this.height, 0, 0, this.width, this.height, gl.COLOR_BUFFER_BIT, gl.LINEAR);
 
         gl.blitFramebuffer(0, 0, this.width, this.height, 0, 0, this.width, this.height, gl.DEPTH_BUFFER_BIT, gl.NEAREST);
-        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
+        gl.bindVertexArray(this.VAO);
+        this.postprocessors.forEach(
+            postProcessor => postProcessor.postProcessing(this)
+        );
+
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
         gl.useProgram(this.program);
 
         this.postprocessors.forEach(postProcessor => {
             postProcessor.attachUniform(this.program);
         });
 
-        gl.uniform1i( gl.getUniformLocation(this.program, 'uOriginal'), this.screenTexture.index);
+        gl.uniform1i( gl.getUniformLocation(this.program, 'original'), this.screenTexture.index);
         gl.uniform1i( gl.getUniformLocation(this.program, 'position'), this.positionTexture.index);
         gl.uniform1i( gl.getUniformLocation(this.program, 'normal'), this.normalTexture.index);
 
@@ -112,18 +117,6 @@ export class PostProcessing {
         texture.index = screenTextureCount;
         screenTextureCount++;
         
-        return texture;
-    }
-
-    createMipmapTexture() {
-        const texture = this.createTexture();
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, this.width, this.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-        if (this.postprocessors.find(p => p instanceof Bloom) === undefined) {
-            gl.generateMipmap(gl.TEXTURE_2D);
-        }
-
         return texture;
     }
 
@@ -187,41 +180,48 @@ export class PostProcessing {
 
         const renderbuffer = gl.createRenderbuffer();
         gl.bindRenderbuffer(gl.RENDERBUFFER, renderbuffer);
-        gl.renderbufferStorageMultisample(gl.RENDERBUFFER, 8, gl.RGBA8, this.width, this.height);
+        gl.renderbufferStorageMultisample(gl.RENDERBUFFER, 8, gl.RGBA16F, this.width, this.height);
 
         const renderbuffer3 = gl.createRenderbuffer();
         gl.bindRenderbuffer(gl.RENDERBUFFER, renderbuffer3);
-        gl.renderbufferStorageMultisample(gl.RENDERBUFFER, 8, gl.RGBA8, this.width, this.height);
+        gl.renderbufferStorageMultisample(gl.RENDERBUFFER, 8, gl.RGBA16F, this.width, this.height);
 
         const renderbuffer4 = gl.createRenderbuffer();
         gl.bindRenderbuffer(gl.RENDERBUFFER, renderbuffer4);
-        gl.renderbufferStorageMultisample(gl.RENDERBUFFER, 8, gl.RGBA8, this.width, this.height);
+        gl.renderbufferStorageMultisample(gl.RENDERBUFFER, 8, gl.RGBA16F, this.width, this.height);
 
         const renderbuffer2 = gl.createRenderbuffer();
         gl.bindRenderbuffer(gl.RENDERBUFFER, renderbuffer2);
         gl.renderbufferStorageMultisample(gl.RENDERBUFFER, 8, gl.DEPTH_COMPONENT24, this.width, this.height);
+
+        const renderbuffer5 = gl.createRenderbuffer();
+        gl.bindRenderbuffer(gl.RENDERBUFFER, renderbuffer5);
+        gl.renderbufferStorageMultisample(gl.RENDERBUFFER, 8, gl.RGBA16F, this.width, this.height);
 
         this.renderframebuffer = gl.createFramebuffer();
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.renderframebuffer);
         gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.RENDERBUFFER, renderbuffer);
         gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, gl.RENDERBUFFER, renderbuffer3);
         gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT2, gl.RENDERBUFFER, renderbuffer4);
+        gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT3, gl.RENDERBUFFER, renderbuffer5);
         gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, renderbuffer2);
-        gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1, gl.COLOR_ATTACHMENT2]);
+        gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1, gl.COLOR_ATTACHMENT2, gl.COLOR_ATTACHMENT3]);
         
         this.framebuffer = gl.createFramebuffer();
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
 
-        this.screenTexture = this.createMipmapTexture();
-        this.normalTexture = this.createMipmapTexture();
+        this.screenTexture = this.createDefaultTexture();
+        this.normalTexture = this.createDefaultTexture();
         this.depthTexture = this.createDepthTexture();
-        this.positionTexture = this.createMipmapTexture();
+        this.positionTexture = this.createDefaultTexture();
+        this.hdrTexture = this.createDefaultTexture();
 
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.screenTexture, 0);
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, gl.TEXTURE_2D, this.normalTexture, 0);
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT2, gl.TEXTURE_2D, this.positionTexture, 0);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT3, gl.TEXTURE_2D, this.hdrTexture, 0);
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, this.depthTexture, 0);
-        gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1, gl.COLOR_ATTACHMENT2]);
+        gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1, gl.COLOR_ATTACHMENT2, gl.COLOR_ATTACHMENT3]);
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
         this.program = gl.createProgram();
