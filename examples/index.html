@@ -79,11 +79,11 @@
         "WaterBottle"
         ];
         const select = document.createElement('select');
-        select.onchange = function() {
+        select.onchange = () => {
             localStorage.setItem('sample', select.value);
             window.location.reload();
         }
-        samples.forEach(function(it) {
+        samples.forEach((it) => {
             const option = document.createElement('option');
             option.innerHTML = it;
             option.value = it;
@@ -91,18 +91,32 @@
         });
         select.value = name;
         selector.appendChild(select);
+        ['bloom', 'ssao'].forEach(name => {
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.title = name;
+            checkbox.checked = Boolean(localStorage.getItem(name));
+            checkbox.onchange = () => {
+                if (checkbox.checked) {
+                    localStorage.setItem(name, name);
+                } else {
+                    localStorage.removeItem(name);
+                }
+            };
+            selector.appendChild(checkbox);
+        });
 
         //https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/
-        const renderer = new redcube.RedCube('' + name + '/glTF/' + name + '.gltf', canvas);
-        renderer.init().then(function() {
+        const renderer = new redcube.RedCube('https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/' + name + '/glTF/' + name + '.gltf', canvas, [localStorage.getItem('ssao'), localStorage.getItem('bloom')].filter(name => name));
+        renderer.init().then(() => {
             if (renderer.parse.cameras.length) {
                 const select = document.createElement('select');
-                select.onchange = function() {
-                    renderer.updateCamera(renderer.parse.cameras.find(function(it) { 
+                select.onchange = () => {
+                    renderer.updateCamera(renderer.parse.cameras.find((it) => { 
                         return Number(select.value) === it.name; 
                     }));
                 }
-                renderer.parse.cameras.forEach(function(it) {
+                renderer.parse.cameras.forEach((it) => {
                     const option = document.createElement('option');
                     option.innerHTML = it.name;
                     option.value = it.name;

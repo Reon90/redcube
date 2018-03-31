@@ -1,4 +1,3 @@
-import { Vector3 } from './matrix';
 import { compileShader } from './utils';
 import { Camera } from './objects';
 import { SSAO } from './postprocessors/ssao';
@@ -10,6 +9,11 @@ import bloomShader from './shaders/bloom.glsl';
 
 let gl;
 let screenTextureCount = 1;
+
+const processorsMap = {
+    bloom: Bloom,
+    ssao: SSAO
+};
 
 interface Texture extends WebGLTexture {
     index: number;
@@ -29,11 +33,8 @@ export class PostProcessing {
     program: WebGLProgram;
     renderframebuffer: WebGLFramebuffer;
 
-    constructor() {
-        this.postprocessors = [
-            //new SSAO,
-            new Bloom
-        ];
+    constructor(processors) {
+        this.postprocessors = processors.map(name => new processorsMap[name]);
     }
 
     setCamera(camera) {
@@ -75,19 +76,19 @@ export class PostProcessing {
 
         gl.readBuffer(gl.COLOR_ATTACHMENT0);
         gl.drawBuffers([gl.COLOR_ATTACHMENT0]);
-        gl.blitFramebuffer(0, 0, this.width, this.height, 0, 0, this.width, this.height, gl.COLOR_BUFFER_BIT, gl.LINEAR);
+        gl.blitFramebuffer(0, 0, this.width, this.height, 0, 0, this.width, this.height, gl.COLOR_BUFFER_BIT, gl.NEAREST);
 
         gl.readBuffer(gl.COLOR_ATTACHMENT1);
         gl.drawBuffers([gl.NONE, gl.COLOR_ATTACHMENT1]);
-        gl.blitFramebuffer(0, 0, this.width, this.height, 0, 0, this.width, this.height, gl.COLOR_BUFFER_BIT, gl.LINEAR);
+        gl.blitFramebuffer(0, 0, this.width, this.height, 0, 0, this.width, this.height, gl.COLOR_BUFFER_BIT, gl.NEAREST);
         
         gl.readBuffer(gl.COLOR_ATTACHMENT2);
         gl.drawBuffers([gl.NONE, gl.NONE, gl.COLOR_ATTACHMENT2]);
-        gl.blitFramebuffer(0, 0, this.width, this.height, 0, 0, this.width, this.height, gl.COLOR_BUFFER_BIT, gl.LINEAR);
+        gl.blitFramebuffer(0, 0, this.width, this.height, 0, 0, this.width, this.height, gl.COLOR_BUFFER_BIT, gl.NEAREST);
 
         gl.readBuffer(gl.COLOR_ATTACHMENT3);
         gl.drawBuffers([gl.NONE, gl.NONE, gl.NONE, gl.COLOR_ATTACHMENT3]);
-        gl.blitFramebuffer(0, 0, this.width, this.height, 0, 0, this.width, this.height, gl.COLOR_BUFFER_BIT, gl.LINEAR);
+        gl.blitFramebuffer(0, 0, this.width, this.height, 0, 0, this.width, this.height, gl.COLOR_BUFFER_BIT, gl.NEAREST);
 
         gl.blitFramebuffer(0, 0, this.width, this.height, 0, 0, this.width, this.height, gl.DEPTH_BUFFER_BIT, gl.NEAREST);
 
@@ -120,10 +121,18 @@ export class PostProcessing {
         return texture;
     }
 
+    createByteTexture() {
+        const texture = this.createTexture();
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, this.width, this.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+        return texture;
+    }
+
     createDefaultTexture() {
         const texture = this.createTexture();
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, this.width, this.height, 0, gl.RGBA, gl.FLOAT, null);
         return texture;
     }
@@ -180,7 +189,7 @@ export class PostProcessing {
 
         const renderbuffer = gl.createRenderbuffer();
         gl.bindRenderbuffer(gl.RENDERBUFFER, renderbuffer);
-        gl.renderbufferStorageMultisample(gl.RENDERBUFFER, 8, gl.RGBA16F, this.width, this.height);
+        gl.renderbufferStorageMultisample(gl.RENDERBUFFER, 8, gl.RGBA8, this.width, this.height);
 
         const renderbuffer3 = gl.createRenderbuffer();
         gl.bindRenderbuffer(gl.RENDERBUFFER, renderbuffer3);
@@ -196,7 +205,7 @@ export class PostProcessing {
 
         const renderbuffer5 = gl.createRenderbuffer();
         gl.bindRenderbuffer(gl.RENDERBUFFER, renderbuffer5);
-        gl.renderbufferStorageMultisample(gl.RENDERBUFFER, 8, gl.RGBA16F, this.width, this.height);
+        gl.renderbufferStorageMultisample(gl.RENDERBUFFER, 8, gl.RGBA8, this.width, this.height);
 
         this.renderframebuffer = gl.createFramebuffer();
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.renderframebuffer);
@@ -210,11 +219,11 @@ export class PostProcessing {
         this.framebuffer = gl.createFramebuffer();
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
 
-        this.screenTexture = this.createDefaultTexture();
+        this.screenTexture = this.createByteTexture();
         this.normalTexture = this.createDefaultTexture();
         this.depthTexture = this.createDepthTexture();
         this.positionTexture = this.createDefaultTexture();
-        this.hdrTexture = this.createDefaultTexture();
+        this.hdrTexture = this.createByteTexture();
 
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.screenTexture, 0);
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, gl.TEXTURE_2D, this.normalTexture, 0);
@@ -230,5 +239,9 @@ export class PostProcessing {
         gl.linkProgram(this.program);
 
         return true;
+    }
+
+    clear() {
+        screenTextureCount = 1;
     }
 }

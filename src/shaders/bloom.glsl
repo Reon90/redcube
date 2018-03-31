@@ -13,11 +13,10 @@ uniform sampler2D bloom;
 void main() {
     vec3 c = texture(original, uv).rgb;
     #ifdef BLOOM
-        vec3 bloomColor = texture(bloom, uv).rgb;
-        c += bloomColor;
+        c += texture(bloom, uv).rgb;
     #endif
     #ifdef SSAO
-        c = c * texture(ssao, uv).r;
+        c *= texture(ssao, uv).r;
     #endif
 
     color = vec4(c, 1.0);

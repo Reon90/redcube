@@ -30,7 +30,11 @@ export class Bloom extends PostProcessor {
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
         gl.useProgram(this.program);
 
-        this.renderBlur(PP.hdrTexture, this.program, 0.0, this.blurTexture);
+        this.renderBlur(PP.hdrTexture, this.program);
+        this.renderBlur(this.blurTexture, this.program);
+        this.renderBlur(this.blurTexture, this.program);
+        this.renderBlur(this.blurTexture, this.program);
+        this.renderBlur(this.blurTexture, this.program);
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     }
 
@@ -49,15 +53,15 @@ export class Bloom extends PostProcessor {
         return {name: 'BLOOM'};
     }
 
-    renderBlur(screenTexture, program, level, out) {
+    renderBlur(inTexture, program) {
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.tempBlurTexture, 0);
         gl.clearColor(1, 1, 1, 0);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENSIL_BUFFER_BIT);
-        gl.uniform1i( gl.getUniformLocation(program, 'uTexture'), screenTexture.index);
+        gl.uniform1i( gl.getUniformLocation(program, 'uTexture'), inTexture.index);
         gl.uniform2f(gl.getUniformLocation(program, 'denom'), 1, 0);
         gl.drawArrays( gl.TRIANGLES, 0, 6 );
 
-        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, out, 0);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.blurTexture, 0);
         gl.uniform1i( gl.getUniformLocation(program, 'uTexture'), this.tempBlurTexture.index);
         gl.uniform2f(gl.getUniformLocation(program, 'denom'), 0, 1);
         gl.drawArrays( gl.TRIANGLES, 0, 6 );

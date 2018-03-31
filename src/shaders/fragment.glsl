@@ -111,6 +111,7 @@ void main() {
     vec3 radiance = lightColor * 2.0;
 
     #ifdef USE_PBR
+        const float brightnessThreshold = 0.8;
         vec3 F0 = vec3(0.04); 
         F0 = mix(F0, baseColor, metallic);
 
@@ -148,6 +149,7 @@ void main() {
    
         color = vec4(baseColor, 1.0);
     #else
+        const float brightnessThreshold = 1.0;
         vec3 ambient = ambientStrength * lightColor;
 
         float diff = max(dot(n, lightDir), 0.0);
@@ -163,7 +165,7 @@ void main() {
     positionColor = outPositionView;
     
     float brightness = dot(color.rgb, hdrColor);
-    if (brightness > 1.0) {
+    if (brightness > brightnessThreshold) {
         hdr = vec4(color.rgb, 1.0);
     } else {
         hdr = vec4(0.0, 0.0, 0.0, 1.0);

@@ -24,7 +24,7 @@ class RedCube {
     fps: FPS;
     PP: PostProcessing;
 
-    constructor(url, canvas, znear) {
+    constructor(url, canvas, processors) {
         this.reflow = true;
         this.scene = new Scene;
         this.canvas = canvas;
@@ -49,7 +49,7 @@ class RedCube {
         this.env = new Env;
         this.env.setCamera(this.camera);
 
-        this.PP = new PostProcessing;
+        this.PP = new PostProcessing(processors);
         this.PP.setCanvas(this.canvas);
         this.PP.setCamera(this.camera);
 
@@ -73,6 +73,10 @@ class RedCube {
             .then(this.env.createEnvironmentBuffer.bind(this.env))
             .then(this.draw.bind(this))
             .catch(console.error);
+    }
+
+    updatePP() {
+
     }
 
     updateCamera(camera) {
@@ -146,7 +150,8 @@ class RedCube {
         }
 
         if (e) {
-            //this.PP.createTextures();
+            this.PP.clear();
+            this.PP.buildScreenBuffer();
         }
     }
 

@@ -4,7 +4,7 @@ import { random, compileShader, lerp } from '../utils';
 
 import quadShader from '../shaders/quad.glsl';
 import ssaoShader from '../shaders/ssao.glsl';
-import ssaoBlurShader from '../shaders/blurSsao.glsl';
+import ssaoBlurShader from '../shaders/blur.glsl';
 
 let gl;
 const noiceSize = 4;
@@ -27,7 +27,7 @@ export class SSAO extends PostProcessor {
     }
 
     attachUniform(program) {
-        gl.uniform1i( gl.getUniformLocation(program, 'ssao'), this.ssaoBlurTexture.index);
+        gl.uniform1i( gl.getUniformLocation(program, 'ssao'), this.ssaoTexture.index);
     }
 
     postProcessing(PP) {
@@ -58,9 +58,15 @@ export class SSAO extends PostProcessor {
 
         gl.useProgram(this.ssaoBlurProgram);
 
-        gl.uniform1i( gl.getUniformLocation(this.ssaoBlurProgram, 'ssaoInput'), this.ssaoTexture.index);
-
+        gl.uniform1i( gl.getUniformLocation(this.ssaoBlurProgram, 'uTexture'), this.ssaoTexture.index);
+        gl.uniform2f(gl.getUniformLocation(this.ssaoBlurProgram, 'denom'), 1, 0);
         gl.drawArrays( gl.TRIANGLES, 0, 6 );
+
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.ssaoTexture, 0);
+        gl.uniform1i( gl.getUniformLocation(this.ssaoBlurProgram, 'uTexture'), this.ssaoBlurTexture.index);
+        gl.uniform2f(gl.getUniformLocation(this.ssaoBlurProgram, 'denom'), 0, 1);
+        gl.drawArrays( gl.TRIANGLES, 0, 6 );
+
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     }
 
@@ -91,9 +97,11 @@ export class SSAO extends PostProcessor {
         const noice = new Float32Array(noiceSize * noiceSize * 3);
         for (let i = 0; i < noiceSize * noiceSize; i++) {
             const v = new Vector3([random(0, 1) * 2.0 - 1.0, random(0, 1) * 2.0 - 1.0, 0.1]); // Z is 0.1 because surface is not flat
+            /* eslint-disable */
             noice[i * 3] = v.elements[0];
             noice[i * 3 + 1] = v.elements[1];
             noice[i * 3 + 2] = v.elements[2];
+            /* eslint-enable */
         }
         this.noice = pp.createNoiceTexture(noiceSize, noice);
     }
