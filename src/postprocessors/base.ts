@@ -15,9 +15,9 @@ export abstract class PostProcessor {
         this.camera = camera;
     }
     get width() {
-        return this.canvas.offsetWidth;
+        return this.canvas.offsetWidth * devicePixelRatio;
     }
     get height() {
-        return this.canvas.offsetHeight;
+        return this.canvas.offsetHeight * devicePixelRatio;
     } 
 }

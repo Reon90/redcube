@@ -5,7 +5,7 @@ import { Bloom } from './postprocessors/bloom';
 import { PostProcessor } from './postprocessors/base';
 
 import quadShader from './shaders/quad.glsl';
-import bloomShader from './shaders/bloom.glsl';
+import bloomShader from './shaders/composer.glsl';
 
 let gl;
 let screenTextureCount = 1;
@@ -59,11 +59,11 @@ export class PostProcessing {
     }
 
     get width() {
-        return this.canvas.offsetWidth;
+        return this.canvas.offsetWidth * devicePixelRatio;
     }
 
     get height() {
-        return this.canvas.offsetHeight;
+        return this.canvas.offsetHeight * devicePixelRatio;
     }
 
     bindBuffer() {

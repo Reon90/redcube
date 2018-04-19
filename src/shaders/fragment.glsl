@@ -143,9 +143,6 @@ void main() {
             vec3 emissive = srgbToLinear(texture(emissiveTexture, outUV)) * emissiveFactor;
             baseColor.rgb += emissive;
         #endif
-
-        baseColor = baseColor / (baseColor + vec3(1.0));
-        baseColor = pow(baseColor, vec3(1.0 / 2.2));  
    
         color = vec4(baseColor, 1.0);
     #else

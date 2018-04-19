@@ -87,10 +87,6 @@ export class Parse {
         this.updateCamera = updateCamera;
     }
 
-    get width() {
-        return this.canvas.offsetWidth;
-    }
-
     getBuffer() {
         return Promise.all(
             this.scene.bin.map(url => fetch(`${this.host}${url}`).then(res => res.arrayBuffer())))

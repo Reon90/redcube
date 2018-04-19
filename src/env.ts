@@ -3,7 +3,7 @@ import { Matrix4 } from './matrix';
 import { Camera } from './objects';
 import envTexture from './images/env.jpg';
 import envShader from './shaders/env.glsl';
-import envBlurShader from './shaders/blurEnv.glsl';
+import envBlurShader from './shaders/env-frag.glsl';
 
 let gl;
 
