@@ -1,4 +1,4 @@
-import { compileShader } from './utils';
+import { compileShader, getTextureIndex, calculateProjection } from './utils';
 import { Matrix4 } from './matrix';
 import { Camera } from './objects';
 import envTexture from './images/env.jpg';
@@ -36,11 +36,18 @@ export class Env {
         gl.bindVertexArray(this.VAO);
 
         const m = new Matrix4;
-        m.multiply(this._camera.projection);
+        const cam = Object.assign({}, this._camera.props, {
+            perspective: {
+                yfov: 0.6,
+                znear: 1,
+                zfar: 10000
+            }
+        });
+        m.multiply(calculateProjection(cam));
         m.multiply(this._camera.matrixWorldInvert);
         m.multiply(this.envMatrix);
         gl.uniform1f(gl.getUniformLocation(this.program, 'level'), 3);
-        gl.uniform1i(gl.getUniformLocation(this.program, 'diffuse'), 0);
+        gl.uniform1i(gl.getUniformLocation(this.program, 'diffuse'), this.texture.count);
         gl.uniformMatrix4fv(gl.getUniformLocation(this.program, 'MVPMatrix'), false, m.elements);
 
         gl.drawElements(gl.TRIANGLES, this.IndexBufferLength, gl.UNSIGNED_SHORT, 0);
@@ -126,12 +133,16 @@ export class Env {
         gl.linkProgram(this.program);
 
         return new Promise((resolve, reject) => {
-            const texture = gl.createTexture();
+            const index = getTextureIndex();
+            this.texture = {
+                data: gl.createTexture(),
+                count: index
+            };
             const img = new Image;
             img.crossOrigin = 'anonymous';
             img.onload = () => {
-                gl.activeTexture(gl.TEXTURE0);
-                gl.bindTexture(gl.TEXTURE_2D, texture);
+                gl.activeTexture(gl[`TEXTURE${this.texture.count}`]);
+                gl.bindTexture(gl.TEXTURE_2D, this.texture.data);
                 gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
                 gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
                 gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);

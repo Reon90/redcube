@@ -107,7 +107,7 @@
         });
 
         //https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/
-        const renderer = new redcube.RedCube('https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/' + name + '/glTF/' + name + '.gltf', canvas, [localStorage.getItem('ssao'), localStorage.getItem('bloom')].filter(name => name));
+        const renderer = new redcube.RedCube('' + name + '/glTF/' + name + '.gltf', canvas, [localStorage.getItem('ssao'), localStorage.getItem('bloom')].filter(name => name));
         renderer.init().then(() => {
             if (renderer.parse.cameras.length) {
                 const select = document.createElement('select');

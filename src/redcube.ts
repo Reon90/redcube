@@ -1,7 +1,7 @@
 /// <reference path='../index.d.ts'/>
 
 import { Scene, Mesh, SkinnedMesh, Camera, Bone } from './objects';
-import { Matrix4, Vector2, Vector3, Vector4 } from './matrix';
+import { Matrix4, Vector2, Vector3, Vector4, Frustum } from './matrix';
 import { Events } from './events';
 import { Env } from './env';
 import { FPS } from './fps';
@@ -36,9 +36,7 @@ class RedCube {
             zoom: 1,
             aspect: this.canvas.offsetWidth / this.canvas.offsetHeight,
             perspective: {
-                yfov: 0.6,
-                znear: 1,
-                zfar: 2e6
+                yfov: 0.6
             }
         });
 
@@ -137,17 +135,22 @@ class RedCube {
         this.canvas.width = this.canvas.offsetWidth * devicePixelRatio;
         this.canvas.height = this.canvas.offsetHeight * devicePixelRatio;
         gl.viewport( 0, 0, this.canvas.offsetWidth * devicePixelRatio, this.canvas.offsetHeight * devicePixelRatio);
-        this.camera.setProjection(calculateProjection(this.camera.props));
 
         if (this.camera.props.isInitial) {
-            const z = 1 / this.canvas.width * this.camera.modelSize * 5000;
+            const z = 1 / this.canvas.width * this.camera.modelSize * 3000;
             this.camera.setZ(z);
-            if (this.camera.modelSize < 1) {
-                this.camera.props.perspective.znear = 0.01;
-                this.camera.setProjection(calculateProjection(this.camera.props));
-            }
             this.needUpdateView = true;
         }
+
+        const cameraZ = Math.abs(this.camera.matrixWorldInvert.elements[14]);
+        if (cameraZ > this.camera.modelSize) {
+            this.camera.props.perspective.znear = cameraZ - this.camera.modelSize;
+            this.camera.props.perspective.zfar = cameraZ + this.camera.modelSize;
+        } else {
+            this.camera.props.perspective.znear = 1;
+            this.camera.props.perspective.zfar = 10000;
+        }
+        this.camera.setProjection(calculateProjection(this.camera.props));
 
         if (e) {
             this.PP.clear();
@@ -157,6 +160,7 @@ class RedCube {
 
     glInit() {
         gl = this.canvas.getContext('webgl2', { antialias: false });
+        this.gl = gl
 
         if (!gl) {
             throw new Error('Webgl 2 doesnt support');
@@ -298,14 +302,30 @@ class RedCube {
             gl.enable(gl.DEPTH_TEST);
             gl.enable(gl.CULL_FACE);
 
-            this.scene.opaqueChildren.forEach(mesh => this._draw(mesh));
+            if (this.needUpdateView) {
+                const planes = Frustum(this.camera.getViewProjMatrix());
+
+                this.scene.meshes.forEach(mesh => {
+                    mesh.visible = mesh.isVisible(planes);
+                });
+            }
+
+            this.scene.opaqueChildren.forEach(mesh => {
+                if (mesh.visible) {
+                    this._draw(mesh)
+                }
+            });
             if (this.scene.transparentChildren.length) {
                 gl.enable(gl.BLEND);
                 gl.depthMask(false);
                 gl.blendFuncSeparate(gl.SRC_COLOR, gl.DST_COLOR, gl.ONE, gl.ZERO);
                 // gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
 
-                this.scene.transparentChildren.forEach(mesh => this._draw(mesh));
+                this.scene.transparentChildren.forEach(mesh => {
+                    if (mesh.visible) {
+                        this._draw(mesh)
+                    }
+                });
 
                 gl.disable(gl.BLEND);
                 gl.depthMask(true);

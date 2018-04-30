@@ -299,10 +299,12 @@ class Scene {
     matrixWorld: Matrix4;
     transparentChildren: Array<Mesh>;
     opaqueChildren: Array<Mesh>;
+    meshes: Array<Mesh>;
 
     constructor() {
         this.opaqueChildren = [];
         this.transparentChildren = [];
+        this.meshes = [];
         this.children = [];
         this.bin = [];
         this.matrixWorld = new Matrix4;

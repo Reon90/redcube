@@ -1,4 +1,4 @@
-import { compileShader } from './utils';
+import { compileShader, getTextureIndex } from './utils';
 import { Camera } from './objects';
 import { SSAO } from './postprocessors/ssao';
 import { Bloom } from './postprocessors/bloom';
@@ -8,7 +8,6 @@ import quadShader from './shaders/quad.glsl';
 import bloomShader from './shaders/composer.glsl';
 
 let gl;
-let screenTextureCount = 1;
 
 const processorsMap = {
     bloom: Bloom,
@@ -107,16 +106,17 @@ export class PostProcessing {
         gl.uniform1i( gl.getUniformLocation(this.program, 'original'), this.screenTexture.index);
         gl.uniform1i( gl.getUniformLocation(this.program, 'position'), this.positionTexture.index);
         gl.uniform1i( gl.getUniformLocation(this.program, 'normal'), this.normalTexture.index);
+        gl.uniform1i( gl.getUniformLocation(this.program, 'depth'), this.depthTexture.index);
 
         gl.drawArrays( gl.TRIANGLES, 0, 6 );
     }
 
     createTexture() {
+        const index = getTextureIndex();
         const texture = gl.createTexture();
-        gl.activeTexture(gl[`TEXTURE${screenTextureCount}`]);
+        gl.activeTexture(gl[`TEXTURE${index}`]);
         gl.bindTexture(gl.TEXTURE_2D, texture);
-        texture.index = screenTextureCount;
-        screenTextureCount++;
+        texture.index = index;
         
         return texture;
     }
@@ -242,6 +242,6 @@ export class PostProcessing {
     }
 
     clear() {
-        screenTextureCount = 1;
+        console.error('implement')
     }
 }

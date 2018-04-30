@@ -22,7 +22,7 @@ uniform float zNear;
 void main() {
 	float depth = texture(depthBuff, uv).x;
 	depth = (2.0 * zNear) / (zFar + zNear - depth * (zFar - zNear));
-	if (depth == 1.0) {
+	if (depth > 0.99) {
 		discard;
 	}
 

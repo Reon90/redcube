@@ -29,7 +29,7 @@ uniform sampler2D occlusionTexture;
 const vec3 hdrColor = vec3(0.2126, 0.7152, 0.0722);
 const float PI = 3.14159265359;
 const float ambientStrength = 0.1;
-const float specularStrength = 0.5;
+const float specularStrength = 2.5;
 const float specularPower = 32.0;
 const vec3 lightColor = vec3(1.0, 1.0, 1.0);
 const vec3 emissiveFactor = vec3(1.0, 1.0, 1.0);

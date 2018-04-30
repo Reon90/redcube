@@ -2,6 +2,12 @@ import { Matrix2, Matrix3, Matrix4, Vector2, Vector3, Vector4 } from './matrix';
 
 const glEnum = {};
 let gl;
+let screenTextureCount = -1;
+
+export function getTextureIndex() {
+    screenTextureCount++;
+    return screenTextureCount;
+}
 
 export function setGl(_gl) {
     gl = _gl;

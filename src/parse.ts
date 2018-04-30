@@ -1,4 +1,4 @@
-import { buildArray, getDataType, walk, getAnimationComponent, calculateProjection, compileShader, calculateOffset, getAttributeIndex, calculateBinormals } from './utils';
+import { buildArray, getDataType, walk, getAnimationComponent, calculateProjection, compileShader, calculateOffset, getAttributeIndex, calculateBinormals, getTextureIndex } from './utils';
 import { Mesh, SkinnedMesh, Bone, Camera, Object3D, Scene } from './objects';
 import { Matrix4, Frustum } from './matrix';
 import { GlTf } from './GLTF';
@@ -7,7 +7,6 @@ import vertexShader from './shaders/vertex.glsl';
 import fragmentShader from './shaders/fragment.glsl';
 
 let gl;
-let sceneTextureCount = 13;
 
 interface Track {
     keys: Array<Key>;
@@ -314,14 +313,8 @@ export class Parse {
                 }
             }
         });
-        const a = Math.abs;
-        const min = biggestMesh.geometry.boundingSphere.min.elements;
-        const max = biggestMesh.geometry.boundingSphere.max.elements;
-        const z = biggestMesh.matrixWorld.getScaleZ();
-
-        this._camera.modelXSize = Math.max(a(min[0]), a(min[2]), a(max[0]), a(max[2]), Math.sqrt(min[0] * min[0] + min[2] * min[2]), Math.sqrt(max[0] * max[0] + max[2] * max[2]));
-        this._camera.modelYSize = Math.max(a(min[1]), a(min[2]), a(max[1]), a(max[2]));
-        this._camera.modelSize = Math.max(this._camera.modelYSize, this._camera.modelXSize) * z;
+        const z = Math.max(biggestMesh.matrixWorld.getScaleZ(), 1);
+        this._camera.modelSize = biggestMesh.geometry.boundingSphere.radius * z + Math.hypot(...biggestMesh.geometry.boundingSphere.center.elements);
 
         this.resize();
     }
@@ -390,13 +383,13 @@ export class Parse {
                 mesh.geometry.UBO = UBO;
                 gl.bindBuffer(gl.UNIFORM_BUFFER, null);
 
-                if (mesh.isVisible(planes)) {
-                    if (mesh.material.alphaMode) {
-                        this.scene.transparentChildren.push(mesh);
-                    } else {
-                        this.scene.opaqueChildren.push(mesh);
-                    }
+                if (mesh.material.alphaMode) {
+                    this.scene.transparentChildren.push(mesh);
+                } else {
+                    this.scene.opaqueChildren.push(mesh);
                 }
+                this.scene.meshes.push(mesh);
+                mesh.visible = mesh.isVisible(planes);
             }
         });
 
@@ -532,13 +525,20 @@ export class Parse {
             return sampler;
         });
 
-        const promiseArr = this.json.textures.map(t => {
+        const texturesMap = {};
+        this.json.textures.forEach(t => {
+            const name = String(t.sampler) + String(t.source);
+            texturesMap[name] = t;
+            texturesMap[name].name = name;
+            t.name = name;
+        });
+        const promiseArr = Object.values(texturesMap).map(t => {
             return new Promise((resolve, reject) => {
                 const sampler = this.samplers[t.sampler !== undefined ? t.sampler : 0];
                 const source = this.json.images[t.source];
                 const image = new Image();
                 image.onload = () => {
-                    resolve(this.handleTextureLoaded(sampler, image));
+                    resolve(this.handleTextureLoaded(sampler, image, t.name));
                 };
                 image.onerror = err => {
                     reject(err);
@@ -550,23 +550,26 @@ export class Parse {
 
         return Promise.all(promiseArr)
             .then(textures => {
-                this.textures = textures;
+                this.textures = this.json.textures.map(t => {
+                    return textures.find(j => j.name === t.name);
+                });
                 return true;
             });
     }
 
-    handleTextureLoaded(sampler, image) {
+    handleTextureLoaded(sampler, image, name) {
+        const index = getTextureIndex();
         const t = {
             image: image.src.substr(image.src.lastIndexOf('/')),
             data: gl.createTexture(),
-            count: sceneTextureCount
+            count: index,
+            name
         };
-        gl.activeTexture(gl[`TEXTURE${sceneTextureCount}`]);
+        gl.activeTexture(gl[`TEXTURE${index}`]);
         gl.bindTexture(gl.TEXTURE_2D, t.data);
-        gl.bindSampler(sceneTextureCount, sampler);
+        gl.bindSampler(index, sampler);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
         gl.generateMipmap(gl.TEXTURE_2D);
-        sceneTextureCount++;
         return t;
     }
 }
