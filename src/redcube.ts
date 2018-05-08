@@ -160,7 +160,6 @@ class RedCube {
 
     glInit() {
         gl = this.canvas.getContext('webgl2', { antialias: false });
-        this.gl = gl
 
         if (!gl) {
             throw new Error('Webgl 2 doesnt support');
@@ -312,7 +311,7 @@ class RedCube {
 
             this.scene.opaqueChildren.forEach(mesh => {
                 if (mesh.visible) {
-                    this._draw(mesh)
+                    this._draw(mesh);
                 }
             });
             if (this.scene.transparentChildren.length) {
@@ -323,7 +322,7 @@ class RedCube {
 
                 this.scene.transparentChildren.forEach(mesh => {
                     if (mesh.visible) {
-                        this._draw(mesh)
+                        this._draw(mesh);
                     }
                 });
 

@@ -364,3 +364,18 @@ export function calculateBinormals(index, vertex, normal, uv) {
         }
     }
 }
+
+export function measureGPU() {
+    const ext = gl.getExtension('EXT_disjoint_timer_query');
+    const query = ext.createQueryEXT();
+
+    ext.beginQueryEXT(ext.TIME_ELAPSED_EXT, query);
+    ext.endQueryEXT(ext.TIME_ELAPSED_EXT);
+
+    const available = ext.getQueryObjectEXT(query, ext.QUERY_RESULT_AVAILABLE_EXT);
+    const disjoint = gl.getParameter(ext.GPU_DISJOINT_EXT);
+    if (available && !disjoint) {
+        const timeElapsed = ext.getQueryObjectEXT(query, ext.QUERY_RESULT_EXT);
+        console.log(timeElapsed / 1000000);
+    }
+}

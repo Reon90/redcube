@@ -1,4 +1,4 @@
-import { Vector3 } from '../matrix';
+import { Vector3, Matrix4 } from '../matrix';
 import { PostProcessor } from './base';
 import { random, compileShader, lerp } from '../utils';
 
@@ -8,7 +8,7 @@ import ssaoBlurShader from '../shaders/blur.glsl';
 
 let gl;
 const noiceSize = 4;
-const kernelSize = 64;
+const kernelSize = 32;
 
 interface Texture extends WebGLTexture {
     index: number;
@@ -21,6 +21,13 @@ export class SSAO extends PostProcessor {
     kernels: Float32Array;
     ssaoProgram: WebGLProgram;
     ssaoBlurProgram: WebGLProgram;
+    scale: number;
+
+    constructor() {
+        super();
+
+        this.scale = 2;
+    }
 
     setGL(g) {
         gl = g;
@@ -35,11 +42,10 @@ export class SSAO extends PostProcessor {
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.ssaoTexture, 0);
 
         gl.clearColor(1, 1, 1, 0);
-        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENSIL_BUFFER_BIT);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
         gl.useProgram(this.ssaoProgram);
         const cameraProps = this.camera.props.perspective || this.camera.props.orthographic;
-        gl.uniform1i( gl.getUniformLocation(this.ssaoProgram, 'posBuff'), PP.positionTexture.index);
         gl.uniform1i( gl.getUniformLocation(this.ssaoProgram, 'normBuff'), PP.normalTexture.index);
         gl.uniform1i( gl.getUniformLocation(this.ssaoProgram, 'depthBuff'), PP.depthTexture.index);
         gl.uniform1i( gl.getUniformLocation(this.ssaoProgram, 'noice'), this.noice.index);
@@ -47,14 +53,15 @@ export class SSAO extends PostProcessor {
         gl.uniform1f( gl.getUniformLocation(this.ssaoProgram, 'zFar'), cameraProps.zfar);
         gl.uniform1f( gl.getUniformLocation(this.ssaoProgram, 'zNear'), cameraProps.znear);
         gl.uniformMatrix4fv(gl.getUniformLocation(this.ssaoProgram, 'proj'), false, this.camera.projection.elements);
+        gl.uniformMatrix4fv(gl.getUniformLocation(this.ssaoProgram, 'projI'), false, new Matrix4().setInverseOf(this.camera.projection).elements);
         gl.uniform3fv(gl.getUniformLocation(this.ssaoProgram, 'kernels'), this.kernels);
 
+        gl.viewport( 0, 0, this.width / this.scale, this.height / this.scale);
         gl.drawArrays( gl.TRIANGLES, 0, 6 );
 
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.ssaoBlurTexture, 0);
 
-        gl.clearColor(1, 1, 1, 0);
-        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENSIL_BUFFER_BIT);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
         gl.useProgram(this.ssaoBlurProgram);
 
@@ -68,13 +75,14 @@ export class SSAO extends PostProcessor {
         gl.drawArrays( gl.TRIANGLES, 0, 6 );
 
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        gl.viewport(0, 0, this.width, this.height);
     }
 
     buildScreenBuffer(pp) {
         this.framebuffer = gl.createFramebuffer();
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
-        this.ssaoTexture = pp.createOneChannelTexture();
-        this.ssaoBlurTexture = pp.createOneChannelTexture();
+        this.ssaoTexture = pp.createOneChannelTexture(this.scale);
+        this.ssaoBlurTexture = pp.createOneChannelTexture(this.scale);
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.ssaoTexture, 0);
 
         this.ssaoProgram = gl.createProgram();

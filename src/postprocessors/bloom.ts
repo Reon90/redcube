@@ -3,6 +3,7 @@ import { compileShader } from '../utils';
 
 import quadShader from '../shaders/quad.glsl';
 import blurShader from '../shaders/blur.glsl';
+import bloomShader from '../shaders/bloom.glsl';
 
 interface Texture extends WebGLTexture {
     index: number;
@@ -17,6 +18,8 @@ export class Bloom extends PostProcessor {
     blurTexture3: Texture;
     blurTexture4: Texture;
     program: WebGLProgram;
+    bloorProgram: WebGLProgram;
+    hdrTexture: Texture;
 
     setGL(g) {
         gl = g;
@@ -28,27 +31,41 @@ export class Bloom extends PostProcessor {
 
     postProcessing(PP) {
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
+
+        gl.useProgram(this.bloorProgram);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.hdrTexture, 0);
+        gl.uniform1i( gl.getUniformLocation(this.bloorProgram, 'diff'), PP.screenTexture.index);
+        gl.drawArrays( gl.TRIANGLES, 0, 6 );
+
         gl.useProgram(this.program);
 
-        this.renderBlur(PP.hdrTexture, this.program);
+        gl.viewport( 0, 0, this.width / 2, this.height / 2);
+        this.renderBlur(this.hdrTexture, this.program);
         this.renderBlur(this.blurTexture, this.program);
         this.renderBlur(this.blurTexture, this.program);
         this.renderBlur(this.blurTexture, this.program);
         this.renderBlur(this.blurTexture, this.program);
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        gl.viewport( 0, 0, this.width, this.height);
     }
 
     buildScreenBuffer(pp) {
         this.framebuffer = gl.createFramebuffer();
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
-        this.tempBlurTexture = pp.createDefaultTexture();
-        this.blurTexture = pp.createDefaultTexture();
+        this.tempBlurTexture = pp.createDefaultTexture(2);
+        this.blurTexture = pp.createDefaultTexture(2);
+        this.hdrTexture = pp.createByteTexture();
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
         this.program = gl.createProgram();
         compileShader(gl.VERTEX_SHADER, quadShader, this.program);
         compileShader(gl.FRAGMENT_SHADER, blurShader, this.program);
         gl.linkProgram(this.program);
+
+        this.bloorProgram = gl.createProgram();
+        compileShader(gl.VERTEX_SHADER, quadShader, this.bloorProgram);
+        compileShader(gl.FRAGMENT_SHADER, bloomShader, this.bloorProgram);
+        gl.linkProgram(this.bloorProgram);
 
         return {name: 'BLOOM'};
     }

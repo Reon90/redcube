@@ -30,6 +30,15 @@ interface Attributes {
     'WEIGHTS_0'?: Float32Array;
     'TANGENT'?: Float32Array;
 }
+interface texturesMap {
+    name?: string;
+}
+interface Texture {
+    name: string;
+    image: string;
+    count: number;
+    data: WebGLTexture;
+}
 
 export class Parse {
     tracks: Array<Track>;
@@ -314,7 +323,7 @@ export class Parse {
             }
         });
         const z = Math.max(biggestMesh.matrixWorld.getScaleZ(), 1);
-        this._camera.modelSize = biggestMesh.geometry.boundingSphere.radius * z + Math.hypot(...biggestMesh.geometry.boundingSphere.center.elements);
+        this._camera.modelSize = biggestMesh.geometry.boundingSphere.radius * 2 * z + Math.hypot(...biggestMesh.geometry.boundingSphere.center.elements);
 
         this.resize();
     }
@@ -393,6 +402,7 @@ export class Parse {
             }
         });
 
+        this.scene.opaqueChildren.sort((a, b) => a.distance - b.distance);
         this.scene.transparentChildren.sort((a, b) => b.distance - a.distance);
 
         return true;
@@ -525,7 +535,7 @@ export class Parse {
             return sampler;
         });
 
-        const texturesMap = {};
+        const texturesMap: texturesMap = {};
         this.json.textures.forEach(t => {
             const name = String(t.sampler) + String(t.source);
             texturesMap[name] = t;
@@ -549,7 +559,7 @@ export class Parse {
         });
 
         return Promise.all(promiseArr)
-            .then(textures => {
+            .then((textures: Texture[]) => {
                 this.textures = this.json.textures.map(t => {
                     return textures.find(j => j.name === t.name);
                 });
@@ -559,7 +569,7 @@ export class Parse {
 
     handleTextureLoaded(sampler, image, name) {
         const index = getTextureIndex();
-        const t = {
+        const t: Texture = {
             image: image.src.substr(image.src.lastIndexOf('/')),
             data: gl.createTexture(),
             count: index,

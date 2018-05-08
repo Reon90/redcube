@@ -3,7 +3,6 @@ precision highp float;
 
 in vec2 outUV;
 in vec3 outPosition;
-in vec3 outPositionView;
 #ifdef TANGENT
     in mat3 outTBN;
 #else
@@ -12,8 +11,6 @@ in vec3 outPositionView;
 
 layout (location = 0) out vec4 color;
 layout (location = 1) out vec3 normalColor;
-layout (location = 2) out vec3 positionColor;
-layout (location = 3) out vec4 hdr;
 
 uniform Material {
     vec4 baseColorFactor;
@@ -26,7 +23,6 @@ uniform sampler2D normalTexture;
 uniform sampler2D emissiveTexture;
 uniform sampler2D occlusionTexture;
 
-const vec3 hdrColor = vec3(0.2126, 0.7152, 0.0722);
 const float PI = 3.14159265359;
 const float ambientStrength = 0.1;
 const float specularStrength = 2.5;
@@ -111,7 +107,6 @@ void main() {
     vec3 radiance = lightColor * 2.0;
 
     #ifdef USE_PBR
-        const float brightnessThreshold = 0.8;
         vec3 F0 = vec3(0.04); 
         F0 = mix(F0, baseColor, metallic);
 
@@ -146,7 +141,6 @@ void main() {
    
         color = vec4(baseColor, 1.0);
     #else
-        const float brightnessThreshold = 1.0;
         vec3 ambient = ambientStrength * lightColor;
 
         float diff = max(dot(n, lightDir), 0.0);
@@ -159,12 +153,4 @@ void main() {
         color = vec4(baseColor.rgb * (ambient + diffuse + specular), alpha);
     #endif
     normalColor = n;
-    positionColor = outPositionView;
-    
-    float brightness = dot(color.rgb, hdrColor);
-    if (brightness > brightnessThreshold) {
-        hdr = vec4(color.rgb, 1.0);
-    } else {
-        hdr = vec4(0.0, 0.0, 0.0, 1.0);
-    }
 }

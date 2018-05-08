@@ -12,12 +12,21 @@ interface Buffer extends WebGLBuffer {
     numItems: number;
 }
 
+interface Texture extends WebGLTexture {
+    count: number;
+    data: WebGLBuffer;
+}
+
 export class Env {
     _camera: Camera;
     envMatrix: Matrix4;
     VAO: WebGLBuffer;
     IndexBufferLength: number;
     program: WebGLProgram;
+    level: WebGLUniformLocation;
+    diffuse: WebGLUniformLocation;
+    MVPMatrix: WebGLUniformLocation;
+    texture: Texture;
 
     constructor() {
         this.envMatrix = new Matrix4;
@@ -39,23 +48,25 @@ export class Env {
         const cam = Object.assign({}, this._camera.props, {
             perspective: {
                 yfov: 0.6,
-                znear: 1,
+                znear: 0.01,
                 zfar: 10000
             }
         });
         m.multiply(calculateProjection(cam));
         m.multiply(this._camera.matrixWorldInvert);
         m.multiply(this.envMatrix);
-        gl.uniform1f(gl.getUniformLocation(this.program, 'level'), 3);
-        gl.uniform1i(gl.getUniformLocation(this.program, 'diffuse'), this.texture.count);
-        gl.uniformMatrix4fv(gl.getUniformLocation(this.program, 'MVPMatrix'), false, m.elements);
+        gl.uniform1f(this.level, 3);
+        gl.uniform1i(this.diffuse, this.texture.count);
+        gl.uniformMatrix4fv(this.MVPMatrix, false, m.elements);
 
         gl.drawElements(gl.TRIANGLES, this.IndexBufferLength, gl.UNSIGNED_SHORT, 0);
+        gl.bindVertexArray(null);
     }
 
     createEnvironmentBuffer() {
-        const latitudeBands = 30;
-        const longitudeBands = 30;
+
+        const latitudeBands = 10;
+        const longitudeBands = 10;
         const radius = this._camera.modelSize * 10;
 
         const vertexPositionData = [];
@@ -87,6 +98,7 @@ export class Env {
                 vertexPositionData.push(radius * z);
             }
         }
+
 
         const indexData = [];
         for (let latNumber = 0; latNumber < latitudeBands; latNumber++) {
@@ -131,6 +143,10 @@ export class Env {
         compileShader(gl.VERTEX_SHADER, envShader, this.program);
         compileShader(gl.FRAGMENT_SHADER, envBlurShader, this.program);
         gl.linkProgram(this.program);
+
+        this.level = gl.getUniformLocation(this.program, 'level');
+        this.diffuse = gl.getUniformLocation(this.program, 'diffuse');
+        this.MVPMatrix = gl.getUniformLocation(this.program, 'MVPMatrix');
 
         return new Promise((resolve, reject) => {
             const index = getTextureIndex();

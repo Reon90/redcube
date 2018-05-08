@@ -97,6 +97,7 @@ class Mesh extends Object3D {
     defines: Array<string>;
     mode: number;
     distance: number;
+    visible: boolean;
 
     constructor(name, parent) {
         super(name, parent);

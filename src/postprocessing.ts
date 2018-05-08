@@ -22,8 +22,6 @@ export class PostProcessing {
     screenTexture: Texture;
     normalTexture: Texture;
     depthTexture: Texture;
-    positionTexture: Texture;
-    hdrTexture: Texture;
     camera: Camera;
     canvas: HTMLCanvasElement;
     framebuffer: WebGLFramebuffer;
@@ -31,9 +29,11 @@ export class PostProcessing {
     VAO: WebGLBuffer;
     program: WebGLProgram;
     renderframebuffer: WebGLFramebuffer;
+    MSAA: number;
 
     constructor(processors) {
         this.postprocessors = processors.map(name => new processorsMap[name]);
+        this.MSAA = 4;
     }
 
     setCamera(camera) {
@@ -80,14 +80,6 @@ export class PostProcessing {
         gl.readBuffer(gl.COLOR_ATTACHMENT1);
         gl.drawBuffers([gl.NONE, gl.COLOR_ATTACHMENT1]);
         gl.blitFramebuffer(0, 0, this.width, this.height, 0, 0, this.width, this.height, gl.COLOR_BUFFER_BIT, gl.NEAREST);
-        
-        gl.readBuffer(gl.COLOR_ATTACHMENT2);
-        gl.drawBuffers([gl.NONE, gl.NONE, gl.COLOR_ATTACHMENT2]);
-        gl.blitFramebuffer(0, 0, this.width, this.height, 0, 0, this.width, this.height, gl.COLOR_BUFFER_BIT, gl.NEAREST);
-
-        gl.readBuffer(gl.COLOR_ATTACHMENT3);
-        gl.drawBuffers([gl.NONE, gl.NONE, gl.NONE, gl.COLOR_ATTACHMENT3]);
-        gl.blitFramebuffer(0, 0, this.width, this.height, 0, 0, this.width, this.height, gl.COLOR_BUFFER_BIT, gl.NEAREST);
 
         gl.blitFramebuffer(0, 0, this.width, this.height, 0, 0, this.width, this.height, gl.DEPTH_BUFFER_BIT, gl.NEAREST);
 
@@ -104,7 +96,6 @@ export class PostProcessing {
         });
 
         gl.uniform1i( gl.getUniformLocation(this.program, 'original'), this.screenTexture.index);
-        gl.uniform1i( gl.getUniformLocation(this.program, 'position'), this.positionTexture.index);
         gl.uniform1i( gl.getUniformLocation(this.program, 'normal'), this.normalTexture.index);
         gl.uniform1i( gl.getUniformLocation(this.program, 'depth'), this.depthTexture.index);
 
@@ -129,19 +120,19 @@ export class PostProcessing {
         return texture;
     }
 
-    createDefaultTexture() {
+    createDefaultTexture(scale = 1) {
         const texture = this.createTexture();
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, this.width, this.height, 0, gl.RGBA, gl.FLOAT, null);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, this.width / scale, this.height / scale, 0, gl.RGBA, gl.FLOAT, null);
         return texture;
     }
 
-    createOneChannelTexture() {
+    createOneChannelTexture(scale = 1) {
         const texture = this.createTexture();
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, this.width, this.height, 0, gl.RED, gl.UNSIGNED_BYTE, null);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, this.width / scale, this.height / scale, 0, gl.RED, gl.UNSIGNED_BYTE, null);
         return texture;
     }
 
@@ -187,34 +178,24 @@ export class PostProcessing {
         gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
         gl.bindVertexArray(null);
 
-        const renderbuffer = gl.createRenderbuffer();
-        gl.bindRenderbuffer(gl.RENDERBUFFER, renderbuffer);
-        gl.renderbufferStorageMultisample(gl.RENDERBUFFER, 8, gl.RGBA8, this.width, this.height);
+        const colorRB = gl.createRenderbuffer();
+        gl.bindRenderbuffer(gl.RENDERBUFFER, colorRB);
+        gl.renderbufferStorageMultisample(gl.RENDERBUFFER, this.MSAA, gl.RGBA8, this.width, this.height);
 
-        const renderbuffer3 = gl.createRenderbuffer();
-        gl.bindRenderbuffer(gl.RENDERBUFFER, renderbuffer3);
-        gl.renderbufferStorageMultisample(gl.RENDERBUFFER, 8, gl.RGBA16F, this.width, this.height);
+        const normalRB = gl.createRenderbuffer();
+        gl.bindRenderbuffer(gl.RENDERBUFFER, normalRB);
+        gl.renderbufferStorageMultisample(gl.RENDERBUFFER, this.MSAA, gl.RGBA16F, this.width, this.height);
 
-        const renderbuffer4 = gl.createRenderbuffer();
-        gl.bindRenderbuffer(gl.RENDERBUFFER, renderbuffer4);
-        gl.renderbufferStorageMultisample(gl.RENDERBUFFER, 8, gl.RGBA16F, this.width, this.height);
-
-        const renderbuffer2 = gl.createRenderbuffer();
-        gl.bindRenderbuffer(gl.RENDERBUFFER, renderbuffer2);
-        gl.renderbufferStorageMultisample(gl.RENDERBUFFER, 8, gl.DEPTH_COMPONENT24, this.width, this.height);
-
-        const renderbuffer5 = gl.createRenderbuffer();
-        gl.bindRenderbuffer(gl.RENDERBUFFER, renderbuffer5);
-        gl.renderbufferStorageMultisample(gl.RENDERBUFFER, 8, gl.RGBA8, this.width, this.height);
+        const depthRB = gl.createRenderbuffer();
+        gl.bindRenderbuffer(gl.RENDERBUFFER, depthRB);
+        gl.renderbufferStorageMultisample(gl.RENDERBUFFER, this.MSAA, gl.DEPTH_COMPONENT24, this.width, this.height);
 
         this.renderframebuffer = gl.createFramebuffer();
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.renderframebuffer);
-        gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.RENDERBUFFER, renderbuffer);
-        gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, gl.RENDERBUFFER, renderbuffer3);
-        gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT2, gl.RENDERBUFFER, renderbuffer4);
-        gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT3, gl.RENDERBUFFER, renderbuffer5);
-        gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, renderbuffer2);
-        gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1, gl.COLOR_ATTACHMENT2, gl.COLOR_ATTACHMENT3]);
+        gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.RENDERBUFFER, colorRB);
+        gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, gl.RENDERBUFFER, normalRB);
+        gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, depthRB);
+        gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1]);
         
         this.framebuffer = gl.createFramebuffer();
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
@@ -222,15 +203,11 @@ export class PostProcessing {
         this.screenTexture = this.createByteTexture();
         this.normalTexture = this.createDefaultTexture();
         this.depthTexture = this.createDepthTexture();
-        this.positionTexture = this.createDefaultTexture();
-        this.hdrTexture = this.createByteTexture();
 
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.screenTexture, 0);
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, gl.TEXTURE_2D, this.normalTexture, 0);
-        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT2, gl.TEXTURE_2D, this.positionTexture, 0);
-        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT3, gl.TEXTURE_2D, this.hdrTexture, 0);
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, this.depthTexture, 0);
-        gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1, gl.COLOR_ATTACHMENT2, gl.COLOR_ATTACHMENT3]);
+        gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1]);
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
         this.program = gl.createProgram();
@@ -242,6 +219,6 @@ export class PostProcessing {
     }
 
     clear() {
-        console.error('implement')
+        console.error('implement');
     }
 }
