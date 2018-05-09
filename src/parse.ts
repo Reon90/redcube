@@ -323,7 +323,8 @@ export class Parse {
             }
         });
         const z = Math.max(biggestMesh.matrixWorld.getScaleZ(), 1);
-        this._camera.modelSize = biggestMesh.geometry.boundingSphere.radius * 2 * z + Math.hypot(...biggestMesh.geometry.boundingSphere.center.elements);
+        const pos = Math.hypot(biggestMesh.matrixWorld.elements[12], biggestMesh.matrixWorld.elements[13], biggestMesh.matrixWorld.elements[14]);
+        this._camera.modelSize = biggestMesh.geometry.boundingSphere.radius * z + pos + Math.hypot(...biggestMesh.geometry.boundingSphere.center.elements);
 
         this.resize();
     }
