@@ -143,12 +143,13 @@ class RedCube {
         }
 
         const cameraZ = Math.abs(this.camera.matrixWorldInvert.elements[14]);
+        const cameraProps = this.camera.props.perspective || this.camera.props.orthographic;
         if (cameraZ > this.camera.modelSize) {
-            this.camera.props.perspective.znear = cameraZ - this.camera.modelSize;
-            this.camera.props.perspective.zfar = cameraZ + this.camera.modelSize;
+            cameraProps.znear = cameraZ - this.camera.modelSize;
+            cameraProps.zfar = cameraZ + this.camera.modelSize;
         } else {
-            this.camera.props.perspective.znear = 1;
-            this.camera.props.perspective.zfar = 10000;
+            cameraProps.znear = 1;
+            cameraProps.zfar = 10000;
         }
         this.camera.setProjection(calculateProjection(this.camera.props));
 

@@ -265,12 +265,12 @@ export class Parse {
         let child;
 
         if (el.camera !== undefined) {
-            const proj = calculateProjection(this.json.cameras[el.camera]);
             child = new Camera(name, parent);
             child.setProps(Object.assign({
                 zoom: 1,
                 aspect: this.canvas.offsetWidth / this.canvas.offsetHeight
             }, this.json.cameras[el.camera]));
+            const proj = calculateProjection(child.props);
             child.setProjection(proj);
             
             this._camera = child;
