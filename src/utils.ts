@@ -309,6 +309,9 @@ export function getAttributeIndex(name) {
     case 'TANGENT':
         index = [5, 4, gl.FLOAT];
         break;
+    case 'COLOR_0':
+        index = [6, 4, gl.FLOAT];
+        break;
     }
     return index;
 }

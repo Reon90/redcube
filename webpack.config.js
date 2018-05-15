@@ -11,7 +11,7 @@ const config = {
         libraryTarget: 'umd',
         umdNamedDefine: true
     },
-    devtool: "cheap-eval-source-map",
+    devtool: "source-map",
     resolve: {extensions: ['.ts', '.js']},
     module: {
         rules: [ 

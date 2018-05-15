@@ -10,6 +10,7 @@ layout (location = 5) in vec4 inTangent;
 
 out vec2 outUV;
 out vec3 outPosition;
+out vec4 outPositionView;
 #ifdef TANGENT
     out mat3 outTBN;
 #else
@@ -21,6 +22,8 @@ uniform Matrices {
     mat4 normalMatrix;
     mat4 view;
     mat4 projection;
+    mat4 light;
+    float isShadow;
 };
 
 #ifdef JOINTNUMBER
@@ -49,5 +52,10 @@ void main() {
         outNormal = normalize(mat3(normalMatrix) * mat3(skin) * inNormal);
     #endif
     outPosition = vec3(model * skin * vec4(inPosition, 1.0));
-    gl_Position = projection * view * model * skin * vec4(inPosition, 1.0);
+    outPositionView = projection * light * model * skin * vec4(inPosition, 1.0);
+    if (isShadow == 1.0) {
+        gl_Position = projection * light * model * skin * vec4(inPosition, 1.0);
+    } else {
+        gl_Position = projection * view * model * skin * vec4(inPosition, 1.0);
+    }
 }

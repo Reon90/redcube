@@ -3,6 +3,7 @@ precision highp float;
 
 in vec2 outUV;
 in vec3 outPosition;
+in vec4 outPositionView;
 #ifdef TANGENT
     in mat3 outTBN;
 #else
@@ -23,12 +24,24 @@ uniform sampler2D normalTexture;
 uniform sampler2D emissiveTexture;
 uniform sampler2D occlusionTexture;
 
+uniform sampler2D depthTexture;
+
 const float PI = 3.14159265359;
 const float ambientStrength = 0.1;
 const float specularStrength = 2.5;
 const float specularPower = 32.0;
 const vec3 lightColor = vec3(1.0, 1.0, 1.0);
 const vec3 emissiveFactor = vec3(1.0, 1.0, 1.0);
+
+float ShadowCalculation(vec4 fragPosLightSpace, float bias) {
+    vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
+    projCoords = projCoords * 0.5 + 0.5;
+    float closestDepth = texture(depthTexture, projCoords.xy).r; 
+    float currentDepth = projCoords.z;
+    float shadow = currentDepth - bias > closestDepth  ? 0.5 : 0.0;
+
+    return shadow;
+}
 
 vec3 srgbToLinear(vec4 srgbIn) {
     return pow(srgbIn.rgb, vec3(2.2));
@@ -105,6 +118,8 @@ void main() {
     float distance = length(lightPos - outPosition);
     float attenuation = 1.0 / (distance * distance);
     vec3 radiance = lightColor * 2.0;
+    float shadowBias = max(0.05 * (1.0 - dot(n, lightDir)), 0.005);
+    float shadow = 1.0 - ShadowCalculation(outPositionView, shadowBias);
 
     #ifdef USE_PBR
         vec3 F0 = vec3(0.04); 
@@ -138,6 +153,8 @@ void main() {
             vec3 emissive = srgbToLinear(texture(emissiveTexture, outUV)) * emissiveFactor;
             baseColor.rgb += emissive;
         #endif
+
+        baseColor.rgb *= shadow;
    
         color = vec4(baseColor, 1.0);
     #else
@@ -150,7 +167,7 @@ void main() {
         float spec = pow(max(dot(viewDir, reflectDir), 0.0), specularPower);
         vec3 specular = specularStrength * spec * lightColor;
 
-        color = vec4(baseColor.rgb * (ambient + diffuse + specular), alpha);
+        color = vec4(baseColor.rgb * (ambient + diffuse + specular) * shadow, alpha);
     #endif
     normalColor = n;
 }

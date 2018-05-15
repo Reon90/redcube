@@ -1,6 +1,6 @@
 /// <reference path='../index.d.ts'/>
 
-import { Scene, Mesh, SkinnedMesh, Camera, Bone } from './objects';
+import { Scene, Mesh, Camera, Bone, Light } from './objects';
 import { Matrix4, Vector2, Vector3, Vector4, Frustum } from './matrix';
 import { Events } from './events';
 import { Env } from './env';
@@ -15,6 +15,7 @@ class RedCube {
     reflow: boolean;
     scene: Scene;
     camera: Camera;
+    light: Light;
     canvas: HTMLCanvasElement;
     events: Events;
     parse: Parse;
@@ -40,6 +41,8 @@ class RedCube {
             }
         });
 
+        this.light = new Light;
+
         this.events = new Events(this.redraw.bind(this));
 
         this.fps = new FPS;
@@ -54,6 +57,7 @@ class RedCube {
         this.parse = new Parse(url);
         this.parse.setScene(this.scene);
         this.parse.setCamera(this.camera);
+        this.parse.setLight(this.light);
         this.parse.setUpdateCamera(this.updateCamera.bind(this));
         this.parse.setCanvas(this.canvas);
         this.parse.setResize(this.resize.bind(this));    
@@ -71,10 +75,6 @@ class RedCube {
             .then(this.env.createEnvironmentBuffer.bind(this.env))
             .then(this.draw.bind(this))
             .catch(console.error);
-    }
-
-    updatePP() {
-
     }
 
     updateCamera(camera) {
@@ -108,6 +108,7 @@ class RedCube {
             m.multiply(this.camera.matrixWorld);
 
             this.camera.setMatrixWorld(m.elements);
+            this.light.setMatrixWorld(m.elements);
             this.needUpdateView = true;
         }
         if (type === 'pan') {
@@ -139,6 +140,7 @@ class RedCube {
         if (this.camera.props.isInitial) {
             const z = 1 / this.canvas.width * this.camera.modelSize * 3000;
             this.camera.setZ(z);
+            this.light.setZ(z);
             this.needUpdateView = true;
         }
 
@@ -293,49 +295,22 @@ class RedCube {
         this.animate(sec);
         
         if (this.reflow) {
-            this.PP.bindBuffer();
+            this.PP.bindPrePass();
+            gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+            //gl.enable(gl.RASTERIZER_DISCARD);
 
+            this.renderScene(true);
+
+            //gl.disable(gl.RASTERIZER_DISCARD);
+            this.PP.bindPostPass();
             gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
             this.env.createEnvironment();
 
-            gl.enable(gl.DEPTH_TEST);
-            gl.enable(gl.CULL_FACE);
-
-            if (this.needUpdateView) {
-                const planes = Frustum(this.camera.getViewProjMatrix());
-
-                this.scene.meshes.forEach(mesh => {
-                    mesh.visible = mesh.isVisible(planes);
-                });
-            }
-
-            this.scene.opaqueChildren.forEach(mesh => {
-                if (mesh.visible) {
-                    this._draw(mesh);
-                }
-            });
-            if (this.scene.transparentChildren.length) {
-                gl.enable(gl.BLEND);
-                gl.depthMask(false);
-                gl.blendFuncSeparate(gl.SRC_COLOR, gl.DST_COLOR, gl.ONE, gl.ZERO);
-                // gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
-
-                this.scene.transparentChildren.forEach(mesh => {
-                    if (mesh.visible) {
-                        this._draw(mesh);
-                    }
-                });
-
-                gl.disable(gl.BLEND);
-                gl.depthMask(true);
-                gl.blendFuncSeparate(gl.ONE, gl.ZERO, gl.ONE, gl.ZERO);
-            }
+            this.renderScene(false);
 
             walk(this.scene, node => {
-                if (node instanceof Bone) {
-                    node.reflow = false;
-                }
+                node.reflow = false;
             });
             this.needUpdateView = false;
             this.needUpdateProjection = false;
@@ -349,78 +324,50 @@ class RedCube {
         requestAnimationFrame(this.render.bind(this));
     }
 
-    _draw(mesh) {
-        gl.useProgram(mesh.program);
-
-        gl.bindVertexArray(mesh.geometry.VAO);
-        gl.bindBufferBase(gl.UNIFORM_BUFFER, 0, mesh.geometry.UBO);
-        if (mesh.reflow) { // matrixWorld changed
-            const normalMatrix = new Matrix4(mesh.matrixWorld);
-            normalMatrix.invert().transpose();
-            const matrices = new Float32Array(32);
-            matrices.set(mesh.matrixWorld.elements);
-            matrices.set(normalMatrix.elements, 16);
-            gl.bufferSubData(gl.UNIFORM_BUFFER, 0, matrices);
-            mesh.reflow = false;
-        }
+    renderScene(isShadow) {
+        gl.enable(gl.DEPTH_TEST);
+        gl.enable(gl.CULL_FACE);
 
         if (this.needUpdateView) {
-            gl.bufferSubData(gl.UNIFORM_BUFFER, 32 * Float32Array.BYTES_PER_ELEMENT, this.camera.matrixWorldInvert.elements);
+            const planes = Frustum(this.camera.getViewProjMatrix());
+
+            this.scene.meshes.forEach(mesh => {
+                mesh.visible = mesh.isVisible(planes);
+            });
         }
 
-        if (this.needUpdateProjection) {
-            gl.bufferSubData(gl.UNIFORM_BUFFER, 48 * Float32Array.BYTES_PER_ELEMENT, this.camera.projection.elements);
-        }
+        this.scene.opaqueChildren.forEach(mesh => {
+            if (mesh.visible) {
+                mesh.draw(gl, this.getState(), isShadow);
+            }
+        });
+        if (this.scene.transparentChildren.length) {
+            gl.enable(gl.BLEND);
+            gl.depthMask(false);
+            gl.blendFuncSeparate(gl.SRC_COLOR, gl.DST_COLOR, gl.ONE, gl.ZERO);
+            // gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
 
-        if (mesh instanceof SkinnedMesh) {
-            gl.bindBufferBase(gl.UNIFORM_BUFFER, 2, mesh.geometry.SKIN);
-            if (mesh.bones.some(bone => bone.reflow)) {
-                const jointMatrix = mesh.getJointMatrix();
-                const matrices = new Float32Array(jointMatrix.length * 16);
-                let i = 0;
-                for (const j of jointMatrix) {
-                    matrices.set(j.elements, 0 + 16 * i);
-                    i++;
+            this.scene.transparentChildren.forEach(mesh => {
+                if (mesh.visible) {
+                    mesh.draw(gl, this.getState(), isShadow);
                 }
-                gl.bufferSubData(gl.UNIFORM_BUFFER, 0, matrices);
-            }
-        }
-        if (mesh.material.UBO) {
-            gl.bindBufferBase(gl.UNIFORM_BUFFER, 1, mesh.material.UBO);
+            });
 
-            if (this.needUpdateView) {
-                gl.bufferSubData(gl.UNIFORM_BUFFER, 4 * Float32Array.BYTES_PER_ELEMENT, new Float32Array([this.camera.matrixWorld.elements[12], this.camera.matrixWorld.elements[13], this.camera.matrixWorld.elements[14]]));
-                gl.bufferSubData(gl.UNIFORM_BUFFER, 8 * Float32Array.BYTES_PER_ELEMENT, new Float32Array([this.camera.matrixWorld.elements[12], this.camera.matrixWorld.elements[13], this.camera.matrixWorld.elements[14]]));
-            }
+            gl.disable(gl.BLEND);
+            gl.depthMask(true);
+            gl.blendFuncSeparate(gl.ONE, gl.ZERO, gl.ONE, gl.ZERO);
         }
-        if (mesh.material.pbrMetallicRoughness.baseColorTexture) {
-            gl.uniform1i(mesh.material.uniforms.baseColorTexture, mesh.material.pbrMetallicRoughness.baseColorTexture.count);
-        }
-        if (mesh.material.pbrMetallicRoughness.metallicRoughnessTexture) {
-            gl.uniform1i(mesh.material.uniforms.metallicRoughnessTexture, mesh.material.pbrMetallicRoughness.metallicRoughnessTexture.count);
-        }
-        if (mesh.material.normalTexture) {
-            gl.uniform1i(mesh.material.uniforms.normalTexture, mesh.material.normalTexture.count);
-        }
-        if (mesh.material.occlusionTexture) {
-            gl.uniform1i(mesh.material.uniforms.occlusionTexture, mesh.material.occlusionTexture.count);
-        }
-        if (mesh.material.emissiveTexture) {
-            gl.uniform1i(mesh.material.uniforms.emissiveTexture, mesh.material.emissiveTexture.count);
-        }
-        if (mesh.material.doubleSided) {
-            gl.disable(gl.CULL_FACE);
-        }
+    }
 
-        if (mesh.geometry.indicesBuffer) {
-            gl.drawElements(mesh.mode || gl.TRIANGLES, mesh.geometry.indicesBuffer.length, mesh.geometry.indicesBuffer.BYTES_PER_ELEMENT === 4 ? gl.UNSIGNED_INT : gl.UNSIGNED_SHORT, 0);
-        } else {
-            gl.drawArrays(mesh.mode || gl.TRIANGLES, 0, mesh.geometry.attributes.POSITION.length / 3);
-        }
-
-        if (mesh.material.doubleSided) {
-            gl.enable(gl.CULL_FACE);
-        }
+    getState() {
+        return {
+            camera: this.camera,
+            light: this.light,
+            preDepthTexture: this.PP.preDepthTexture,
+            fakeDepth: this.PP.fakeDepth,
+            needUpdateView: this.needUpdateView, 
+            needUpdateProjection: this.needUpdateProjection
+        };
     }
 }
 

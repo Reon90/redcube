@@ -22,9 +22,12 @@ export class PostProcessing {
     screenTexture: Texture;
     normalTexture: Texture;
     depthTexture: Texture;
+    preDepthTexture: Texture;
+    fakeDepth: Texture;
     camera: Camera;
     canvas: HTMLCanvasElement;
     framebuffer: WebGLFramebuffer;
+    preframebuffer: WebGLFramebuffer;
     postprocessors: Array<PostProcessor>;
     VAO: WebGLBuffer;
     program: WebGLProgram;
@@ -48,6 +51,7 @@ export class PostProcessing {
         this.postprocessors.forEach(postProcessor => {
             postProcessor.setGL(gl);
         });
+        this.fakeDepth = this.createNoiceTexture(1, new Float32Array([1, 1, 0]));
     }
 
     setCanvas(canvas) {
@@ -65,7 +69,11 @@ export class PostProcessing {
         return this.canvas.offsetHeight * devicePixelRatio;
     }
 
-    bindBuffer() {
+    bindPrePass() {
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this.preframebuffer);
+    }
+
+    bindPostPass() {
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.renderframebuffer);
     }
 
@@ -208,6 +216,12 @@ export class PostProcessing {
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, gl.TEXTURE_2D, this.normalTexture, 0);
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, this.depthTexture, 0);
         gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1]);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+        this.preframebuffer = gl.createFramebuffer();
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this.preframebuffer);
+        this.preDepthTexture = this.createDepthTexture();
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, this.preDepthTexture, 0);
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
         this.program = gl.createProgram();

@@ -1,5 +1,5 @@
 import { buildArray, getDataType, walk, getAnimationComponent, calculateProjection, compileShader, calculateOffset, getAttributeIndex, calculateBinormals, getTextureIndex } from './utils';
-import { Mesh, SkinnedMesh, Bone, Camera, Object3D, Scene } from './objects';
+import { Mesh, SkinnedMesh, Bone, Camera, Object3D, Scene, Light } from './objects';
 import { Matrix4, Frustum } from './matrix';
 import { GlTf } from './GLTF';
 
@@ -52,6 +52,7 @@ export class Parse {
     programs: object;
     scene: Scene;
     _camera: Camera;
+    light: Light;
     aspect: number;
     zoom: number;
     canvas: HTMLCanvasElement;
@@ -81,6 +82,10 @@ export class Parse {
 
     setCamera(camera) {
         this._camera = camera;
+    }
+
+    setLight(light) {
+        this.light = light;
     }
 
     setCanvas(canvas) {
@@ -369,7 +374,7 @@ export class Parse {
             if (mesh instanceof Mesh) {
                 const materials = new Float32Array(12);
                 materials.set(mesh.material.pbrMetallicRoughness.baseColorFactor || [0.8, 0.8, 0.8, 1.0]);
-                materials.set([this._camera.matrixWorld.elements[12], this._camera.matrixWorld.elements[13], this._camera.matrixWorld.elements[14]], 4);
+                materials.set([this.light.matrixWorld.elements[12], this.light.matrixWorld.elements[13], this.light.matrixWorld.elements[14]], 4);
                 materials.set([this._camera.matrixWorld.elements[12], this._camera.matrixWorld.elements[13], this._camera.matrixWorld.elements[14]], 8);
                 const mIndex = gl.getUniformBlockIndex(mesh.program, 'Material');
                 gl.uniformBlockBinding(mesh.program, mIndex, 1);
@@ -380,11 +385,13 @@ export class Parse {
 
                 const normalMatrix = new Matrix4(mesh.matrixWorld);
                 normalMatrix.invert().transpose();
-                const matrices = new Float32Array(64);
+                const matrices = new Float32Array(81);
                 matrices.set(mesh.matrixWorld.elements, 0);
                 matrices.set(normalMatrix.elements, 16);
                 matrices.set(this._camera.matrixWorldInvert.elements, 32);
                 matrices.set(this._camera.projection.elements, 48);
+                matrices.set(this.light.matrixWorldInvert.elements, 64);
+                matrices.set(new Float32Array([0]), 80);
                 const uIndex = gl.getUniformBlockIndex(mesh.program, 'Matrices');
                 gl.uniformBlockBinding(mesh.program, uIndex, 0);
                 const UBO = gl.createBuffer();
