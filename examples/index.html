@@ -13,6 +13,10 @@
             height: 100vh;
             vertical-align: top;
         }
+        input,
+        select {
+            vertical-align: middle;
+        }
         #selector {
             position: absolute;
             top: 0;
@@ -92,7 +96,7 @@
         });
         select.value = name;
         selector.appendChild(select);
-        ['bloom', 'ssao'].forEach(name => {
+        ['bloom', 'ssao', 'shadow'].forEach(name => {
             const checkbox = document.createElement('input');
             checkbox.type = 'checkbox';
             checkbox.title = name;
@@ -107,9 +111,22 @@
             };
             selector.appendChild(checkbox);
         });
+        const slider = document.createElement('input');
+        slider.oninput = () => {
+            renderer.light.update(Number(slider.value));
+            renderer.reflow = true;
+            renderer.needUpdateView = true;
+        };
+        slider.type = 'range';
+        slider.min = '0';
+        slider.max = `${Math.PI*2}`;
+        slider.value = 0;
+        slider.step = '0.1';
+        slider.title = 'light';
+        selector.appendChild(slider);
 
         //https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/
-        const renderer = new redcube.RedCube('https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/' + name + '/glTF/' + name + '.gltf', canvas, [localStorage.getItem('ssao'), localStorage.getItem('bloom')].filter(name => name));
+        const renderer = new redcube.RedCube('https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/' + name + '/glTF/' + name + '.gltf', canvas, [localStorage.getItem('ssao'), localStorage.getItem('bloom'), localStorage.getItem('shadow')].filter(name => name));
         renderer.init().then(() => {
             if (renderer.parse.cameras.length) {
                 const select = document.createElement('select');

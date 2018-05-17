@@ -38,7 +38,7 @@ float ShadowCalculation(vec4 fragPosLightSpace, float bias) {
     projCoords = projCoords * 0.5 + 0.5;
     float closestDepth = texture(depthTexture, projCoords.xy).r; 
     float currentDepth = projCoords.z;
-    float shadow = currentDepth - bias > closestDepth  ? 0.5 : 0.0;
+    float shadow = currentDepth - bias > closestDepth ? 0.5 : 0.0;
 
     return shadow;
 }

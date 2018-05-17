@@ -249,12 +249,13 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "Events", function() { return Events; });
 class Events {
     constructor(redraw) {
+        const canvas = document.querySelector('#canvas');
         this.redraw = redraw;
         this.zoomValue = 0;
         document.addEventListener('wheel', this);
-        document.addEventListener('mousedown', this);
-        document.addEventListener('mousemove', this);
-        document.addEventListener('mouseup', this);
+        canvas.addEventListener('mousedown', this);
+        canvas.addEventListener('mousemove', this);
+        canvas.addEventListener('mouseup', this);
         document.addEventListener('keyup', this);
         document.addEventListener('keydown', this);
         addEventListener('resize', this);
@@ -1324,7 +1325,7 @@ class Mesh extends Object3D {
             emissiveTexture: null
         };
     }
-    draw(gl, { camera, light, preDepthTexture, fakeDepth, needUpdateView, needUpdateProjection }, isShadow) {
+    draw(gl, { camera, light, preDepthTexture, fakeDepth, needUpdateView, needUpdateProjection }, isShadow, isLight) {
         gl.useProgram(this.program);
         gl.bindVertexArray(this.geometry.VAO);
         gl.bindBufferBase(gl.UNIFORM_BUFFER, 0, this.geometry.UBO);
@@ -1343,7 +1344,7 @@ class Mesh extends Object3D {
         if (needUpdateProjection) {
             gl.bufferSubData(gl.UNIFORM_BUFFER, 48 * Float32Array.BYTES_PER_ELEMENT, camera.projection.elements);
         }
-        gl.bufferSubData(gl.UNIFORM_BUFFER, 80 * Float32Array.BYTES_PER_ELEMENT, new Float32Array([isShadow ? 1 : 0]));
+        gl.bufferSubData(gl.UNIFORM_BUFFER, 80 * Float32Array.BYTES_PER_ELEMENT, new Float32Array([isLight ? 1 : 0]));
         if (this instanceof SkinnedMesh) {
             gl.bindBufferBase(gl.UNIFORM_BUFFER, 2, this.geometry.SKIN);
             if (this.bones.some(bone => bone.reflow)) {
@@ -1513,6 +1514,12 @@ class Light extends Object3D {
     setZ(z) {
         this.matrix.elements[14] = z;
         this.setMatrixWorld(this.matrix.elements);
+    }
+    update(v) {
+        const camMatrix = new _matrix__WEBPACK_IMPORTED_MODULE_0__["Matrix4"];
+        camMatrix.makeRotationAxis(new _matrix__WEBPACK_IMPORTED_MODULE_0__["Vector3"]([0, 1, 0]), v);
+        camMatrix.multiply(this.matrix);
+        this.setMatrixWorld(camMatrix.elements);
     }
 }
 
@@ -2026,10 +2033,12 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _utils__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./utils */ "./src/utils.ts");
 /* harmony import */ var _postprocessors_ssao__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./postprocessors/ssao */ "./src/postprocessors/ssao.ts");
 /* harmony import */ var _postprocessors_bloom__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./postprocessors/bloom */ "./src/postprocessors/bloom.ts");
-/* harmony import */ var _shaders_quad_glsl__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./shaders/quad.glsl */ "./src/shaders/quad.glsl");
-/* harmony import */ var _shaders_quad_glsl__WEBPACK_IMPORTED_MODULE_3___default = /*#__PURE__*/__webpack_require__.n(_shaders_quad_glsl__WEBPACK_IMPORTED_MODULE_3__);
-/* harmony import */ var _shaders_composer_glsl__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./shaders/composer.glsl */ "./src/shaders/composer.glsl");
-/* harmony import */ var _shaders_composer_glsl__WEBPACK_IMPORTED_MODULE_4___default = /*#__PURE__*/__webpack_require__.n(_shaders_composer_glsl__WEBPACK_IMPORTED_MODULE_4__);
+/* harmony import */ var _postprocessors_shadow__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./postprocessors/shadow */ "./src/postprocessors/shadow.ts");
+/* harmony import */ var _shaders_quad_glsl__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./shaders/quad.glsl */ "./src/shaders/quad.glsl");
+/* harmony import */ var _shaders_quad_glsl__WEBPACK_IMPORTED_MODULE_4___default = /*#__PURE__*/__webpack_require__.n(_shaders_quad_glsl__WEBPACK_IMPORTED_MODULE_4__);
+/* harmony import */ var _shaders_composer_glsl__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./shaders/composer.glsl */ "./src/shaders/composer.glsl");
+/* harmony import */ var _shaders_composer_glsl__WEBPACK_IMPORTED_MODULE_5___default = /*#__PURE__*/__webpack_require__.n(_shaders_composer_glsl__WEBPACK_IMPORTED_MODULE_5__);
+
 
 
 
@@ -2038,12 +2047,16 @@ __webpack_require__.r(__webpack_exports__);
 let gl;
 const processorsMap = {
     bloom: _postprocessors_bloom__WEBPACK_IMPORTED_MODULE_2__["Bloom"],
-    ssao: _postprocessors_ssao__WEBPACK_IMPORTED_MODULE_1__["SSAO"]
+    ssao: _postprocessors_ssao__WEBPACK_IMPORTED_MODULE_1__["SSAO"],
+    shadow: _postprocessors_shadow__WEBPACK_IMPORTED_MODULE_3__["Shadow"]
 };
 class PostProcessing {
     constructor(processors) {
         this.postprocessors = processors.map(name => new processorsMap[name]);
         this.MSAA = 4;
+    }
+    setRender(renderScene) {
+        this.renderScene = renderScene;
     }
     setCamera(camera) {
         this.camera = camera;
@@ -2075,6 +2088,9 @@ class PostProcessing {
     }
     bindPostPass() {
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.renderframebuffer);
+    }
+    preProcessing() {
+        this.postprocessors.forEach(postProcessor => postProcessor.preProcessing(this));
     }
     postProcessing() {
         gl.bindFramebuffer(gl.READ_FRAMEBUFFER, this.renderframebuffer);
@@ -2195,8 +2211,8 @@ class PostProcessing {
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, this.preDepthTexture, 0);
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
         this.program = gl.createProgram();
-        Object(_utils__WEBPACK_IMPORTED_MODULE_0__["compileShader"])(gl.VERTEX_SHADER, _shaders_quad_glsl__WEBPACK_IMPORTED_MODULE_3___default.a.replace(/\n/, `\n${defineStr}`), this.program);
-        Object(_utils__WEBPACK_IMPORTED_MODULE_0__["compileShader"])(gl.FRAGMENT_SHADER, _shaders_composer_glsl__WEBPACK_IMPORTED_MODULE_4___default.a.replace(/\n/, `\n${defineStr}`), this.program);
+        Object(_utils__WEBPACK_IMPORTED_MODULE_0__["compileShader"])(gl.VERTEX_SHADER, _shaders_quad_glsl__WEBPACK_IMPORTED_MODULE_4___default.a.replace(/\n/, `\n${defineStr}`), this.program);
+        Object(_utils__WEBPACK_IMPORTED_MODULE_0__["compileShader"])(gl.FRAGMENT_SHADER, _shaders_composer_glsl__WEBPACK_IMPORTED_MODULE_5___default.a.replace(/\n/, `\n${defineStr}`), this.program);
         gl.linkProgram(this.program);
         return true;
     }
@@ -2312,6 +2328,40 @@ class Bloom extends _base__WEBPACK_IMPORTED_MODULE_0__["PostProcessor"] {
         gl.uniform2f(gl.getUniformLocation(program, 'denom'), 0, 1);
         gl.drawArrays(gl.TRIANGLES, 0, 6);
     }
+    preProcessing() { }
+}
+
+
+/***/ }),
+
+/***/ "./src/postprocessors/shadow.ts":
+/*!**************************************!*\
+  !*** ./src/postprocessors/shadow.ts ***!
+  \**************************************/
+/*! exports provided: Shadow */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "Shadow", function() { return Shadow; });
+/* harmony import */ var _base__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./base */ "./src/postprocessors/base.ts");
+
+let gl;
+class Shadow extends _base__WEBPACK_IMPORTED_MODULE_0__["PostProcessor"] {
+    setGL(g) {
+        gl = g;
+    }
+    preProcessing(PP) {
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        //gl.enable(gl.RASTERIZER_DISCARD);
+        PP.renderScene(true, true);
+        //gl.disable(gl.RASTERIZER_DISCARD);
+    }
+    buildScreenBuffer() {
+        return { name: 'SHADOW' };
+    }
+    attachUniform() { }
+    postProcessing() { }
 }
 
 
@@ -2435,6 +2485,7 @@ class SSAO extends _base__WEBPACK_IMPORTED_MODULE_1__["PostProcessor"] {
             j++;
         }
     }
+    preProcessing() { }
 }
 
 
@@ -2473,6 +2524,7 @@ class RedCube {
         this.reflow = true;
         this.scene = new _objects__WEBPACK_IMPORTED_MODULE_0__["Scene"];
         this.canvas = canvas;
+        this.processors = processors;
         this.camera = new _objects__WEBPACK_IMPORTED_MODULE_0__["Camera"];
         this.camera.setProps({
             type: 'perspective',
@@ -2491,6 +2543,7 @@ class RedCube {
         this.PP = new _postprocessing__WEBPACK_IMPORTED_MODULE_6__["PostProcessing"](processors);
         this.PP.setCanvas(this.canvas);
         this.PP.setCamera(this.camera);
+        this.PP.setRender(this.renderScene.bind(this));
         this.parse = new _parse__WEBPACK_IMPORTED_MODULE_5__["Parse"](url);
         this.parse.setScene(this.scene);
         this.parse.setCamera(this.camera);
@@ -2532,14 +2585,20 @@ class RedCube {
             if (angle < 1e-6 || isNaN(angle)) {
                 return;
             }
-            p0.applyMatrix4(this.camera.matrixWorld);
-            p1.applyMatrix4(this.camera.matrixWorld);
-            const v = _matrix__WEBPACK_IMPORTED_MODULE_1__["Vector3"].cross(p1, p0).normalize();
-            const m = new _matrix__WEBPACK_IMPORTED_MODULE_1__["Matrix4"];
-            m.makeRotationAxis(v, angle);
-            m.multiply(this.camera.matrixWorld);
-            this.camera.setMatrixWorld(m.elements);
-            this.light.setMatrixWorld(m.elements);
+            const camStart = new _matrix__WEBPACK_IMPORTED_MODULE_1__["Vector3"](p0.elements).applyMatrix4(this.camera.matrixWorld);
+            const camEnd = new _matrix__WEBPACK_IMPORTED_MODULE_1__["Vector3"](p1.elements).applyMatrix4(this.camera.matrixWorld);
+            const camVector = _matrix__WEBPACK_IMPORTED_MODULE_1__["Vector3"].cross(camEnd, camStart).normalize();
+            const camMatrix = new _matrix__WEBPACK_IMPORTED_MODULE_1__["Matrix4"];
+            camMatrix.makeRotationAxis(camVector, angle);
+            camMatrix.multiply(this.camera.matrixWorld);
+            // const lightStart = new Vector3(p0.elements).applyMatrix4(this.light.matrixWorld);
+            // const lightEnd = new Vector3(p1.elements).applyMatrix4(this.light.matrixWorld);
+            // const lightVector = Vector3.cross(lightEnd, lightStart).normalize();
+            // const lightMatrix = new Matrix4;
+            // lightMatrix.makeRotationAxis(lightVector, angle);
+            // lightMatrix.multiply(this.light.matrixWorld);
+            this.camera.setMatrixWorld(camMatrix.elements);
+            //this.light.setMatrixWorld(lightMatrix.elements);
             this.needUpdateView = true;
         }
         if (type === 'pan') {
@@ -2568,6 +2627,10 @@ class RedCube {
             const z = 1 / this.canvas.width * this.camera.modelSize * 3000;
             this.camera.setZ(z);
             this.light.setZ(z);
+            this.needUpdateView = true;
+        }
+        else {
+            this.light.setZ(this.camera.matrixWorld.elements[14]);
             this.needUpdateView = true;
         }
         const cameraZ = Math.abs(this.camera.matrixWorldInvert.elements[14]);
@@ -2701,14 +2764,11 @@ class RedCube {
         this.animate(sec);
         if (this.reflow) {
             this.PP.bindPrePass();
-            gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-            //gl.enable(gl.RASTERIZER_DISCARD);
-            this.renderScene(true);
-            //gl.disable(gl.RASTERIZER_DISCARD);
+            this.PP.preProcessing();
             this.PP.bindPostPass();
             gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
             this.env.createEnvironment();
-            this.renderScene(false);
+            this.renderScene(!this.processors.includes('shadow'), false);
             Object(_utils__WEBPACK_IMPORTED_MODULE_7__["walk"])(this.scene, node => {
                 node.reflow = false;
             });
@@ -2720,7 +2780,7 @@ class RedCube {
         this.reflow = false;
         requestAnimationFrame(this.render.bind(this));
     }
-    renderScene(isShadow) {
+    renderScene(isShadow, isLight) {
         gl.enable(gl.DEPTH_TEST);
         gl.enable(gl.CULL_FACE);
         if (this.needUpdateView) {
@@ -2731,7 +2791,7 @@ class RedCube {
         }
         this.scene.opaqueChildren.forEach(mesh => {
             if (mesh.visible) {
-                mesh.draw(gl, this.getState(), isShadow);
+                mesh.draw(gl, this.getState(), isShadow, isLight);
             }
         });
         if (this.scene.transparentChildren.length) {
@@ -2741,7 +2801,7 @@ class RedCube {
             // gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
             this.scene.transparentChildren.forEach(mesh => {
                 if (mesh.visible) {
-                    mesh.draw(gl, this.getState(), isShadow);
+                    mesh.draw(gl, this.getState(), isShadow, isLight);
                 }
             });
             gl.disable(gl.BLEND);
@@ -2827,7 +2887,7 @@ module.exports = "#version 300 es\r\nprecision highp float;\r\n\r\nlayout (locat
 /*! no static exports found */
 /***/ (function(module, exports) {
 
-module.exports = "#version 300 es\r\nprecision highp float;\r\n\r\nin vec2 outUV;\r\nin vec3 outPosition;\r\nin vec4 outPositionView;\r\n#ifdef TANGENT\r\n    in mat3 outTBN;\r\n#else\r\n    in vec3 outNormal;\r\n#endif\r\n\r\nlayout (location = 0) out vec4 color;\r\nlayout (location = 1) out vec3 normalColor;\r\n\r\nuniform Material {\r\n    vec4 baseColorFactor;\r\n    vec3 lightPos;\r\n    vec3 viewPos;\r\n};\r\nuniform sampler2D baseColorTexture;\r\nuniform sampler2D metallicRoughnessTexture;\r\nuniform sampler2D normalTexture;\r\nuniform sampler2D emissiveTexture;\r\nuniform sampler2D occlusionTexture;\r\n\r\nuniform sampler2D depthTexture;\r\n\r\nconst float PI = 3.14159265359;\r\nconst float ambientStrength = 0.1;\r\nconst float specularStrength = 2.5;\r\nconst float specularPower = 32.0;\r\nconst vec3 lightColor = vec3(1.0, 1.0, 1.0);\r\nconst vec3 emissiveFactor = vec3(1.0, 1.0, 1.0);\r\n\r\nfloat ShadowCalculation(vec4 fragPosLightSpace, float bias) {\r\n    vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;\r\n    projCoords = projCoords * 0.5 + 0.5;\r\n    float closestDepth = texture(depthTexture, projCoords.xy).r; \r\n    float currentDepth = projCoords.z;\r\n    float shadow = currentDepth - bias > closestDepth  ? 0.5 : 0.0;\r\n\r\n    return shadow;\r\n}\r\n\r\nvec3 srgbToLinear(vec4 srgbIn) {\r\n    return pow(srgbIn.rgb, vec3(2.2));\r\n}\r\n\r\nfloat DistributionGGX(vec3 N, vec3 H, float roughness) {\r\n    float a = roughness*roughness;\r\n    float a2 = max(a*a, 0.0001);\r\n    float NdotH = max(dot(N, H), 0.0);\r\n    float NdotH2 = NdotH*NdotH;\r\n\r\n    float nom   = a2;\r\n    float denom = (NdotH2 * (a2 - 1.0) + 1.0);\r\n    denom = PI * denom * denom;\r\n\r\n    return nom / max(denom, 0.0001);\r\n}\r\n\r\nfloat GeometrySchlickGGX(float NdotV, float roughness) {\r\n    float r = (roughness + 1.0);\r\n    float k = (r*r) / 8.0;\r\n\r\n    float nom   = NdotV;\r\n    float denom = NdotV * (1.0 - k) + k;\r\n\r\n    return nom / denom;\r\n}\r\n\r\nfloat GeometrySmith(vec3 N, vec3 V, vec3 L, float roughness) {\r\n    float NdotV = max(dot(N, V), 0.0);\r\n    float NdotL = max(dot(N, L), 0.0);\r\n    float ggx2 = GeometrySchlickGGX(NdotV, roughness);\r\n    float ggx1 = GeometrySchlickGGX(NdotL, roughness);\r\n\r\n    return ggx1 * ggx2;\r\n}\r\n\r\nvec3 fresnelSchlick(float cosTheta, vec3 F0) {\r\n    return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);\r\n}\r\n\r\nvoid main() {\r\n    #ifdef BASECOLORTEXTURE\r\n        vec3 baseColor = srgbToLinear(texture(baseColorTexture, outUV));\r\n        float alpha = texture(baseColorTexture, outUV).a;\r\n    #else\r\n        vec3 baseColor = baseColorFactor.rgb;\r\n        float alpha = baseColorFactor.a;\r\n    #endif\r\n\r\n    #ifdef OCCLUSIONMAP\r\n        float ao = texture(occlusionTexture, outUV).r;\r\n    #endif\r\n\r\n    #ifdef METALROUGHNESSMAP\r\n        float roughness = texture(metallicRoughnessTexture, outUV).g;\r\n        float metallic = texture(metallicRoughnessTexture, outUV).b;\r\n    #endif\r\n\r\n    #ifdef TANGENT\r\n        #ifdef NORMALMAP\r\n            vec3 n = texture(normalTexture, outUV).rgb;\r\n            n = normalize(outTBN * (2.0 * n - 1.0));\r\n        #else\r\n            vec3 n = outTBN[2].xyz;\r\n        #endif\r\n    #else\r\n        vec3 n = outNormal;\r\n    #endif\r\n\r\n    vec3 viewDir = normalize(viewPos - outPosition);\r\n    vec3 lightDir = normalize(lightPos - outPosition);\r\n    vec3 H = normalize(viewDir + lightDir);\r\n    float distance = length(lightPos - outPosition);\r\n    float attenuation = 1.0 / (distance * distance);\r\n    vec3 radiance = lightColor * 2.0;\r\n    float shadowBias = max(0.05 * (1.0 - dot(n, lightDir)), 0.005);\r\n    float shadow = 1.0 - ShadowCalculation(outPositionView, shadowBias);\r\n\r\n    #ifdef USE_PBR\r\n        vec3 F0 = vec3(0.04); \r\n        F0 = mix(F0, baseColor, metallic);\r\n\r\n        vec3 light = vec3(0.0);\r\n\r\n        float NDF = DistributionGGX(n, H, roughness);        \r\n        float G = GeometrySmith(n, viewDir, lightDir, roughness);      \r\n        vec3 F = fresnelSchlick(max(dot(H, viewDir), 0.0), F0);       \r\n        \r\n        vec3 kS = F;\r\n        vec3 kD = vec3(1.0) - kS;\r\n        kD *= 1.0 - metallic;     \r\n        \r\n        vec3 nominator = NDF * G * F;\r\n        float denominator = 4.0 * max(dot(n, viewDir), 0.0) * max(dot(n, lightDir), 0.0);\r\n        vec3 specular = nominator / max(denominator, 0.001);  \r\n\r\n        float NdotL = max(dot(n, lightDir), 0.0);                \r\n        light += (kD * baseColor / PI + specular) * radiance * NdotL;\r\n\r\n        #ifdef OCCLUSIONMAP\r\n            vec3 ambient = vec3(0.03) * baseColor * ao;\r\n        #else\r\n            vec3 ambient = baseColor;\r\n        #endif\r\n        baseColor = ambient + light;\r\n\r\n        #ifdef EMISSIVEMAP\r\n            vec3 emissive = srgbToLinear(texture(emissiveTexture, outUV)) * emissiveFactor;\r\n            baseColor.rgb += emissive;\r\n        #endif\r\n\r\n        baseColor.rgb *= shadow;\r\n   \r\n        color = vec4(baseColor, 1.0);\r\n    #else\r\n        vec3 ambient = ambientStrength * lightColor;\r\n\r\n        float diff = max(dot(n, lightDir), 0.0);\r\n        vec3 diffuse = diff * lightColor;\r\n\r\n        vec3 reflectDir = reflect(-lightDir, n);\r\n        float spec = pow(max(dot(viewDir, reflectDir), 0.0), specularPower);\r\n        vec3 specular = specularStrength * spec * lightColor;\r\n\r\n        color = vec4(baseColor.rgb * (ambient + diffuse + specular) * shadow, alpha);\r\n    #endif\r\n    normalColor = n;\r\n}\r\n"
+module.exports = "#version 300 es\r\nprecision highp float;\r\n\r\nin vec2 outUV;\r\nin vec3 outPosition;\r\nin vec4 outPositionView;\r\n#ifdef TANGENT\r\n    in mat3 outTBN;\r\n#else\r\n    in vec3 outNormal;\r\n#endif\r\n\r\nlayout (location = 0) out vec4 color;\r\nlayout (location = 1) out vec3 normalColor;\r\n\r\nuniform Material {\r\n    vec4 baseColorFactor;\r\n    vec3 lightPos;\r\n    vec3 viewPos;\r\n};\r\nuniform sampler2D baseColorTexture;\r\nuniform sampler2D metallicRoughnessTexture;\r\nuniform sampler2D normalTexture;\r\nuniform sampler2D emissiveTexture;\r\nuniform sampler2D occlusionTexture;\r\n\r\nuniform sampler2D depthTexture;\r\n\r\nconst float PI = 3.14159265359;\r\nconst float ambientStrength = 0.1;\r\nconst float specularStrength = 2.5;\r\nconst float specularPower = 32.0;\r\nconst vec3 lightColor = vec3(1.0, 1.0, 1.0);\r\nconst vec3 emissiveFactor = vec3(1.0, 1.0, 1.0);\r\n\r\nfloat ShadowCalculation(vec4 fragPosLightSpace, float bias) {\r\n    vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;\r\n    projCoords = projCoords * 0.5 + 0.5;\r\n    float closestDepth = texture(depthTexture, projCoords.xy).r; \r\n    float currentDepth = projCoords.z;\r\n    float shadow = currentDepth - bias > closestDepth ? 0.5 : 0.0;\r\n\r\n    return shadow;\r\n}\r\n\r\nvec3 srgbToLinear(vec4 srgbIn) {\r\n    return pow(srgbIn.rgb, vec3(2.2));\r\n}\r\n\r\nfloat DistributionGGX(vec3 N, vec3 H, float roughness) {\r\n    float a = roughness*roughness;\r\n    float a2 = max(a*a, 0.0001);\r\n    float NdotH = max(dot(N, H), 0.0);\r\n    float NdotH2 = NdotH*NdotH;\r\n\r\n    float nom   = a2;\r\n    float denom = (NdotH2 * (a2 - 1.0) + 1.0);\r\n    denom = PI * denom * denom;\r\n\r\n    return nom / max(denom, 0.0001);\r\n}\r\n\r\nfloat GeometrySchlickGGX(float NdotV, float roughness) {\r\n    float r = (roughness + 1.0);\r\n    float k = (r*r) / 8.0;\r\n\r\n    float nom   = NdotV;\r\n    float denom = NdotV * (1.0 - k) + k;\r\n\r\n    return nom / denom;\r\n}\r\n\r\nfloat GeometrySmith(vec3 N, vec3 V, vec3 L, float roughness) {\r\n    float NdotV = max(dot(N, V), 0.0);\r\n    float NdotL = max(dot(N, L), 0.0);\r\n    float ggx2 = GeometrySchlickGGX(NdotV, roughness);\r\n    float ggx1 = GeometrySchlickGGX(NdotL, roughness);\r\n\r\n    return ggx1 * ggx2;\r\n}\r\n\r\nvec3 fresnelSchlick(float cosTheta, vec3 F0) {\r\n    return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);\r\n}\r\n\r\nvoid main() {\r\n    #ifdef BASECOLORTEXTURE\r\n        vec3 baseColor = srgbToLinear(texture(baseColorTexture, outUV));\r\n        float alpha = texture(baseColorTexture, outUV).a;\r\n    #else\r\n        vec3 baseColor = baseColorFactor.rgb;\r\n        float alpha = baseColorFactor.a;\r\n    #endif\r\n\r\n    #ifdef OCCLUSIONMAP\r\n        float ao = texture(occlusionTexture, outUV).r;\r\n    #endif\r\n\r\n    #ifdef METALROUGHNESSMAP\r\n        float roughness = texture(metallicRoughnessTexture, outUV).g;\r\n        float metallic = texture(metallicRoughnessTexture, outUV).b;\r\n    #endif\r\n\r\n    #ifdef TANGENT\r\n        #ifdef NORMALMAP\r\n            vec3 n = texture(normalTexture, outUV).rgb;\r\n            n = normalize(outTBN * (2.0 * n - 1.0));\r\n        #else\r\n            vec3 n = outTBN[2].xyz;\r\n        #endif\r\n    #else\r\n        vec3 n = outNormal;\r\n    #endif\r\n\r\n    vec3 viewDir = normalize(viewPos - outPosition);\r\n    vec3 lightDir = normalize(lightPos - outPosition);\r\n    vec3 H = normalize(viewDir + lightDir);\r\n    float distance = length(lightPos - outPosition);\r\n    float attenuation = 1.0 / (distance * distance);\r\n    vec3 radiance = lightColor * 2.0;\r\n    float shadowBias = max(0.05 * (1.0 - dot(n, lightDir)), 0.005);\r\n    float shadow = 1.0 - ShadowCalculation(outPositionView, shadowBias);\r\n\r\n    #ifdef USE_PBR\r\n        vec3 F0 = vec3(0.04); \r\n        F0 = mix(F0, baseColor, metallic);\r\n\r\n        vec3 light = vec3(0.0);\r\n\r\n        float NDF = DistributionGGX(n, H, roughness);        \r\n        float G = GeometrySmith(n, viewDir, lightDir, roughness);      \r\n        vec3 F = fresnelSchlick(max(dot(H, viewDir), 0.0), F0);       \r\n        \r\n        vec3 kS = F;\r\n        vec3 kD = vec3(1.0) - kS;\r\n        kD *= 1.0 - metallic;     \r\n        \r\n        vec3 nominator = NDF * G * F;\r\n        float denominator = 4.0 * max(dot(n, viewDir), 0.0) * max(dot(n, lightDir), 0.0);\r\n        vec3 specular = nominator / max(denominator, 0.001);  \r\n\r\n        float NdotL = max(dot(n, lightDir), 0.0);                \r\n        light += (kD * baseColor / PI + specular) * radiance * NdotL;\r\n\r\n        #ifdef OCCLUSIONMAP\r\n            vec3 ambient = vec3(0.03) * baseColor * ao;\r\n        #else\r\n            vec3 ambient = baseColor;\r\n        #endif\r\n        baseColor = ambient + light;\r\n\r\n        #ifdef EMISSIVEMAP\r\n            vec3 emissive = srgbToLinear(texture(emissiveTexture, outUV)) * emissiveFactor;\r\n            baseColor.rgb += emissive;\r\n        #endif\r\n\r\n        baseColor.rgb *= shadow;\r\n   \r\n        color = vec4(baseColor, 1.0);\r\n    #else\r\n        vec3 ambient = ambientStrength * lightColor;\r\n\r\n        float diff = max(dot(n, lightDir), 0.0);\r\n        vec3 diffuse = diff * lightColor;\r\n\r\n        vec3 reflectDir = reflect(-lightDir, n);\r\n        float spec = pow(max(dot(viewDir, reflectDir), 0.0), specularPower);\r\n        vec3 specular = specularStrength * spec * lightColor;\r\n\r\n        color = vec4(baseColor.rgb * (ambient + diffuse + specular) * shadow, alpha);\r\n    #endif\r\n    normalColor = n;\r\n}\r\n"
 
 /***/ }),
 

@@ -24,11 +24,13 @@ class RedCube {
     needUpdateView: boolean;
     fps: FPS;
     PP: PostProcessing;
+    processors: Array<String>;
 
     constructor(url, canvas, processors) {
         this.reflow = true;
         this.scene = new Scene;
         this.canvas = canvas;
+        this.processors = processors;
 
         this.camera = new Camera;
         this.camera.setProps({
@@ -53,6 +55,7 @@ class RedCube {
         this.PP = new PostProcessing(processors);
         this.PP.setCanvas(this.canvas);
         this.PP.setCamera(this.camera);
+        this.PP.setRender(this.renderScene.bind(this));
 
         this.parse = new Parse(url);
         this.parse.setScene(this.scene);
@@ -99,16 +102,22 @@ class RedCube {
                 return;
             }
 
-            p0.applyMatrix4(this.camera.matrixWorld);
-            p1.applyMatrix4(this.camera.matrixWorld);
-            const v = Vector3.cross(p1, p0).normalize();
+            const camStart = new Vector3(p0.elements).applyMatrix4(this.camera.matrixWorld);
+            const camEnd = new Vector3(p1.elements).applyMatrix4(this.camera.matrixWorld);
+            const camVector = Vector3.cross(camEnd, camStart).normalize();
+            const camMatrix = new Matrix4;
+            camMatrix.makeRotationAxis(camVector, angle);
+            camMatrix.multiply(this.camera.matrixWorld);
 
-            const m = new Matrix4;
-            m.makeRotationAxis(v, angle);
-            m.multiply(this.camera.matrixWorld);
+            // const lightStart = new Vector3(p0.elements).applyMatrix4(this.light.matrixWorld);
+            // const lightEnd = new Vector3(p1.elements).applyMatrix4(this.light.matrixWorld);
+            // const lightVector = Vector3.cross(lightEnd, lightStart).normalize();
+            // const lightMatrix = new Matrix4;
+            // lightMatrix.makeRotationAxis(lightVector, angle);
+            // lightMatrix.multiply(this.light.matrixWorld);
 
-            this.camera.setMatrixWorld(m.elements);
-            this.light.setMatrixWorld(m.elements);
+            this.camera.setMatrixWorld(camMatrix.elements);
+            //this.light.setMatrixWorld(lightMatrix.elements);
             this.needUpdateView = true;
         }
         if (type === 'pan') {
@@ -141,6 +150,9 @@ class RedCube {
             const z = 1 / this.canvas.width * this.camera.modelSize * 3000;
             this.camera.setZ(z);
             this.light.setZ(z);
+            this.needUpdateView = true;
+        } else {
+            this.light.setZ(this.camera.matrixWorld.elements[14]);
             this.needUpdateView = true;
         }
 
@@ -296,18 +308,14 @@ class RedCube {
         
         if (this.reflow) {
             this.PP.bindPrePass();
-            gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-            //gl.enable(gl.RASTERIZER_DISCARD);
+            this.PP.preProcessing();
 
-            this.renderScene(true);
-
-            //gl.disable(gl.RASTERIZER_DISCARD);
             this.PP.bindPostPass();
             gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
             this.env.createEnvironment();
 
-            this.renderScene(false);
+            this.renderScene(!this.processors.includes('shadow'), false);
 
             walk(this.scene, node => {
                 node.reflow = false;
@@ -324,7 +332,7 @@ class RedCube {
         requestAnimationFrame(this.render.bind(this));
     }
 
-    renderScene(isShadow) {
+    renderScene(isShadow, isLight) {
         gl.enable(gl.DEPTH_TEST);
         gl.enable(gl.CULL_FACE);
 
@@ -338,7 +346,7 @@ class RedCube {
 
         this.scene.opaqueChildren.forEach(mesh => {
             if (mesh.visible) {
-                mesh.draw(gl, this.getState(), isShadow);
+                mesh.draw(gl, this.getState(), isShadow, isLight);
             }
         });
         if (this.scene.transparentChildren.length) {
@@ -349,7 +357,7 @@ class RedCube {
 
             this.scene.transparentChildren.forEach(mesh => {
                 if (mesh.visible) {
-                    mesh.draw(gl, this.getState(), isShadow);
+                    mesh.draw(gl, this.getState(), isShadow, isLight);
                 }
             });
 

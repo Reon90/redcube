@@ -83,4 +83,6 @@ export class Bloom extends PostProcessor {
         gl.uniform2f(gl.getUniformLocation(program, 'denom'), 0, 1);
         gl.drawArrays( gl.TRIANGLES, 0, 6 );
     }
+
+    preProcessing() {}
 }

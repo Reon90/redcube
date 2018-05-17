@@ -142,7 +142,7 @@ class Mesh extends Object3D {
         };
     }
 
-    draw(gl, {camera, light, preDepthTexture, fakeDepth, needUpdateView, needUpdateProjection}, isShadow) {
+    draw(gl, {camera, light, preDepthTexture, fakeDepth, needUpdateView, needUpdateProjection}, isShadow, isLight) {
         gl.useProgram(this.program);
 
         gl.bindVertexArray(this.geometry.VAO);
@@ -163,7 +163,7 @@ class Mesh extends Object3D {
         if (needUpdateProjection) {
             gl.bufferSubData(gl.UNIFORM_BUFFER, 48 * Float32Array.BYTES_PER_ELEMENT, camera.projection.elements);
         }
-        gl.bufferSubData(gl.UNIFORM_BUFFER, 80 * Float32Array.BYTES_PER_ELEMENT, new Float32Array([isShadow ? 1 : 0]));
+        gl.bufferSubData(gl.UNIFORM_BUFFER, 80 * Float32Array.BYTES_PER_ELEMENT, new Float32Array([isLight ? 1 : 0]));
 
         if (this instanceof SkinnedMesh) {
             gl.bindBufferBase(gl.UNIFORM_BUFFER, 2, this.geometry.SKIN);
@@ -401,6 +401,13 @@ class Light extends Object3D {
     setZ(z) {
         this.matrix.elements[14] = z;
         this.setMatrixWorld(this.matrix.elements);
+    }
+
+    update(v) {
+        const camMatrix = new Matrix4;
+        camMatrix.makeRotationAxis(new Vector3([0, 1, 0]), v);
+        camMatrix.multiply(this.matrix);
+        this.setMatrixWorld(camMatrix.elements);
     }
 }
 

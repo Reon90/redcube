@@ -7,12 +7,13 @@ class Events {
     zoomValue: number;
 
     constructor(redraw) {
+        const canvas = document.querySelector('#canvas');
         this.redraw = redraw;
         this.zoomValue = 0;
         document.addEventListener('wheel', this);
-        document.addEventListener('mousedown', this);
-        document.addEventListener('mousemove', this);
-        document.addEventListener('mouseup', this);
+        canvas.addEventListener('mousedown', this);
+        canvas.addEventListener('mousemove', this);
+        canvas.addEventListener('mouseup', this);
         document.addEventListener('keyup', this);
         document.addEventListener('keydown', this);
         addEventListener('resize', this);

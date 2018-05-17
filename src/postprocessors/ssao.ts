@@ -131,4 +131,6 @@ export class SSAO extends PostProcessor {
             j++;
         }
     }
+
+    preProcessing() {}
 }

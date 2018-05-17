@@ -5,6 +5,7 @@ export abstract class PostProcessor {
     camera: Camera;
     framebuffer: WebGLFramebuffer;
     abstract postProcessing(PP)
+    abstract preProcessing(PP)
     abstract buildScreenBuffer(pp)
     abstract setGL(gl)
     abstract attachUniform(program)

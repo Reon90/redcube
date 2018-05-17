@@ -2,6 +2,7 @@ import { compileShader, getTextureIndex } from './utils';
 import { Camera } from './objects';
 import { SSAO } from './postprocessors/ssao';
 import { Bloom } from './postprocessors/bloom';
+import { Shadow } from './postprocessors/shadow';
 import { PostProcessor } from './postprocessors/base';
 
 import quadShader from './shaders/quad.glsl';
@@ -11,7 +12,8 @@ let gl;
 
 const processorsMap = {
     bloom: Bloom,
-    ssao: SSAO
+    ssao: SSAO,
+    shadow: Shadow
 };
 
 interface Texture extends WebGLTexture {
@@ -32,11 +34,16 @@ export class PostProcessing {
     VAO: WebGLBuffer;
     program: WebGLProgram;
     renderframebuffer: WebGLFramebuffer;
-    MSAA: number;
+    MSAA: Number;
+    renderScene: Function;
 
     constructor(processors) {
         this.postprocessors = processors.map(name => new processorsMap[name]);
         this.MSAA = 4;
+    }
+
+    setRender(renderScene) {
+        this.renderScene = renderScene;
     }
 
     setCamera(camera) {
@@ -75,6 +82,12 @@ export class PostProcessing {
 
     bindPostPass() {
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.renderframebuffer);
+    }
+
+    preProcessing() {
+        this.postprocessors.forEach(
+            postProcessor => postProcessor.preProcessing(this)
+        );
     }
 
     postProcessing() {
