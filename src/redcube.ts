@@ -7,7 +7,12 @@ import { Env } from './env';
 import { FPS } from './fps';
 import { Parse } from './parse';
 import { PostProcessing } from './postprocessing';
-import { setGl, getAnimationComponent, interpolation, walk, sceneToArcBall, canvasToWorld, calculateProjection, getAttributeIndex } from './utils';
+import { getTextureIndex, setGl, getAnimationComponent, interpolation, walk, sceneToArcBall, canvasToWorld, calculateProjection, getAttributeIndex, compileShader, random } from './utils';
+
+import instanceShader from './shaders/instance.glsl';
+import instanceFragShader from './shaders/instance-frag.glsl';
+import instanceTransShader from './shaders/instance-trans.glsl';
+import partTexture from './images/part.png';
 
 let gl;
 
@@ -63,12 +68,13 @@ class RedCube {
         this.parse.setLight(this.light);
         this.parse.setUpdateCamera(this.updateCamera.bind(this));
         this.parse.setCanvas(this.canvas);
-        this.parse.setResize(this.resize.bind(this));    
+        this.parse.setResize(this.resize.bind(this));
     }
 
     init() {
         return this.parse.getJson()
             .then(this.glInit.bind(this))
+            .then(this.buildInstancing.bind(this))
             .then(this.parse.initTextures.bind(this.parse))
             .then(this.PP.buildScreenBuffer.bind(this.PP))
             .then(this.parse.getBuffer.bind(this.parse))
@@ -175,6 +181,7 @@ class RedCube {
 
     glInit() {
         gl = this.canvas.getContext('webgl2', { antialias: false });
+        this.gl = gl;
 
         if (!gl) {
             throw new Error('Webgl 2 doesnt support');
@@ -307,6 +314,8 @@ class RedCube {
         this.animate(sec);
         
         if (this.reflow) {
+            this.reflow = false;
+
             this.PP.bindPrePass();
             this.PP.preProcessing();
 
@@ -315,7 +324,9 @@ class RedCube {
 
             this.env.createEnvironment();
 
-            this.renderScene(!this.processors.includes('shadow'), false);
+            //this.renderScene(!this.processors.includes('shadow'), false);
+
+            this.instancing(time);
 
             walk(this.scene, node => {
                 node.reflow = false;
@@ -328,7 +339,6 @@ class RedCube {
 
         this.fps.tick(time);
 
-        this.reflow = false;
         requestAnimationFrame(this.render.bind(this));
     }
 
@@ -376,6 +386,173 @@ class RedCube {
             needUpdateView: this.needUpdateView, 
             needUpdateProjection: this.needUpdateProjection
         };
+    }
+
+    buildInstancing() {
+        this.currentSourceIdx = 0;
+        const program = gl.createProgram();
+        compileShader(gl.VERTEX_SHADER, instanceTransShader, program);
+        compileShader(gl.FRAGMENT_SHADER, instanceFragShader, program);
+
+        const varyings = ['v_position', 'v_velocity', 'v_spawntime', 'v_lifetime'];
+        gl.transformFeedbackVaryings(program, varyings, gl.SEPARATE_ATTRIBS);
+
+        gl.linkProgram(program);
+        this.program = program;
+
+        const program2 = gl.createProgram();
+        compileShader(gl.VERTEX_SHADER, instanceShader, program2);
+        compileShader(gl.FRAGMENT_SHADER, instanceFragShader, program2);
+        gl.linkProgram(program2);
+        this.program2 = program2;
+
+        const VAO = [gl.createVertexArray(), gl.createVertexArray()];
+        const TFO = [gl.createTransformFeedback(), gl.createTransformFeedback()];
+        this.VAO = VAO;
+        this.TFO = TFO;
+
+        for (const b of [0,1]) {
+            const amount = 100;
+            gl.bindVertexArray(VAO[b]);
+            const VBOs = [];
+
+            {
+                const vertexPositionData = new Float32Array(amount * 2);
+                for (let i = 0; i < amount; i++) {
+                    vertexPositionData[i * 2] = 0;
+                    vertexPositionData[i * 2 + 1] = 0;
+                }
+                const VBO = gl.createBuffer();
+                gl.bindBuffer(gl.ARRAY_BUFFER, VBO);
+                gl.bufferData(gl.ARRAY_BUFFER, vertexPositionData, gl.STREAM_COPY);
+                gl.enableVertexAttribArray(0);
+                gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+                gl.vertexAttribDivisor(0, 1);
+                VBOs.push(VBO);
+            }
+            {
+                const vertexPositionData = new Float32Array(amount * 2);
+                for (let i = 0; i < amount; i++) {
+                    vertexPositionData[i * 2] = 0;
+                    vertexPositionData[i * 2 + 1] = 0;
+                }
+                const VBO = gl.createBuffer();
+                gl.bindBuffer(gl.ARRAY_BUFFER, VBO);
+                gl.bufferData(gl.ARRAY_BUFFER, vertexPositionData, gl.STREAM_COPY);
+                gl.enableVertexAttribArray(1);
+                gl.vertexAttribPointer(1, 2, gl.FLOAT, false, 0, 0);
+                gl.vertexAttribDivisor(1, 1);
+                VBOs.push(VBO);
+            }
+            {
+                const vertexPositionData = new Float32Array(amount * 1);
+                for (let i = 0; i < amount; i++) {
+                    vertexPositionData[i * 2] = 0;
+                }
+                const VBO = gl.createBuffer();
+                gl.bindBuffer(gl.ARRAY_BUFFER, VBO);
+                gl.bufferData(gl.ARRAY_BUFFER, vertexPositionData, gl.STREAM_COPY);
+                gl.enableVertexAttribArray(2);
+                gl.vertexAttribPointer(2, 1, gl.FLOAT, false, 0, 0);
+                gl.vertexAttribDivisor(2, 1);
+                VBOs.push(VBO);
+            }
+            {
+                const vertexPositionData = new Float32Array(amount * 1);
+                for (let i = 0; i < amount; i++) {
+                    vertexPositionData[i * 2] = 0;
+                }
+                const VBO = gl.createBuffer();
+                gl.bindBuffer(gl.ARRAY_BUFFER, VBO);
+                gl.bufferData(gl.ARRAY_BUFFER, vertexPositionData, gl.STREAM_COPY);
+                gl.enableVertexAttribArray(3);
+                gl.vertexAttribPointer(3, 1, gl.FLOAT, false, 0, 0);
+                gl.vertexAttribDivisor(3, 1);
+                VBOs.push(VBO);
+            }
+            this.VBOs = VBOs;
+
+            gl.bindBuffer(gl.ARRAY_BUFFER, null);
+            gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, TFO[b]);
+            let index = 0;
+            for (const v of VBOs) {
+                gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, index, v);
+                index++;
+            }
+        }
+
+        return new Promise((resolve, reject) => {
+            const index = getTextureIndex();
+            this.texture = {
+                data: gl.createTexture(),
+                count: index
+            };
+            const img = new Image;
+            img.crossOrigin = 'anonymous';
+            img.onload = () => {
+                gl.activeTexture(gl[`TEXTURE${this.texture.count}`]);
+                gl.bindTexture(gl.TEXTURE_2D, this.texture.data);
+                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+                resolve();
+            };
+            img.onerror = err => {
+                reject(err);
+            };
+            img.src = partTexture;
+        });
+    }
+
+    instancing(time) {
+        // gl.enable(gl.BLEND);
+        // gl.depthMask(false);
+        // gl.blendFuncSeparate(gl.SRC_COLOR, gl.DST_COLOR, gl.ONE, gl.ZERO);
+
+        const destinationIdx = (this.currentSourceIdx + 1) % 2;
+        this.reflow = true;
+        // const duration = 10;
+        // if (time < duration) {
+        //     this.reflow = true;
+        // } else {
+        //     time = 10;
+        // }
+        gl.useProgram(this.program);
+        gl.bindVertexArray(this.VAO[this.currentSourceIdx]);
+        gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, this.TFO[destinationIdx]);
+        // let index = 0;
+        // for (const v of this.VBOs) {
+        //     gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, index, v);
+        //     index++;
+        // }
+        const m = new Matrix4;
+        m.multiply(this.camera.projection);
+        m.multiply(this.camera.matrixWorldInvert);
+        gl.uniformMatrix4fv(gl.getUniformLocation(this.program, 'MVPMatrix'), false, m.elements);
+        gl.uniform1f(gl.getUniformLocation(this.program, 'u_time'), time);
+        gl.uniform2f(gl.getUniformLocation(this.program, 'acceleration'), 0.0, -1.0);
+        gl.uniform1i(gl.getUniformLocation(this.program, 'image'), this.texture.count);
+
+        gl.enable(gl.RASTERIZER_DISCARD);
+        gl.beginTransformFeedback(gl.POINTS);
+        gl.drawArraysInstanced(gl.POINTS, 0, 1, 100);
+        gl.endTransformFeedback();
+        gl.disable(gl.RASTERIZER_DISCARD);
+        this.sync = gl.fenceSync( gl.SYNC_GPU_COMMANDS_COMPLETE, 0 );
+
+        gl.waitSync( this.sync, 0, gl.TIMEOUT_IGNORED );
+        gl.deleteSync( this.sync );
+
+        gl.useProgram(this.program2);
+        gl.bindVertexArray(this.VAO[destinationIdx]);
+        gl.uniformMatrix4fv(gl.getUniformLocation(this.program2, 'MVPMatrix'), false, m.elements);
+        gl.drawArraysInstanced(gl.POINTS, 0, 1, 100);
+
+        this.currentSourceIdx = (this.currentSourceIdx + 1) % 2;
+
+        // gl.disable(gl.BLEND);
+        // gl.depthMask(true);
+        // gl.blendFuncSeparate(gl.ONE, gl.ZERO, gl.ONE, gl.ZERO);
     }
 }
 
