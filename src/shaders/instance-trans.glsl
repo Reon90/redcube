@@ -1,5 +1,6 @@
 #version 300 es
 precision highp float;
+precision highp sampler3D;
 
 layout(location = 0) in vec2 a_position;
 layout(location = 1) in vec2 a_velocity;
@@ -13,10 +14,10 @@ out float v_lifetime;
 
 uniform float u_time;
 uniform vec2 acceleration;
-uniform mat4 MVPMatrix;
+uniform sampler3D noize;
 
-float rand(vec2 co) {
-    return fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453);
+float rand(vec2 co){
+    return texture(noize, vec3(co, 0.0));
 }
 
 void main() {
@@ -32,7 +33,4 @@ void main() {
         v_spawntime = a_spawntime;
         v_lifetime = a_lifetime;
     }
-
-    gl_PointSize = 3.0;
-    gl_Position =  MVPMatrix * vec4(a_position, 0.0, 1.0);
 }
