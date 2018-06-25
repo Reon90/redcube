@@ -410,7 +410,6 @@ class RedCube {
         const TFO = [gl.createTransformFeedback(), gl.createTransformFeedback()];
         this.VAO = VAO;
         this.TFO = TFO;
-        this.VBOs = [];
 
         for (const b of [0,1]) {
             const amount = 100;
@@ -422,7 +421,6 @@ class RedCube {
                 for (let i = 0; i < amount; i++) {
                     vertexPositionData[i * 2] = 0;
                     vertexPositionData[i * 2 + 1] = 0;
-                    //vertexPositionData[i * 3 + 2] = 0;
                 }
                 const VBO = gl.createBuffer();
                 gl.bindBuffer(gl.ARRAY_BUFFER, VBO);
@@ -437,7 +435,6 @@ class RedCube {
                 for (let i = 0; i < amount; i++) {
                     vertexPositionData[i * 2] = 0;
                     vertexPositionData[i * 2 + 1] = 0;
-                    //vertexPositionData[i * 3 + 2] = 0;
                 }
                 const VBO = gl.createBuffer();
                 gl.bindBuffer(gl.ARRAY_BUFFER, VBO);
@@ -473,58 +470,16 @@ class RedCube {
                 gl.vertexAttribDivisor(3, 1);
                 VBOs.push(VBO);
             }
-            this.VBOs[b] = VBOs;
+            this.VBOs = VBOs;
 
-            gl.bindVertexArray(null);
             gl.bindBuffer(gl.ARRAY_BUFFER, null);
-
             gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, TFO[b]);
             let index = 0;
             for (const v of VBOs) {
                 gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, index, v);
                 index++;
             }
-            gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, null);
         }
-
-        const SIZE = 128;
-        const denom = SIZE / 16;
-        const data = new Uint8Array(SIZE * SIZE * SIZE);
-        for (var k = 0; k < SIZE; ++k) {
-            for (var j = 0; j < SIZE; ++j) {
-                for (var i = 0; i < SIZE; ++i) {
-                    var value = noise.perlin3(i / denom, j / denom, k / denom);
-                    value = (1 + value) * 128;
-                    data[i + j * SIZE + k * SIZE * SIZE] = value;
-                }
-            }
-        }
-        const index = getTextureIndex();
-        this.texture3d = {
-            data: gl.createTexture(),
-            count: index
-        };
-        window.xxx = this.texture3d;
-        gl.activeTexture(gl[`TEXTURE${this.texture3d.count}`]);
-        gl.bindTexture(gl.TEXTURE_3D, this.texture3d.data);
-        gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_BASE_LEVEL, 0);
-        gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MAX_LEVEL, Math.log2(SIZE));
-        gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
-        gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-        
-        gl.texImage3D(
-            gl.TEXTURE_3D,  // target
-            0,              // level
-            gl.R8,        // internalformat
-            SIZE,           // width
-            SIZE,           // height
-            SIZE,           // depth
-            0,              // border
-            gl.RED,         // format
-            gl.UNSIGNED_BYTE,       // type
-            data            // pixel
-            );
-        gl.generateMipmap(gl.TEXTURE_3D);
 
         return new Promise((resolve, reject) => {
             const index = getTextureIndex();
@@ -565,31 +520,24 @@ class RedCube {
         gl.useProgram(this.program);
         gl.bindVertexArray(this.VAO[this.currentSourceIdx]);
         gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, this.TFO[destinationIdx]);
-        let index = 0;
-        for (const v of this.VBOs[destinationIdx]) {
-            gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, index, v);
-            index++;
-        }
+        // let index = 0;
+        // for (const v of this.VBOs) {
+        //     gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, index, v);
+        //     index++;
+        // }
         const m = new Matrix4;
         m.multiply(this.camera.projection);
         m.multiply(this.camera.matrixWorldInvert);
         gl.uniformMatrix4fv(gl.getUniformLocation(this.program, 'MVPMatrix'), false, m.elements);
         gl.uniform1f(gl.getUniformLocation(this.program, 'u_time'), time);
         gl.uniform2f(gl.getUniformLocation(this.program, 'acceleration'), 0.0, -1.0);
-        gl.uniform1i(gl.getUniformLocation(this.program, 'noize'), this.texture3d.count);
+        gl.uniform1i(gl.getUniformLocation(this.program, 'image'), this.texture.count);
 
-
-        gl.vertexAttribDivisor(0, 0);
-        gl.vertexAttribDivisor(1, 0);
-        gl.vertexAttribDivisor(2, 0);
-        gl.vertexAttribDivisor(3, 0);
         gl.enable(gl.RASTERIZER_DISCARD);
         gl.beginTransformFeedback(gl.POINTS);
         gl.drawArraysInstanced(gl.POINTS, 0, 1, 100);
         gl.endTransformFeedback();
         gl.disable(gl.RASTERIZER_DISCARD);
-        gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, null);
-        gl.bindBuffer(gl.ARRAY_BUFFER, null);
         this.sync = gl.fenceSync( gl.SYNC_GPU_COMMANDS_COMPLETE, 0 );
 
         gl.waitSync( this.sync, 0, gl.TIMEOUT_IGNORED );
@@ -597,10 +545,6 @@ class RedCube {
 
         gl.useProgram(this.program2);
         gl.bindVertexArray(this.VAO[destinationIdx]);
-        gl.vertexAttribDivisor(0, 1);
-        gl.vertexAttribDivisor(1, 1);
-        gl.vertexAttribDivisor(2, 1);
-        gl.vertexAttribDivisor(3, 1);
         gl.uniformMatrix4fv(gl.getUniformLocation(this.program2, 'MVPMatrix'), false, m.elements);
         gl.drawArraysInstanced(gl.POINTS, 0, 1, 100);
 

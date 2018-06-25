@@ -2863,7 +2863,6 @@ class RedCube {
         const TFO = [gl.createTransformFeedback(), gl.createTransformFeedback()];
         this.VAO = VAO;
         this.TFO = TFO;
-        this.VBOs = [];
         for (const b of [0, 1]) {
             const amount = 100;
             gl.bindVertexArray(VAO[b]);
@@ -2873,7 +2872,6 @@ class RedCube {
                 for (let i = 0; i < amount; i++) {
                     vertexPositionData[i * 2] = 0;
                     vertexPositionData[i * 2 + 1] = 0;
-                    //vertexPositionData[i * 3 + 2] = 0;
                 }
                 const VBO = gl.createBuffer();
                 gl.bindBuffer(gl.ARRAY_BUFFER, VBO);
@@ -2888,7 +2886,6 @@ class RedCube {
                 for (let i = 0; i < amount; i++) {
                     vertexPositionData[i * 2] = 0;
                     vertexPositionData[i * 2 + 1] = 0;
-                    //vertexPositionData[i * 3 + 2] = 0;
                 }
                 const VBO = gl.createBuffer();
                 gl.bindBuffer(gl.ARRAY_BUFFER, VBO);
@@ -2924,8 +2921,7 @@ class RedCube {
                 gl.vertexAttribDivisor(3, 1);
                 VBOs.push(VBO);
             }
-            this.VBOs[b] = VBOs;
-            gl.bindVertexArray(null);
+            this.VBOs = VBOs;
             gl.bindBuffer(gl.ARRAY_BUFFER, null);
             gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, TFO[b]);
             let index = 0;
@@ -2933,44 +2929,7 @@ class RedCube {
                 gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, index, v);
                 index++;
             }
-            gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, null);
         }
-        const SIZE = 128;
-        const denom = SIZE / 16;
-        const data = new Uint8Array(SIZE * SIZE * SIZE);
-        for (var k = 0; k < SIZE; ++k) {
-            for (var j = 0; j < SIZE; ++j) {
-                for (var i = 0; i < SIZE; ++i) {
-                    var value = noise.perlin3(i / denom, j / denom, k / denom);
-                    value = (1 + value) * 128;
-                    data[i + j * SIZE + k * SIZE * SIZE] = value;
-                }
-            }
-        }
-        const index = Object(_utils__WEBPACK_IMPORTED_MODULE_7__["getTextureIndex"])();
-        this.texture3d = {
-            data: gl.createTexture(),
-            count: index
-        };
-        window.xxx = this.texture3d;
-        gl.activeTexture(gl[`TEXTURE${this.texture3d.count}`]);
-        gl.bindTexture(gl.TEXTURE_3D, this.texture3d.data);
-        gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_BASE_LEVEL, 0);
-        gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MAX_LEVEL, Math.log2(SIZE));
-        gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
-        gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-        gl.texImage3D(gl.TEXTURE_3D, // target
-        0, // level
-        gl.R8, // internalformat
-        SIZE, // width
-        SIZE, // height
-        SIZE, // depth
-        0, // border
-        gl.RED, // format
-        gl.UNSIGNED_BYTE, // type
-        data // pixel
-        );
-        gl.generateMipmap(gl.TEXTURE_3D);
         return new Promise((resolve, reject) => {
             const index = Object(_utils__WEBPACK_IMPORTED_MODULE_7__["getTextureIndex"])();
             this.texture = {
@@ -3008,38 +2967,28 @@ class RedCube {
         gl.useProgram(this.program);
         gl.bindVertexArray(this.VAO[this.currentSourceIdx]);
         gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, this.TFO[destinationIdx]);
-        let index = 0;
-        for (const v of this.VBOs[destinationIdx]) {
-            gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, index, v);
-            index++;
-        }
+        // let index = 0;
+        // for (const v of this.VBOs) {
+        //     gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, index, v);
+        //     index++;
+        // }
         const m = new _matrix__WEBPACK_IMPORTED_MODULE_1__["Matrix4"];
         m.multiply(this.camera.projection);
         m.multiply(this.camera.matrixWorldInvert);
         gl.uniformMatrix4fv(gl.getUniformLocation(this.program, 'MVPMatrix'), false, m.elements);
         gl.uniform1f(gl.getUniformLocation(this.program, 'u_time'), time);
         gl.uniform2f(gl.getUniformLocation(this.program, 'acceleration'), 0.0, -1.0);
-        gl.uniform1i(gl.getUniformLocation(this.program, 'noize'), this.texture3d.count);
-        gl.vertexAttribDivisor(0, 0);
-        gl.vertexAttribDivisor(1, 0);
-        gl.vertexAttribDivisor(2, 0);
-        gl.vertexAttribDivisor(3, 0);
+        gl.uniform1i(gl.getUniformLocation(this.program, 'image'), this.texture.count);
         gl.enable(gl.RASTERIZER_DISCARD);
         gl.beginTransformFeedback(gl.POINTS);
         gl.drawArraysInstanced(gl.POINTS, 0, 1, 100);
         gl.endTransformFeedback();
         gl.disable(gl.RASTERIZER_DISCARD);
-        gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, null);
-        gl.bindBuffer(gl.ARRAY_BUFFER, null);
         this.sync = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0);
         gl.waitSync(this.sync, 0, gl.TIMEOUT_IGNORED);
         gl.deleteSync(this.sync);
         gl.useProgram(this.program2);
         gl.bindVertexArray(this.VAO[destinationIdx]);
-        gl.vertexAttribDivisor(0, 1);
-        gl.vertexAttribDivisor(1, 1);
-        gl.vertexAttribDivisor(2, 1);
-        gl.vertexAttribDivisor(3, 1);
         gl.uniformMatrix4fv(gl.getUniformLocation(this.program2, 'MVPMatrix'), false, m.elements);
         gl.drawArraysInstanced(gl.POINTS, 0, 1, 100);
         this.currentSourceIdx = (this.currentSourceIdx + 1) % 2;
@@ -3137,7 +3086,7 @@ module.exports = "#version 300 es\r\nprecision highp float;\r\n\r\nlayout (locat
 /*! no static exports found */
 /***/ (function(module, exports) {
 
-module.exports = "#version 300 es\r\nprecision highp float;\r\nprecision highp sampler3D;\r\n\r\nlayout(location = 0) in vec2 a_position;\r\nlayout(location = 1) in vec2 a_velocity;\r\nlayout(location = 2) in float a_spawntime;\r\nlayout(location = 3) in float a_lifetime;\r\n\r\nout vec2 v_position;\r\nout vec2 v_velocity;\r\nout float v_spawntime;\r\nout float v_lifetime;\r\n\r\nuniform float u_time;\r\nuniform vec2 acceleration;\r\nuniform sampler3D noize;\r\n\r\nfloat rand(vec2 co){\r\n            return fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453);\r\n        }\r\n\r\nvoid main() {\r\n    if (a_spawntime == 0.0 || (u_time - a_spawntime > a_lifetime) || a_position.y < -0.5) {\r\n        // Generate a new particle\r\n        v_position = vec2(0.0, 0.0);\r\n        v_velocity = vec2(rand(vec2(gl_InstanceID, 0.0)) - 0.5, rand(vec2(gl_InstanceID, gl_InstanceID)));\r\n        v_spawntime = u_time;\r\n        v_lifetime = 5000.0;\r\n    } else {\r\n        v_velocity = a_velocity + 0.01 * acceleration;\r\n        v_position = a_position + 0.01 * v_velocity;\r\n        v_spawntime = a_spawntime;\r\n        v_lifetime = a_lifetime;\r\n    }\r\n}\r\n"
+module.exports = "#version 300 es\r\nprecision highp float;\r\n\r\nlayout(location = 0) in vec2 a_position;\r\nlayout(location = 1) in vec2 a_velocity;\r\nlayout(location = 2) in float a_spawntime;\r\nlayout(location = 3) in float a_lifetime;\r\n\r\nout vec2 v_position;\r\nout vec2 v_velocity;\r\nout float v_spawntime;\r\nout float v_lifetime;\r\n\r\nuniform float u_time;\r\nuniform vec2 acceleration;\r\nuniform mat4 MVPMatrix;\r\n\r\nfloat rand(vec2 co) {\r\n    return fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453);\r\n}\r\n\r\nvoid main() {\r\n    if (a_spawntime == 0.0 || (u_time - a_spawntime > a_lifetime) || a_position.y < -0.5) {\r\n        // Generate a new particle\r\n        v_position = vec2(0.0, 0.0);\r\n        v_velocity = vec2(rand(vec2(gl_InstanceID, 0.0)) - 0.5, rand(vec2(gl_InstanceID, gl_InstanceID)));\r\n        v_spawntime = u_time;\r\n        v_lifetime = 5000.0;\r\n    } else {\r\n        v_velocity = a_velocity + 0.01 * acceleration;\r\n        v_position = a_position + 0.01 * v_velocity;\r\n        v_spawntime = a_spawntime;\r\n        v_lifetime = a_lifetime;\r\n    }\r\n\r\n    gl_PointSize = 3.0;\r\n    gl_Position =  MVPMatrix * vec4(a_position, 0.0, 1.0);\r\n}\r\n"
 
 /***/ }),
 
