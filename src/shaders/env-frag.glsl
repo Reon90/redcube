@@ -16,5 +16,5 @@ void main() {
             result += textureLod(diffuse, outUV + offset, level).rgb;
         }
     }
-    color = vec4(result / 16.0, 1.0);
+    color = vec4(0.0,0.0,0.0, 1.0);
 }

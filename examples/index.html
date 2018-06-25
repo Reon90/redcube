@@ -30,6 +30,7 @@
         <canvas id="canvas"></canvas>
         <div id="selector"></div>
     </div>
+    <script src="../src/perlin.js"></script>
     <script src="../dist/redcube.js"></script>
     <script>
         const name = localStorage.getItem('sample') || 'BrainStem';
@@ -96,7 +97,7 @@
         });
         select.value = name;
         selector.appendChild(select);
-        ['bloom', 'ssao', 'shadow'].forEach(name => {
+        ['bloom', 'ssao', 'shadow', 'light'].forEach(name => {
             const checkbox = document.createElement('input');
             checkbox.type = 'checkbox';
             checkbox.title = name;
@@ -126,7 +127,7 @@
         selector.appendChild(slider);
 
         //https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/
-        const renderer = new redcube.RedCube('' + name + '/glTF/' + name + '.gltf', canvas, [localStorage.getItem('ssao'), localStorage.getItem('bloom'), localStorage.getItem('shadow')].filter(name => name));
+        const renderer = new redcube.RedCube('' + name + '/glTF/' + name + '.gltf', canvas, [localStorage.getItem('ssao'), localStorage.getItem('bloom'), localStorage.getItem('shadow'), localStorage.getItem('light')].filter(name => name));
         renderer.init().then(() => {
             if (renderer.parse.cameras.length) {
                 const select = document.createElement('select');

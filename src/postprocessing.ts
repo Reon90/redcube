@@ -3,6 +3,7 @@ import { Camera } from './objects';
 import { SSAO } from './postprocessors/ssao';
 import { Bloom } from './postprocessors/bloom';
 import { Shadow } from './postprocessors/shadow';
+import { Light } from './postprocessors/light';
 import { PostProcessor } from './postprocessors/base';
 
 import quadShader from './shaders/quad.glsl';
@@ -13,7 +14,8 @@ let gl;
 const processorsMap = {
     bloom: Bloom,
     ssao: SSAO,
-    shadow: Shadow
+    shadow: Shadow,
+    light: Light
 };
 
 interface Texture extends WebGLTexture {
