@@ -61,6 +61,7 @@ class RedCube {
         this.env.setCamera(this.camera);
 
         this.PP = new PostProcessing(processors);
+        this.PP.light = this.light;
         this.PP.setCanvas(this.canvas);
         this.PP.setCamera(this.camera);
         this.PP.setRender(this.renderScene.bind(this));
@@ -156,12 +157,14 @@ class RedCube {
         gl.viewport( 0, 0, this.canvas.offsetWidth * devicePixelRatio, this.canvas.offsetHeight * devicePixelRatio);
 
         if (this.camera.props.isInitial) {
-            const z = 1 / this.canvas.width * this.camera.modelSize * 3000;
+            const z = 1 / this.canvas.width * this.camera.modelSize * 3000 * devicePixelRatio;
             this.camera.setZ(z);
             this.light.setZ(z);
+            this.light.update(Math.PI / 2);
             this.needUpdateView = true;
         } else {
             this.light.setZ(this.camera.matrixWorld.elements[14]);
+            this.light.update(Math.PI / 2);
             this.needUpdateView = true;
         }
 
@@ -325,7 +328,7 @@ class RedCube {
             this.PP.bindPostPass();
             gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-            this.env.createEnvironment();
+            //this.env.createEnvironment();
 
             this.renderScene(!this.processors.includes('shadow'), false);
 

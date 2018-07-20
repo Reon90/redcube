@@ -10,6 +10,7 @@ uniform sampler2D normal;
 uniform sampler2D ssao;
 uniform sampler2D bloom;
 uniform sampler2D depth;
+uniform sampler2D preDepth;
 uniform sampler2D light;
 
 const float gamma = 2.2;
@@ -22,9 +23,9 @@ void main() {
     #ifdef SSAO
         c *= texture(ssao, uv).r;
     #endif
-    // #ifdef LIGHT
-    //     c *= texture(light, uv).r;
-    // #endif
+    #ifdef LIGHT
+        c *= texture(light, uv).r;
+    #endif
 
     c.rgb = pow(c.rgb, vec3(1.0 / gamma));
 

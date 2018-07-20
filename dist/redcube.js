@@ -2065,6 +2065,7 @@ class PostProcessing {
         this.camera = camera;
         this.postprocessors.forEach(postProcessor => {
             postProcessor.setCamera(camera);
+            postProcessor.light = this.light;
         });
     }
     setGl(g) {
@@ -2115,6 +2116,7 @@ class PostProcessing {
         gl.uniform1i(gl.getUniformLocation(this.program, 'original'), this.screenTexture.index);
         gl.uniform1i(gl.getUniformLocation(this.program, 'normal'), this.normalTexture.index);
         gl.uniform1i(gl.getUniformLocation(this.program, 'depth'), this.depthTexture.index);
+        gl.uniform1i(gl.getUniformLocation(this.program, 'preDepth'), this.preDepthTexture.index);
         gl.drawArrays(gl.TRIANGLES, 0, 6);
     }
     createTexture() {
@@ -2349,10 +2351,10 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "Light", function() { return Light; });
 /* harmony import */ var _base__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./base */ "./src/postprocessors/base.ts");
 /* harmony import */ var _utils__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../utils */ "./src/utils.ts");
-/* harmony import */ var _shaders_quad_glsl__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../shaders/quad.glsl */ "./src/shaders/quad.glsl");
-/* harmony import */ var _shaders_quad_glsl__WEBPACK_IMPORTED_MODULE_2___default = /*#__PURE__*/__webpack_require__.n(_shaders_quad_glsl__WEBPACK_IMPORTED_MODULE_2__);
-/* harmony import */ var _shaders_light_glsl__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../shaders/light.glsl */ "./src/shaders/light.glsl");
-/* harmony import */ var _shaders_light_glsl__WEBPACK_IMPORTED_MODULE_3___default = /*#__PURE__*/__webpack_require__.n(_shaders_light_glsl__WEBPACK_IMPORTED_MODULE_3__);
+/* harmony import */ var _shaders_light_glsl__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../shaders/light.glsl */ "./src/shaders/light.glsl");
+/* harmony import */ var _shaders_light_glsl__WEBPACK_IMPORTED_MODULE_2___default = /*#__PURE__*/__webpack_require__.n(_shaders_light_glsl__WEBPACK_IMPORTED_MODULE_2__);
+/* harmony import */ var _shaders_light_vert_glsl__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../shaders/light-vert.glsl */ "./src/shaders/light-vert.glsl");
+/* harmony import */ var _shaders_light_vert_glsl__WEBPACK_IMPORTED_MODULE_3___default = /*#__PURE__*/__webpack_require__.n(_shaders_light_vert_glsl__WEBPACK_IMPORTED_MODULE_3__);
 
 
 
@@ -2361,21 +2363,27 @@ let gl;
 class Light extends _base__WEBPACK_IMPORTED_MODULE_0__["PostProcessor"] {
     constructor() {
         super();
-        this.scale = 2;
+        this.scale = 1;
     }
     setGL(g) {
         gl = g;
     }
-    postProcessing(PP) {
+    preProcessing(PP) {
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
-        gl.useProgram(this.program);
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.texture, 0);
-        gl.viewport(0, 0, this.width / 2, this.height / 2);
-        gl.uniform1i(gl.getUniformLocation(this.program, 'lightTexture'), PP.screenTexture.index);
-        gl.uniform1i(gl.getUniformLocation(this.program, 'cameraTexture'), PP.depthTexture.index);
+        // gl.clearColor(0.8, 0.8, 0.8, 1.0);
+        // gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        // PP.renderScene(false, false);
+        gl.useProgram(this.program);
+        //gl.viewport( 0, 0, this.width / 2, this.height / 2);
+        gl.bindVertexArray(this.quadVAO);
+        gl.uniformMatrix4fv(gl.getUniformLocation(this.program, 'proj'), false, this.camera.projection.elements);
+        gl.uniformMatrix4fv(gl.getUniformLocation(this.program, 'light'), false, this.light.matrixWorldInvert.elements);
+        gl.uniform1i(gl.getUniformLocation(this.program, 'lightTexture'), PP.preDepthTexture.index);
+        gl.uniform1i(gl.getUniformLocation(this.program, 'cameraTexture'), PP.preDepthTexture.index);
         gl.drawArrays(gl.TRIANGLES, 0, 6);
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-        gl.viewport(0, 0, this.width, this.height);
+        //gl.viewport( 0, 0, this.width, this.height);
     }
     buildScreenBuffer(PP) {
         this.framebuffer = gl.createFramebuffer();
@@ -2383,16 +2391,32 @@ class Light extends _base__WEBPACK_IMPORTED_MODULE_0__["PostProcessor"] {
         this.texture = PP.createOneChannelTexture(this.scale);
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.texture, 0);
         this.program = gl.createProgram();
-        Object(_utils__WEBPACK_IMPORTED_MODULE_1__["compileShader"])(gl.VERTEX_SHADER, _shaders_quad_glsl__WEBPACK_IMPORTED_MODULE_2___default.a, this.program);
-        Object(_utils__WEBPACK_IMPORTED_MODULE_1__["compileShader"])(gl.FRAGMENT_SHADER, _shaders_light_glsl__WEBPACK_IMPORTED_MODULE_3___default.a, this.program);
+        Object(_utils__WEBPACK_IMPORTED_MODULE_1__["compileShader"])(gl.VERTEX_SHADER, _shaders_light_vert_glsl__WEBPACK_IMPORTED_MODULE_3___default.a, this.program);
+        Object(_utils__WEBPACK_IMPORTED_MODULE_1__["compileShader"])(gl.FRAGMENT_SHADER, _shaders_light_glsl__WEBPACK_IMPORTED_MODULE_2___default.a, this.program);
         gl.linkProgram(this.program);
+        const verts = [
+            1.0, 1.0,
+            -1.0, 1.0,
+            -1.0, -1.0,
+            -1.0, -1.0,
+            1.0, -1.0,
+            1.0, 1.0
+        ];
+        this.quadVAO = gl.createVertexArray();
+        gl.bindVertexArray(this.quadVAO);
+        const quadVBO = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, quadVBO);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(verts), gl.STATIC_DRAW);
+        gl.enableVertexAttribArray(0);
+        gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+        gl.bindVertexArray(null);
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
         return { name: 'LIGHT' };
     }
     attachUniform(program) {
         gl.uniform1i(gl.getUniformLocation(program, 'light'), this.texture.index);
     }
-    preProcessing() { }
+    postProcessing() { }
 }
 
 
@@ -2619,6 +2643,7 @@ class RedCube {
         this.env = new _env__WEBPACK_IMPORTED_MODULE_3__["Env"];
         this.env.setCamera(this.camera);
         this.PP = new _postprocessing__WEBPACK_IMPORTED_MODULE_6__["PostProcessing"](processors);
+        this.PP.light = this.light;
         this.PP.setCanvas(this.canvas);
         this.PP.setCamera(this.camera);
         this.PP.setRender(this.renderScene.bind(this));
@@ -2703,13 +2728,15 @@ class RedCube {
         this.canvas.height = this.canvas.offsetHeight * devicePixelRatio;
         gl.viewport(0, 0, this.canvas.offsetWidth * devicePixelRatio, this.canvas.offsetHeight * devicePixelRatio);
         if (this.camera.props.isInitial) {
-            const z = 1 / this.canvas.width * this.camera.modelSize * 3000;
+            const z = 1 / this.canvas.width * this.camera.modelSize * 3000 * devicePixelRatio;
             this.camera.setZ(z);
             this.light.setZ(z);
+            this.light.update(Math.PI / 2);
             this.needUpdateView = true;
         }
         else {
             this.light.setZ(this.camera.matrixWorld.elements[14]);
+            this.light.update(Math.PI / 2);
             this.needUpdateView = true;
         }
         const cameraZ = Math.abs(this.camera.matrixWorldInvert.elements[14]);
@@ -2848,7 +2875,7 @@ class RedCube {
             this.PP.preProcessing();
             this.PP.bindPostPass();
             gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-            this.env.createEnvironment();
+            //this.env.createEnvironment();
             this.renderScene(!this.processors.includes('shadow'), false);
             //this.instancing(time);
             Object(_utils__WEBPACK_IMPORTED_MODULE_7__["walk"])(this.scene, node => {
@@ -3106,7 +3133,7 @@ module.exports = "#version 300 es\r\nprecision highp float;\r\n\r\nin vec2 uv;\r
 /*! no static exports found */
 /***/ (function(module, exports) {
 
-module.exports = "#version 300 es\r\nprecision highp float;\r\n\r\nin vec2 uv;\r\nout vec4 color;\r\n\r\nuniform sampler2D original;\r\nuniform sampler2D position;\r\nuniform sampler2D normal;\r\nuniform sampler2D ssao;\r\nuniform sampler2D bloom;\r\nuniform sampler2D depth;\r\nuniform sampler2D light;\r\n\r\nconst float gamma = 2.2;\r\n\r\nvoid main() {\r\n    vec3 c = texture(original, uv).rgb;\r\n    #ifdef BLOOM\r\n        c += texture(bloom, uv).rgb;\r\n    #endif\r\n    #ifdef SSAO\r\n        c *= texture(ssao, uv).r;\r\n    #endif\r\n    // #ifdef LIGHT\r\n    //     c *= texture(light, uv).r;\r\n    // #endif\r\n\r\n    c.rgb = pow(c.rgb, vec3(1.0 / gamma));\r\n\r\n    color = vec4(vec3(texture(light, uv).r), 1.0);\r\n}\r\n"
+module.exports = "#version 300 es\r\nprecision highp float;\r\n\r\nin vec2 uv;\r\nout vec4 color;\r\n\r\nuniform sampler2D original;\r\nuniform sampler2D position;\r\nuniform sampler2D normal;\r\nuniform sampler2D ssao;\r\nuniform sampler2D bloom;\r\nuniform sampler2D depth;\r\nuniform sampler2D preDepth;\r\nuniform sampler2D light;\r\n\r\nconst float gamma = 2.2;\r\n\r\nvoid main() {\r\n    vec3 c = texture(original, uv).rgb;\r\n    #ifdef BLOOM\r\n        c += texture(bloom, uv).rgb;\r\n    #endif\r\n    #ifdef SSAO\r\n        c *= texture(ssao, uv).r;\r\n    #endif\r\n    #ifdef LIGHT\r\n        c *= texture(light, uv).r;\r\n    #endif\r\n\r\n    c.rgb = pow(c.rgb, vec3(1.0 / gamma));\r\n\r\n    color = vec4(vec3(texture(light, uv).r), 1.0);\r\n}\r\n"
 
 /***/ }),
 
@@ -3176,6 +3203,17 @@ module.exports = "#version 300 es\r\nprecision highp float;\r\nprecision highp s
 
 /***/ }),
 
+/***/ "./src/shaders/light-vert.glsl":
+/*!*************************************!*\
+  !*** ./src/shaders/light-vert.glsl ***!
+  \*************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+module.exports = "#version 300 es\r\nprecision highp float;\r\n\r\nlayout (location = 0) in vec2 pos;\r\n\r\nout vec2 uv;\r\nout vec4 pos1;\r\nout vec4 pos2;\r\n\r\nuniform mat4 proj;\r\nuniform mat4 light;\r\n\r\nconst float N = -2.8311319764089067;\r\nconst float F = -5.778493839936308;\r\n\r\nvec4 lerp(vec4 a, vec4 b, float t) {\r\n    return a + t * (b - a);\r\n}\r\n\r\nvoid main() {\r\n    pos1 = proj * light * vec4(pos * 1.0, N, 1.0);\r\n    pos2 = proj * light * vec4(pos * 1.0, F, 1.0);\r\n\r\n    uv = pos * 0.5 + 0.5;\r\n    gl_Position = vec4(pos, 0.0, 1.0);\r\n}\r\n"
+
+/***/ }),
+
 /***/ "./src/shaders/light.glsl":
 /*!********************************!*\
   !*** ./src/shaders/light.glsl ***!
@@ -3183,7 +3221,7 @@ module.exports = "#version 300 es\r\nprecision highp float;\r\nprecision highp s
 /*! no static exports found */
 /***/ (function(module, exports) {
 
-module.exports = "#version 300 es\r\nprecision highp float;\r\n\r\nin vec2 uv;\r\nout vec4 color;\r\n\r\nuniform sampler2D lightTexture;\r\nuniform sampler2D cameraTexture;\r\n\r\nvoid main() {\r\n    float lightDepth = texture(lightTexture, uv).r;\r\n    float cameraDepth = texture(cameraTexture, uv).r;\r\n    color = vec4(vec3(1.0 - (cameraDepth > lightDepth ? 1.0 : 0.0)), 1.0);\r\n}\r\n"
+module.exports = "#version 300 es\r\nprecision highp float;\r\n\r\nin vec2 uv;\r\nin vec4 pos1;\r\nin vec4 pos2;\r\nout float color;\r\n\r\nuniform sampler2D lightTexture;\r\nuniform sampler2D cameraTexture;\r\n\r\nconst float N = 5.8;\r\nconst float F = 2.85;\r\n\r\nvoid main() {\r\n\r\n    float lightDepth = texture(lightTexture, uv).r;\r\n    float cameraDepth = texture(cameraTexture, uv).r;\r\n\r\n    float stp = 1.0/5.0;  //step of k - 80 samples\r\n\tfloat k = 0.0;\r\n    float d = 0.0;\r\n\r\n    // vec2 g_vZTrans = vec2(1.0/N,(N-F)/(F*N));\r\n\t// float v_d = -1.0/dot(vec2(1.0,cameraDepth),g_vZTrans);\r\n\r\n    for (int i = 0; i < 5; i++) {\r\n\t\t// interpolation\r\n\t\tvec4 tPos = mix(pos1,pos2,k += stp);\r\n        vec3 projCoords = tPos.xyz / tPos.w;\r\n        projCoords = projCoords * 0.5 + 0.5;\r\n        float closestDepth = texture(lightTexture, projCoords.xy).r; \r\n        float currentDepth = projCoords.z;\r\n        d += currentDepth > closestDepth ? stp : 0.0;\r\n \r\n\t\t// and depth-tests\r\n        // texture(lightTexture,uv).x\r\n\r\n\t\t// vec2 add = step(vec2(,v_d),tPos.zw); \r\n\t\t// d += add.x*add.y;\r\n\t}\r\n\r\n    //d = 1.0-d*stp*0.5;\r\n    color = 1.0 - d;\r\n    //color = vec4(vec3(1.0 - (cameraDepth > lightDepth ? 1.0 : 0.0)), 1.0);\r\n}\r\n"
 
 /***/ }),
 

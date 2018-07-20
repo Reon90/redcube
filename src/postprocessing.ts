@@ -52,6 +52,7 @@ export class PostProcessing {
         this.camera = camera;
         this.postprocessors.forEach(postProcessor => {
             postProcessor.setCamera(camera);
+            postProcessor.light = this.light;
         });
     }
 
@@ -121,6 +122,7 @@ export class PostProcessing {
         gl.uniform1i( gl.getUniformLocation(this.program, 'original'), this.screenTexture.index);
         gl.uniform1i( gl.getUniformLocation(this.program, 'normal'), this.normalTexture.index);
         gl.uniform1i( gl.getUniformLocation(this.program, 'depth'), this.depthTexture.index);
+        gl.uniform1i( gl.getUniformLocation(this.program, 'preDepth'), this.preDepthTexture.index);
 
         gl.drawArrays( gl.TRIANGLES, 0, 6 );
     }

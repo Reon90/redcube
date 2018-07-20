@@ -121,10 +121,10 @@
         slider.type = 'range';
         slider.min = '0';
         slider.max = `${Math.PI*2}`;
-        slider.value = 0;
         slider.step = '0.1';
         slider.title = 'light';
         selector.appendChild(slider);
+        slider.value = Math.PI/2;
 
         //https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/
         const renderer = new redcube.RedCube('' + name + '/glTF/' + name + '.gltf', canvas, [localStorage.getItem('ssao'), localStorage.getItem('bloom'), localStorage.getItem('shadow'), localStorage.getItem('light')].filter(name => name));
