@@ -12,6 +12,10 @@ uniform sampler2D cameraTexture;
 const float N = 5.8;
 const float F = 2.85;
 
+vec4 lerp(vec4 a, vec4 b, float t) {
+    return a + t * (b - a);
+}
+
 void main() {
 
     float lightDepth = texture(lightTexture, uv).r;
@@ -26,12 +30,12 @@ void main() {
 
     for (int i = 0; i < 5; i++) {
 		// interpolation
-		vec4 tPos = mix(pos1,pos2,k += stp);
+		vec4 tPos = lerp(pos1,pos2,k += stp);
         vec3 projCoords = tPos.xyz / tPos.w;
         projCoords = projCoords * 0.5 + 0.5;
         float closestDepth = texture(lightTexture, projCoords.xy).r; 
-        float currentDepth = projCoords.z;
-        d += currentDepth > closestDepth ? stp : 0.0;
+        //float currentDepth = projCoords.z;
+        d += cameraDepth > closestDepth ? stp : 0.0;
  
 		// and depth-tests
         // texture(lightTexture,uv).x
@@ -41,6 +45,6 @@ void main() {
 	}
 
     //d = 1.0-d*stp*0.5;
-    color = 1.0 - d;
+    color = 0.5;
     //color = vec4(vec3(1.0 - (cameraDepth > lightDepth ? 1.0 : 0.0)), 1.0);
 }

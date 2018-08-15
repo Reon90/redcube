@@ -31,8 +31,9 @@ export class Light extends PostProcessor {
         gl.bindVertexArray(this.quadVAO);
         gl.uniformMatrix4fv(gl.getUniformLocation(this.program, 'proj'), false, this.camera.projection.elements);
         gl.uniformMatrix4fv(gl.getUniformLocation(this.program, 'light'), false, this.light.matrixWorldInvert.elements);
+        gl.uniformMatrix4fv(gl.getUniformLocation(this.program, 'view'), false, this.camera.matrixWorldInvert.elements);
         gl.uniform1i( gl.getUniformLocation(this.program, 'lightTexture'), PP.preDepthTexture.index);
-        gl.uniform1i( gl.getUniformLocation(this.program, 'cameraTexture'), PP.preDepthTexture.index);
+        gl.uniform1i( gl.getUniformLocation(this.program, 'cameraTexture'), PP.depthTexture.index);
         gl.drawArrays( gl.TRIANGLES, 0, 6 );
 
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
