@@ -52,7 +52,12 @@ export class PostProcessing {
         this.camera = camera;
         this.postprocessors.forEach(postProcessor => {
             postProcessor.setCamera(camera);
-            postProcessor.light = this.light;
+        });
+    }
+
+    setLight(light) {
+        this.postprocessors.forEach(postProcessor => {
+            postProcessor.light = light;
         });
     }
 

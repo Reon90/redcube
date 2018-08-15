@@ -2,49 +2,41 @@
 precision highp float;
 
 in vec2 uv;
-in vec4 pos1;
-in vec4 pos2;
+in vec4 tPos1;
+in vec4 tPos2;
+in vec4 vPosLight1;
+in vec4 vPosLight2;
 out float color;
 
 uniform sampler2D lightTexture;
 uniform sampler2D cameraTexture;
 
-const float N = 5.8;
-const float F = 2.85;
+uniform mat4 proj;
+uniform mat4 light;
+uniform mat4 view;
 
 vec4 lerp(vec4 a, vec4 b, float t) {
     return a + t * (b - a);
 }
 
+const int samples = 80;
+
 void main() {
-
-    float lightDepth = texture(lightTexture, uv).r;
-    float cameraDepth = texture(cameraTexture, uv).r;
-
-    float stp = 1.0/5.0;  //step of k - 80 samples
+    float stp = 1.0/float(samples);
 	float k = 0.0;
     float d = 0.0;
 
-    // vec2 g_vZTrans = vec2(1.0/N,(N-F)/(F*N));
-	// float v_d = -1.0/dot(vec2(1.0,cameraDepth),g_vZTrans);
+    for (int i = 0; i < samples; i++) {
 
-    for (int i = 0; i < 5; i++) {
-		// interpolation
-		vec4 tPos = lerp(pos1,pos2,k += stp);
-        vec3 projCoords = tPos.xyz / tPos.w;
-        projCoords = projCoords * 0.5 + 0.5;
-        float closestDepth = texture(lightTexture, projCoords.xy).r; 
-        //float currentDepth = projCoords.z;
-        d += cameraDepth > closestDepth ? stp : 0.0;
- 
-		// and depth-tests
-        // texture(lightTexture,uv).x
+        vec4 vPos = lerp(tPos1,tPos2,k);
+        vec4 vPosLight = lerp(vPosLight1,vPosLight2,k);
+        k += stp;
 
-		// vec2 add = step(vec2(,v_d),tPos.zw); 
-		// d += add.x*add.y;
+        vec3 ShadowTexC = (vPosLight.xyz/vPosLight.w) * 0.5 + 0.5;
+
+        float add = step(texture(lightTexture, ShadowTexC.xy).x, ShadowTexC.z);
+        d += add*stp;
 	}
 
-    //d = 1.0-d*stp*0.5;
-    color = 0.5;
-    //color = vec4(vec3(1.0 - (cameraDepth > lightDepth ? 1.0 : 0.0)), 1.0);
+    color = d;
 }

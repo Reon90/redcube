@@ -3,6 +3,7 @@ const path = require('path');
 const libraryName = 'redcube';
 
 const config = {
+    mode: 'development',
     entry: path.join(__dirname, `/src/${libraryName}.ts`),
     output: {
         path: path.join(__dirname, '/dist'),

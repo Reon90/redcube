@@ -3,10 +3,20 @@ import { compileShader } from '../utils';
 
 import lightShader from '../shaders/light.glsl';
 import lightVertShader from '../shaders/light-vert.glsl';
+import { Matrix4 } from '../matrix';
 
 let gl;
 
+interface Texture extends WebGLTexture {
+    index: number;
+}
+
 export class Light extends PostProcessor {
+    texture: Texture;
+    program: WebGLProgram;
+    scale: number;
+    quadVAO: WebGLVertexArrayObjectOES;
+
     constructor() {
         super();
 
@@ -29,6 +39,7 @@ export class Light extends PostProcessor {
         gl.useProgram(this.program);
         //gl.viewport( 0, 0, this.width / 2, this.height / 2);
         gl.bindVertexArray(this.quadVAO);
+
         gl.uniformMatrix4fv(gl.getUniformLocation(this.program, 'proj'), false, this.camera.projection.elements);
         gl.uniformMatrix4fv(gl.getUniformLocation(this.program, 'light'), false, this.light.matrixWorldInvert.elements);
         gl.uniformMatrix4fv(gl.getUniformLocation(this.program, 'view'), false, this.camera.matrixWorldInvert.elements);

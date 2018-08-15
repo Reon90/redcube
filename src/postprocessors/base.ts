@@ -1,8 +1,9 @@
-import { Camera } from '../objects';
+import { Camera, Light } from '../objects';
 
 export abstract class PostProcessor {
     canvas: HTMLCanvasElement;
     camera: Camera;
+    light: Light;
     framebuffer: WebGLFramebuffer;
     abstract postProcessing(PP)
     abstract preProcessing(PP)
@@ -14,6 +15,9 @@ export abstract class PostProcessor {
     }
     setCamera(camera) {
         this.camera = camera;
+    }
+    setLight(light) {
+        this.light = light;
     }
     get width() {
         return this.canvas.offsetWidth * devicePixelRatio;
