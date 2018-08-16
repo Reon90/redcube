@@ -15,10 +15,6 @@ uniform mat4 proj;
 uniform mat4 light;
 uniform mat4 view;
 
-vec4 lerp(vec4 a, vec4 b, float t) {
-    return a + t * (b - a);
-}
-
 const int samples = 80;
 
 void main() {
@@ -28,8 +24,8 @@ void main() {
 
     for (int i = 0; i < samples; i++) {
 
-        vec4 vPos = lerp(tPos1,tPos2,k);
-        vec4 vPosLight = lerp(vPosLight1,vPosLight2,k);
+        vec4 vPos = mix(tPos1,tPos2,k);
+        vec4 vPosLight = mix(vPosLight1,vPosLight2,k);
         k += stp;
 
         vec3 ShadowTexC = (vPosLight.xyz/vPosLight.w) * 0.5 + 0.5;

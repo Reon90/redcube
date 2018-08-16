@@ -15,13 +15,14 @@ uniform mat4 view;
 
 const float N = -1.45;
 const float F = 1.45;
+const float XY = 1.45;
 
 void main() {
-    tPos1 = proj * view * vec4(pos * 1.0, N, 1.0);
-    tPos2 = proj * view * vec4(pos * 1.0, F, 1.0);
+    tPos1 = proj * view * vec4(pos * XY, N, 1.0);
+    tPos2 = proj * view * vec4(pos * XY, F, 1.0);
 
-	vPosLight1 = proj * light * vec4(pos * 1.0, N, 1.0);
-    vPosLight2 = proj * light * vec4(pos * 1.0, F, 1.0);
+	vPosLight1 = proj * light * vec4(pos * XY, N, 1.0);
+    vPosLight2 = proj * light * vec4(pos * XY, F, 1.0);
 	
 	uv = pos * 0.5 + 0.5;
 	gl_Position = vec4(pos, 0.0, 1.0);
