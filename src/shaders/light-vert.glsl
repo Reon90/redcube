@@ -12,17 +12,24 @@ out vec4 vPosLight2;
 uniform mat4 proj;
 uniform mat4 light;
 uniform mat4 view;
-
-const float N = -1.45;
-const float F = 1.45;
-const float XY = 1.45;
+uniform mat4 Iproj;
+uniform mat4 Iview;
+uniform float zoom;
+uniform float size;
 
 void main() {
-    tPos1 = proj * view * vec4(pos * XY, N, 1.0);
-    tPos2 = proj * view * vec4(pos * XY, F, 1.0);
+    float N = -size/2.0;
+    float F = size/2.0;
+    float XY = size;
 
-	vPosLight1 = proj * light * vec4(pos * XY, N, 1.0);
-    vPosLight2 = proj * light * vec4(pos * XY, F, 1.0);
+    vec4 p1 = Iview * Iproj * vec4(pos, -1.0, 1.0);
+    vec4 p2 = Iview * Iproj * vec4(pos, 1.0, 1.0);
+
+    tPos1 = proj * view * p1;
+    tPos2 = proj * view * p2;
+
+	vPosLight1 = proj * light * p1;
+    vPosLight2 = proj * light * p2;
 	
 	uv = pos * 0.5 + 0.5;
 	gl_Position = vec4(pos, 0.0, 1.0);
