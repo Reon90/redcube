@@ -40,11 +40,12 @@ export class Light extends PostProcessor {
         //gl.viewport( 0, 0, this.width / 2, this.height / 2);
         gl.bindVertexArray(this.quadVAO);
 
-        const m = new Matrix4;
-        
+        var x = new Matrix4;
+        x.setOrtho(1, 1, this.camera.props.perspective.znear, this.camera.props.perspective.zfar);
 
         gl.uniform1f( gl.getUniformLocation(this.program, 'size'), this.camera.modelSize);
         gl.uniform1f( gl.getUniformLocation(this.program, 'zoom'), this.camera.props.zoom);
+        gl.uniformMatrix4fv(gl.getUniformLocation(this.program, 'ortho'), false, x.elements);
         gl.uniformMatrix4fv(gl.getUniformLocation(this.program, 'proj'), false, this.camera.projection.elements);
         gl.uniformMatrix4fv(gl.getUniformLocation(this.program, 'Iview'), false, this.camera.matrixWorld.elements);
         gl.uniformMatrix4fv(gl.getUniformLocation(this.program, 'Ilight'), false, this.light.matrixWorld.elements);

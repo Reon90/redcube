@@ -24,8 +24,7 @@ void main() {
         c *= texture(ssao, uv).r;
     #endif
     #ifdef LIGHT
-        float x = (1.0 - texture(light, uv).r) * 0.3;
-        c += x;
+        c += texture(light, uv).r;
     #endif
 
     c.rgb = pow(c.rgb, vec3(1.0 / gamma));

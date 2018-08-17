@@ -34,5 +34,5 @@ void main() {
         d += add*stp;
 	}
 
-    color = d;
+    color = (1.0 - d) * 0.5;
 }
