@@ -383,15 +383,21 @@ export class Parse {
                 gl.bufferData(gl.UNIFORM_BUFFER, materials, gl.STATIC_DRAW);
                 mesh.material.UBO = mUBO;
 
+                var z = 1.76*3;
+                var x = new Matrix4;
+                //x.setOrtho(0.076, 0.076, this._camera.props.perspective.znear, this._camera.props.perspective.zfar);
+                x.makeOrthographic(-z, z, z, -z, this._camera.props.perspective.znear, this._camera.props.perspective.zfar);
+
                 const normalMatrix = new Matrix4(mesh.matrixWorld);
                 normalMatrix.invert().transpose();
-                const matrices = new Float32Array(81);
+                const matrices = new Float32Array(97);
                 matrices.set(mesh.matrixWorld.elements, 0);
                 matrices.set(normalMatrix.elements, 16);
                 matrices.set(this._camera.matrixWorldInvert.elements, 32);
                 matrices.set(this._camera.projection.elements, 48);
                 matrices.set(this.light.matrixWorldInvert.elements, 64);
-                matrices.set(new Float32Array([0]), 80);
+                matrices.set(x.elements, 80);
+                matrices.set(new Float32Array([0]), 96);
                 const uIndex = gl.getUniformBlockIndex(mesh.program, 'Matrices');
                 gl.uniformBlockBinding(mesh.program, uIndex, 0);
                 const UBO = gl.createBuffer();

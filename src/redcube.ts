@@ -44,7 +44,7 @@ class RedCube {
         this.camera.setProps({
             type: 'perspective', 
             isInitial: true,
-            zoom: 1,
+            zoom: 3,
             aspect: this.canvas.offsetWidth / this.canvas.offsetHeight,
             perspective: {
                 yfov: 0.6
@@ -99,6 +99,7 @@ class RedCube {
     redraw(type, coordsStart, coordsMove) {
         if (type === 'zoom') {
             this.camera.props.zoom = coordsStart;
+            this.updateNF();
             this.camera.setProjection(calculateProjection(this.camera.props));
             this.needUpdateProjection = true;
         }
@@ -150,6 +151,19 @@ class RedCube {
         this.reflow = true;
     }
 
+    updateNF() {
+        const cameraZ = Math.abs(this.camera.matrixWorldInvert.elements[14]);
+        const cameraProps = this.camera.props.perspective || this.camera.props.orthographic;
+        if (cameraZ > this.camera.modelSize) {
+            cameraProps.znear = cameraZ - this.camera.modelSize*this.camera.props.zoom;
+            cameraProps.zfar = cameraZ + this.camera.modelSize*this.camera.props.zoom;
+        } else {
+            cameraProps.znear = 1;
+            cameraProps.zfar = 10000;
+        }
+        this.camera.setProjection(calculateProjection(this.camera.props));
+    }
+
     resize(e) {
         this.camera.props.aspect = this.canvas.offsetWidth / this.canvas.offsetHeight;
         this.canvas.width = this.canvas.offsetWidth * devicePixelRatio;
@@ -168,16 +182,7 @@ class RedCube {
             this.needUpdateView = true;
         }
 
-        const cameraZ = Math.abs(this.camera.matrixWorldInvert.elements[14]);
-        const cameraProps = this.camera.props.perspective || this.camera.props.orthographic;
-        if (cameraZ > this.camera.modelSize) {
-            cameraProps.znear = cameraZ - this.camera.modelSize;
-            cameraProps.zfar = cameraZ + this.camera.modelSize;
-        } else {
-            cameraProps.znear = 1;
-            cameraProps.zfar = 10000;
-        }
-        this.camera.setProjection(calculateProjection(this.camera.props));
+        this.updateNF();
 
         if (e) {
             this.PP.clear();

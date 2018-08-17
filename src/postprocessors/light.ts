@@ -40,16 +40,22 @@ export class Light extends PostProcessor {
         //gl.viewport( 0, 0, this.width / 2, this.height / 2);
         gl.bindVertexArray(this.quadVAO);
 
+        var z = 1.76*3;
         var x = new Matrix4;
-        x.setOrtho(1, 1, this.camera.props.perspective.znear, this.camera.props.perspective.zfar);
+        //x.setOrtho(0.076, 0.076, this.camera.props.perspective.znear, this.camera.props.perspective.zfar);
+        x.makeOrthographic(-z, z, z, -z, this.camera.props.perspective.znear, this.camera.props.perspective.zfar);
+
 
         gl.uniform1f( gl.getUniformLocation(this.program, 'size'), this.camera.modelSize);
         gl.uniform1f( gl.getUniformLocation(this.program, 'zoom'), this.camera.props.zoom);
+        
         gl.uniformMatrix4fv(gl.getUniformLocation(this.program, 'ortho'), false, x.elements);
+        gl.uniformMatrix4fv(gl.getUniformLocation(this.program, 'Iortho'), false, new Matrix4().setInverseOf(x).elements);
+
+        gl.uniformMatrix4fv(gl.getUniformLocation(this.program, 'Iproj'), false, new Matrix4().setInverseOf(this.camera.projection).elements);
         gl.uniformMatrix4fv(gl.getUniformLocation(this.program, 'proj'), false, this.camera.projection.elements);
         gl.uniformMatrix4fv(gl.getUniformLocation(this.program, 'Iview'), false, this.camera.matrixWorld.elements);
         gl.uniformMatrix4fv(gl.getUniformLocation(this.program, 'Ilight'), false, this.light.matrixWorld.elements);
-        gl.uniformMatrix4fv(gl.getUniformLocation(this.program, 'Iproj'), false, new Matrix4().setInverseOf(this.camera.projection).elements);
         gl.uniformMatrix4fv(gl.getUniformLocation(this.program, 'light'), false, this.light.matrixWorldInvert.elements);
         gl.uniformMatrix4fv(gl.getUniformLocation(this.program, 'view'), false, this.camera.matrixWorldInvert.elements);
         gl.uniform1i( gl.getUniformLocation(this.program, 'lightTexture'), PP.preDepthTexture.index);

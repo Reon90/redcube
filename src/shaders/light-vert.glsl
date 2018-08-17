@@ -13,6 +13,8 @@ uniform mat4 proj;
 uniform mat4 light;
 uniform mat4 view;
 uniform mat4 Iproj;
+uniform mat4 Iortho;
+uniform mat4 Ilight;
 uniform mat4 Iview;
 uniform mat4 ortho;
 uniform float zoom;
@@ -23,8 +25,8 @@ void main() {
     float F = size/2.0;
     float XY = size;
 
-    vec4 p1 = Iview * Iproj * vec4(pos, -1.0/4.0, 1.0);
-    vec4 p2 = Iview * Iproj * vec4(pos, 1.0/4.0, 1.0);
+    vec4 p1 = Iview * Iortho * vec4(pos, -1.0/4.0, 1.0);
+    vec4 p2 = Iview * Iortho * vec4(pos, 1.0/4.0, 1.0);
 
     tPos1 = proj * view * p1;
     tPos2 = proj * view * p2;
