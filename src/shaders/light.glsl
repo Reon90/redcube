@@ -2,8 +2,8 @@
 precision highp float;
 
 in vec2 uv;
-in vec4 tPos1;
-in vec4 tPos2;
+// in vec4 tPos1;
+// in vec4 tPos2;
 in vec4 vPosLight1;
 in vec4 vPosLight2;
 out float color;
@@ -24,7 +24,7 @@ void main() {
 
     for (int i = 0; i < samples; i++) {
 
-        vec4 vPos = mix(tPos1,tPos2,k);
+        //vec4 vPos = mix(tPos1,tPos2,k);
         vec4 vPosLight = mix(vPosLight1,vPosLight2,k);
         k += stp;
 
@@ -34,5 +34,5 @@ void main() {
         d += add*stp;
 	}
 
-    color = (1.0 - d) * 0.5;
+    color = (1.0 - d) * 0.1;
 }

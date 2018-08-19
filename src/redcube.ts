@@ -7,16 +7,11 @@ import { Env } from './env';
 import { FPS } from './fps';
 import { Parse } from './parse';
 import { PostProcessing } from './postprocessing';
-import { getTextureIndex, setGl, getAnimationComponent, interpolation, walk, sceneToArcBall, canvasToWorld, calculateProjection, getAttributeIndex, compileShader, random } from './utils';
-
-import instanceShader from './shaders/instance.glsl';
-import instanceFragShader from './shaders/instance-frag.glsl';
-import instanceFragShader2 from './shaders/xxx.glsl';
-import instanceTransShader from './shaders/instance-trans.glsl';
-import partTexture from './images/part.png';
+import { Particles } from './particles';
+import { setGl, getAnimationComponent, interpolation, walk, sceneToArcBall, canvasToWorld, calculateProjection, getAttributeIndex } from './utils';
+import { Light as PPLight } from './postprocessors/light';
 
 let gl;
-const amount = 1000;
 
 class RedCube {
     gl: WebGLRenderingContext;
@@ -32,6 +27,7 @@ class RedCube {
     needUpdateView: boolean;
     fps: FPS;
     PP: PostProcessing;
+    Particles: Particles;
     processors: Array<String>;
 
     constructor(url, canvas, processors) {
@@ -44,7 +40,7 @@ class RedCube {
         this.camera.setProps({
             type: 'perspective', 
             isInitial: true,
-            zoom: 3,
+            zoom: 1,
             aspect: this.canvas.offsetWidth / this.canvas.offsetHeight,
             perspective: {
                 yfov: 0.6
@@ -66,6 +62,12 @@ class RedCube {
         this.PP.setCamera(this.camera);
         this.PP.setRender(this.renderScene.bind(this));
 
+        this.Particles = new Particles(() => {
+            const l = this.PP.postprocessors.find(p => p instanceof PPLight) as PPLight;
+            return l.texture.index;
+        });
+        this.Particles.setCamera(this.camera);
+
         this.parse = new Parse(url);
         this.parse.setScene(this.scene);
         this.parse.setCamera(this.camera);
@@ -78,7 +80,7 @@ class RedCube {
     init() {
         return this.parse.getJson()
             .then(this.glInit.bind(this))
-            //.then(this.buildInstancing.bind(this))
+            .then(this.Particles.build.bind(this.Particles))
             .then(this.parse.initTextures.bind(this.parse))
             .then(this.PP.buildScreenBuffer.bind(this.PP))
             .then(this.parse.getBuffer.bind(this.parse))
@@ -98,7 +100,7 @@ class RedCube {
 
     redraw(type, coordsStart, coordsMove) {
         if (type === 'zoom') {
-            this.camera.props.zoom = coordsStart;
+            this.camera.props.zoom = Math.max(Math.min(coordsStart, 3 / this.camera.props.aspect), 0.5);
             this.updateNF();
             this.camera.setProjection(calculateProjection(this.camera.props));
             this.needUpdateProjection = true;
@@ -155,13 +157,14 @@ class RedCube {
         const cameraZ = Math.abs(this.camera.matrixWorldInvert.elements[14]);
         const cameraProps = this.camera.props.perspective || this.camera.props.orthographic;
         if (cameraZ > this.camera.modelSize) {
-            cameraProps.znear = cameraZ - this.camera.modelSize*this.camera.props.zoom;
-            cameraProps.zfar = cameraZ + this.camera.modelSize*this.camera.props.zoom;
+            cameraProps.znear = cameraZ - this.camera.modelSize;
+            cameraProps.zfar = cameraZ + this.camera.modelSize;
         } else {
             cameraProps.znear = 1;
             cameraProps.zfar = 10000;
         }
         this.camera.setProjection(calculateProjection(this.camera.props));
+        //window.xxx = Math.tan(cameraProps.yfov*this.camera.props.zoom/2) * (cameraProps.zfar+cameraProps.znear)/4 * 2;
     }
 
     resize(e) {
@@ -202,6 +205,7 @@ class RedCube {
         this.env.setGl(gl);
         this.PP.setGl(gl);
         this.parse.setGl(gl);
+        this.Particles.setGl(gl);
 
         return true;
     }
@@ -314,7 +318,7 @@ class RedCube {
     }
 
     draw() {
-        gl.clearColor(0.8, 0.8, 0.8, 1.0);
+        gl.clearColor(0, 0, 0, 1);
 
         this.render();
     }
@@ -333,11 +337,12 @@ class RedCube {
             this.PP.bindPostPass();
             gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-            //this.env.createEnvironment();
+            this.env.createEnvironment();
 
             this.renderScene(!this.processors.includes('shadow'), false);
 
-            //this.instancing(time);
+            this.Particles.draw(time);
+            this.reflow = true;
 
             walk(this.scene, node => {
                 node.reflow = false;
@@ -398,195 +403,6 @@ class RedCube {
             needUpdateProjection: this.needUpdateProjection
         };
     }
-
-    // buildInstancing() {
-    //     this.currentSourceIdx = 0;
-    //     const program = gl.createProgram();
-    //     compileShader(gl.VERTEX_SHADER, instanceTransShader, program);
-    //     compileShader(gl.FRAGMENT_SHADER, instanceFragShader2, program);
-
-    //     const varyings = ['v_position', 'v_velocity', 'v_spawntime', 'v_lifetime'];
-    //     gl.transformFeedbackVaryings(program, varyings, gl.SEPARATE_ATTRIBS);
-
-    //     gl.linkProgram(program);
-    //     this.program = program;
-
-    //     const program2 = gl.createProgram();
-    //     compileShader(gl.VERTEX_SHADER, instanceShader, program2);
-    //     compileShader(gl.FRAGMENT_SHADER, instanceFragShader, program2);
-    //     gl.linkProgram(program2);
-    //     this.program2 = program2;
-
-    //     const VAO = [gl.createVertexArray(), gl.createVertexArray()];
-    //     const TFO = [gl.createTransformFeedback(), gl.createTransformFeedback()];
-    //     this.VAO = VAO;
-    //     this.TFO = TFO;
-
-    //     for (const b of [0,1]) {
-    //         gl.bindVertexArray(VAO[b]);
-    //         const VBOs = [];
-
-    //         {
-    //             const vertexPositionData = new Float32Array(amount * 3);
-    //             for (let i = 0; i < amount; i++) {
-    //                 vertexPositionData[i * 3] = 0;
-    //                 vertexPositionData[i * 3 + 1] = 0;
-    //                 vertexPositionData[i * 3 + 2] = 0;
-    //             }
-    //             const VBO = gl.createBuffer();
-    //             gl.bindBuffer(gl.ARRAY_BUFFER, VBO);
-    //             gl.bufferData(gl.ARRAY_BUFFER, vertexPositionData, gl.STREAM_COPY);
-    //             gl.enableVertexAttribArray(0);
-    //             gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
-    //             gl.vertexAttribDivisor(0, 1);
-    //             VBOs.push(VBO);
-    //         }
-    //         {
-    //             const vertexPositionData = new Float32Array(amount * 3);
-    //             for (let i = 0; i < amount; i++) {
-    //                 vertexPositionData[i * 3] = 0;
-    //                 vertexPositionData[i * 3 + 1] = 0;
-    //                 vertexPositionData[i * 3 + 2] = 0;
-    //             }
-    //             const VBO = gl.createBuffer();
-    //             gl.bindBuffer(gl.ARRAY_BUFFER, VBO);
-    //             gl.bufferData(gl.ARRAY_BUFFER, vertexPositionData, gl.STREAM_COPY);
-    //             gl.enableVertexAttribArray(1);
-    //             gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 0, 0);
-    //             gl.vertexAttribDivisor(1, 1);
-    //             VBOs.push(VBO);
-    //         }
-    //         {
-    //             const vertexPositionData = new Float32Array(amount * 1);
-    //             for (let i = 0; i < amount; i++) {
-    //                 vertexPositionData[i * 2] = 0;
-    //             }
-    //             const VBO = gl.createBuffer();
-    //             gl.bindBuffer(gl.ARRAY_BUFFER, VBO);
-    //             gl.bufferData(gl.ARRAY_BUFFER, vertexPositionData, gl.STREAM_COPY);
-    //             gl.enableVertexAttribArray(2);
-    //             gl.vertexAttribPointer(2, 1, gl.FLOAT, false, 0, 0);
-    //             gl.vertexAttribDivisor(2, 1);
-    //             VBOs.push(VBO);
-    //         }
-    //         {
-    //             const vertexPositionData = new Float32Array(amount * 1);
-    //             for (let i = 0; i < amount; i++) {
-    //                 vertexPositionData[i * 2] = 0;
-    //             }
-    //             const VBO = gl.createBuffer();
-    //             gl.bindBuffer(gl.ARRAY_BUFFER, VBO);
-    //             gl.bufferData(gl.ARRAY_BUFFER, vertexPositionData, gl.STREAM_COPY);
-    //             gl.enableVertexAttribArray(3);
-    //             gl.vertexAttribPointer(3, 1, gl.FLOAT, false, 0, 0);
-    //             gl.vertexAttribDivisor(3, 1);
-    //             VBOs.push(VBO);
-    //         }
-    //         this.VBOs = VBOs;
-
-    //         gl.bindBuffer(gl.ARRAY_BUFFER, null);
-    //         gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, TFO[b]);
-    //         let index = 0;
-    //         for (const v of VBOs) {
-    //             gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, index, v);
-    //             index++;
-    //         }
-    //     }
-
-    //     const SIZE = 128;
-    //     const denom = SIZE / 16;
-    //     const data = new Uint8Array(SIZE * SIZE * SIZE);
-    //     for (var k = 0; k < SIZE; ++k) {
-    //         for (var j = 0; j < SIZE; ++j) {
-    //             for (var i = 0; i < SIZE; ++i) {
-    //                 var value = noise.perlin3(i / denom, j / denom, k / denom);
-    //                 value = (1 + value) * 128;
-    //                 data[i + j * SIZE + k * SIZE * SIZE] = value;
-    //             }
-    //         }
-    //     }
-    //     const index = getTextureIndex();
-    //     this.texture3d = {
-    //         data: gl.createTexture(),
-    //         count: index
-    //     };
-    //     gl.activeTexture(gl[`TEXTURE${this.texture3d.count}`]);
-    //     gl.bindTexture(gl.TEXTURE_3D, this.texture3d.data);
-    //     gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_BASE_LEVEL, 0);
-    //     gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MAX_LEVEL, Math.log2(SIZE));
-    //     gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
-    //     gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-    //     gl.texImage3D(
-    //         gl.TEXTURE_3D,  // target
-    //         0,              // level
-    //         gl.R8,        // internalformat
-    //         SIZE,           // width
-    //         SIZE,           // height
-    //         SIZE,           // depth
-    //         0,              // border
-    //         gl.RED,         // format
-    //         gl.UNSIGNED_BYTE,       // type
-    //         data            // pixel
-    //         );
-    //     gl.generateMipmap(gl.TEXTURE_3D);
-
-    //     return true;
-    // }
-
-    // instancing(time) {
-    //     // gl.enable(gl.BLEND);
-    //     // gl.depthMask(false);
-    //     // gl.blendFuncSeparate(gl.SRC_COLOR, gl.DST_COLOR, gl.ONE, gl.ZERO);
-
-    //     const destinationIdx = (this.currentSourceIdx + 1) % 2;
-    //     this.reflow = true;
-    //     // const duration = 10;
-    //     // if (time < duration) {
-    //     //     this.reflow = true;
-    //     // } else {
-    //     //     time = 10;
-    //     // }
-    //     gl.useProgram(this.program);
-    //     gl.bindVertexArray(this.VAO[this.currentSourceIdx]);
-    //     gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, this.TFO[destinationIdx]);
-    //     // let index = 0;
-    //     // for (const v of this.VBOs) {
-    //     //     gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, index, v);
-    //     //     index++;
-    //     // }
-    //     const m = new Matrix4;
-    //     m.multiply(this.camera.projection);
-    //     m.multiply(this.camera.matrixWorldInvert);
-    //     gl.uniformMatrix4fv(gl.getUniformLocation(this.program, 'MVPMatrix'), false, m.elements);
-    //     gl.uniform1f(gl.getUniformLocation(this.program, 'u_time'), time);
-    //     gl.uniform1f(gl.getUniformLocation(this.program, 'count'), amount);
-    //     gl.uniform3f(gl.getUniformLocation(this.program, 'acceleration'), 0.0, 0.0, 0.0);
-    //     gl.uniform1i(gl.getUniformLocation(this.program, 'noize'), this.texture3d.count);
-
-    //     gl.enable(gl.RASTERIZER_DISCARD);
-    //     gl.beginTransformFeedback(gl.POINTS);
-    //     gl.drawArraysInstanced(gl.POINTS, 0, 1, amount);
-    //     gl.endTransformFeedback();
-    //     gl.disable(gl.RASTERIZER_DISCARD);
-    //     gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, null);
-    //     gl.bindBuffer(gl.TRANSFORM_FEEDBACK_BUFFER, null);
-    //     this.sync = gl.fenceSync( gl.SYNC_GPU_COMMANDS_COMPLETE, 0 );
-
-    //     gl.waitSync( this.sync, 0, gl.TIMEOUT_IGNORED );
-    //     gl.deleteSync( this.sync );
-
-    //     gl.useProgram(this.program2);
-    //     gl.bindVertexArray(this.VAO[destinationIdx]);
-    //     gl.uniform1i(gl.getUniformLocation(this.program2, 'noize'), this.texture3d.count);
-    //     gl.uniformMatrix4fv(gl.getUniformLocation(this.program2, 'MVPMatrix'), false, m.elements);
-    //     gl.drawArraysInstanced(gl.POINTS, 0, 1, amount);
-
-    //     this.currentSourceIdx = (this.currentSourceIdx + 1) % 2;
-
-    //     // gl.disable(gl.BLEND);
-    //     // gl.depthMask(true);
-    //     // gl.blendFuncSeparate(gl.ONE, gl.ZERO, gl.ONE, gl.ZERO);
-    // }
 }
 
 export { RedCube };

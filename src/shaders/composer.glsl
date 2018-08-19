@@ -24,10 +24,14 @@ void main() {
         c *= texture(ssao, uv).r;
     #endif
     #ifdef LIGHT
+        // float depth = texture(depth, uv).r;
+        // if (depth == 1.0) {
+        //     c += texture(light, uv).r;
+        // }
         c += texture(light, uv).r;
     #endif
 
     c.rgb = pow(c.rgb, vec3(1.0 / gamma));
 
-    color = vec4(vec3(texture(light, uv).r), 1.0);
+    color = vec4(c, 1.0);
 }

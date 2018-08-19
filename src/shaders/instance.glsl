@@ -3,15 +3,18 @@ precision highp float;
 precision highp sampler3D;
 
 layout (location = 0) in vec3 inPosition;
-layout(location = 1) in vec3 a_velocity;
+out float depth;
 
+uniform sampler2D light;
 uniform mat4 MVPMatrix;
-uniform sampler3D noize;
 
-out float x;
+//out float x;
 
 void main() {
-    x = float(gl_InstanceID) / 100.0;
-    gl_PointSize = 2.0;
-    gl_Position = MVPMatrix * vec4(inPosition, 1.0);
+    //x = float(gl_InstanceID) / 100.0;
+    gl_PointSize = 1.0;
+    vec4 point = MVPMatrix * vec4(inPosition, 1.0);
+    vec2 uv = (point.xy / point.w) * 0.5 + 0.5;
+    depth = texture(light, uv).r;
+    gl_Position = point;
 }

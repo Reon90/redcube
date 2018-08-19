@@ -163,7 +163,7 @@ class Mesh extends Object3D {
         if (needUpdateProjection) {
             gl.bufferSubData(gl.UNIFORM_BUFFER, 48 * Float32Array.BYTES_PER_ELEMENT, camera.projection.elements);
         }
-        gl.bufferSubData(gl.UNIFORM_BUFFER, 96 * Float32Array.BYTES_PER_ELEMENT, new Float32Array([isLight ? 1 : 0]));
+        gl.bufferSubData(gl.UNIFORM_BUFFER, 80 * Float32Array.BYTES_PER_ELEMENT, new Float32Array([isLight ? 1 : 0]));
 
         if (this instanceof SkinnedMesh) {
             gl.bindBufferBase(gl.UNIFORM_BUFFER, 2, this.geometry.SKIN);
