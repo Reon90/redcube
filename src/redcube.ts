@@ -68,6 +68,10 @@ class RedCube {
         });
         this.Particles.setCamera(this.camera);
 
+        const defines = [];
+        if (processors.length === 0) {
+            defines.push({name: 'TONE'});
+        }
         this.parse = new Parse(url);
         this.parse.setScene(this.scene);
         this.parse.setCamera(this.camera);
@@ -75,6 +79,7 @@ class RedCube {
         this.parse.setUpdateCamera(this.updateCamera.bind(this));
         this.parse.setCanvas(this.canvas);
         this.parse.setResize(this.resize.bind(this));
+        this.parse.setDefines(defines);
     }
 
     init() {
@@ -122,15 +127,7 @@ class RedCube {
             camMatrix.makeRotationAxis(camVector, angle);
             camMatrix.multiply(this.camera.matrixWorld);
 
-            // const lightStart = new Vector3(p0.elements).applyMatrix4(this.light.matrixWorld);
-            // const lightEnd = new Vector3(p1.elements).applyMatrix4(this.light.matrixWorld);
-            // const lightVector = Vector3.cross(lightEnd, lightStart).normalize();
-            // const lightMatrix = new Matrix4;
-            // lightMatrix.makeRotationAxis(lightVector, angle);
-            // lightMatrix.multiply(this.light.matrixWorld);
-
             this.camera.setMatrixWorld(camMatrix.elements);
-            //this.light.setMatrixWorld(lightMatrix.elements);
             this.needUpdateView = true;
         }
         if (type === 'pan') {
@@ -164,7 +161,6 @@ class RedCube {
             cameraProps.zfar = 10000;
         }
         this.camera.setProjection(calculateProjection(this.camera.props));
-        //window.xxx = Math.tan(cameraProps.yfov*this.camera.props.zoom/2) * (cameraProps.zfar+cameraProps.znear)/4 * 2;
     }
 
     resize(e) {
@@ -331,18 +327,22 @@ class RedCube {
         if (this.reflow) {
             this.reflow = false;
 
-            this.PP.bindPrePass();
-            this.PP.preProcessing();
+            if (this.PP.postprocessors.length > 0) {
+                this.PP.bindPrePass();
+                this.PP.preProcessing();
+                this.PP.bindPostPass();
+            }
 
-            this.PP.bindPostPass();
             gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
             this.env.createEnvironment();
 
             this.renderScene(!this.processors.includes('shadow'), false);
 
-            this.Particles.draw(time);
-            this.reflow = true;
+            if (this.PP.postprocessors.find(p => p instanceof PPLight)) {
+                this.Particles.draw(time);
+                this.reflow = true;
+            }
 
             walk(this.scene, node => {
                 node.reflow = false;
@@ -350,7 +350,9 @@ class RedCube {
             this.needUpdateView = false;
             this.needUpdateProjection = false;
 
-            this.PP.postProcessing();
+            if (this.PP.postprocessors.length > 0) {
+                this.PP.postProcessing();
+            }
         }
 
         this.fps.tick(time);

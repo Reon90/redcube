@@ -24,10 +24,6 @@ void main() {
         c *= texture(ssao, uv).r;
     #endif
     #ifdef LIGHT
-        // float depth = texture(depth, uv).r;
-        // if (depth == 1.0) {
-        //     c += texture(light, uv).r;
-        // }
         c += texture(light, uv).r;
     #endif
 

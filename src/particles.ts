@@ -178,9 +178,8 @@ export class Particles {
         const m = new Matrix4;
         m.multiply(this.camera.projection);
         m.multiply(this.camera.matrixWorldInvert);
-        gl.uniform1f(gl.getUniformLocation(this.program, 'u_time'), time);
+        gl.uniform1f(gl.getUniformLocation(this.program, 'u_time'), time + 5000);
         gl.uniform1f(gl.getUniformLocation(this.program, 'count'), amount);
-        gl.uniform3f(gl.getUniformLocation(this.program, 'acceleration'), 0.0, 0.0, 0.0);
         gl.uniform1i(gl.getUniformLocation(this.program, 'noize'), this.texture3d.index);
 
         gl.enable(gl.RASTERIZER_DISCARD);

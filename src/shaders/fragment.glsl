@@ -32,6 +32,7 @@ const float specularStrength = 2.5;
 const float specularPower = 32.0;
 const vec3 lightColor = vec3(1.0, 1.0, 1.0);
 const vec3 emissiveFactor = vec3(1.0, 1.0, 1.0);
+const float gamma = 2.2;
 
 float ShadowCalculation(vec4 fragPosLightSpace, float bias) {
     vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
@@ -169,5 +170,10 @@ void main() {
 
         color = vec4(baseColor.rgb * (ambient + diffuse + specular) * shadow, alpha);
     #endif
+
+    #ifdef TONE
+        color.rgb = pow(color.rgb, vec3(1.0 / gamma));
+    #endif
+
     normalColor = n;
 }

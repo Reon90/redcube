@@ -7,7 +7,7 @@ out float color;
 const int kernelSize = 32;
 const float radius = 2.5;
 const float bias = 1.0;
-const float power = 2.0;
+const float power = 8.0;
 
 uniform sampler2D normBuff;
 uniform sampler2D depthBuff;

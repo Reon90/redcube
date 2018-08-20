@@ -7,7 +7,7 @@ import { Light } from './postprocessors/light';
 import { PostProcessor } from './postprocessors/base';
 
 import quadShader from './shaders/quad.glsl';
-import bloomShader from './shaders/composer.glsl';
+import composerShader from './shaders/composer.glsl';
 
 let gl;
 
@@ -185,6 +185,10 @@ export class PostProcessing {
     }
 
     buildScreenBuffer() {
+        if (this.postprocessors.length === 0) {
+            return true;
+        }
+
         gl.getExtension('EXT_color_buffer_float');
         gl.getExtension('OES_texture_float_linear');
 
@@ -248,7 +252,7 @@ export class PostProcessing {
 
         this.program = gl.createProgram();
         compileShader(gl.VERTEX_SHADER, quadShader.replace(/\n/, `\n${ defineStr}`), this.program);
-        compileShader(gl.FRAGMENT_SHADER, bloomShader.replace(/\n/, `\n${ defineStr}`), this.program);
+        compileShader(gl.FRAGMENT_SHADER, composerShader.replace(/\n/, `\n${ defineStr}`), this.program);
         gl.linkProgram(this.program);
 
         return true;

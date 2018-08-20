@@ -39,6 +39,10 @@ interface Texture {
     count: number;
     data: WebGLTexture;
 }
+interface Define {
+    name: string;
+    value?: number;
+}
 
 export class Parse {
     tracks: Array<Track>;
@@ -59,6 +63,7 @@ export class Parse {
     resize: Function;
     updateCamera: Function;
     json: GlTf;
+    defines: Array<Define>;
 
     constructor(url) {
         this.url = url;
@@ -98,6 +103,10 @@ export class Parse {
 
     setUpdateCamera(updateCamera) {
         this.updateCamera = updateCamera;
+    }
+
+    setDefines(defines) {
+        this.defines = defines;
     }
 
     getBuffer() {
@@ -144,7 +153,7 @@ export class Parse {
         }
 
         const material = p.material !== undefined ? JSON.parse(JSON.stringify(this.json.materials[p.material])) : {pbrMetallicRoughness: {baseColorFactor: [0.8, 0.8, 0.8, 1.0]}};
-        const defines = [];
+        const defines = [...this.defines];
         if (material.pbrMetallicRoughness.metallicRoughnessTexture) {
             material.pbrMetallicRoughness.metallicRoughnessTexture = Object.assign({}, this.textures[material.pbrMetallicRoughness.metallicRoughnessTexture.index]);
             defines.push({name: 'USE_PBR'});

@@ -21,7 +21,7 @@ export class Light extends PostProcessor {
     constructor() {
         super();
 
-        this.scale = 1;
+        this.scale = 2;
     }
 
     setGL(g) {
@@ -29,48 +29,29 @@ export class Light extends PostProcessor {
     }
     
     preProcessing(PP) {
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        PP.renderScene(true, true);
+        
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.texture, 0);
 
-        // gl.clearColor(0.8, 0.8, 0.8, 1.0);
-        // gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-
-        // PP.renderScene(false, false);
-
         gl.useProgram(this.program);
-        //gl.viewport( 0, 0, this.width / 2, this.height / 2);
+        gl.viewport( 0, 0, this.width / this.scale, this.height / this.scale);
         gl.bindVertexArray(this.quadVAO);
 
         const cam = Object.assign({}, this.camera.props, { zoom: 1 });
         const proj = calculateProjection(cam);
 
-        // var z = window.xxx;
-        // var x = new Matrix4;
-        // //x.setOrtho(0.076, 0.076, this.camera.props.perspective.znear, this.camera.props.perspective.zfar);
-        // x.makeOrthographic(-z, z, z, -z, this.camera.props.perspective.znear, this.camera.props.perspective.zfar);
-
-
-        //gl.uniform1f( gl.getUniformLocation(this.program, 'size'), this.camera.modelSize);
-        //gl.uniform1f( gl.getUniformLocation(this.program, 'zoom'), this.camera.props.zoom);
-        
-        // gl.uniformMatrix4fv(gl.getUniformLocation(this.program, 'ortho'), false, x.elements);
-        // gl.uniformMatrix4fv(gl.getUniformLocation(this.program, 'Iortho'), false, new Matrix4().setInverseOf(x).elements);
-
-        // const cameraProps = this.camera.props.perspective || this.camera.props.orthographic;
-        // gl.uniform1f( gl.getUniformLocation(this.program, 'zFar'), cameraProps.zfar);
-        // gl.uniform1f( gl.getUniformLocation(this.program, 'zNear'), cameraProps.znear);
         gl.uniformMatrix4fv(gl.getUniformLocation(this.program, 'Iproj'), false, new Matrix4().setInverseOf(proj).elements);
         gl.uniformMatrix4fv(gl.getUniformLocation(this.program, 'proj'), false, proj.elements);
         gl.uniformMatrix4fv(gl.getUniformLocation(this.program, 'Iview'), false, this.camera.matrixWorld.elements);
-        // gl.uniformMatrix4fv(gl.getUniformLocation(this.program, 'Ilight'), false, this.light.matrixWorld.elements);
         gl.uniformMatrix4fv(gl.getUniformLocation(this.program, 'light'), false, this.light.matrixWorldInvert.elements);
-        //gl.uniformMatrix4fv(gl.getUniformLocation(this.program, 'view'), false, this.camera.matrixWorldInvert.elements);
         gl.uniform1i( gl.getUniformLocation(this.program, 'lightTexture'), PP.preDepthTexture.index);
         gl.uniform1i( gl.getUniformLocation(this.program, 'cameraTexture'), PP.depthTexture.index);
         gl.drawArrays( gl.TRIANGLES, 0, 6 );
 
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-        //gl.viewport( 0, 0, this.width, this.height);
+        gl.viewport( 0, 0, this.width, this.height);
     }
 
     buildScreenBuffer(PP) {
