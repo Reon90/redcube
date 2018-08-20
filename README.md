@@ -21,7 +21,7 @@ npm install redcube.js
 
 ## Usage
 
-[Demo](https://reon90.github.io/redcube/examples/index.html)
+[Demo](https://reon90.github.io/redcube/)
 
 ```js
 const canvas = document.querySelector('canvas');
