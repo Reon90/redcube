@@ -148,28 +148,47 @@ export class Env {
         this.diffuse = gl.getUniformLocation(this.program, 'diffuse');
         this.MVPMatrix = gl.getUniformLocation(this.program, 'MVPMatrix');
 
-        return new Promise((resolve, reject) => {
+        return fetch(`../hdr.bin`).then(res => res.arrayBuffer()).then(buffer => {
+            const data = new Float32Array(buffer);
+
             const index = getTextureIndex();
             this.texture = {
                 data: gl.createTexture(),
                 count: index
             };
-            const img = new Image;
-            img.crossOrigin = 'anonymous';
-            img.onload = () => {
-                gl.activeTexture(gl[`TEXTURE${this.texture.count}`]);
-                gl.bindTexture(gl.TEXTURE_2D, this.texture.data);
-                gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
-                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_NEAREST);
-                gl.generateMipmap(gl.TEXTURE_2D);
-                resolve();
-            };
-            img.onerror = err => {
-                reject(err);
-            };
-            img.src = envTexture;
+            gl.activeTexture(gl[`TEXTURE${this.texture.count}`]);
+            gl.bindTexture(gl.TEXTURE_2D, this.texture.data);
+            gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+            //gl.generateMipmap(gl.TEXTURE_2D);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, 512, 256, 0, gl.RGBA, gl.FLOAT, data);
+
+            return true;
         });
+
+        // return new Promise((resolve, reject) => {
+        //     const index = getTextureIndex();
+        //     this.texture = {
+        //         data: gl.createTexture(),
+        //         count: index
+        //     };
+        //     const img = new Image;
+        //     img.crossOrigin = 'anonymous';
+        //     img.onload = () => {
+        //         gl.activeTexture(gl[`TEXTURE${this.texture.count}`]);
+        //         gl.bindTexture(gl.TEXTURE_2D, this.texture.data);
+        //         gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+        //         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+        //         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        //         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_NEAREST);
+        //         gl.generateMipmap(gl.TEXTURE_2D);
+        //         resolve();
+        //     };
+        //     img.onerror = err => {
+        //         reject(err);
+        //     };
+        //     img.src = envTexture;
+        // });
     }
 }

@@ -35,5 +35,8 @@
   "bugs": {
     "url": "https://github.com/Reon90/redcube/issues"
   },
-  "homepage": "https://github.com/Reon90/redcube"
+  "homepage": "https://github.com/Reon90/redcube",
+  "dependencies": {
+    "parse-hdr": "^1.0.0"
+  }
 }
