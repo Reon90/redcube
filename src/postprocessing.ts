@@ -185,12 +185,12 @@ export class PostProcessing {
     }
 
     buildScreenBuffer() {
+        gl.getExtension('EXT_color_buffer_float');
+        gl.getExtension('OES_texture_float_linear');
+
         if (this.postprocessors.length === 0) {
             return true;
         }
-
-        gl.getExtension('EXT_color_buffer_float');
-        gl.getExtension('OES_texture_float_linear');
 
         const defines = this.postprocessors.map(postProcessor => postProcessor.buildScreenBuffer(this));
         const defineStr = defines.map(define => `#define ${define.name} ${define.value || 1}` + '\n').join('');

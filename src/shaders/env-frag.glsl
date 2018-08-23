@@ -1,20 +1,24 @@
 #version 300 es
 precision highp float;
 
-in vec2 outUV;
+in vec3 localPos;
 layout (location = 0) out vec4 color;
 
-uniform sampler2D diffuse;
+uniform samplerCube diffuse;
 uniform float level;
 
-void main() {
-    // vec2 texelSize = 1.0 / vec2(textureSize(diffuse, 0));
-    // vec3 result = vec3(0.0);
-    // for (int x = -2; x < 2; ++x) {
-    //     for (int y = -2; y < 2; ++y) {
-    //         vec2 offset = vec2(float(x), float(y)) * texelSize;
-    //         result += textureLod(diffuse, outUV + offset, level).rgb;
-    //     }
-    // }
-    color = texture(diffuse, outUV);
+const vec2 invAtan = vec2(0.1591, 0.3183);
+vec2 SampleSphericalMap(vec3 v)
+{
+    vec2 uv = vec2(atan(v.z, v.x), asin(v.y));
+    uv *= invAtan;
+    uv += 0.5;
+    return uv;
+}
+
+void main() {		
+    //vec2 uv = SampleSphericalMap(normalize(localPos));
+    vec3 c = texture(diffuse, localPos).rgb;
+    
+    color = vec4(c, 1.0);
 }

@@ -2,13 +2,14 @@
 precision highp float;
 
 layout (location = 0) in vec3 inPosition;
-layout (location = 1) in vec2 inUV;
 
-uniform mat4 MVPMatrix;
+uniform mat4 projection;
+uniform mat4 view;
 
-out vec2 outUV;
+out vec3 localPos;
 
 void main() {
-	outUV = inUV;
-    gl_Position = MVPMatrix * vec4(inPosition, 1.0);
+	localPos = inPosition;
+    mat4 rotView = mat4(mat3(view));
+    gl_Position = projection * rotView * vec4(inPosition, 1.0);
 }
