@@ -1,4 +1,4 @@
-import { compileShader, getTextureIndex } from './utils';
+import { createProgram, createTexture } from './utils';
 import { Camera } from './objects';
 import { SSAO } from './postprocessors/ssao';
 import { Bloom } from './postprocessors/bloom';
@@ -132,18 +132,8 @@ export class PostProcessing {
         gl.drawArrays( gl.TRIANGLES, 0, 6 );
     }
 
-    createTexture() {
-        const index = getTextureIndex();
-        const texture = gl.createTexture();
-        gl.activeTexture(gl[`TEXTURE${index}`]);
-        gl.bindTexture(gl.TEXTURE_2D, texture);
-        texture.index = index;
-        
-        return texture;
-    }
-
     createByteTexture() {
-        const texture = this.createTexture();
+        const texture = createTexture();
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, this.width, this.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
@@ -151,7 +141,7 @@ export class PostProcessing {
     }
 
     createDefaultTexture(scale = 1) {
-        const texture = this.createTexture();
+        const texture = createTexture();
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, this.width / scale, this.height / scale, 0, gl.RGBA, gl.FLOAT, null);
@@ -159,7 +149,7 @@ export class PostProcessing {
     }
 
     createOneChannelTexture(scale = 1) {
-        const texture = this.createTexture();
+        const texture = createTexture();
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, this.width / scale, this.height / scale, 0, gl.RED, gl.UNSIGNED_BYTE, null);
@@ -167,7 +157,7 @@ export class PostProcessing {
     }
 
     createDepthTexture() {
-        const texture = this.createTexture();
+        const texture = createTexture();
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.DEPTH_COMPONENT24, this.width, this.height, 0, gl.DEPTH_COMPONENT, gl.UNSIGNED_INT, null);
@@ -175,7 +165,7 @@ export class PostProcessing {
     }
 
     createNoiceTexture(size, data) {
-        const texture = this.createTexture();
+        const texture = createTexture();
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
@@ -250,10 +240,7 @@ export class PostProcessing {
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, this.preDepthTexture, 0);
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
-        this.program = gl.createProgram();
-        compileShader(gl.VERTEX_SHADER, quadShader.replace(/\n/, `\n${ defineStr}`), this.program);
-        compileShader(gl.FRAGMENT_SHADER, composerShader.replace(/\n/, `\n${ defineStr}`), this.program);
-        gl.linkProgram(this.program);
+        this.program = createProgram(quadShader.replace(/\n/, `\n${ defineStr}`), composerShader.replace(/\n/, `\n${ defineStr}`));
 
         return true;
     }

@@ -19,6 +19,10 @@ class Object3D {
         this.parent = parent;
     }
 
+    getPosition() {
+        return new Float32Array([this.matrixWorld.elements[12], this.matrixWorld.elements[13], this.matrixWorld.elements[14]]);
+    }
+
     setPosition(translation, rotation, scale) {
         if (rotation) {
             this.matrix.makeRotationFromQuaternion(rotation);
@@ -64,6 +68,7 @@ interface Uniforms {
 interface Geometry {
     UBO: WebGLBuffer;
     VAO: WebGLBuffer;
+    uniformBuffer: UniformBuffer;
     indicesBuffer: Float32Array;
     attributes: Attributes;
     targets: Attributes;
@@ -106,6 +111,7 @@ class Mesh extends Object3D {
                 min: null,
                 max: null
             },
+            uniformBuffer: null,
             UBO: null,
             VAO: null,
             indicesBuffer: null,
@@ -150,20 +156,19 @@ class Mesh extends Object3D {
         if (this.reflow) { // matrixWorld changed
             const normalMatrix = new Matrix4(this.matrixWorld);
             normalMatrix.invert().transpose();
-            const matrices = new Float32Array(32);
-            matrices.set(this.matrixWorld.elements);
-            matrices.set(normalMatrix.elements, 16);
-            gl.bufferSubData(gl.UNIFORM_BUFFER, 0, matrices);
+
+            this.geometry.uniformBuffer.update(gl, 'model', this.matrixWorld.elements);
+            this.geometry.uniformBuffer.update(gl, 'normalMatrix', normalMatrix.elements);
         }
 
         if (needUpdateView) {
-            gl.bufferSubData(gl.UNIFORM_BUFFER, 32 * Float32Array.BYTES_PER_ELEMENT, camera.matrixWorldInvert.elements);
-            gl.bufferSubData(gl.UNIFORM_BUFFER, 64 * Float32Array.BYTES_PER_ELEMENT, light.matrixWorldInvert.elements);
+            this.geometry.uniformBuffer.update(gl, 'view', camera.matrixWorldInvert.elements);
+            this.geometry.uniformBuffer.update(gl, 'light', light.matrixWorldInvert.elements);
         }
         if (needUpdateProjection) {
-            gl.bufferSubData(gl.UNIFORM_BUFFER, 48 * Float32Array.BYTES_PER_ELEMENT, camera.projection.elements);
+            this.geometry.uniformBuffer.update(gl, 'projection', camera.projection.elements);
         }
-        gl.bufferSubData(gl.UNIFORM_BUFFER, 80 * Float32Array.BYTES_PER_ELEMENT, new Float32Array([isLight ? 1 : 0]));
+        this.geometry.uniformBuffer.update(gl, 'isShadow', new Float32Array([isLight ? 1 : 0]));
 
         if (this instanceof SkinnedMesh) {
             gl.bindBufferBase(gl.UNIFORM_BUFFER, 2, this.geometry.SKIN);
@@ -182,29 +187,29 @@ class Mesh extends Object3D {
             gl.bindBufferBase(gl.UNIFORM_BUFFER, 1, this.material.UBO);
 
             if (needUpdateView) {
-                gl.bufferSubData(gl.UNIFORM_BUFFER, 4 * Float32Array.BYTES_PER_ELEMENT, new Float32Array([light.matrixWorld.elements[12], light.matrixWorld.elements[13], light.matrixWorld.elements[14]]));
-                gl.bufferSubData(gl.UNIFORM_BUFFER, 8 * Float32Array.BYTES_PER_ELEMENT, new Float32Array([camera.matrixWorld.elements[12], camera.matrixWorld.elements[13], camera.matrixWorld.elements[14]]));
+                this.material.uniformBuffer.update(gl, 'lightPos', light.getPosition());
+                this.material.uniformBuffer.update(gl, 'viewPos', camera.getPosition());
             }
         }
 
-        gl.uniform1i( gl.getUniformLocation(this.program, 'prefilterMap'), prefilterMap.count);
-        gl.uniform1i( gl.getUniformLocation(this.program, 'brdfLUT'), brdfLUT.count);
-        gl.uniform1i( gl.getUniformLocation(this.program, 'irradianceMap'), irradiancemap.count);
+        gl.uniform1i( gl.getUniformLocation(this.program, 'prefilterMap'), prefilterMap.index);
+        gl.uniform1i( gl.getUniformLocation(this.program, 'brdfLUT'), brdfLUT.index);
+        gl.uniform1i( gl.getUniformLocation(this.program, 'irradianceMap'), irradiancemap.index);
         gl.uniform1i( gl.getUniformLocation(this.program, 'depthTexture'), isShadow ? fakeDepth.index : preDepthTexture.index);
         if (this.material.pbrMetallicRoughness.baseColorTexture) {
-            gl.uniform1i(this.material.uniforms.baseColorTexture, this.material.pbrMetallicRoughness.baseColorTexture.count);
+            gl.uniform1i(this.material.uniforms.baseColorTexture, this.material.pbrMetallicRoughness.baseColorTexture.index);
         }
         if (this.material.pbrMetallicRoughness.metallicRoughnessTexture) {
-            gl.uniform1i(this.material.uniforms.metallicRoughnessTexture, this.material.pbrMetallicRoughness.metallicRoughnessTexture.count);
+            gl.uniform1i(this.material.uniforms.metallicRoughnessTexture, this.material.pbrMetallicRoughness.metallicRoughnessTexture.index);
         }
         if (this.material.normalTexture) {
-            gl.uniform1i(this.material.uniforms.normalTexture, this.material.normalTexture.count);
+            gl.uniform1i(this.material.uniforms.normalTexture, this.material.normalTexture.index);
         }
         if (this.material.occlusionTexture) {
-            gl.uniform1i(this.material.uniforms.occlusionTexture, this.material.occlusionTexture.count);
+            gl.uniform1i(this.material.uniforms.occlusionTexture, this.material.occlusionTexture.index);
         }
         if (this.material.emissiveTexture) {
-            gl.uniform1i(this.material.uniforms.emissiveTexture, this.material.emissiveTexture.count);
+            gl.uniform1i(this.material.uniforms.emissiveTexture, this.material.emissiveTexture.index);
         }
         if (this.material.doubleSided) {
             gl.disable(gl.CULL_FACE);
@@ -415,4 +420,40 @@ class Light extends Object3D {
     }
 }
 
-export { Scene, Object3D, Mesh, SkinnedMesh, Bone, Camera, Light };
+interface Store {
+    [key: string]: Float32Array;
+}
+class UniformBuffer {
+    offset: number;
+    map: Map<string, number>;
+    tempStore: Store;
+    store: Float32Array;
+
+    constructor() {
+        this.map = new Map();
+        this.tempStore = {};
+        this.offset = 0;
+    }
+
+    add(name, value) {
+        this.map.set(name, this.offset);
+        this.tempStore[name] = value;
+        this.offset += Math.max(value.length, 4);
+    }
+
+    update(gl, name, value) {
+        const offset = this.map.get(name);
+        this.store.set(value, offset);
+        gl.bufferSubData(gl.UNIFORM_BUFFER, offset * Float32Array.BYTES_PER_ELEMENT, value);
+    }
+
+    done() {
+        this.store = new Float32Array(this.offset);
+        for (const [name, offset] of this.map) {
+            this.store.set(this.tempStore[name], offset);
+        }
+        this.tempStore = null;
+    }
+}
+
+export { Scene, Object3D, Mesh, SkinnedMesh, Bone, Camera, Light, UniformBuffer };

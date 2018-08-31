@@ -1,5 +1,5 @@
-import { buildArray, getDataType, walk, getAnimationComponent, calculateProjection, compileShader, calculateOffset, getAttributeIndex, calculateBinormals, getTextureIndex } from './utils';
-import { Mesh, SkinnedMesh, Bone, Camera, Object3D, Scene, Light } from './objects';
+import { buildArray, getDataType, walk, getAnimationComponent, calculateProjection, createProgram, calculateOffset, getAttributeIndex, calculateBinormals, createTexture } from './utils';
+import { Mesh, SkinnedMesh, Bone, Camera, Object3D, Scene, Light, UniformBuffer } from './objects';
 import { Matrix4, Frustum } from './matrix';
 import { GlTf } from './GLTF';
 
@@ -46,6 +46,7 @@ interface Define {
 
 export class Parse {
     tracks: Array<Track>;
+    duration: number;
     url: string;
     host: string;
     skins: Array<Skin>;
@@ -69,6 +70,7 @@ export class Parse {
         this.url = url;
         this.host = url.substr(0, url.lastIndexOf('/') + 1);
         this.tracks = [];
+        this.duration = 0;
         this.skins = [];
         this.textures = null;
         this.samplers = null;
@@ -115,15 +117,6 @@ export class Parse {
             .then(buffers => {
                 this.arrayBuffer = buffers;
             });
-    }
-
-    compileShader(vertexShader, fragmentShader) {
-        const program = gl.createProgram();
-        compileShader(gl.VERTEX_SHADER, vertexShader, program);
-        compileShader(gl.FRAGMENT_SHADER, fragmentShader, program);
-        gl.linkProgram(program);
-
-        return program;
     }
 
     buildPrim(parent, name, skin, weights, p) {
@@ -188,7 +181,7 @@ export class Parse {
             program = this.programs[defines.map(define => define.name).join('')];
         } else {
             const defineStr = defines.map(define => `#define ${define.name} ${define.value || 1}` + '\n').join('');
-            program = this.compileShader(vertexShader.replace(/\n/, `\n${ defineStr}`), fragmentShader.replace(/\n/, `\n${ defineStr}`));
+            program = createProgram(vertexShader.replace(/\n/, `\n${ defineStr}`), fragmentShader.replace(/\n/, `\n${ defineStr}`));
             this.programs[defines.map(define => define.name).join('')] = program;
         }
 
@@ -337,7 +330,7 @@ export class Parse {
             }
         });
         const z = Math.max(biggestMesh.matrixWorld.getScaleZ(), 1);
-        const pos = Math.hypot(biggestMesh.matrixWorld.elements[12], biggestMesh.matrixWorld.elements[13], biggestMesh.matrixWorld.elements[14]);
+        const pos = Math.hypot(...biggestMesh.getPosition());
         this._camera.modelSize = biggestMesh.geometry.boundingSphere.radius * z + pos + Math.hypot(...biggestMesh.geometry.boundingSphere.center.elements);
 
         this.resize();
@@ -381,37 +374,39 @@ export class Parse {
                 gl.bindBuffer(gl.UNIFORM_BUFFER, null);
             }
             if (mesh instanceof Mesh) {
-                const materials = new Float32Array(12);
-                materials.set(mesh.material.pbrMetallicRoughness.baseColorFactor || [0.8, 0.8, 0.8, 1.0]);
-                materials.set([this.light.matrixWorld.elements[12], this.light.matrixWorld.elements[13], this.light.matrixWorld.elements[14]], 4);
-                materials.set([this._camera.matrixWorld.elements[12], this._camera.matrixWorld.elements[13], this._camera.matrixWorld.elements[14]], 8);
+                const materialUniformBuffer = new UniformBuffer();
+                materialUniformBuffer.add('baseColorFactor', mesh.material.pbrMetallicRoughness.baseColorFactor || [0.8, 0.8, 0.8, 1.0]);
+                materialUniformBuffer.add('lightPos', this.light.getPosition());
+                materialUniformBuffer.add('viewPos', this._camera.getPosition());
+                materialUniformBuffer.done();
+                
                 const mIndex = gl.getUniformBlockIndex(mesh.program, 'Material');
                 gl.uniformBlockBinding(mesh.program, mIndex, 1);
                 const mUBO = gl.createBuffer();
                 gl.bindBuffer(gl.UNIFORM_BUFFER, mUBO);
-                gl.bufferData(gl.UNIFORM_BUFFER, materials, gl.STATIC_DRAW);
+                gl.bufferData(gl.UNIFORM_BUFFER, materialUniformBuffer.store, gl.STATIC_DRAW);
                 mesh.material.UBO = mUBO;
-
-                // var z = window.xxx;
-                // var x = new Matrix4;
-                // //x.setOrtho(0.076, 0.076, this._camera.props.perspective.znear, this._camera.props.perspective.zfar);
-                // x.makeOrthographic(-z, z, z, -z, this._camera.props.perspective.znear, this._camera.props.perspective.zfar);
+                mesh.material.uniformBuffer = materialUniformBuffer;
 
                 const normalMatrix = new Matrix4(mesh.matrixWorld);
                 normalMatrix.invert().transpose();
-                const matrices = new Float32Array(81);
-                matrices.set(mesh.matrixWorld.elements, 0);
-                matrices.set(normalMatrix.elements, 16);
-                matrices.set(this._camera.matrixWorldInvert.elements, 32);
-                matrices.set(this._camera.projection.elements, 48);
-                matrices.set(this.light.matrixWorldInvert.elements, 64);
-                matrices.set(new Float32Array([0]), 80);
+
+                const uniformBuffer = new UniformBuffer();
+                uniformBuffer.add('model', mesh.matrixWorld.elements);
+                uniformBuffer.add('normalMatrix', normalMatrix.elements);
+                uniformBuffer.add('view', this._camera.matrixWorldInvert.elements);
+                uniformBuffer.add('projection', this._camera.projection.elements);
+                uniformBuffer.add('light', this.light.matrixWorldInvert.elements);
+                uniformBuffer.add('isShadow', new Float32Array([0]));
+                uniformBuffer.done();
+
                 const uIndex = gl.getUniformBlockIndex(mesh.program, 'Matrices');
                 gl.uniformBlockBinding(mesh.program, uIndex, 0);
                 const UBO = gl.createBuffer();
                 gl.bindBuffer(gl.UNIFORM_BUFFER, UBO);
-                gl.bufferData(gl.UNIFORM_BUFFER, matrices, gl.DYNAMIC_DRAW);
+                gl.bufferData(gl.UNIFORM_BUFFER, uniformBuffer.store, gl.DYNAMIC_DRAW);
                 mesh.geometry.UBO = UBO;
+                mesh.geometry.uniformBuffer = uniformBuffer;
                 gl.bindBuffer(gl.UNIFORM_BUFFER, null);
 
                 if (mesh.material.alphaMode) {
@@ -464,6 +459,7 @@ export class Parse {
                             value: firstV
                         });
                     }
+                    this.duration = Math.max(keys[keys.length - 1].time, this.duration);
 
                     const meshes = [];
                     walk(this.scene, node => {
@@ -590,18 +586,14 @@ export class Parse {
     }
 
     handleTextureLoaded(sampler, image, name) {
-        const index = getTextureIndex();
-        const t: Texture = {
-            image: image.src.substr(image.src.lastIndexOf('/')),
-            data: gl.createTexture(),
-            count: index,
-            name
-        };
-        gl.activeTexture(gl[`TEXTURE${index}`]);
-        gl.bindTexture(gl.TEXTURE_2D, t.data);
-        gl.bindSampler(index, sampler);
+        const t = createTexture();
+        t.name = name;
+        t.image = image.src.substr(image.src.lastIndexOf('/'));
+
+        gl.bindSampler(t.index, sampler);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
         gl.generateMipmap(gl.TEXTURE_2D);
+
         return t;
     }
 }

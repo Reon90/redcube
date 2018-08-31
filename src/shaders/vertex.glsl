@@ -23,7 +23,6 @@ uniform Matrices {
     mat4 view;
     mat4 projection;
     mat4 light;
-    //mat4 ortho;
     float isShadow;
 };
 

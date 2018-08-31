@@ -1,5 +1,5 @@
 import { PostProcessor } from './base';
-import { compileShader } from '../utils';
+import { createProgram } from '../utils';
 
 import lightShader from '../shaders/light.glsl';
 import lightVertShader from '../shaders/light-vert.glsl';
@@ -59,10 +59,7 @@ export class Light extends PostProcessor {
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
         this.texture = PP.createOneChannelTexture(this.scale);
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.texture, 0);
-        this.program = gl.createProgram();
-        compileShader(gl.VERTEX_SHADER, lightVertShader, this.program);
-        compileShader(gl.FRAGMENT_SHADER, lightShader, this.program);
-        gl.linkProgram(this.program);
+        this.program = createProgram(lightVertShader, lightShader);
 
         const verts = [
             1.0, 1.0,

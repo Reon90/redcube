@@ -1,4 +1,4 @@
-import { compileShader, getTextureIndex, calculateProjection } from './utils';
+import { compileShader, createProgram, createTexture, calculateProjection } from './utils';
 import { Matrix4, Vector3 } from './matrix';
 import { Camera } from './objects';
 import parseHDR from 'parse-hdr';
@@ -13,8 +13,7 @@ import quad from './shaders/quad.glsl';
 let gl;
 
 interface Texture extends WebGLTexture {
-    count: number;
-    data: WebGLBuffer;
+    index: number;
 }
 interface FrameBuffer extends WebGLFramebuffer {
     size: number;
@@ -116,7 +115,7 @@ export class Env {
         gl.useProgram(program);
         gl.bindVertexArray(this.VAO);
         gl.uniformMatrix4fv(gl.getUniformLocation(program, 'projection'), false, m.elements);
-        gl.uniform1i(gl.getUniformLocation(program, 'environmentMap'), this.prefilterMap.count);
+        gl.uniform1i(gl.getUniformLocation(program, 'environmentMap'), this.prefilterMap.index);
         gl.uniformMatrix4fv(gl.getUniformLocation(program, 'view'), false, this._camera.matrixWorldInvert.elements);
         gl.drawArrays(gl.TRIANGLES, 0, 36);
     }
@@ -140,7 +139,7 @@ export class Env {
             gl.viewport(0, 0, this.framebuffer.size, this.framebuffer.size);
 
             gl.uniformMatrix4fv(gl.getUniformLocation(this.cubeprogram, 'projection'), false, m.elements);
-            gl.uniform1i(gl.getUniformLocation(this.cubeprogram, 'diffuse'), this.texture.count);
+            gl.uniform1i(gl.getUniformLocation(this.cubeprogram, 'diffuse'), this.texture.index);
 
             for (let i = 0; i < 6; i++) {
                 gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_CUBE_MAP_POSITIVE_X + i, this.map, 0);
@@ -160,7 +159,7 @@ export class Env {
             gl.viewport(0, 0, this.irradiancebuffer.size, this.irradiancebuffer.size);
 
             gl.uniformMatrix4fv(gl.getUniformLocation(this.irradianceprogram, 'projection'), false, m.elements);
-            gl.uniform1i(gl.getUniformLocation(this.irradianceprogram, 'environmentMap'), this.map.count);
+            gl.uniform1i(gl.getUniformLocation(this.irradianceprogram, 'environmentMap'), this.map.index);
             for (let i = 0; i < 6; i++) {
                 gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_CUBE_MAP_POSITIVE_X + i, this.irradiancemap, 0);
                 gl.uniformMatrix4fv(gl.getUniformLocation(this.irradianceprogram, 'view'), false, this.views[i].elements);
@@ -178,7 +177,7 @@ export class Env {
             gl.bindVertexArray(this.VAO);
 
             gl.uniformMatrix4fv(gl.getUniformLocation(this.mipmapcubeprogram, 'projection'), false, m.elements);
-            gl.uniform1i(gl.getUniformLocation(this.mipmapcubeprogram, 'environmentMap'), this.map.count);
+            gl.uniform1i(gl.getUniformLocation(this.mipmapcubeprogram, 'environmentMap'), this.map.index);
             const maxMipLevels = 5;
             for (let mip = 0; mip < maxMipLevels; ++mip) {
                 const mipWidth  = this.prefilterbuffer.size * Math.pow(0.5, mip);
@@ -224,11 +223,7 @@ export class Env {
             this.irradiancebuffer.size = size;
             gl.bindFramebuffer(gl.FRAMEBUFFER, captureFBO);
 
-            const count = getTextureIndex();
-            const texture = gl.createTexture();
-            texture.count = count;
-            gl.activeTexture(gl[`TEXTURE${count}`]);
-            gl.bindTexture(gl.TEXTURE_CUBE_MAP, texture);
+            const texture = createTexture(gl.TEXTURE_CUBE_MAP);
             for (let i = 0; i < 6; i++) {
                 gl.texImage2D(gl.TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, gl.RGBA16F, size, size, 0, gl.RGBA, gl.FLOAT, null);
                 gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_CUBE_MAP_POSITIVE_X + i, texture, 0);
@@ -248,11 +243,7 @@ export class Env {
             this.framebuffer.size = size;
             gl.bindFramebuffer(gl.FRAMEBUFFER, captureFBO);
 
-            const count = getTextureIndex();
-            const texture = gl.createTexture();
-            texture.count = count;
-            gl.activeTexture(gl[`TEXTURE${count}`]);
-            gl.bindTexture(gl.TEXTURE_CUBE_MAP, texture);
+            const texture = createTexture(gl.TEXTURE_CUBE_MAP);
             for (let i = 0; i < 6; i++) {
                 gl.texImage2D(gl.TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, gl.RGBA16F, size, size, 0, gl.RGBA, gl.FLOAT, null);
                 gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_CUBE_MAP_POSITIVE_X + i, texture, 0);
@@ -272,11 +263,7 @@ export class Env {
             this.prefilterbuffer.size = size;
             gl.bindFramebuffer(gl.FRAMEBUFFER, captureFBO);
 
-            const count = getTextureIndex();
-            const texture = gl.createTexture();
-            texture.count = count;
-            gl.activeTexture(gl[`TEXTURE${count}`]);
-            gl.bindTexture(gl.TEXTURE_CUBE_MAP, texture);
+            const texture = createTexture(gl.TEXTURE_CUBE_MAP);
             for (let i = 0; i < 6; i++) {
                 gl.texImage2D(gl.TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, gl.RGBA16F, size, size, 0, gl.RGBA, gl.FLOAT, null);
                 gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_CUBE_MAP_POSITIVE_X + i, texture, i);
@@ -297,11 +284,7 @@ export class Env {
             this.brdfbuffer.size = size;
             gl.bindFramebuffer(gl.FRAMEBUFFER, captureFBO);
 
-            const count = getTextureIndex();
-            const texture = gl.createTexture();
-            texture.count = count;
-            gl.activeTexture(gl[`TEXTURE${count}`]);
-            gl.bindTexture(gl.TEXTURE_2D, texture);
+            const texture = createTexture();
             gl.texImage2D(gl.TEXTURE_2D, 0, gl.RG16F, size, size, 0, gl.RG, gl.FLOAT, null);
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
@@ -403,36 +386,15 @@ export class Env {
         }
         gl.bindVertexArray(null);
 
-        this.cubeprogram = gl.createProgram();
-        compileShader(gl.VERTEX_SHADER, vertex, this.cubeprogram);
-        compileShader(gl.FRAGMENT_SHADER, cube, this.cubeprogram);
-        gl.linkProgram(this.cubeprogram);
-
-        this.irradianceprogram = gl.createProgram();
-        compileShader(gl.VERTEX_SHADER, vertex, this.irradianceprogram);
-        compileShader(gl.FRAGMENT_SHADER, irradiance, this.irradianceprogram);
-        gl.linkProgram(this.irradianceprogram);
-
-        this.mipmapcubeprogram = gl.createProgram();
-        compileShader(gl.VERTEX_SHADER, vertex, this.mipmapcubeprogram);
-        compileShader(gl.FRAGMENT_SHADER, cubeMipmap, this.mipmapcubeprogram);
-        gl.linkProgram(this.mipmapcubeprogram);
-
-        this.bdrfprogram = gl.createProgram();
-        compileShader(gl.VERTEX_SHADER, quad, this.bdrfprogram);
-        compileShader(gl.FRAGMENT_SHADER, bdrf, this.bdrfprogram);
-        gl.linkProgram(this.bdrfprogram);
+        this.cubeprogram = createProgram(vertex, cube);
+        this.irradianceprogram = createProgram(vertex, irradiance);
+        this.mipmapcubeprogram = createProgram(vertex, cubeMipmap);
+        this.bdrfprogram = createProgram(quad, bdrf);
 
         return fetch(`src/images/env.hdr`).then(res => res.arrayBuffer()).then(buffer => {
             const data = parseHDR(buffer).data;
 
-            const index = getTextureIndex();
-            this.texture = {
-                data: gl.createTexture(),
-                count: index
-            };
-            gl.activeTexture(gl[`TEXTURE${this.texture.count}`]);
-            gl.bindTexture(gl.TEXTURE_2D, this.texture.data);
+            this.texture = createTexture();
             gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);

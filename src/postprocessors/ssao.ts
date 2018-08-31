@@ -1,6 +1,6 @@
 import { Vector3, Matrix4 } from '../matrix';
 import { PostProcessor } from './base';
-import { random, compileShader, lerp } from '../utils';
+import { random, createProgram, lerp } from '../utils';
 
 import quadShader from '../shaders/quad.glsl';
 import ssaoShader from '../shaders/ssao.glsl';
@@ -85,15 +85,8 @@ export class SSAO extends PostProcessor {
         this.ssaoBlurTexture = pp.createOneChannelTexture(this.scale);
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.ssaoTexture, 0);
 
-        this.ssaoProgram = gl.createProgram();
-        compileShader(gl.VERTEX_SHADER, quadShader, this.ssaoProgram);
-        compileShader(gl.FRAGMENT_SHADER, ssaoShader, this.ssaoProgram);
-        gl.linkProgram(this.ssaoProgram);
-
-        this.ssaoBlurProgram = gl.createProgram();
-        compileShader(gl.VERTEX_SHADER, quadShader, this.ssaoBlurProgram);
-        compileShader(gl.FRAGMENT_SHADER, ssaoBlurShader, this.ssaoBlurProgram);
-        gl.linkProgram(this.ssaoBlurProgram);
+        this.ssaoProgram = createProgram(quadShader, ssaoShader);
+        this.ssaoBlurProgram = createProgram(quadShader, ssaoBlurShader);
 
         this.buildNoice(pp);
         this.buildKernels();

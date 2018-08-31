@@ -127,7 +127,7 @@
 
         //https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/
         const renderer = new redcube.RedCube('https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/' + name + '/glTF/' + name + '.gltf', canvas, [localStorage.getItem('ssao'), localStorage.getItem('bloom'), localStorage.getItem('shadow'), localStorage.getItem('light')].filter(name => name));
-        renderer.init().then(() => {
+        renderer.init(() => {
             if (renderer.parse.cameras.length) {
                 const select = document.createElement('select');
                 select.onchange = () => {

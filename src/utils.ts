@@ -229,8 +229,33 @@ export function compileShader(type, shaderSource, program) {
     gl.attachShader(program, shader);
     const log = gl.getShaderInfoLog(shader);
     if (log) {
-        console.error(log);
+        throw new Error(log);
     }
+}
+
+export function createProgram(vertex, fragment) {
+    const program = gl.createProgram();
+    compileShader(gl.VERTEX_SHADER, vertex, program);
+    compileShader(gl.FRAGMENT_SHADER, fragment, program);
+    gl.linkProgram(program);
+
+    gl.validateProgram(program);
+    if ( !gl.getProgramParameter( program, gl.LINK_STATUS) ) {
+        const info = gl.getProgramInfoLog(program);
+        throw new Error(`Could not compile WebGL program. ${info}`);
+    }
+
+    return program;
+}
+
+export function createTexture(type = gl.TEXTURE_2D) {
+    const index = getTextureIndex();
+    const texture = gl.createTexture();
+    gl.activeTexture(gl[`TEXTURE${index}`]);
+    gl.bindTexture(type, texture);
+    texture.index = index;
+    
+    return texture;
 }
 
 export function walk(node, callback) {
@@ -382,10 +407,3 @@ export function measureGPU() {
         console.log(timeElapsed / 1000000);
     }
 }
-
-
-// gl.validateProgram(this.program4);
-// if ( !gl.getProgramParameter( this.program4, gl.LINK_STATUS) ) {
-//     var info = gl.getProgramInfoLog(this.program4);
-//     throw 'Could not compile WebGL program. \n\n' + info;
-// }

@@ -1,5 +1,5 @@
 import { PostProcessor } from './base';
-import { compileShader } from '../utils';
+import { createProgram } from '../utils';
 
 import quadShader from '../shaders/quad.glsl';
 import blurShader from '../shaders/blur.glsl';
@@ -57,15 +57,8 @@ export class Bloom extends PostProcessor {
         this.hdrTexture = pp.createByteTexture();
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
-        this.program = gl.createProgram();
-        compileShader(gl.VERTEX_SHADER, quadShader, this.program);
-        compileShader(gl.FRAGMENT_SHADER, blurShader, this.program);
-        gl.linkProgram(this.program);
-
-        this.bloorProgram = gl.createProgram();
-        compileShader(gl.VERTEX_SHADER, quadShader, this.bloorProgram);
-        compileShader(gl.FRAGMENT_SHADER, bloomShader, this.bloorProgram);
-        gl.linkProgram(this.bloorProgram);
+        this.program = createProgram(quadShader, blurShader);
+        this.bloorProgram = createProgram(quadShader, bloomShader);
 
         return {name: 'BLOOM'};
     }

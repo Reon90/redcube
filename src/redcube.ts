@@ -83,19 +83,20 @@ class RedCube {
         this.parse.setDefines(defines);
     }
 
-    init() {
-        return this.parse.getJson()
-            .then(this.glInit.bind(this))
-            .then(this.Particles.build.bind(this.Particles))
-            .then(this.parse.initTextures.bind(this.parse))
-            .then(this.PP.buildScreenBuffer.bind(this.PP))
-            .then(this.parse.getBuffer.bind(this.parse))
-            .then(this.parse.buildSkin.bind(this.parse))
-            .then(this.parse.buildMesh.bind(this.parse))
-            .then(this.parse.buildAnimation.bind(this.parse))
-            .then(this.env.createEnvironmentBuffer.bind(this.env))
-            .then(this.draw.bind(this))
-            .catch(console.error);
+    async init(cb) {
+        await this.parse.getJson();
+        await this.glInit();
+        await this.Particles.build();
+        await this.parse.initTextures();
+        await this.PP.buildScreenBuffer();
+        await this.parse.getBuffer();
+        await this.parse.buildSkin();
+        await this.parse.buildMesh();
+        await this.parse.buildAnimation();
+        await this.env.createEnvironmentBuffer();
+        await this.draw();
+
+        cb();
     }
 
     updateCamera(camera) {
@@ -209,6 +210,9 @@ class RedCube {
     }
 
     animate(sec) {
+        const increment = Math.floor(sec / this.parse.duration);
+        sec -= increment * this.parse.duration;
+
         for (const v of this.parse.tracks) {
             const val = interpolation(sec, v.keys);
 

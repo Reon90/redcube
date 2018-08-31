@@ -1,6 +1,6 @@
 import { Matrix4 } from './matrix';
 import { perlin3 } from './perlin';
-import { getTextureIndex, compileShader } from './utils';
+import { createTexture, compileShader, createProgram } from './utils';
 import { Camera } from './objects';
 
 import instanceShader from './shaders/instance.glsl';
@@ -49,10 +49,7 @@ export class Particles {
         gl.linkProgram(program);
         this.program = program;
 
-        const program2 = gl.createProgram();
-        compileShader(gl.VERTEX_SHADER, instanceShader, program2);
-        compileShader(gl.FRAGMENT_SHADER, instanceFragShader, program2);
-        gl.linkProgram(program2);
+        const program2 = createProgram(instanceShader, instanceFragShader);
         this.program2 = program2;
 
         const VAO = [gl.createVertexArray(), gl.createVertexArray()];
@@ -143,11 +140,7 @@ export class Particles {
             }
         }
 
-        this.texture3d = gl.createTexture();
-        this.texture3d.index = getTextureIndex();
-
-        gl.activeTexture(gl[`TEXTURE${this.texture3d.index}`]);
-        gl.bindTexture(gl.TEXTURE_3D, this.texture3d);
+        this.texture3d = createTexture(gl.TEXTURE_3D);
         gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_BASE_LEVEL, 0);
         gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MAX_LEVEL, Math.log2(SIZE));
         gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
