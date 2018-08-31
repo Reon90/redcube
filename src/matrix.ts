@@ -557,16 +557,7 @@ class Matrix4 {
 
 		return this;
 
-    }
-    
-    makeTranslation(v) {
-        const te = this.elements;
-        te[12] = v[0];
-        te[13] = v[1];
-        te[14] = v[2];
-
-        return this;
-    }
+	}
 
     makeRotationFromQuaternion(q) {
         const te = this.elements;
