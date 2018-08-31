@@ -24,6 +24,9 @@ uniform sampler2D normalTexture;
 uniform sampler2D emissiveTexture;
 uniform sampler2D occlusionTexture;
 
+uniform samplerCube prefilterMap;
+uniform sampler2D   brdfLUT;  
+uniform samplerCube irradianceMap;
 uniform sampler2D depthTexture;
 
 const float PI = 3.14159265359;
@@ -118,11 +121,16 @@ void main() {
     vec3 H = normalize(viewDir + lightDir);
     float distance = length(lightPos - outPosition);
     float attenuation = 1.0 / (distance * distance);
-    vec3 radiance = lightColor * 2.0;
+    vec3 radiance = lightColor * 10.0; // lightColor * attenuation
     float shadowBias = max(0.05 * (1.0 - dot(n, lightDir)), 0.005);
     float shadow = 1.0 - ShadowCalculation(outPositionView, shadowBias);
 
     #ifdef USE_PBR
+        vec3 R = reflect(-viewDir, n);   
+        const float MAX_REFLECTION_LOD = 4.0;
+        vec3 prefilteredColor = textureLod(prefilterMap, R,  roughness * MAX_REFLECTION_LOD).rgb; 
+        vec2 envBRDF  = texture(brdfLUT, vec2(max(dot(n, viewDir), 0.0), roughness)).rg;
+
         vec3 F0 = vec3(0.04); 
         F0 = mix(F0, baseColor, metallic);
 
@@ -139,15 +147,20 @@ void main() {
         vec3 nominator = NDF * G * F;
         float denominator = 4.0 * max(dot(n, viewDir), 0.0) * max(dot(n, lightDir), 0.0);
         vec3 specular = nominator / max(denominator, 0.001);  
+        specular = prefilteredColor * (specular * envBRDF.x + envBRDF.y);
 
-        float NdotL = max(dot(n, lightDir), 0.0);                
+        float NdotL = max(dot(n, lightDir), 0.0);
         light += (kD * baseColor / PI + specular) * radiance * NdotL;
+
+        vec3 irradiance = texture(irradianceMap, n).rgb;
+        baseColor = irradiance * baseColor;
 
         #ifdef OCCLUSIONMAP
             vec3 ambient = vec3(0.03) * baseColor * ao;
         #else
             vec3 ambient = baseColor;
         #endif
+        
         baseColor = ambient + light;
 
         #ifdef EMISSIVEMAP
@@ -172,6 +185,7 @@ void main() {
     #endif
 
     #ifdef TONE
+        color.rgb = color.rgb / (color.rgb + vec3(1.0));
         color.rgb = pow(color.rgb, vec3(1.0 / gamma));
     #endif
 

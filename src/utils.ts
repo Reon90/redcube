@@ -382,3 +382,10 @@ export function measureGPU() {
         console.log(timeElapsed / 1000000);
     }
 }
+
+
+// gl.validateProgram(this.program4);
+// if ( !gl.getProgramParameter( this.program4, gl.LINK_STATUS) ) {
+//     var info = gl.getProgramInfoLog(this.program4);
+//     throw 'Could not compile WebGL program. \n\n' + info;
+// }

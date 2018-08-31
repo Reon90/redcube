@@ -142,7 +142,7 @@ class Mesh extends Object3D {
         };
     }
 
-    draw(gl, {camera, light, preDepthTexture, fakeDepth, needUpdateView, needUpdateProjection}, isShadow, isLight) {
+    draw(gl, {camera, light, preDepthTexture, fakeDepth, needUpdateView, needUpdateProjection, irradiancemap, prefilterMap, brdfLUT}, isShadow, isLight) {
         gl.useProgram(this.program);
 
         gl.bindVertexArray(this.geometry.VAO);
@@ -186,6 +186,10 @@ class Mesh extends Object3D {
                 gl.bufferSubData(gl.UNIFORM_BUFFER, 8 * Float32Array.BYTES_PER_ELEMENT, new Float32Array([camera.matrixWorld.elements[12], camera.matrixWorld.elements[13], camera.matrixWorld.elements[14]]));
             }
         }
+
+        gl.uniform1i( gl.getUniformLocation(this.program, 'prefilterMap'), prefilterMap.count);
+        gl.uniform1i( gl.getUniformLocation(this.program, 'brdfLUT'), brdfLUT.count);
+        gl.uniform1i( gl.getUniformLocation(this.program, 'irradianceMap'), irradiancemap.count);
         gl.uniform1i( gl.getUniformLocation(this.program, 'depthTexture'), isShadow ? fakeDepth.index : preDepthTexture.index);
         if (this.material.pbrMetallicRoughness.baseColorTexture) {
             gl.uniform1i(this.material.uniforms.baseColorTexture, this.material.pbrMetallicRoughness.baseColorTexture.count);

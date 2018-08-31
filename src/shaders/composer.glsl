@@ -27,6 +27,7 @@ void main() {
         c += texture(light, uv).r;
     #endif
 
+    c.rgb = c.rgb / (c.rgb + vec3(1.0));
     c.rgb = pow(c.rgb, vec3(1.0 / gamma));
 
     color = vec4(c, 1.0);

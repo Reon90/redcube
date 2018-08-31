@@ -21,7 +21,7 @@ const config = {
                 use: "awesome-typescript-loader" 
             },
             {
-                test: /\.glsl$/,
+                test: /\.(glsl|vert|frag)$/,
                 use: 'raw-loader'
             }, 
             {

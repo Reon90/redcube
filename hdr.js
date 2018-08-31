@@ -1,6 +1,6 @@
 var parseHDR = require('parse-hdr')
 var fs = require('fs')
-var data = fs.readFileSync('hdr.hdr');
+var data = fs.readFileSync('spruit_sunrise_1k.hdr');
 	  var img = parseHDR(data)
 var buffer = new Buffer(img.data.length*4);
 
@@ -9,6 +9,6 @@ var buffer = new Buffer(img.data.length*4);
 	            //write the float in Little-Endian and move the offset
 	    buffer.writeFloatLE(img.data[i], i*4);
 	  }
-	  fs.writeFileSync('hdr.bin', buffer);
+	  fs.writeFileSync('spruit_sunrise_1k.bin', buffer);
 	  
 

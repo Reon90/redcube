@@ -55,6 +55,7 @@ class RedCube {
 
         this.env = new Env;
         this.env.setCamera(this.camera);
+        this.env.setCanvas(this.canvas);
 
         this.PP = new PostProcessing(processors);
         this.PP.setLight(this.light);
@@ -174,6 +175,7 @@ class RedCube {
             this.camera.setZ(z);
             this.light.setZ(z);
             this.light.update(Math.PI / 2);
+
             this.needUpdateView = true;
         } else {
             this.light.setZ(this.camera.matrixWorld.elements[14]);
@@ -335,7 +337,7 @@ class RedCube {
 
             gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-            this.env.createEnvironment();
+            // this.env.draw();
 
             this.renderScene(!this.processors.includes('shadow'), false);
 
@@ -402,7 +404,10 @@ class RedCube {
             preDepthTexture: this.PP.preDepthTexture,
             fakeDepth: this.PP.fakeDepth,
             needUpdateView: this.needUpdateView, 
-            needUpdateProjection: this.needUpdateProjection
+            needUpdateProjection: this.needUpdateProjection,
+            irradiancemap: this.env.irradiancemap,
+            prefilterMap: this.env.prefilterMap,
+            brdfLUT: this.env.brdfLUTTexture
         };
     }
 }
