@@ -32,7 +32,7 @@
     </div>
     <script src="./dist/redcube.js"></script>
     <script>
-        const name = localStorage.getItem('sample') || 'BrainStem';
+        const name = localStorage.getItem('sample') || 'DamagedHelmet';
         const canvas = document.getElementById('canvas');
         const samples = [
         "animated_hands",
@@ -126,7 +126,7 @@
         slider.value = Math.PI/2;
 
         //https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/
-        const renderer = new redcube.RedCube('examples/' + name + '/glTF/' + name + '.gltf', canvas, [localStorage.getItem('ssao'), localStorage.getItem('bloom'), localStorage.getItem('shadow'), localStorage.getItem('light')].filter(name => name));
+        const renderer = new redcube.RedCube('https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/' + name + '/glTF/' + name + '.gltf', canvas, [localStorage.getItem('ssao'), localStorage.getItem('bloom'), localStorage.getItem('shadow'), localStorage.getItem('light')].filter(name => name));
         renderer.init().then(() => {
             if (renderer.parse.cameras.length) {
                 const select = document.createElement('select');
