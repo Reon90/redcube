@@ -1,6 +1,7 @@
 import { compileShader, getTextureIndex, calculateProjection } from './utils';
 import { Matrix4, Vector3 } from './matrix';
 import { Camera } from './objects';
+import parseHDR from 'parse-hdr';
 
 import vertex from './shaders/env.vert';
 import cube from './shaders/cube.frag';
@@ -422,8 +423,8 @@ export class Env {
         compileShader(gl.FRAGMENT_SHADER, bdrf, this.bdrfprogram);
         gl.linkProgram(this.bdrfprogram);
 
-        return fetch(`../royal_esplanade_1k.bin`).then(res => res.arrayBuffer()).then(buffer => {
-            const data = new Float32Array(buffer);
+        return fetch(`src/images/env.hdr`).then(res => res.arrayBuffer()).then(buffer => {
+            const data = parseHDR(buffer).data;
 
             const index = getTextureIndex();
             this.texture = {
