@@ -122,14 +122,26 @@ class RedCube {
                 return;
             }
 
-            const camStart = new Vector3(p0.elements).applyMatrix4(this.camera.matrixWorld);
-            const camEnd = new Vector3(p1.elements).applyMatrix4(this.camera.matrixWorld);
-            const camVector = Vector3.cross(camEnd, camStart).normalize();
-            const camMatrix = new Matrix4;
-            camMatrix.makeRotationAxis(camVector, angle);
-            camMatrix.multiply(this.camera.matrixWorld);
+            const v = Vector3.cross(p0, p1).normalize();
+            
+            const sin = Math.sin(angle / 2);
+            const q = new Vector4([
+                v.elements[0] * sin,
+                v.elements[1] * sin,
+                v.elements[2] * sin,
+                Math.cos(angle / 2)
+            ]);
+            const vm = new Matrix4().setInverseOf(this.camera.matrixWorld).elements;
+            const p2 = new Vector3([vm[12], vm[13], vm[14]]);
+            const translation = new Matrix4().makeTranslation(p2);
+            const rotation = new Matrix4().makeRotationFromQuaternion(q);
+            const iTranslation = new Matrix4().setInverseOf(translation);
+            const m = new Matrix4()
+            .multiply(translation)
+            .multiply(rotation)
+            .multiply(iTranslation);
 
-            this.camera.setMatrixWorld(camMatrix.elements);
+            this.camera.setMatrixWorld(m.elements);
             this.needUpdateView = true;
         }
         if (type === 'pan') {
