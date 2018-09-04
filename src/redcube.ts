@@ -1,5 +1,6 @@
 /// <reference path='../index.d.ts'/>
 
+import { Container } from './container';
 import { Scene, Mesh, Camera, Bone, Light } from './objects';
 import { Matrix4, Vector2, Vector3, Vector4, Frustum } from './matrix';
 import { Events } from './events';
@@ -29,6 +30,7 @@ class RedCube {
     PP: PostProcessing;
     Particles: Particles;
     processors: Array<String>;
+    ioc: Container;
 
     constructor(url, canvas, processors) {
         this.reflow = true;
@@ -36,7 +38,16 @@ class RedCube {
         this.canvas = canvas;
         this.processors = processors;
 
-        this.camera = new Camera;
+        this.ioc = new Container;
+        this.ioc.register('env', Env, ['camera', 'canvas', 'gl']);
+        this.ioc.register('camera', Camera);
+        this.ioc.register('canvas', canvas);
+        this.ioc.register('scene', this.scene);
+        this.ioc.register('light', Light);
+        this.ioc.register('pp', PostProcessing, ['light', 'camera', 'canvas', 'gl'], processors);
+        this.ioc.register('parser', Parse, ['scene', 'light', 'camera', 'canvas', 'gl'], url);
+
+        this.camera = this.ioc.get('camera');
         this.camera.setProps({
             type: 'perspective', 
             isInitial: true,
@@ -47,20 +58,15 @@ class RedCube {
             }
         });
 
-        this.light = new Light;
+        this.light = this.ioc.get('light');
 
         this.events = new Events(this.redraw.bind(this));
 
         this.fps = new FPS;
 
-        this.env = new Env;
-        this.env.setCamera(this.camera);
-        this.env.setCanvas(this.canvas);
+        this.env = this.ioc.get('env');
 
-        this.PP = new PostProcessing(processors);
-        this.PP.setLight(this.light);
-        this.PP.setCanvas(this.canvas);
-        this.PP.setCamera(this.camera);
+        this.PP = this.ioc.get('pp');
         this.PP.setRender(this.renderScene.bind(this));
 
         this.Particles = new Particles(() => {
@@ -73,12 +79,8 @@ class RedCube {
         if (processors.length === 0) {
             defines.push({name: 'TONE'});
         }
-        this.parse = new Parse(url);
-        this.parse.setScene(this.scene);
-        this.parse.setCamera(this.camera);
-        this.parse.setLight(this.light);
+        this.parse = this.ioc.get('parser');
         this.parse.setUpdateCamera(this.updateCamera.bind(this));
-        this.parse.setCanvas(this.canvas);
         this.parse.setResize(this.resize.bind(this));
         this.parse.setDefines(defines);
     }
@@ -201,9 +203,9 @@ class RedCube {
         }
 
         setGl(gl);
-        this.env.setGl(gl);
-        this.PP.setGl(gl);
-        this.parse.setGl(gl);
+
+        this.ioc.register('gl', gl);
+
         this.Particles.setGl(gl);
 
         return true;
