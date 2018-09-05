@@ -79,6 +79,10 @@ class RedCube {
         if (processors.length === 0) {
             defines.push({name: 'TONE'});
         }
+        if (processors.some(p => p === 'shadow')) {
+            defines.push({name: 'SHADOWMAP'});
+        }
+
         this.parse = this.ioc.get('parser');
         this.parse.setUpdateCamera(this.updateCamera.bind(this));
         this.parse.setResize(this.resize.bind(this));
@@ -109,7 +113,7 @@ class RedCube {
 
     redraw(type, coordsStart, coordsMove) {
         if (type === 'zoom') {
-            this.camera.props.zoom = Math.max(Math.min(coordsStart, 3 / this.camera.props.aspect), 0.5);
+            this.camera.props.zoom = coordsStart; //Math.max(Math.min(coordsStart, 3 / this.camera.props.aspect), 0.5);
             this.updateNF();
             this.camera.setProjection(calculateProjection(this.camera.props));
             this.needUpdateProjection = true;

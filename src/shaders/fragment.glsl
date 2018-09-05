@@ -1,6 +1,8 @@
 #version 300 es
 precision highp float;
 
+#define IBL 1;
+
 in vec2 outUV;
 in vec3 outPosition;
 in vec4 outPositionView;
@@ -33,7 +35,11 @@ const float PI = 3.14159265359;
 const float ambientStrength = 0.1;
 const float specularStrength = 2.5;
 const float specularPower = 32.0;
+#ifdef USE_PBR
+const vec3 lightColor = vec3(10.0, 10.0, 10.0);
+#else
 const vec3 lightColor = vec3(1.0, 1.0, 1.0);
+#endif
 const vec3 emissiveFactor = vec3(1.0, 1.0, 1.0);
 const float gamma = 2.2;
 
@@ -64,12 +70,12 @@ float DistributionGGX(vec3 N, vec3 H, float roughness) {
     return nom / max(denom, 0.0001);
 }
 
-float GeometrySchlickGGX(float NdotV, float roughness) {
+float GeometrySchlickGGX(float cosTheta, float roughness) {
     float r = (roughness + 1.0);
-    float k = (r*r) / 8.0;
+    float k = (r * r) / 8.0;
 
-    float nom   = NdotV;
-    float denom = NdotV * (1.0 - k) + k;
+    float nom   = cosTheta;
+    float denom = cosTheta * (1.0 - k) + k;
 
     return nom / denom;
 }
@@ -87,6 +93,58 @@ vec3 fresnelSchlick(float cosTheta, vec3 F0) {
     return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
 }
 
+vec3 IBLAmbient(vec3 baseColor, float metallic, vec3 n, vec3 H, float roughness, vec3 viewDir, vec3 lightDir, float ao) {
+    vec3 F0 = vec3(0.04);
+    F0 = mix(F0, baseColor, metallic);
+
+    vec3 F = fresnelSchlick(max(dot(H, viewDir), 0.0), F0);    
+
+    vec3 kD = vec3(1.0) - F;
+    kD *= 1.0 - metallic;
+
+
+    vec3 R = reflect(-viewDir, n);   
+    const float MAX_REFLECTION_LOD = 4.0;
+    vec3 prefilteredColor = textureLod(prefilterMap, R,  roughness * MAX_REFLECTION_LOD).rgb; 
+    vec2 envBRDF  = texture(brdfLUT, vec2(max(dot(n, viewDir), 0.0), roughness)).rg;
+
+    vec3 specular = prefilteredColor * (F * envBRDF.x + envBRDF.y);
+
+    vec3 irradiance = texture(irradianceMap, n).rgb;
+    vec3 diffuse = baseColor * irradiance;
+
+    return (kD * diffuse + specular) * ao;
+}
+
+vec3 CookTorranceSpecular(vec3 baseColor, float metallic, vec3 n, vec3 H, float roughness, vec3 viewDir, vec3 lightDir) {
+    vec3 F0 = vec3(0.04); 
+    F0 = mix(F0, baseColor, metallic);
+
+    float D = DistributionGGX(n, H, roughness);
+    float G = GeometrySmith(n, viewDir, lightDir, roughness);      
+    vec3 F = fresnelSchlick(max(dot(H, viewDir), 0.0), F0);       
+
+    vec3 kS = F;
+    vec3 kD = vec3(1.0) - kS;
+    kD *= 1.0 - metallic;     
+
+    vec3 nominator = D * G * F;
+    float denominator = 4.0 * max(dot(n, viewDir), 0.0) * max(dot(n, lightDir), 0.0);
+    return nominator / max(denominator, 0.001);
+}
+
+vec3 LambertDiffuse(vec3 baseColor, float metallic, vec3 n, vec3 H, float roughness, vec3 viewDir, vec3 lightDir) {
+    float NdotL = max(dot(n, lightDir), 0.0);
+    vec3 F0 = vec3(0.04);
+    F0 = mix(F0, baseColor, metallic);
+
+    vec3 F = fresnelSchlick(max(dot(H, viewDir), 0.0), F0);    
+
+    vec3 kD = vec3(1.0) - F;
+    kD *= 1.0 - metallic;
+    return baseColor * kD / PI;
+}
+
 void main() {
     #ifdef BASECOLORTEXTURE
         vec3 baseColor = srgbToLinear(texture(baseColorTexture, outUV));
@@ -98,6 +156,8 @@ void main() {
 
     #ifdef OCCLUSIONMAP
         float ao = texture(occlusionTexture, outUV).r;
+    #else
+        float ao = 0.2;
     #endif
 
     #ifdef METALROUGHNESSMAP
@@ -118,59 +178,35 @@ void main() {
 
     vec3 viewDir = normalize(viewPos - outPosition);
     vec3 lightDir = normalize(lightPos - outPosition);
+    float NdotL = max(dot(n, lightDir), 0.0);
     vec3 H = normalize(viewDir + lightDir);
     float distance = length(lightPos - outPosition);
     float attenuation = 1.0 / (distance * distance);
-    vec3 radiance = lightColor * 10.0; // lightColor * attenuation
-    float shadowBias = max(0.05 * (1.0 - dot(n, lightDir)), 0.005);
-    float shadow = 1.0 - ShadowCalculation(outPositionView, shadowBias);
+    vec3 radiance = lightColor; //* attenuation;
 
     #ifdef USE_PBR
-        vec3 R = reflect(-viewDir, n);   
-        const float MAX_REFLECTION_LOD = 4.0;
-        vec3 prefilteredColor = textureLod(prefilterMap, R,  roughness * MAX_REFLECTION_LOD).rgb; 
-        vec2 envBRDF  = texture(brdfLUT, vec2(max(dot(n, viewDir), 0.0), roughness)).rg;
+        vec3 specular = CookTorranceSpecular(baseColor, metallic, n, H, roughness, viewDir, lightDir);
+        vec3 diffuse = LambertDiffuse(baseColor, metallic, n, H, roughness, viewDir, lightDir);
 
-        vec3 F0 = vec3(0.04); 
-        F0 = mix(F0, baseColor, metallic);
-
-        vec3 light = vec3(0.0);
-
-        float NDF = DistributionGGX(n, H, roughness);        
-        float G = GeometrySmith(n, viewDir, lightDir, roughness);      
-        vec3 F = fresnelSchlick(max(dot(H, viewDir), 0.0), F0);       
-        
-        vec3 kS = F;
-        vec3 kD = vec3(1.0) - kS;
-        kD *= 1.0 - metallic;     
-        
-        vec3 nominator = NDF * G * F;
-        float denominator = 4.0 * max(dot(n, viewDir), 0.0) * max(dot(n, lightDir), 0.0);
-        vec3 specular = nominator / max(denominator, 0.001);  
-        specular = prefilteredColor * (specular * envBRDF.x + envBRDF.y);
-
-        float NdotL = max(dot(n, lightDir), 0.0);
-        light += (kD * baseColor / PI + specular) * radiance * NdotL;
-
-        vec3 irradiance = texture(irradianceMap, n).rgb;
-        baseColor = irradiance * baseColor;
-
-        #ifdef OCCLUSIONMAP
-            vec3 ambient = vec3(0.03) * baseColor * ao;
+        vec3 ambient = vec3(0.0);
+        #ifdef IBL
+            ambient = IBLAmbient(baseColor, metallic, n, H, roughness, viewDir, lightDir, ao);
         #else
-            vec3 ambient = baseColor;
+            ambient = vec3(0.03) * baseColor * ao;
         #endif
-        
-        baseColor = ambient + light;
 
+        vec3 emissive = vec3(0.0);
         #ifdef EMISSIVEMAP
-            vec3 emissive = srgbToLinear(texture(emissiveTexture, outUV)) * emissiveFactor;
-            baseColor.rgb += emissive;
+            emissive = srgbToLinear(texture(emissiveTexture, outUV)) * emissiveFactor;
         #endif
 
-        baseColor.rgb *= shadow;
-   
-        color = vec4(baseColor, 1.0);
+        float shadow = 1.0;
+        #ifdef SHADOWMAP
+            float shadowBias = max(0.05 * (1.0 - dot(n, lightDir)), 0.005);
+            shadow = 1.0 - ShadowCalculation(outPositionView, shadowBias);
+        #endif
+
+        color = vec4(shadow * (emissive + ambient + (diffuse + specular) * radiance * NdotL), 1.0);
     #else
         vec3 ambient = ambientStrength * lightColor;
 
