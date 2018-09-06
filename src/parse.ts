@@ -62,11 +62,10 @@ export class Parse {
     zoom: number;
     canvas: HTMLCanvasElement;
     resize: Function;
-    updateCamera: Function;
     json: GlTf;
     defines: Array<Define>;
 
-    constructor(url) {
+    constructor(url, defines, resize) {
         this.url = url;
         this.host = url.substr(0, url.lastIndexOf('/') + 1);
         this.tracks = [];
@@ -77,6 +76,8 @@ export class Parse {
         this.arrayBuffer = null;
         this.cameras = [];
         this.programs = {};
+        this.defines = defines;
+        this.resize = resize;
     }
 
     setScene(scene) {
@@ -97,18 +98,6 @@ export class Parse {
 
     setCanvas(canvas) {
         this.canvas = canvas;
-    }
-
-    setResize(resize) {
-        this.resize = resize;
-    }
-
-    setUpdateCamera(updateCamera) {
-        this.updateCamera = updateCamera;
-    }
-
-    setDefines(defines) {
-        this.defines = defines;
     }
 
     getBuffer() {
@@ -272,16 +261,15 @@ export class Parse {
         let child;
 
         if (el.camera !== undefined) {
-            child = new Camera(name, parent);
-            child.setProps(Object.assign({
+            // @ts-ignore
+            Parse.__update('camera', Object.assign({
                 zoom: 1,
                 aspect: this.canvas.offsetWidth / this.canvas.offsetHeight
-            }, this.json.cameras[el.camera]));
+            }, this.json.cameras[el.camera]), name, parent);
+
+            child = this._camera;
             const proj = calculateProjection(child.props);
             child.setProjection(proj);
-            
-            this._camera = child;
-            this.updateCamera(this._camera);
 
             this.cameras.push(child);
         } else {
@@ -421,8 +409,6 @@ export class Parse {
 
         this.scene.opaqueChildren.sort((a, b) => a.distance - b.distance);
         this.scene.transparentChildren.sort((a, b) => b.distance - a.distance);
-
-        return true;
     }
 
     buildAnimation() {
@@ -485,8 +471,6 @@ export class Parse {
                 }
             }
         }
-
-        return true;
     }
 
     buildSkin() {
@@ -516,8 +500,6 @@ export class Parse {
             }
             this.skins.push(v);
         }
-
-        return true;
     }
 
     buildBones(join, v, node) {

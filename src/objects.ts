@@ -341,14 +341,11 @@ class Camera extends Object3D {
     modelXSize: number;
     modelYSize: number;
 
-    constructor(name?, parent?) {
+    constructor(props, name?, parent?) {
         super(name, parent);
 
         this.matrixWorldInvert = new Matrix4;
         this.projection = new Matrix4;
-    }
-
-    setProps(props) {
         this.props = props;
     }
 

@@ -184,6 +184,12 @@ void main() {
     float attenuation = 1.0 / (distance * distance);
     vec3 radiance = lightColor; //* attenuation;
 
+    float shadow = 1.0;
+    #ifdef SHADOWMAP
+        float shadowBias = max(0.05 * (1.0 - dot(n, lightDir)), 0.005);
+        shadow = 1.0 - ShadowCalculation(outPositionView, shadowBias);
+    #endif
+
     #ifdef USE_PBR
         vec3 specular = CookTorranceSpecular(baseColor, metallic, n, H, roughness, viewDir, lightDir);
         vec3 diffuse = LambertDiffuse(baseColor, metallic, n, H, roughness, viewDir, lightDir);
@@ -198,12 +204,6 @@ void main() {
         vec3 emissive = vec3(0.0);
         #ifdef EMISSIVEMAP
             emissive = srgbToLinear(texture(emissiveTexture, outUV)) * emissiveFactor;
-        #endif
-
-        float shadow = 1.0;
-        #ifdef SHADOWMAP
-            float shadowBias = max(0.05 * (1.0 - dot(n, lightDir)), 0.005);
-            shadow = 1.0 - ShadowCalculation(outPositionView, shadowBias);
         #endif
 
         color = vec4(shadow * (emissive + ambient + (diffuse + specular) * radiance * NdotL), 1.0);

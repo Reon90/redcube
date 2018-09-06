@@ -39,12 +39,9 @@ export class PostProcessing {
     MSAA: Number;
     renderScene: Function;
 
-    constructor(processors) {
+    constructor(processors, renderScene) {
         this.postprocessors = processors.map(name => new processorsMap[name]);
         this.MSAA = 4;
-    }
-
-    setRender(renderScene) {
         this.renderScene = renderScene;
     }
 
@@ -243,8 +240,6 @@ export class PostProcessing {
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
         this.program = createProgram(quadShader.replace(/\n/, `\n${ defineStr}`), composerShader.replace(/\n/, `\n${ defineStr}`));
-
-        return true;
     }
 
     clear() {

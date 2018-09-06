@@ -17,63 +17,18 @@ let gl;
 class RedCube {
     gl: WebGLRenderingContext;
     reflow: boolean;
-    scene: Scene;
-    camera: Camera;
-    light: Light;
     canvas: HTMLCanvasElement;
     events: Events;
-    parse: Parse;
-    env: Env;
     needUpdateProjection: boolean;
     needUpdateView: boolean;
     fps: FPS;
-    PP: PostProcessing;
-    Particles: Particles;
     processors: Array<String>;
     ioc: Container;
 
     constructor(url, canvas, processors) {
         this.reflow = true;
-        this.scene = new Scene;
         this.canvas = canvas;
         this.processors = processors;
-
-        this.ioc = new Container;
-        this.ioc.register('env', Env, ['camera', 'canvas', 'gl']);
-        this.ioc.register('camera', Camera);
-        this.ioc.register('canvas', canvas);
-        this.ioc.register('scene', this.scene);
-        this.ioc.register('light', Light);
-        this.ioc.register('pp', PostProcessing, ['light', 'camera', 'canvas', 'gl'], processors);
-        this.ioc.register('parser', Parse, ['scene', 'light', 'camera', 'canvas', 'gl'], url);
-
-        this.camera = this.ioc.get('camera');
-        this.camera.setProps({
-            type: 'perspective', 
-            isInitial: true,
-            zoom: 1,
-            aspect: this.canvas.offsetWidth / this.canvas.offsetHeight,
-            perspective: {
-                yfov: 0.6
-            }
-        });
-
-        this.light = this.ioc.get('light');
-
-        this.events = new Events(this.redraw.bind(this));
-
-        this.fps = new FPS;
-
-        this.env = this.ioc.get('env');
-
-        this.PP = this.ioc.get('pp');
-        this.PP.setRender(this.renderScene.bind(this));
-
-        this.Particles = new Particles(() => {
-            const l = this.PP.postprocessors.find(p => p instanceof PPLight) as PPLight;
-            return l.texture.index;
-        });
-        this.Particles.setCamera(this.camera);
 
         const defines = [];
         if (processors.length === 0) {
@@ -83,32 +38,68 @@ class RedCube {
             defines.push({name: 'SHADOWMAP'});
         }
 
-        this.parse = this.ioc.get('parser');
-        this.parse.setUpdateCamera(this.updateCamera.bind(this));
-        this.parse.setResize(this.resize.bind(this));
-        this.parse.setDefines(defines);
+        this.ioc = new Container;
+        this.ioc.register('env', Env, ['camera', 'canvas', 'gl']);
+        this.ioc.register('camera', Camera, [], {
+            type: 'perspective', 
+            isInitial: true,
+            zoom: 1,
+            aspect: this.canvas.offsetWidth / this.canvas.offsetHeight,
+            perspective: {
+                yfov: 0.6
+            }
+        });
+        this.ioc.register('canvas', canvas);
+        this.ioc.register('scene', Scene);
+        this.ioc.register('light', Light);
+        this.ioc.register('pp', PostProcessing, ['light', 'camera', 'canvas', 'gl'], processors, this.renderScene.bind(this));
+        this.ioc.register('parser', Parse, ['scene', 'light', 'camera', 'canvas', 'gl'], url, defines, this.resize.bind(this));
+        this.ioc.register('particles', Particles, ['camera', 'gl'], () => {
+            const l = this.PP.postprocessors.find(p => p instanceof PPLight) as PPLight;
+            return l.texture.index;
+        });
+
+        this.events = new Events(this.redraw.bind(this));
+        this.fps = new FPS;
+    }
+
+    get scene () {
+        return this.ioc.get('scene');
+    }
+    get camera () {
+        return this.ioc.get('camera');
+    }
+    get light () {
+        return this.ioc.get('light');
+    }
+    get env () {
+        return this.ioc.get('env');
+    }
+    get PP () {
+        return this.ioc.get('pp');
+    }
+    get Particles () {
+        return this.ioc.get('particles');
+    }
+    get parse () {
+        return this.ioc.get('parser');
     }
 
     async init(cb) {
         await this.parse.getJson();
-        await this.glInit();
-        await this.Particles.build();
+        this.glInit();
+        this.Particles.build();
         await this.parse.initTextures();
-        await this.PP.buildScreenBuffer();
+        this.PP.buildScreenBuffer();
         await this.parse.getBuffer();
-        await this.parse.buildSkin();
-        await this.parse.buildMesh();
-        await this.parse.buildAnimation();
+        this.parse.buildSkin();
+        this.parse.buildMesh();
+        this.resize(null);
+        this.parse.buildAnimation();
         await this.env.createEnvironmentBuffer();
-        await this.draw();
+        this.draw();
 
         cb();
-    }
-
-    updateCamera(camera) {
-        this.camera = camera;
-        this.env.setCamera(camera);
-        this.PP.setCamera(camera);
     }
 
     redraw(type, coordsStart, coordsMove) {
@@ -207,12 +198,7 @@ class RedCube {
         }
 
         setGl(gl);
-
         this.ioc.register('gl', gl);
-
-        this.Particles.setGl(gl);
-
-        return true;
     }
 
     animate(sec) {

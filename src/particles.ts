@@ -158,8 +158,6 @@ export class Particles {
             data            // pixel
             );
         gl.generateMipmap(gl.TEXTURE_3D);
-
-        return true;
     }
 
     draw(time) {

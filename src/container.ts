@@ -11,17 +11,16 @@ export class Container {
     constructor() {
         this._services = new Map();
         this._singletons = new Map();
+        this.update = this.update.bind(this);
     }
 
     register(name, definition, dependencies = [], ...args) {
         this._services.set(name, { definition, dependencies, args });
 
         if (!this._isClass(definition)) {
-            for (const [key, instance] of this._singletons) {
-                if (this._services.get(key).dependencies.some(dep => dep === name)) {
-                    instance[`set${name.charAt(0).toUpperCase() + name.slice(1)}`].call(instance, definition);
-                }
-            }
+            this._updateDep(name, definition);
+        } else {
+            definition.__update = this.update;
         }
     }
 
@@ -43,6 +42,23 @@ export class Container {
             }
         } else {
             return c.definition;
+        }
+    }
+
+    update(name, ...args) {
+        const c = this._services.get(name);
+        c.args = args;
+        this._singletons.delete(name);
+
+        const instance = this.get(name);
+        this._updateDep(name, instance);
+    }
+
+    _updateDep(name, definition) {
+        for (const [key, instance] of this._singletons) {
+            if (this._services.get(key).dependencies.some(dep => dep === name)) {
+                instance[`set${name.charAt(0).toUpperCase() + name.slice(1)}`].call(instance, definition);
+            }
         }
     }
 
