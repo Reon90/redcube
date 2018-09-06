@@ -46,7 +46,7 @@ class RedCube {
             zoom: 1,
             aspect: this.canvas.offsetWidth / this.canvas.offsetHeight,
             perspective: {
-                yfov: 0.6
+                yfov: Math.PI/2
             }
         });
         this.ioc.register('canvas', canvas);
@@ -61,6 +61,9 @@ class RedCube {
 
         this.events = new Events(this.redraw.bind(this));
         this.fps = new FPS;
+
+        this.yaw = Math.PI/3;
+        this.pitch = -Math.PI - 0.5;
     }
 
     get scene () {
@@ -110,23 +113,41 @@ class RedCube {
             this.needUpdateProjection = true;
         }
         if (type === 'rotate') {
-            const coordsStartWorld = canvasToWorld(coordsStart, this.camera.projection, this.canvas.offsetWidth, this.canvas.offsetHeight);
-            const coordsMoveWorld = canvasToWorld(coordsMove, this.camera.projection, this.canvas.offsetWidth, this.canvas.offsetHeight);
-            const p0 = new Vector3(sceneToArcBall(coordsStartWorld));
-            const p1 = new Vector3(sceneToArcBall(coordsMoveWorld));
-            const angle = Vector3.angle(p1, p0) * 5;
-            if (angle < 1e-6 || isNaN(angle)) {
-                return;
-            }
+            // const coordsStartWorld = canvasToWorld(coordsStart, this.camera.projection, this.canvas.offsetWidth, this.canvas.offsetHeight);
+            // const coordsMoveWorld = canvasToWorld(coordsMove, this.camera.projection, this.canvas.offsetWidth, this.canvas.offsetHeight);
+            // const p0 = new Vector3(sceneToArcBall(coordsStartWorld));
+            // const p1 = new Vector3(sceneToArcBall(coordsMoveWorld));
+            // const angle = Vector3.angle(p1, p0) * 5;
+            // if (angle < 1e-6 || isNaN(angle)) {
+            //     return;
+            // }
 
-            const camStart = new Vector3(p0.elements).applyMatrix4(this.camera.matrixWorld);
-            const camEnd = new Vector3(p1.elements).applyMatrix4(this.camera.matrixWorld);
-            const camVector = Vector3.cross(camEnd, camStart).normalize();
-            const camMatrix = new Matrix4;
-            camMatrix.makeRotationAxis(camVector, angle);
-            camMatrix.multiply(this.camera.matrixWorld);
+            // const camStart = new Vector3(p0.elements).applyMatrix4(this.camera.matrixWorld);
+            // const camEnd = new Vector3(p1.elements).applyMatrix4(this.camera.matrixWorld);
+            // const camVector = Vector3.cross(camEnd, camStart).normalize();
+            // const camMatrix = new Matrix4;
+            // camMatrix.makeRotationAxis(camVector, angle);
+            // camMatrix.multiply(this.camera.matrixWorld);
 
-            this.camera.setMatrixWorld(camMatrix.elements);
+            this.yaw += (coordsStart[0] - coordsMove[0]) / 100.0;
+            this.pitch += (coordsStart[1] - coordsMove[1]) / 100.0;
+            this.pitch = glm.clamp(this.pitch, -1.5*glm.pi, -0.5 * glm.pi)
+
+            // var m = new Matrix4;
+            // m.scale( new Vector3([0.5, 1, 1]));
+            // m.makeRotationAxis(new Vector3([1, 0, 0]), this.pitch);
+            // m.makeRotationAxis(new Vector3([0, 1, 0]), -this.yaw);
+            // m.makeRotationAxis(new Vector3([1, 0, 0]), 3.14159/2);
+            // m.scale(new Vector3([0.5, -0.5, 0.5]));
+
+            var m = glm.mat4();
+            //m = glm.scale(m, glm.vec3(0.5, 1, 1));
+            m = glm.rotate(m, this.pitch, glm.vec3(1, 0, 0));
+            m = glm.rotate(m, -this.yaw, glm.vec3(0, 1, 0));
+            m = glm.rotate(m, 3.14159/2, glm.vec3(1, 0, 0));
+            //m = glm.scale(m, glm.vec3(0.5, -0.5, 0.5));
+
+            this.camera.matrixWorldInvert.set(m.elements);
             this.needUpdateView = true;
         }
         if (type === 'pan') {
@@ -170,7 +191,7 @@ class RedCube {
 
         if (this.camera.props.isInitial) {
             const z = 1 / this.canvas.width * this.camera.modelSize * 3000 * devicePixelRatio;
-            this.camera.setZ(z);
+            //this.camera.setZ(1);
             this.light.setZ(z);
             this.light.update(Math.PI / 2);
 
@@ -181,7 +202,7 @@ class RedCube {
             this.needUpdateView = true;
         }
 
-        this.updateNF();
+        //this.updateNF();
 
         if (e) {
             this.PP.clear();
