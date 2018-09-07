@@ -1,6 +1,6 @@
 import { compileShader, createProgram, createTexture, calculateProjection } from './utils';
 import { Matrix4, Vector3 } from './matrix';
-import { Camera } from './objects';
+import { Camera } from './objects/index';
 import parseHDR from 'parse-hdr';
 
 import vertex from './shaders/env.vert';

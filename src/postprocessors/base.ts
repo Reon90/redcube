@@ -1,4 +1,4 @@
-import { Camera, Light } from '../objects';
+import { Camera, Light } from '../objects/index';
 
 export abstract class PostProcessor {
     canvas: HTMLCanvasElement;

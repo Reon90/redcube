@@ -1,7 +1,7 @@
 import { Matrix4 } from './matrix';
 import { perlin3 } from './perlin';
 import { createTexture, compileShader, createProgram } from './utils';
-import { Camera } from './objects';
+import { Camera } from './objects/index';
 
 import instanceShader from './shaders/instance.glsl';
 import instanceFragShader from './shaders/instance-frag.glsl';

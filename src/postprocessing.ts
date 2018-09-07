@@ -1,5 +1,6 @@
 import { createProgram, createTexture } from './utils';
-import { Camera } from './objects';
+import { Camera } from './objects/index';
+import { Renderer } from './renderer';
 import { SSAO } from './postprocessors/ssao';
 import { Bloom } from './postprocessors/bloom';
 import { Shadow } from './postprocessors/shadow';
@@ -29,6 +30,7 @@ export class PostProcessing {
     preDepthTexture: Texture;
     fakeDepth: Texture;
     camera: Camera;
+    renderer: Renderer;
     canvas: HTMLCanvasElement;
     framebuffer: WebGLFramebuffer;
     preframebuffer: WebGLFramebuffer;
@@ -40,9 +42,13 @@ export class PostProcessing {
     renderScene: Function;
 
     constructor(processors, renderScene) {
+        this.renderScene = renderScene;
         this.postprocessors = processors.map(name => new processorsMap[name]);
         this.MSAA = 4;
-        this.renderScene = renderScene;
+    }
+
+    setRenderer(renderer) {
+        this.renderer = renderer;
     }
 
     setCamera(camera) {

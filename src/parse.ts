@@ -1,5 +1,5 @@
 import { buildArray, getDataType, walk, getAnimationComponent, calculateProjection, createProgram, calculateOffset, getAttributeIndex, calculateBinormals, createTexture } from './utils';
-import { Mesh, SkinnedMesh, Bone, Camera, Object3D, Scene, Light, UniformBuffer } from './objects';
+import { Mesh, SkinnedMesh, Bone, Camera, Object3D, Scene, Light, UniformBuffer } from './objects/index';
 import { Matrix4, Frustum } from './matrix';
 import { GlTf } from './GLTF';
 
