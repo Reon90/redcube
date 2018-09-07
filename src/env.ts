@@ -106,7 +106,7 @@ export class Env {
         uniform samplerCube environmentMap;
         
         void main() {
-            vec3 c = texture(environmentMap, outUV).rgb;
+            vec3 c = textureLod(environmentMap, outUV, 1.0).rgb;
             
             color = vec4(c, 1.0);
         }

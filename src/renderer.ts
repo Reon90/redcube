@@ -7,6 +7,7 @@ import { Particles } from './particles';
 import { FPS } from './fps';
 import { Light as PPLight } from './postprocessors/light';
 import { Shadow } from './postprocessors/shadow';
+import { Env } from './Env';
 
 let gl;
 
@@ -21,11 +22,16 @@ export class Renderer {
     reflow: boolean;
     needUpdateProjection: boolean;
     needUpdateView: boolean;
+    env: Env;
 
     constructor(getState) {
         this.reflow = true;
         this.fps = new FPS;
         this.getState = getState;
+    }
+
+    setEnv(env) {
+        this.env = env;
     }
 
     setCamera(camera) {
@@ -176,7 +182,7 @@ export class Renderer {
 
             gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-            // this.env.draw();
+            //this.env.draw();
 
             this.renderScene(!this.PP.postprocessors.some(p => p instanceof Shadow), false);
 

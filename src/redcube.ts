@@ -52,7 +52,7 @@ class RedCube {
             const l = this.PP.postprocessors.find(p => p instanceof PPLight) as PPLight;
             return l.texture.index;
         });
-        this.ioc.register('renderer', Renderer, ['gl', 'parser', 'pp', 'scene', 'camera', 'particles'], this.getState.bind(this));
+        this.ioc.register('renderer', Renderer, ['gl', 'parser', 'pp', 'scene', 'camera', 'particles', 'env'], this.getState.bind(this));
 
         this.events = new Events(this.redraw.bind(this));
     }
