@@ -103,19 +103,10 @@ vec3 IBLAmbient(vec3 baseColor, float metallic, vec3 n, vec3 H, float roughness,
     kD *= 1.0 - metallic;
 
 
-    float NdotH = max(dot(n, H), 0.0);
-    float HdotV = max(dot(H, viewDir), 0.0);
-    float D   = DistributionGGX(n, H, roughness);
-    float pdf = (D * NdotH / (4.0 * HdotV)) + 0.0001; 
-    float resolution = 128.0; // resolution of source cubemap (per face)
-    float saTexel  = 4.0 * PI / (6.0 * resolution * resolution);
-    float saSample = 1.0 / (float(6) * pdf + 0.0001);
-    float mipLevel = roughness == 0.0 ? 0.0 : 0.5 * log2(saSample / saTexel);
-
     vec3 R = reflect(-viewDir, n);   
-    vec3 prefilteredColor = textureLod(prefilterMap, R, mipLevel).rgb; 
+    const float MAX_REFLECTION_LOD = 4.0;
+    vec3 prefilteredColor = textureLod(prefilterMap, R,  roughness * MAX_REFLECTION_LOD).rgb;
     vec2 envBRDF  = texture(brdfLUT, vec2(max(dot(n, viewDir), 0.0), roughness)).rg;
-
     vec3 specular = prefilteredColor * (F * envBRDF.x + envBRDF.y);
 
     vec3 irradiance = texture(irradianceMap, n).rgb;

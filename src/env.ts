@@ -106,7 +106,7 @@ export class Env {
         uniform samplerCube environmentMap;
         
         void main() {
-            vec3 c = textureLod(environmentMap, outUV, 1.0).rgb;
+            vec3 c = textureLod(environmentMap, outUV, 0.0).rgb;
             
             color = vec4(c, 1.0);
         }
@@ -140,12 +140,21 @@ export class Env {
 
             gl.uniformMatrix4fv(gl.getUniformLocation(this.cubeprogram, 'projection'), false, m.elements);
             gl.uniform1i(gl.getUniformLocation(this.cubeprogram, 'diffuse'), this.texture.index);
+            const maxMipLevels = 5;
+            for (let mip = 0; mip < maxMipLevels; ++mip) {
+                const mipWidth  = this.framebuffer.size * Math.pow(0.5, mip);
+                const mipHeight = this.framebuffer.size * Math.pow(0.5, mip);
 
-            for (let i = 0; i < 6; i++) {
-                gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_CUBE_MAP_POSITIVE_X + i, this.map, 0);
-                gl.uniformMatrix4fv(gl.getUniformLocation(this.cubeprogram, 'view'), false, this.views[i].elements);
-                gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-                gl.drawArrays(gl.TRIANGLES, 0, 36);
+                gl.viewport(0, 0, mipWidth, mipHeight);
+                //const roughness = mip / (maxMipLevels - 1);
+                //gl.uniform1f(gl.getUniformLocation(this.cubeprogram, 'roughness'), roughness);
+
+                for (let i = 0; i < 6; i++) {
+                    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_CUBE_MAP_POSITIVE_X + i, this.map, mip);
+                    gl.uniformMatrix4fv(gl.getUniformLocation(this.cubeprogram, 'view'), false, this.views[i].elements);
+                    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+                    gl.drawArrays(gl.TRIANGLES, 0, 36);
+                }
             }
 
             gl.bindVertexArray(null);
@@ -251,13 +260,14 @@ export class Env {
             gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
             gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
             gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_R, gl.CLAMP_TO_EDGE);
-            gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+            gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
             gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+            gl.generateMipmap(gl.TEXTURE_CUBE_MAP);
             this.map = texture;
         }
 
         {
-            const size = 128;
+            const size = 512;
             const captureFBO = gl.createFramebuffer();
             this.prefilterbuffer = captureFBO;
             this.prefilterbuffer.size = size;

@@ -7,7 +7,7 @@ import { Particles } from './particles';
 import { FPS } from './fps';
 import { Light as PPLight } from './postprocessors/light';
 import { Shadow } from './postprocessors/shadow';
-import { Env } from './Env';
+import { Env } from './env';
 
 let gl;
 

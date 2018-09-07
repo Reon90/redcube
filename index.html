@@ -114,8 +114,8 @@
         const slider = document.createElement('input');
         slider.oninput = () => {
             renderer.light.update(Number(slider.value));
-            renderer.reflow = true;
-            renderer.needUpdateView = true;
+            renderer.renderer.reflow = true;
+            renderer.renderer.needUpdateView = true;
         };
         slider.type = 'range';
         slider.min = '0';
@@ -131,7 +131,7 @@
             if (renderer.parse.cameras.length) {
                 const select = document.createElement('select');
                 select.onchange = () => {
-                    renderer.updateCamera(renderer.parse.cameras.find((it) => { 
+                    renderer.ioc._updateDep('camera', renderer.parse.cameras.find((it) => { 
                         return Number(select.value) === it.name; 
                     }));
                 }
