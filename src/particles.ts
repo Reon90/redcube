@@ -5,7 +5,7 @@ import { Camera } from './objects/index';
 
 import instanceShader from './shaders/instance.glsl';
 import instanceFragShader from './shaders/instance-frag.glsl';
-import instanceFragShader2 from './shaders/empty-frag.glsl';
+import instanceFragShader2 from './shaders/base.frag';
 import instanceTransShader from './shaders/instance-trans.glsl';
 
 interface Texture extends WebGLTexture {

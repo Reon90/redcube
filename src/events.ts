@@ -31,7 +31,7 @@ class Events {
             this.onMove(e);
             break;
         case 'mouseup':
-            this.onEnd();
+            this.onEnd(e);
             break;
         case 'keyup':
             this.onKeyUp();
@@ -77,7 +77,8 @@ class Events {
         }
     }
 
-    onEnd() {
+    onEnd(e) {
+        this.redraw('click', [e.clientX, e.clientY]);
         this.isDrag = false;
     }
 

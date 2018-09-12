@@ -294,6 +294,21 @@ export function canvasToWorld(vec2, projection, width, height) {
     return [v.elements[0], v.elements[1]];
 }
 
+export function canvasToWorld2(vec2, projection, width, height) {
+    const [x, y] = vec2;
+    const newM = new Matrix4;
+    newM.setTranslate(new Vector3([0, 0, 0.05]));
+    const m = new Matrix4(projection);
+    m.multiply(newM);
+
+    const mp = m.multiplyVector4(new Vector4([0, 0, 0, 1]));
+    mp.elements[0] = (2 * x / width - 1) * mp.elements[3];
+    mp.elements[1] = (-2 * y / height + 1) * mp.elements[3];
+
+    const v = m.invert().multiplyVector4(mp);
+    return [v.elements[0], v.elements[1], v.elements[2]];
+}
+
 export function calculateProjection(cam) {
     const {aspect, zoom} = cam;
     let proj;

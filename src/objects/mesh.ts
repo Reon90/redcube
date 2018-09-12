@@ -2,6 +2,7 @@ import { Matrix4, Vector3 } from '../matrix';
 import { Material } from '../GLTF';
 import { Object3D } from './object3d';
 import { UniformBuffer } from './uniform';
+import { canvasToWorld2 } from '../utils';
 
 interface MeshMaterial extends Material {
     blend: string;
@@ -100,7 +101,16 @@ export class Mesh extends Object3D {
         };
     }
 
-    draw(gl, {camera, light, preDepthTexture, fakeDepth, needUpdateView, needUpdateProjection, irradiancemap, prefilterMap, brdfLUT}, isShadow, isLight) {
+    draw(gl, {camera, light, preDepthTexture, fakeDepth, needUpdateView, needUpdateProjection, irradiancemap, prefilterMap, brdfLUT, width, height, coords}, isShadow, isLight) {
+        if (coords) {
+            this.TestRayOBBIntersection(
+                camera.props.perspective.znear,
+                camera.props.perspective.zfar,
+                camera.getPosition(),
+                canvasToWorld2(coords, camera.projection, width, height)
+            );
+        }
+
         gl.useProgram(this.program);
 
         gl.bindVertexArray(this.geometry.VAO);

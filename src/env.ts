@@ -106,7 +106,7 @@ export class Env {
         uniform samplerCube environmentMap;
         
         void main() {
-            vec3 c = textureLod(environmentMap, outUV, 0.0).rgb;
+            vec3 c = textureLod(environmentMap, outUV, 2.0).rgb;
             
             color = vec4(c, 1.0);
         }
@@ -267,7 +267,7 @@ export class Env {
         }
 
         {
-            const size = 512;
+            const size = 128;
             const captureFBO = gl.createFramebuffer();
             this.prefilterbuffer = captureFBO;
             this.prefilterbuffer.size = size;

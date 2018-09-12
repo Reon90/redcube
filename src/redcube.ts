@@ -121,6 +121,9 @@ class RedCube {
             this.resize(type);
             this.renderer.needUpdateProjection = true;
         }
+        if (type === 'click') {
+            this.click = coordsStart;
+        }
 
         this.renderer.reflow = true;
     }
@@ -180,7 +183,10 @@ class RedCube {
             needUpdateProjection: this.renderer.needUpdateProjection,
             irradiancemap: this.env.irradiancemap,
             prefilterMap: this.env.prefilterMap,
-            brdfLUT: this.env.brdfLUTTexture
+            brdfLUT: this.env.brdfLUTTexture,
+            width: this.canvas.offsetWidth,
+            height: this.canvas.offsetHeight,
+            coords: this.click
         };
     }
 }
