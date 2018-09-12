@@ -19,6 +19,7 @@ class RedCube {
     events: Events;
     processors: Array<String>;
     ioc: Container;
+    click: Array<number>;
 
     constructor(url, canvas, processors) {
         this.canvas = canvas;

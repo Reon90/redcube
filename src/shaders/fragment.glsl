@@ -19,6 +19,7 @@ uniform Material {
     vec4 baseColorFactor;
     vec3 lightPos;
     vec3 viewPos;
+    vec4 isSelected;
 };
 uniform sampler2D baseColorTexture;
 uniform sampler2D metallicRoughnessTexture;
@@ -205,7 +206,7 @@ void main() {
             emissive = srgbToLinear(texture(emissiveTexture, outUV)) * emissiveFactor;
         #endif
 
-        color = vec4(shadow * (emissive + ambient + (diffuse + specular) * radiance * NdotL), 1.0);
+        color = vec4(shadow * (emissive + ambient + (diffuse + specular) * radiance * NdotL), isSelected.r);
     #else
         vec3 ambient = ambientStrength * lightColor;
 
@@ -216,7 +217,7 @@ void main() {
         float spec = pow(max(dot(viewDir, reflectDir), 0.0), specularPower);
         vec3 specular = specularStrength * spec * lightColor;
 
-        color = vec4(baseColor.rgb * (ambient + diffuse + specular) * shadow, alpha);
+        color = vec4(baseColor.rgb * (ambient + diffuse + specular) * shadow, isSelected.r);
     #endif
 
     #ifdef TONE

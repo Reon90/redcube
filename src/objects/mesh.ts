@@ -102,14 +102,9 @@ export class Mesh extends Object3D {
     }
 
     draw(gl, {camera, light, preDepthTexture, fakeDepth, needUpdateView, needUpdateProjection, irradiancemap, prefilterMap, brdfLUT, width, height, coords}, isShadow, isLight) {
-        if (coords) {
-            this.TestRayOBBIntersection(
-                camera.props.perspective.znear,
-                camera.props.perspective.zfar,
-                camera.getPosition(),
-                canvasToWorld2(coords, camera.projection, width, height)
-            );
-        }
+        const isSelected = coords && this.testRayOBBIntersection(
+            canvasToWorld2(coords, new Matrix4().setInverseOf(camera.projection), camera.matrixWorld, width, height)
+        );
 
         gl.useProgram(this.program);
 
@@ -152,6 +147,7 @@ export class Mesh extends Object3D {
                 this.material.uniformBuffer.update(gl, 'lightPos', light.getPosition());
                 this.material.uniformBuffer.update(gl, 'viewPos', camera.getPosition());
             }
+            this.material.uniformBuffer.update(gl, 'isSelected', new Float32Array([isSelected ? 0.5 : 1]));
         }
 
         gl.uniform1i( gl.getUniformLocation(this.program, 'prefilterMap'), prefilterMap.index);
@@ -244,6 +240,89 @@ export class Mesh extends Object3D {
         this.distance = dist + r;
 
         return visible;
+    }
+
+    testRayOBBIntersection(rays) {
+        const [ray_origin, ray_direction] = rays;
+        let tMin = 0;
+        let tMax = 100000;
+        const OBBposition_worldspace = new Vector3(this.getPosition());
+        const delta = OBBposition_worldspace.subtract(ray_origin);
+
+        {
+            const xaxis = new Vector3(this.getAxisX());
+            const e = Vector3.dot(xaxis, delta);
+            const f = Vector3.dot(ray_direction, xaxis);
+
+            if (Math.abs(f) > 0.001) {
+                // Beware, don't do the division if f is near 0 ! See full source code for details.
+                let t1 = (e+this.geometry.boundingSphere.min.elements[0])/f; // Intersection with the "left" plane
+                let t2 = (e+this.geometry.boundingSphere.max.elements[0])/f; // Intersection with the "right" plane
+
+                if (t1>t2){ // if wrong order
+                    let w=t1;t1=t2;t2=w; // swap t1 and t2
+                }
+
+                // tMax is the nearest "far" intersection (amongst the X,Y and Z planes pairs)
+                if ( t2 < tMax ) tMax = t2;
+                // tMin is the farthest "near" intersection (amongst the X,Y and Z planes pairs)
+                if ( t1 > tMin ) tMin = t1;
+
+                if (tMax < tMin ) return false;
+            } else if (-e+this.geometry.boundingSphere.min.elements[0] > 0.0 || -e+this.geometry.boundingSphere.max.elements[0] < 0.0) {
+                return false;
+            }
+        }
+        {
+            const xaxis = new Vector3(this.getAxisY());
+            const e = Vector3.dot(xaxis, delta);
+            const f = Vector3.dot(ray_direction, xaxis);
+
+            if (Math.abs(f) > 1e-20) {
+                // Beware, don't do the division if f is near 0 ! See full source code for details.
+                let t1 = (e+this.geometry.boundingSphere.min.elements[1])/f; // Intersection with the "left" plane
+                let t2 = (e+this.geometry.boundingSphere.max.elements[1])/f; // Intersection with the "right" plane
+
+                if (t1>t2){ // if wrong order
+                    let w=t1;t1=t2;t2=w; // swap t1 and t2
+                }
+
+                // tMax is the nearest "far" intersection (amongst the X,Y and Z planes pairs)
+                if ( t2 < tMax ) tMax = t2;
+                // tMin is the farthest "near" intersection (amongst the X,Y and Z planes pairs)
+                if ( t1 > tMin ) tMin = t1;
+
+                if (tMax < tMin ) return false;
+            } else if (-e+this.geometry.boundingSphere.min.elements[1] > 0.0 || -e+this.geometry.boundingSphere.max.elements[1] < 0.0) {
+                return false;
+            }
+        }
+        {
+            const xaxis = new Vector3(this.getAxisZ());
+            const e = Vector3.dot(xaxis, delta);
+            const f = Vector3.dot(ray_direction, xaxis);
+
+            if (Math.abs(f) > 1e-20) {
+                // Beware, don't do the division if f is near 0 ! See full source code for details.
+                let t1 = (e+this.geometry.boundingSphere.min.elements[2])/f; // Intersection with the "left" plane
+                let t2 = (e+this.geometry.boundingSphere.max.elements[2])/f; // Intersection with the "right" plane
+
+                if (t1>t2){ // if wrong order
+                    let w=t1;t1=t2;t2=w; // swap t1 and t2
+                }
+
+                // tMax is the nearest "far" intersection (amongst the X,Y and Z planes pairs)
+                if ( t2 < tMax ) tMax = t2;
+                // tMin is the farthest "near" intersection (amongst the X,Y and Z planes pairs)
+                if ( t1 > tMin ) tMin = t1;
+
+                if (tMax < tMin ) return false;
+            } else if (-e+this.geometry.boundingSphere.min.elements[2] > 0.0 || -e+this.geometry.boundingSphere.max.elements[2] < 0.0) {
+                return false;
+            }
+        }
+
+        return true;
     }
 }
 

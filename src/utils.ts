@@ -294,19 +294,29 @@ export function canvasToWorld(vec2, projection, width, height) {
     return [v.elements[0], v.elements[1]];
 }
 
-export function canvasToWorld2(vec2, projection, width, height) {
-    const [x, y] = vec2;
-    const newM = new Matrix4;
-    newM.setTranslate(new Vector3([0, 0, 0.05]));
-    const m = new Matrix4(projection);
-    m.multiply(newM);
+export function canvasToWorld2(vec2, Iproj, cam, width, height) {
+    const [mouseX, mouseY] = vec2;
+    const lRayStart_NDC = new Vector3([
+        (mouseX/width  - 0.5) * 2.0, // [0,1024] -> [-1,1]
+        (mouseY/height - 0.5) * 2.0, // [0, 768] -> [-1,1]
+        -1.0 // The near plane maps to Z=-1 in Normalized Device Coordinates
+    ]);
+    const lRayEnd_NDC = new Vector3([
+        (mouseX/width  - 0.5) * 2.0,
+        (mouseY/height - 0.5) * 2.0,
+        0.0
+    ]);
+    
 
-    const mp = m.multiplyVector4(new Vector4([0, 0, 0, 1]));
-    mp.elements[0] = (2 * x / width - 1) * mp.elements[3];
-    mp.elements[1] = (-2 * y / height + 1) * mp.elements[3];
+    const lRayStart_camera = lRayStart_NDC.applyMatrix4(Iproj);
+	const lRayStart_world  = lRayStart_camera.applyMatrix4(cam);
+	const lRayEnd_camera   = lRayEnd_NDC.applyMatrix4(Iproj);
+    const lRayEnd_world    = lRayEnd_camera.applyMatrix4(cam);
 
-    const v = m.invert().multiplyVector4(mp);
-    return [v.elements[0], v.elements[1], v.elements[2]];
+    const lRayDir_world = lRayEnd_world.subtract(lRayStart_world);
+	lRayDir_world.normalize();
+
+    return [lRayStart_world, lRayDir_world];
 }
 
 export function calculateProjection(cam) {

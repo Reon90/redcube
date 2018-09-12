@@ -366,6 +366,7 @@ export class Parse {
                 materialUniformBuffer.add('baseColorFactor', mesh.material.pbrMetallicRoughness.baseColorFactor || [0.8, 0.8, 0.8, 1.0]);
                 materialUniformBuffer.add('lightPos', this.light.getPosition());
                 materialUniformBuffer.add('viewPos', this._camera.getPosition());
+                materialUniformBuffer.add('isSelected', new Float32Array([1]));
                 materialUniformBuffer.done();
                 
                 const mIndex = gl.getUniformBlockIndex(mesh.program, 'Material');
