@@ -20,7 +20,7 @@ class RedCube {
     processors: Array<String>;
     ioc: Container;
 
-    constructor(url, canvas, processors) {
+    constructor(url, canvas, processors, envUrl) {
         this.canvas = canvas;
         this.processors = processors;
 
@@ -33,7 +33,7 @@ class RedCube {
         }
 
         this.ioc = new Container;
-        this.ioc.register('env', Env, ['camera', 'canvas', 'gl']);
+        this.ioc.register('env', Env, ['camera', 'canvas', 'gl'], envUrl);
         this.ioc.register('camera', Camera, [], {
             type: 'perspective', 
             isInitial: true,

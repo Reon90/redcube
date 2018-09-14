@@ -44,8 +44,10 @@ export class Env {
     prefilterrender: WebGLRenderbuffer;
     brdfbuffer: FrameBuffer;
     canvas: HTMLCanvasElement;
+    url: string;
 
-    constructor() {
+    constructor(url) {
+        this.url = url;
         this.envMatrix = new Matrix4;
     }
 
@@ -106,7 +108,7 @@ export class Env {
         uniform samplerCube environmentMap;
         
         void main() {
-            vec3 c = textureLod(environmentMap, outUV, 0.0).rgb;
+            vec3 c = texture(environmentMap, outUV).rgb;
             
             color = vec4(c, 1.0);
         }
@@ -115,7 +117,7 @@ export class Env {
         gl.useProgram(program);
         gl.bindVertexArray(this.VAO);
         gl.uniformMatrix4fv(gl.getUniformLocation(program, 'projection'), false, m.elements);
-        gl.uniform1i(gl.getUniformLocation(program, 'environmentMap'), this.prefilterMap.index);
+        gl.uniform1i(gl.getUniformLocation(program, 'environmentMap'), this.irradiancemap.index);
         gl.uniformMatrix4fv(gl.getUniformLocation(program, 'view'), false, this._camera.matrixWorldInvert.elements);
         gl.drawArrays(gl.TRIANGLES, 0, 36);
     }
@@ -267,7 +269,7 @@ export class Env {
         }
 
         {
-            const size = 512;
+            const size = 128;
             const captureFBO = gl.createFramebuffer();
             this.prefilterbuffer = captureFBO;
             this.prefilterbuffer.size = size;
@@ -401,7 +403,7 @@ export class Env {
         this.mipmapcubeprogram = createProgram(vertex, cubeMipmap);
         this.bdrfprogram = createProgram(quad, bdrf);
 
-        return fetch(`src/images/env.hdr`).then(res => res.arrayBuffer()).then(buffer => {
+        return fetch(`src/images/${this.url}.hdr`).then(res => res.arrayBuffer()).then(buffer => {
             const data = parseHDR(buffer).data;
 
             this.texture = createTexture();

@@ -92,12 +92,15 @@ float GeometrySmith(vec3 N, vec3 V, vec3 L, float roughness) {
 vec3 fresnelSchlick(float cosTheta, vec3 F0) {
     return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
 }
+vec3 fresnelSchlickRoughness(float cosTheta, vec3 F0, float roughness) {
+    return F0 + (max(vec3(1.0 - roughness), F0) - F0) * pow(1.0 - cosTheta, 5.0);
+} 
 
 vec3 IBLAmbient(vec3 baseColor, float metallic, vec3 n, vec3 H, float roughness, vec3 viewDir, vec3 lightDir, float ao) {
     vec3 F0 = vec3(0.04);
     F0 = mix(F0, baseColor, metallic);
 
-    vec3 F = fresnelSchlick(max(dot(H, viewDir), 0.0), F0);    
+    vec3 F = fresnelSchlickRoughness(max(dot(n, viewDir), 0.0), F0, roughness);
 
     vec3 kD = vec3(1.0) - F;
     kD *= 1.0 - metallic;
