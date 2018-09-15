@@ -410,7 +410,7 @@ class Matrix4 {
             throw 'far <= 0';
         }
 
-        fovy = Math.PI * fovy / 180 / 2;
+        fovy /= 2;
         s = Math.sin(fovy);
         if (s === 0) {
             throw 'null frustum';

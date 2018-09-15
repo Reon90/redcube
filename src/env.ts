@@ -75,7 +75,7 @@ export class Env {
         const m = new Matrix4;
         const cam = Object.assign({}, this._camera.props, {
             perspective: {
-                yfov: Math.PI / 2,
+                yfov: 0.3,
                 znear: 0.01,
                 zfar: 10000
             }
@@ -108,7 +108,7 @@ export class Env {
         uniform samplerCube environmentMap;
         
         void main() {
-            vec3 c = texture(environmentMap, outUV).rgb;
+            vec3 c = textureLod(environmentMap, outUV, 0.0).rgb;
             
             color = vec4(c, 1.0);
         }
@@ -117,7 +117,7 @@ export class Env {
         gl.useProgram(program);
         gl.bindVertexArray(this.VAO);
         gl.uniformMatrix4fv(gl.getUniformLocation(program, 'projection'), false, m.elements);
-        gl.uniform1i(gl.getUniformLocation(program, 'environmentMap'), this.irradiancemap.index);
+        gl.uniform1i(gl.getUniformLocation(program, 'environmentMap'), this.map.index);
         gl.uniformMatrix4fv(gl.getUniformLocation(program, 'view'), false, this._camera.matrixWorldInvert.elements);
         gl.drawArrays(gl.TRIANGLES, 0, 36);
     }
@@ -126,6 +126,7 @@ export class Env {
         gl.enable(gl.CULL_FACE);
         const m = new Matrix4;
         const cam = Object.assign({}, this._camera.props, {
+            aspect: 1,
             perspective: {
                 yfov: Math.PI / 2,
                 znear: 0.01,

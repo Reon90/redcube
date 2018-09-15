@@ -301,7 +301,7 @@ export function calculateProjection(cam) {
         const {yfov} = cam.perspective;
         const xfov = yfov * aspect;
 
-        proj = new Matrix4().setPerspective(xfov * zoom * (180 / Math.PI), aspect, cam.perspective.znear || 1, cam.perspective.zfar || 2e6);
+        proj = new Matrix4().setPerspective(xfov * zoom, aspect, cam.perspective.znear || 1, cam.perspective.zfar || 2e6);
     } else if ( cam.type === 'orthographic' && cam.orthographic ) {
         proj = new Matrix4().setOrtho( cam.orthographic.xmag * zoom, cam.orthographic.ymag * zoom, cam.orthographic.znear, cam.orthographic.zfar);
     }

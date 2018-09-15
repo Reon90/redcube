@@ -12,6 +12,7 @@ import { setGl } from './utils';
 import { Light as PPLight } from './postprocessors/light';
 
 let gl;
+const FOV = 15; // degrees
 
 class RedCube {
     gl: WebGLRenderingContext;
@@ -40,7 +41,7 @@ class RedCube {
             zoom: 1,
             aspect: this.canvas.offsetWidth / this.canvas.offsetHeight,
             perspective: {
-                yfov: 0.6
+                yfov: FOV * Math.PI / 180
             }
         });
         this.ioc.register('canvas', canvas);
@@ -132,7 +133,7 @@ class RedCube {
         gl.viewport( 0, 0, this.canvas.offsetWidth * devicePixelRatio, this.canvas.offsetHeight * devicePixelRatio);
 
         if (this.camera.props.isInitial) {
-            const z = 1 / this.canvas.width * this.camera.modelSize * 3000 * devicePixelRatio;
+            const z = 10000 / this.canvas.width * this.camera.modelSize * devicePixelRatio;
             this.camera.setZ(z);
             this.light.setZ(z);
             this.light.update(Math.PI / 2);
