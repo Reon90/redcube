@@ -125,8 +125,30 @@
         selector.appendChild(slider);
         slider.value = Math.PI/2;
 
+        const envname = localStorage.getItem('env') || 'env';
+        {
+            const select = document.createElement('select');
+            select.onchange = () => {
+                localStorage.setItem('env', select.value);
+                window.location.reload();
+            }
+            ['env', 'env1', 'env2'].forEach((it) => {
+                const option = document.createElement('option');
+                option.innerHTML = it;
+                option.value = it;
+                select.appendChild(option);
+            });
+            select.value = envname;
+            selector.appendChild(select);
+        }
+
         //https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/
-        const renderer = new redcube.RedCube('https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/' + name + '/glTF/' + name + '.gltf', canvas, [localStorage.getItem('ssao'), localStorage.getItem('bloom'), localStorage.getItem('shadow'), localStorage.getItem('light')].filter(name => name));
+        const renderer = new redcube.RedCube(
+            'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/' + name + '/glTF/' + name + '.gltf', 
+            canvas, 
+            [localStorage.getItem('ssao'), localStorage.getItem('bloom'), localStorage.getItem('shadow'), localStorage.getItem('light')].filter(name => name),
+            envname
+        );
         renderer.init(() => {
             if (renderer.parse.cameras.length) {
                 const select = document.createElement('select');
