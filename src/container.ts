@@ -64,8 +64,8 @@ export class Container {
     }
 
     _getResolvedDependencies(service) {
-        let classDependencies = []
-        if(service.dependencies) {
+        let classDependencies = [];
+        if (service.dependencies) {
             classDependencies = service.dependencies.map(dep => {
                 return [dep, this.get(dep)];
             });

@@ -914,15 +914,77 @@ class Vector4 {
 
     lerp(a, b, t) {
         const out = this.elements;
-        const ax = a[0];
-        const ay = a[1];
-        const az = a[2];
-        const aw = a[3];
-        out[0] = ax + t * (b[0] - ax);
-        out[1] = ay + t * (b[1] - ay);
-        out[2] = az + t * (b[2] - az);
-        out[3] = aw + t * (b[3] - aw);
-        return this;
+
+        if ( t === 0 ) return this;
+		if ( t === 1 ) {
+            out[0] = b[0];
+            out[1] = b[1];
+            out[2] = b[2];
+            out[3] = b[3];
+
+            return this;
+        }
+
+        const x = a[0], y = a[1], z = a[2], w = a[3];
+
+		// http://www.euclideanspace.com/maths/algebra/realNormedAlgebra/quaternions/slerp/
+
+		let cosHalfTheta = w * b[3] + x * b[0] + y * b[1] + z * b[2];
+
+		if ( cosHalfTheta < 0 ) {
+
+			out[3] = - b[3];
+			out[0] = - b[0];
+			out[1] = - b[1];
+			out[2] = - b[2];
+
+			cosHalfTheta = - cosHalfTheta;
+
+		} else {
+
+            out[0] = b[0];
+            out[1] = b[1];
+            out[2] = b[2];
+            out[3] = b[3];
+
+		}
+
+		if ( cosHalfTheta >= 1.0 ) {
+
+			out[3] = w;
+			out[0] = x;
+			out[1] = y;
+			out[2] = z;
+
+			return this;
+
+		}
+
+		const sqrSinHalfTheta = 1.0 - cosHalfTheta * cosHalfTheta;
+
+		if ( sqrSinHalfTheta <= Number.EPSILON ) {
+
+			var s = 1 - t;
+			out[3] = s * w + t * out[3];
+			out[0] = s * x + t * out[0];
+			out[1] = s * y + t * out[1];
+			out[2] = s * z + t * out[2];
+
+			return this.normalize();
+
+		}
+
+		const sinHalfTheta = Math.sqrt( sqrSinHalfTheta );
+		const halfTheta = Math.atan2( sinHalfTheta, cosHalfTheta );
+		const ratioA = Math.sin( ( 1 - t ) * halfTheta ) / sinHalfTheta,
+			ratioB = Math.sin( t * halfTheta ) / sinHalfTheta;
+
+        out[3] = ( w * ratioA + out[3] * ratioB );
+		out[0] = ( x * ratioA + out[0] * ratioB );
+		out[1] = ( y * ratioA + out[1] * ratioB );
+		out[2] = ( z * ratioA + out[2] * ratioB );
+
+		return this;
     }
 }
 

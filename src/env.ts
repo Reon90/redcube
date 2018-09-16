@@ -145,7 +145,7 @@ export class Env {
             gl.uniform1i(gl.getUniformLocation(this.cubeprogram, 'diffuse'), this.texture.index);
             const maxMipLevels = 5;
             for (let mip = 0; mip < maxMipLevels; ++mip) {
-                const mipWidth  = this.framebuffer.size * Math.pow(0.5, mip);
+                const mipWidth = this.framebuffer.size * Math.pow(0.5, mip);
                 const mipHeight = this.framebuffer.size * Math.pow(0.5, mip);
 
                 gl.viewport(0, 0, mipWidth, mipHeight);
@@ -192,7 +192,7 @@ export class Env {
             gl.uniform1i(gl.getUniformLocation(this.mipmapcubeprogram, 'environmentMap'), this.map.index);
             const maxMipLevels = 5;
             for (let mip = 0; mip < maxMipLevels; ++mip) {
-                const mipWidth  = this.prefilterbuffer.size * Math.pow(0.5, mip);
+                const mipWidth = this.prefilterbuffer.size * Math.pow(0.5, mip);
                 const mipHeight = this.prefilterbuffer.size * Math.pow(0.5, mip);
 
                 gl.viewport(0, 0, mipWidth, mipHeight);
@@ -345,47 +345,47 @@ export class Env {
         });
 
         const verts = [         
-            -1.0,  1.0, -1.0,
+            -1.0, 1.0, -1.0,
             -1.0, -1.0, -1.0,
-             1.0, -1.0, -1.0,
-             1.0, -1.0, -1.0,
-             1.0,  1.0, -1.0,
-            -1.0,  1.0, -1.0,
+            1.0, -1.0, -1.0,
+            1.0, -1.0, -1.0,
+            1.0, 1.0, -1.0,
+            -1.0, 1.0, -1.0,
     
-            -1.0, -1.0,  1.0,
+            -1.0, -1.0, 1.0,
             -1.0, -1.0, -1.0,
-            -1.0,  1.0, -1.0,
-            -1.0,  1.0, -1.0,
-            -1.0,  1.0,  1.0,
-            -1.0, -1.0,  1.0,
+            -1.0, 1.0, -1.0,
+            -1.0, 1.0, -1.0,
+            -1.0, 1.0, 1.0,
+            -1.0, -1.0, 1.0,
     
-             1.0, -1.0, -1.0,
-             1.0, -1.0,  1.0,
-             1.0,  1.0,  1.0,
-             1.0,  1.0,  1.0,
-             1.0,  1.0, -1.0,
-             1.0, -1.0, -1.0,
+            1.0, -1.0, -1.0,
+            1.0, -1.0, 1.0,
+            1.0, 1.0, 1.0,
+            1.0, 1.0, 1.0,
+            1.0, 1.0, -1.0,
+            1.0, -1.0, -1.0,
     
-            -1.0, -1.0,  1.0,
-            -1.0,  1.0,  1.0,
-             1.0,  1.0,  1.0,
-             1.0,  1.0,  1.0,
-             1.0, -1.0,  1.0,
-            -1.0, -1.0,  1.0,
+            -1.0, -1.0, 1.0,
+            -1.0, 1.0, 1.0,
+            1.0, 1.0, 1.0,
+            1.0, 1.0, 1.0,
+            1.0, -1.0, 1.0,
+            -1.0, -1.0, 1.0,
     
-            -1.0,  1.0, -1.0,
-             1.0,  1.0, -1.0,
-             1.0,  1.0,  1.0,
-             1.0,  1.0,  1.0,
-            -1.0,  1.0,  1.0,
-            -1.0,  1.0, -1.0,
+            -1.0, 1.0, -1.0,
+            1.0, 1.0, -1.0,
+            1.0, 1.0, 1.0,
+            1.0, 1.0, 1.0,
+            -1.0, 1.0, 1.0,
+            -1.0, 1.0, -1.0,
     
             -1.0, -1.0, -1.0,
-            -1.0, -1.0,  1.0,
-             1.0, -1.0, -1.0,
-             1.0, -1.0, -1.0,
-            -1.0, -1.0,  1.0,
-             1.0, -1.0,  1.0
+            -1.0, -1.0, 1.0,
+            1.0, -1.0, -1.0,
+            1.0, -1.0, -1.0,
+            -1.0, -1.0, 1.0,
+            1.0, -1.0, 1.0
         ];
 
         this.VAO = gl.createVertexArray();
@@ -405,7 +405,7 @@ export class Env {
         this.bdrfprogram = createProgram(quad, bdrf);
 
         return fetch(`src/images/${this.url}.hdr`).then(res => res.arrayBuffer()).then(buffer => {
-            const data = parseHDR(buffer).data;
+            const { data } = parseHDR(buffer);
 
             this.texture = createTexture();
             gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);

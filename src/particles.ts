@@ -57,7 +57,7 @@ export class Particles {
         this.VAO = VAO;
         this.TFO = TFO;
 
-        for (const b of [0,1]) {
+        for (const b of [0, 1]) {
             gl.bindVertexArray(VAO[b]);
             const VBOs = [];
 
@@ -130,10 +130,10 @@ export class Particles {
         const SIZE = 128;
         const denom = SIZE / 16;
         const data = new Uint8Array(SIZE * SIZE * SIZE);
-        for (var k = 0; k < SIZE; ++k) {
-            for (var j = 0; j < SIZE; ++j) {
-                for (var i = 0; i < SIZE; ++i) {
-                    var value = perlin3(i / denom, j / denom, k / denom);
+        for (let k = 0; k < SIZE; ++k) {
+            for (let j = 0; j < SIZE; ++j) {
+                for (let i = 0; i < SIZE; ++i) {
+                    let value = perlin3(i / denom, j / denom, k / denom);
                     value = (1 + value) * 128;
                     data[i + j * SIZE + k * SIZE * SIZE] = value;
                 }
@@ -146,17 +146,17 @@ export class Particles {
         gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
         gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
         gl.texImage3D(
-            gl.TEXTURE_3D,  // target
-            0,              // level
-            gl.R8,        // internalformat
-            SIZE,           // width
-            SIZE,           // height
-            SIZE,           // depth
-            0,              // border
-            gl.RED,         // format
-            gl.UNSIGNED_BYTE,       // type
-            data            // pixel
-            );
+            gl.TEXTURE_3D, // target
+            0, // level
+            gl.R8, // internalformat
+            SIZE, // width
+            SIZE, // height
+            SIZE, // depth
+            0, // border
+            gl.RED, // format
+            gl.UNSIGNED_BYTE, // type
+            data // pixel
+        );
         gl.generateMipmap(gl.TEXTURE_3D);
     }
 

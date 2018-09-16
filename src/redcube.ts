@@ -62,25 +62,25 @@ class RedCube {
         return this.ioc.get('renderer');
     }
 
-    get scene () {
+    get scene() {
         return this.ioc.get('scene');
     }
-    get camera () {
+    get camera() {
         return this.ioc.get('camera');
     }
-    get light () {
+    get light() {
         return this.ioc.get('light');
     }
-    get env () {
+    get env() {
         return this.ioc.get('env');
     }
-    get PP () {
+    get PP() {
         return this.ioc.get('pp');
     }
-    get Particles () {
+    get Particles() {
         return this.ioc.get('particles');
     }
-    get parse () {
+    get parse() {
         return this.ioc.get('parser');
     }
 

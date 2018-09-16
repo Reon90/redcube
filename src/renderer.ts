@@ -68,9 +68,9 @@ export class Renderer {
             if (val[0] === -1 || val[1] === -1 || v.stoped) {
                 continue;
             }
-            if (val[0] === v.keys.length - 1) {
-                v.stoped = true;
-            }
+            // if (val[0] === v.keys.length - 1) {
+            //     v.stoped = true;
+            // }
 
             const startFrame = v.keys[ val[0] ];
             const endFrame = v.keys[ val[1] ];
