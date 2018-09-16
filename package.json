@@ -4,7 +4,7 @@
   "description": "A javascript library for rendering webgl.",
   "main": "dist/redcube",
   "scripts": {
-    "dev": "webpack-serve --host 0.0.0.0",
+    "dev": "webpack-serve",
     "prod": "webpack --mode production",
     "lint": "eslint --fix --ext .ts ./src/"
   },

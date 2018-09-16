@@ -168,9 +168,10 @@ export class Mesh extends Object3D {
         }
 
         if (this.geometry.indicesBuffer) {
-            gl.drawElements(this.mode || gl.TRIANGLES, this.geometry.indicesBuffer.length, this.geometry.indicesBuffer.BYTES_PER_ELEMENT === 4 ? gl.UNSIGNED_INT : gl.UNSIGNED_SHORT, 0);
+            // @ts-ignore
+            gl.drawElements(this.mode, this.geometry.indicesBuffer.length, gl[this.geometry.indicesBuffer.type], 0);
         } else {
-            gl.drawArrays(this.mode || gl.TRIANGLES, 0, this.geometry.attributes.POSITION.length / 3);
+            gl.drawArrays(this.mode, 0, this.geometry.attributes.POSITION.length / 3);
         }
 
         if (this.material.doubleSided) {
@@ -215,7 +216,7 @@ export class Mesh extends Object3D {
         this.program = value;
     }
 
-    setMode(value) {
+    setMode(value = 4) {
         this.mode = value;
     }
 

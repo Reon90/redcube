@@ -3,7 +3,9 @@ precision highp float;
 
 #define IBL 1;
 
+in vec4 vColor;
 in vec2 outUV;
+in vec2 outUV2;
 in vec3 outPosition;
 in vec4 outPositionView;
 #ifdef TANGENT
@@ -42,6 +44,14 @@ const vec3 lightColor = vec3(1.0, 1.0, 1.0);
 #endif
 const vec3 emissiveFactor = vec3(1.0, 1.0, 1.0);
 const float gamma = 2.2;
+
+vec2 getUV(int index) {
+    if (index == 1) {
+        return outUV;
+    } else {
+        return outUV2;
+    }
+}
 
 float ShadowCalculation(vec4 fragPosLightSpace, float bias) {
     vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
@@ -156,6 +166,16 @@ void main() {
         float alpha = baseColorFactor.a;
     #endif
 
+    #ifdef ALPHATEST
+    if ( alpha < ALPHATEST ) {
+        discard;
+    }
+    #endif
+
+    if ( length(vColor.rgb) != 0.0 ) {
+        baseColor.rgb *= vColor.rgb;
+    }
+
     #ifdef OCCLUSIONMAP
         float ao = texture(occlusionTexture, outUV).r;
     #else
@@ -165,6 +185,9 @@ void main() {
     #ifdef METALROUGHNESSMAP
         float roughness = texture(metallicRoughnessTexture, outUV).g;
         float metallic = texture(metallicRoughnessTexture, outUV).b;
+    #else
+        float roughness = 0.0;
+        float metallic = 0.0;
     #endif
 
     #ifdef TANGENT
@@ -205,10 +228,10 @@ void main() {
 
         vec3 emissive = vec3(0.0);
         #ifdef EMISSIVEMAP
-            emissive = srgbToLinear(texture(emissiveTexture, outUV)) * emissiveFactor;
+            emissive = srgbToLinear(texture(emissiveTexture, getUV(EMISSIVEMAP))) * emissiveFactor;
         #endif
 
-        color = vec4(shadow * (emissive + ambient + (diffuse + specular) * radiance * NdotL), 1.0);
+        color = vec4(shadow * (emissive + ambient + (diffuse + specular) * radiance * NdotL), alpha);
     #else
         vec3 ambient = ambientStrength * lightColor;
 

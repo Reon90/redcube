@@ -191,21 +191,27 @@ export function buildArray(arrayBuffer, type, offset, length, stride?, count?) {
     switch (glEnum[type]) {
     case 'BYTE':
         arr = new Int8Array(arrayBuffer, offset, length);
+        arr.type = 'BYTE';
         break;
     case 'UNSIGNED_BYTE':
         arr = new Uint8Array(arrayBuffer, offset, length);
+        arr.type = 'UNSIGNED_BYTE';
         break;
     case 'SHORT':
         arr = new Int16Array(arrayBuffer, offset, length);
+        arr.type = 'SHORT';
         break;
     case 'UNSIGNED_SHORT':
         arr = new Uint16Array(arrayBuffer, offset, length);
+        arr.type = 'UNSIGNED_SHORT';
         break;
     case 'UNSIGNED_INT':
         arr = new Uint32Array(arrayBuffer, offset, length);
+        arr.type = 'UNSIGNED_INT';
         break;
     case 'FLOAT':
         arr = new Float32Array(arrayBuffer, offset, length);
+        arr.type = 'FLOAT';
         break;
     }
     if (stride && stride !== getCount(type) * c) {
@@ -217,6 +223,8 @@ export function buildArray(arrayBuffer, type, offset, length, stride?, count?) {
             stridedArr[i + 2] = arr[j + 2];
             j = j + c * (stride / getCount(type) / c);
         }
+        // @ts-ignore
+        stridedArr.type = arr.type;
         return stridedArr;
     }
     return arr;
@@ -336,6 +344,9 @@ export function getAttributeIndex(name) {
         break;
     case 'COLOR_0':
         index = [6, 4, gl.FLOAT];
+        break;
+    case 'TEXCOORD_1':
+        index = [7, 2, gl.FLOAT];
         break;
     }
     return index;

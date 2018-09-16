@@ -154,7 +154,7 @@ class RedCube {
     }
 
     glInit() {
-        gl = this.canvas.getContext('webgl2', { antialias: false });
+        gl = this.canvas.getContext('webgl2', { antialias: this.processors.length === 0 });
         this.gl = gl;
 
         if (!gl) {

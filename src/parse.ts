@@ -136,9 +136,11 @@ export class Parse {
 
         const material = p.material !== undefined ? JSON.parse(JSON.stringify(this.json.materials[p.material])) : {pbrMetallicRoughness: {baseColorFactor: [0.8, 0.8, 0.8, 1.0]}};
         const defines = [...this.defines];
+        if (material.pbrMetallicRoughness) {
+            defines.push({name: 'USE_PBR'});
+        }
         if (material.pbrMetallicRoughness.metallicRoughnessTexture) {
             material.pbrMetallicRoughness.metallicRoughnessTexture = Object.assign({}, this.textures[material.pbrMetallicRoughness.metallicRoughnessTexture.index]);
-            defines.push({name: 'USE_PBR'});
             defines.push({name: 'METALROUGHNESSMAP'});
         }
         if (material.normalTexture) {
@@ -154,8 +156,9 @@ export class Parse {
             defines.push({name: 'BASECOLORTEXTURE'});
         }
         if (material.emissiveTexture) {
+            const { texCoord } = material.emissiveTexture;
             material.emissiveTexture = Object.assign({}, this.textures[material.emissiveTexture.index]);
-            defines.push({name: 'EMISSIVEMAP'});
+            defines.push({name: 'EMISSIVEMAP', value: texCoord ? 2 : 1});
         }
 
         if (skin !== undefined) {
@@ -165,13 +168,19 @@ export class Parse {
             defines.push({name: 'TANGENT'});
         }
 
+        if (material.alphaMode === 'MASK') {
+            defines.push({name: 'ALPHATEST', value: material.alphaCutoff || 0.5});
+        } else if (material.alphaMode === 'BLEND') {
+            defines.push({name: 'ALPHATEST', value: 0.01});
+        }
+
         let program;
-        if (this.programs[defines.map(define => define.name).join('')]) {
-            program = this.programs[defines.map(define => define.name).join('')];
+        if (this.programs[defines.map(define => `${define.name}${define.value || 1}`).join('')]) {
+            program = this.programs[defines.map(define => `${define.name}${define.value || 1}`).join('')];
         } else {
             const defineStr = defines.map(define => `#define ${define.name} ${define.value || 1}` + '\n').join('');
             program = createProgram(vertexShader.replace(/\n/, `\n${ defineStr}`), fragmentShader.replace(/\n/, `\n${ defineStr}`));
-            this.programs[defines.map(define => define.name).join('')] = program;
+            this.programs[defines.map(define => `${define.name}${define.value || 1}`).join('')] = program;
         }
 
         let indicesBuffer;
