@@ -222,9 +222,7 @@ export class Renderer {
         });
         if (this.scene.transparentChildren.length) {
             gl.enable(gl.BLEND);
-            gl.depthMask(false);
-            gl.blendFuncSeparate(gl.SRC_COLOR, gl.DST_COLOR, gl.ONE, gl.ZERO);
-            // gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+            gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);  
 
             this.scene.transparentChildren.forEach(mesh => {
                 if (mesh.visible) {
@@ -233,8 +231,7 @@ export class Renderer {
             });
 
             gl.disable(gl.BLEND);
-            gl.depthMask(true);
-            gl.blendFuncSeparate(gl.ONE, gl.ZERO, gl.ONE, gl.ZERO);
+            gl.blendFunc(gl.ONE, gl.ZERO); 
         }
     }
 

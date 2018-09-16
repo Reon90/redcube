@@ -140,24 +140,24 @@ export class Parse {
             defines.push({name: 'USE_PBR'});
         }
         if (material.pbrMetallicRoughness.metallicRoughnessTexture) {
-            material.pbrMetallicRoughness.metallicRoughnessTexture = Object.assign({}, this.textures[material.pbrMetallicRoughness.metallicRoughnessTexture.index]);
+            material.pbrMetallicRoughness.metallicRoughnessTexture = this.textures[material.pbrMetallicRoughness.metallicRoughnessTexture.index];
             defines.push({name: 'METALROUGHNESSMAP'});
         }
         if (material.normalTexture) {
-            material.normalTexture = Object.assign({}, this.textures[material.normalTexture.index]);
+            material.normalTexture = this.textures[material.normalTexture.index];
             defines.push({name: 'NORMALMAP'});
         }
         if (material.occlusionTexture) {
-            material.occlusionTexture = Object.assign({}, this.textures[material.occlusionTexture.index]);
+            material.occlusionTexture = this.textures[material.occlusionTexture.index];
             defines.push({name: 'OCCLUSIONMAP'});
         }
         if (material.pbrMetallicRoughness.baseColorTexture) {
-            material.pbrMetallicRoughness.baseColorTexture = Object.assign({}, this.textures[material.pbrMetallicRoughness.baseColorTexture.index]);
+            material.pbrMetallicRoughness.baseColorTexture = this.textures[material.pbrMetallicRoughness.baseColorTexture.index];
             defines.push({name: 'BASECOLORTEXTURE'});
         }
         if (material.emissiveTexture) {
             const { texCoord } = material.emissiveTexture;
-            material.emissiveTexture = Object.assign({}, this.textures[material.emissiveTexture.index]);
+            material.emissiveTexture = this.textures[material.emissiveTexture.index];
             defines.push({name: 'EMISSIVEMAP', value: texCoord ? 2 : 1});
         }
 
@@ -417,7 +417,7 @@ export class Parse {
         });
 
         this.scene.opaqueChildren.sort((a, b) => a.distance - b.distance);
-        this.scene.transparentChildren.sort((a, b) => b.distance - a.distance);
+        this.scene.transparentChildren.sort((a, b) => a.distance - b.distance);
     }
 
     buildAnimation() {
@@ -577,11 +577,13 @@ export class Parse {
     }
 
     handleTextureLoaded(sampler, image, name) {
-        const t = createTexture();
+        const t = gl.createTexture();
         t.name = name;
         t.image = image.src.substr(image.src.lastIndexOf('/'));
 
-        gl.bindSampler(t.index, sampler);
+        gl.activeTexture(gl[`TEXTURE${31}`]);
+        gl.bindTexture(gl.TEXTURE_2D, t);
+        gl.bindSampler(31, sampler);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
         gl.generateMipmap(gl.TEXTURE_2D);
 

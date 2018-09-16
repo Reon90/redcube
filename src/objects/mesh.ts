@@ -148,20 +148,36 @@ export class Mesh extends Object3D {
         gl.uniform1i( gl.getUniformLocation(this.program, 'brdfLUT'), brdfLUT.index);
         gl.uniform1i( gl.getUniformLocation(this.program, 'irradianceMap'), irradiancemap.index);
         gl.uniform1i( gl.getUniformLocation(this.program, 'depthTexture'), isShadow ? fakeDepth.index : preDepthTexture.index);
+        let index = 31;
         if (this.material.pbrMetallicRoughness.baseColorTexture) {
-            gl.uniform1i(this.material.uniforms.baseColorTexture, this.material.pbrMetallicRoughness.baseColorTexture.index);
+            gl.activeTexture(gl[`TEXTURE${index}`]);
+            gl.bindTexture(gl.TEXTURE_2D, this.material.pbrMetallicRoughness.baseColorTexture);
+            gl.uniform1i(this.material.uniforms.baseColorTexture, index);
+            index--;
         }
         if (this.material.pbrMetallicRoughness.metallicRoughnessTexture) {
-            gl.uniform1i(this.material.uniforms.metallicRoughnessTexture, this.material.pbrMetallicRoughness.metallicRoughnessTexture.index);
+            gl.activeTexture(gl[`TEXTURE${index}`]);
+            gl.bindTexture(gl.TEXTURE_2D, this.material.pbrMetallicRoughness.metallicRoughnessTexture);
+            gl.uniform1i(this.material.uniforms.metallicRoughnessTexture, index);
+            index--;
         }
         if (this.material.normalTexture) {
-            gl.uniform1i(this.material.uniforms.normalTexture, this.material.normalTexture.index);
+            gl.activeTexture(gl[`TEXTURE${index}`]);
+            gl.bindTexture(gl.TEXTURE_2D, this.material.normalTexture);
+            gl.uniform1i(this.material.uniforms.normalTexture, index);
+            index--;
         }
         if (this.material.occlusionTexture) {
-            gl.uniform1i(this.material.uniforms.occlusionTexture, this.material.occlusionTexture.index);
+            gl.activeTexture(gl[`TEXTURE${index}`]);
+            gl.bindTexture(gl.TEXTURE_2D, this.material.occlusionTexture);
+            gl.uniform1i(this.material.uniforms.occlusionTexture, index);
+            index--;
         }
         if (this.material.emissiveTexture) {
-            gl.uniform1i(this.material.uniforms.emissiveTexture, this.material.emissiveTexture.index);
+            gl.activeTexture(gl[`TEXTURE${index}`]);
+            gl.bindTexture(gl.TEXTURE_2D, this.material.emissiveTexture);
+            gl.uniform1i(this.material.uniforms.emissiveTexture, index);
+            index--;
         }
         if (this.material.doubleSided) {
             gl.disable(gl.CULL_FACE);

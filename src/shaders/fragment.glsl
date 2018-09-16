@@ -186,8 +186,8 @@ void main() {
         float roughness = texture(metallicRoughnessTexture, outUV).g;
         float metallic = texture(metallicRoughnessTexture, outUV).b;
     #else
-        float roughness = 0.0;
-        float metallic = 0.0;
+        float roughness = 0.5;
+        float metallic = 0.5;
     #endif
 
     #ifdef TANGENT
