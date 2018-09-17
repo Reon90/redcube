@@ -136,9 +136,6 @@ export class Parse {
 
         const material = p.material !== undefined ? JSON.parse(JSON.stringify(this.json.materials[p.material])) : {pbrMetallicRoughness: {baseColorFactor: [0.8, 0.8, 0.8, 1.0]}};
         const defines = [...this.defines];
-        if (material.pbrMetallicRoughness) {
-            defines.push({name: 'USE_PBR'});
-        }
         if (material.pbrMetallicRoughness.metallicRoughnessTexture) {
             material.pbrMetallicRoughness.metallicRoughnessTexture = this.textures[material.pbrMetallicRoughness.metallicRoughnessTexture.index];
             defines.push({name: 'METALROUGHNESSMAP'});
@@ -580,10 +577,10 @@ export class Parse {
         const t = gl.createTexture();
         t.name = name;
         t.image = image.src.substr(image.src.lastIndexOf('/'));
+        t.sampler = sampler;
 
         gl.activeTexture(gl[`TEXTURE${31}`]);
         gl.bindTexture(gl.TEXTURE_2D, t);
-        gl.bindSampler(31, sampler);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
         gl.generateMipmap(gl.TEXTURE_2D);
 

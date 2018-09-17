@@ -3,6 +3,7 @@ import { Matrix2, Matrix3, Matrix4, Vector2, Vector3, Vector4 } from './matrix';
 const glEnum = {};
 let gl;
 let screenTextureCount = -1;
+export const clearColor = [0, 0, 0, 1];
 
 export function getTextureIndex() {
     screenTextureCount++;

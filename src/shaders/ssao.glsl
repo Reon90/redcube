@@ -5,9 +5,9 @@ in vec2 uv;
 out float color;
 
 const int kernelSize = 32;
-const float radius = 2.5;
-const float bias = 1.0;
-const float power = 8.0;
+const float radius = 1.0;
+const float bias = 0.0;
+const float power = 5.0;
 
 uniform sampler2D normBuff;
 uniform sampler2D depthBuff;
@@ -16,6 +16,7 @@ uniform vec2 noiseScale;
 uniform vec3 kernels[kernelSize];
 uniform mat4 proj;
 uniform mat4 projI;
+uniform mat4 view;
 uniform float zFar;
 uniform float zNear;
 
@@ -36,7 +37,7 @@ void main() {
 	}
 
 	vec3 pos = getPositionFromDepth(depth);
-	vec3 normal = normalize(texture(normBuff, uv).xyz);
+	vec3 normal = normalize(vec3(view * texture(normBuff, uv)));
 	vec3 rvec = normalize(texture(noice, uv * noiseScale).xyz);
 
 	vec3 tangent = normalize(rvec - normal * dot(rvec, normal));

@@ -1,5 +1,5 @@
 import { PostProcessor } from './base';
-import { createProgram } from '../utils';
+import { createProgram, clearColor } from '../utils';
 
 import quadShader from '../shaders/quad.glsl';
 import blurShader from '../shaders/blur.glsl';
@@ -65,7 +65,7 @@ export class Bloom extends PostProcessor {
 
     renderBlur(inTexture, program) {
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.tempBlurTexture, 0);
-        gl.clearColor(1, 1, 1, 0);
+        gl.clearColor(...clearColor);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENSIL_BUFFER_BIT);
         gl.uniform1i( gl.getUniformLocation(program, 'uTexture'), inTexture.index);
         gl.uniform2f(gl.getUniformLocation(program, 'denom'), 1, 0);

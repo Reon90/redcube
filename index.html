@@ -30,9 +30,9 @@
         <canvas id="canvas"></canvas>
         <div id="selector"></div>
     </div>
-    <script src="./dist/redcube.js"></script>
+    <script src="./redcube.js"></script>
     <script>
-        fetch('https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/model-index.json')
+        fetch('examples/model-index.json')
             .then(r => r.json())
             .then(samples => {
                 const name = localStorage.getItem('sample') || 'DamagedHelmet';
@@ -96,12 +96,30 @@
                     selector.appendChild(select);
                 }
 
+                const mode = localStorage.getItem('mode') || 'pbr';
+                {
+                    const select = document.createElement('select');
+                    select.onchange = () => {
+                        localStorage.setItem('mode', select.value);
+                        window.location.reload();
+                    }
+                    ['phong', 'pbr'].forEach((it) => {
+                        const option = document.createElement('option');
+                        option.innerHTML = it;
+                        option.value = it;
+                        select.appendChild(option);
+                    });
+                    select.value = mode;
+                    selector.appendChild(select);
+                }
+
                 //https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/
                 window.renderer = new redcube.RedCube(
-                    'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/' + name + '/glTF/' + name + '.gltf', 
+                    'examples/' + name + '/glTF/' + name + '.gltf', 
                     canvas, 
                     [localStorage.getItem('ssao'), localStorage.getItem('bloom'), localStorage.getItem('shadow'), localStorage.getItem('light')].filter(name => name),
-                    envname
+                    envname,
+                    mode
                 );
                 renderer.init(() => {
                     if (renderer.parse.cameras.length) {

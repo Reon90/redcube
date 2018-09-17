@@ -1,6 +1,6 @@
 import { Vector3, Matrix4 } from '../matrix';
 import { PostProcessor } from './base';
-import { random, createProgram, lerp } from '../utils';
+import { random, createProgram, lerp, clearColor } from '../utils';
 
 import quadShader from '../shaders/quad.glsl';
 import ssaoShader from '../shaders/ssao.glsl';
@@ -41,7 +41,7 @@ export class SSAO extends PostProcessor {
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.ssaoTexture, 0);
 
-        gl.clearColor(1, 1, 1, 0);
+        gl.clearColor(...clearColor);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
         gl.useProgram(this.ssaoProgram);
@@ -49,10 +49,11 @@ export class SSAO extends PostProcessor {
         gl.uniform1i( gl.getUniformLocation(this.ssaoProgram, 'normBuff'), PP.normalTexture.index);
         gl.uniform1i( gl.getUniformLocation(this.ssaoProgram, 'depthBuff'), PP.depthTexture.index);
         gl.uniform1i( gl.getUniformLocation(this.ssaoProgram, 'noice'), this.noice.index);
-        gl.uniform2f( gl.getUniformLocation(this.ssaoProgram, 'noiseScale'), this.width / noiceSize, this.height / noiceSize);
+        gl.uniform2f( gl.getUniformLocation(this.ssaoProgram, 'noiseScale'), this.width / this.scale / noiceSize, this.height / this.scale / noiceSize);
         gl.uniform1f( gl.getUniformLocation(this.ssaoProgram, 'zFar'), cameraProps.zfar);
         gl.uniform1f( gl.getUniformLocation(this.ssaoProgram, 'zNear'), cameraProps.znear);
         gl.uniformMatrix4fv(gl.getUniformLocation(this.ssaoProgram, 'proj'), false, this.camera.projection.elements);
+        gl.uniformMatrix4fv(gl.getUniformLocation(this.ssaoProgram, 'view'), false, this.camera.matrixWorldInvert.elements);
         gl.uniformMatrix4fv(gl.getUniformLocation(this.ssaoProgram, 'projI'), false, new Matrix4().setInverseOf(this.camera.projection).elements);
         gl.uniform3fv(gl.getUniformLocation(this.ssaoProgram, 'kernels'), this.kernels);
 

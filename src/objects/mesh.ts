@@ -152,30 +152,35 @@ export class Mesh extends Object3D {
         if (this.material.pbrMetallicRoughness.baseColorTexture) {
             gl.activeTexture(gl[`TEXTURE${index}`]);
             gl.bindTexture(gl.TEXTURE_2D, this.material.pbrMetallicRoughness.baseColorTexture);
+            gl.bindSampler(index, this.material.pbrMetallicRoughness.baseColorTexture.sampler);
             gl.uniform1i(this.material.uniforms.baseColorTexture, index);
             index--;
         }
         if (this.material.pbrMetallicRoughness.metallicRoughnessTexture) {
             gl.activeTexture(gl[`TEXTURE${index}`]);
             gl.bindTexture(gl.TEXTURE_2D, this.material.pbrMetallicRoughness.metallicRoughnessTexture);
+            gl.bindSampler(index, this.material.pbrMetallicRoughness.metallicRoughnessTexture.sampler);
             gl.uniform1i(this.material.uniforms.metallicRoughnessTexture, index);
             index--;
         }
         if (this.material.normalTexture) {
             gl.activeTexture(gl[`TEXTURE${index}`]);
             gl.bindTexture(gl.TEXTURE_2D, this.material.normalTexture);
+            gl.bindSampler(index, this.material.normalTexture.sampler);
             gl.uniform1i(this.material.uniforms.normalTexture, index);
             index--;
         }
         if (this.material.occlusionTexture) {
             gl.activeTexture(gl[`TEXTURE${index}`]);
             gl.bindTexture(gl.TEXTURE_2D, this.material.occlusionTexture);
+            gl.bindSampler(index, this.material.occlusionTexture.sampler);
             gl.uniform1i(this.material.uniforms.occlusionTexture, index);
             index--;
         }
         if (this.material.emissiveTexture) {
             gl.activeTexture(gl[`TEXTURE${index}`]);
             gl.bindTexture(gl.TEXTURE_2D, this.material.emissiveTexture);
+            gl.bindSampler(index, this.material.emissiveTexture.sampler);
             gl.uniform1i(this.material.uniforms.emissiveTexture, index);
             index--;
         }

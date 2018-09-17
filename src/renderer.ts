@@ -185,13 +185,12 @@ export class Renderer {
             //this.env.draw();
 
             this.renderScene(!this.PP.postprocessors.some(p => p instanceof Shadow), false);
+            this.clean();
 
             if (this.PP.postprocessors.some(p => p instanceof PPLight)) {
                 this.Particles.draw(time);
                 this.reflow = true;
             }
-
-            this.clean();
 
             if (this.PP.postprocessors.length > 0) {
                 this.PP.postProcessing();

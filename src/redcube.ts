@@ -8,7 +8,7 @@ import { Env } from './env';
 import { Parse } from './parse';
 import { PostProcessing } from './postprocessing';
 import { Particles } from './particles';
-import { setGl } from './utils';
+import { setGl, clearColor } from './utils';
 import { Light as PPLight } from './postprocessors/light';
 
 let gl;
@@ -21,7 +21,7 @@ class RedCube {
     processors: Array<String>;
     ioc: Container;
 
-    constructor(url, canvas, processors, envUrl) {
+    constructor(url, canvas, processors, envUrl, mode) {
         this.canvas = canvas;
         this.processors = processors;
 
@@ -31,6 +31,9 @@ class RedCube {
         }
         if (processors.some(p => p === 'shadow')) {
             defines.push({name: 'SHADOWMAP'});
+        }
+        if (mode === 'pbr') {
+            defines.push({name: 'USE_PBR'});
         }
 
         this.ioc = new Container;
@@ -166,7 +169,7 @@ class RedCube {
     }
 
     draw() {
-        gl.clearColor(0, 0, 0, 1);
+        gl.clearColor(...clearColor);
 
         this.renderer.render();
     }
