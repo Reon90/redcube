@@ -33,7 +33,9 @@ uniform sampler2D   brdfLUT;
 uniform samplerCube irradianceMap;
 uniform sampler2D depthTexture;
 
+const float RECIPROCAL_PI = 0.31830988618;
 const float PI = 3.14159265359;
+const float EPSILON = 1e-6;
 const float ambientStrength = 0.1;
 const float specularStrength = 2.5;
 const float specularPower = 32.0;
@@ -165,6 +167,34 @@ vec3 LambertDiffuse(vec3 baseColor, float metallic, vec3 n, vec3 H, float roughn
     return baseColor * kD / PI;
 }
 
+float saturate(float a) {
+	if (a > 1.0f) return 1.0f;
+	if (a < 0.0f) return 0.0f;
+	return a;
+}
+vec3 ImprovedOrenNayarDiffuse(vec3 baseColor, float metallic, vec3 N, vec3 H, float a, vec3 V, vec3 L) {
+    vec3 F0 = vec3(0.04);
+    F0 = mix(F0, baseColor, metallic);
+    vec3 F = fresnelSchlick(max(dot(H, V), 0.0), F0);
+    vec3 kD = vec3(1.0) - F;
+    kD *= 1.0 - metallic;
+    vec3 diffuseColor = baseColor * kD;
+	// calculate intermediary values
+	float dotNL = saturate(dot(N, L));
+	float dotNV = saturate(dot(N, V));
+	float dotLV = saturate(dot(L, V));
+	float dotLH = saturate(dot(L, H));
+
+	float s = dotLV - dotNL * dotNV;
+	float t = mix(1.0, max(dotNL, dotNV), step(0.0, s));
+	float st = s * (1.0 / (t + EPSILON));
+
+	float sigma2 = a;
+	vec3 A = diffuseColor * (0.17 * sigma2 / (sigma2 + 0.13)) + vec3(1.0 - 0.5 * sigma2 / (sigma2 + 0.33));
+	float B = 0.45 * sigma2 / (sigma2 + 0.09);
+	return (diffuseColor * max(0.0, dotNL)) * (A + vec3(B * s / t) / PI);
+}
+
 void main() {
     #ifdef BASECOLORTEXTURE
         vec3 baseColor = srgbToLinear(texture(baseColorTexture, outUV));
@@ -225,7 +255,7 @@ void main() {
 
     #ifdef USE_PBR
         vec3 specular = CookTorranceSpecular(baseColor, metallic, n, H, roughness, viewDir, lightDir);
-        vec3 diffuse = LambertDiffuse(baseColor, metallic, n, H, roughness, viewDir, lightDir);
+        vec3 diffuse = ImprovedOrenNayarDiffuse(baseColor, metallic, n, H, roughness, viewDir, lightDir);
 
         vec3 ambient = vec3(0.0);
         #ifdef IBL
