@@ -21,6 +21,7 @@ uniform Material {
     vec4 baseColorFactor;
     vec3 lightPos;
     vec3 viewPos;
+    mat3 textureMatrix;
 };
 uniform sampler2D baseColorTexture;
 uniform sampler2D metallicRoughnessTexture;
@@ -197,8 +198,12 @@ vec3 ImprovedOrenNayarDiffuse(vec3 baseColor, float metallic, vec3 N, vec3 H, fl
 
 void main() {
     #ifdef BASECOLORTEXTURE
-        vec3 baseColor = srgbToLinear(texture(baseColorTexture, outUV));
-        float alpha = texture(baseColorTexture, outUV).a;
+        vec2 uv = outUV;
+        #ifdef TEXTURE_TRANSFORM
+            uv = ( textureMatrix * vec3(uv.xy, 1.0) ).xy;
+        #endif
+        vec3 baseColor = srgbToLinear(texture(baseColorTexture, uv));
+        float alpha = texture(baseColorTexture, uv).a;
     #else
         vec3 baseColor = baseColorFactor.rgb;
         float alpha = baseColorFactor.a;

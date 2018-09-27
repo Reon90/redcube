@@ -1,6 +1,6 @@
 import { buildArray, getDataType, walk, getAnimationComponent, calculateProjection, createProgram, calculateOffset, getAttributeIndex, calculateBinormals } from './utils';
 import { Mesh, SkinnedMesh, Bone, Camera, Object3D, Scene, Light, UniformBuffer } from './objects/index';
-import { Matrix4, Frustum } from './matrix';
+import { Matrix3, Matrix4, Frustum } from './matrix';
 import { GlTf } from './GLTF';
 
 import vertexShader from './shaders/vertex.glsl';
@@ -149,8 +149,31 @@ export class Parse {
             defines.push({name: 'OCCLUSIONMAP'});
         }
         if (material.pbrMetallicRoughness.baseColorTexture) {
+            const extensions = material.pbrMetallicRoughness.baseColorTexture.extensions;
             material.pbrMetallicRoughness.baseColorTexture = this.textures[material.pbrMetallicRoughness.baseColorTexture.index];
             defines.push({name: 'BASECOLORTEXTURE'});
+
+            if (extensions) {
+                const ex = extensions.KHR_texture_transform;
+                if (ex) {
+                    const translation = ex.offset && new Matrix3().set([1, 0, 0, 0, 1, 0, ex.offset[0], ex.offset[1], 1]);
+                    const rotation = ex.rotation && new Matrix3().set([-Math.sin(ex.rotation), Math.cos(ex.rotation), 0, Math.cos(ex.rotation), Math.sin(ex.rotation), 0, 0, 0, 1]);
+                    const scale = ex.scale && new Matrix3().set([ex.scale[0], 0, 0, 0, ex.scale[1], 0, 0, 0, 1]);
+
+                    const matrix = new Matrix3();
+                    if (scale) {
+                        matrix.multiply(scale);
+                    }
+                    if (rotation) {
+                        matrix.multiply(rotation);
+                    }
+                    if (translation) {
+                        matrix.multiply(translation);
+                    }
+                    material.matrix = matrix;
+                    defines.push({name: 'TEXTURE_TRANSFORM'});
+                }
+            }
         }
         if (material.emissiveTexture) {
             const { texCoord } = material.emissiveTexture;
@@ -372,8 +395,9 @@ export class Parse {
                 materialUniformBuffer.add('baseColorFactor', mesh.material.pbrMetallicRoughness.baseColorFactor || [0.8, 0.8, 0.8, 1.0]);
                 materialUniformBuffer.add('lightPos', this.light.getPosition());
                 materialUniformBuffer.add('viewPos', this._camera.getPosition());
+                materialUniformBuffer.add('textureMatrix', (mesh.material.matrix && mesh.material.matrix.elements) || new Matrix3().elements);
                 materialUniformBuffer.done();
-                
+
                 const mIndex = gl.getUniformBlockIndex(mesh.program, 'Material');
                 gl.uniformBlockBinding(mesh.program, mIndex, 1);
                 const mUBO = gl.createBuffer();

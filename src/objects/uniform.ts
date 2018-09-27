@@ -13,10 +13,23 @@ export class UniformBuffer {
         this.offset = 0;
     }
 
+    getBuffer(v) {
+        const length = v.length;
+        if (length <= 4) {
+            return v;
+        }
+        if (length === 9) {
+            return new Float32Array([v[0], v[1], v[2], 0, v[3], v[4], v[5], 0, v[6], v[7], v[8], 0]);
+        }
+
+        return v;
+    }
+
     add(name, value) {
         this.map.set(name, this.offset);
-        this.tempStore[name] = value;
-        this.offset += Math.max(value.length, 4);
+        const buffer = this.getBuffer(value);
+        this.tempStore[name] = buffer;
+        this.offset += Math.max(buffer.length, 4);
     }
 
     update(gl, name, value) {
