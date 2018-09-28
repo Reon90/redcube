@@ -396,6 +396,7 @@ export class Parse {
                 materialUniformBuffer.add('lightPos', this.light.getPosition());
                 materialUniformBuffer.add('viewPos', this._camera.getPosition());
                 materialUniformBuffer.add('textureMatrix', (mesh.material.matrix && mesh.material.matrix.elements) || new Matrix3().elements);
+                materialUniformBuffer.add('isOutline', new Float32Array([0, 0, 0, 0]));
                 materialUniformBuffer.done();
 
                 const mIndex = gl.getUniformBlockIndex(mesh.program, 'Material');

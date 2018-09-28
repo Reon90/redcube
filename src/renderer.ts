@@ -203,8 +203,11 @@ export class Renderer {
     }
 
     renderScene(isShadow, isLight) {
+        gl.enable(gl.STENCIL_TEST);
         gl.enable(gl.DEPTH_TEST);
         gl.enable(gl.CULL_FACE);
+        gl.stencilOp(gl.KEEP, gl.KEEP, gl.REPLACE);
+        gl.stencilMask(0x00);
 
         if (this.needUpdateView) {
             const planes = Frustum(this.camera.getViewProjMatrix());
@@ -214,9 +217,26 @@ export class Renderer {
             });
         }
 
-        this.scene.opaqueChildren.forEach(mesh => {
+        this.scene.opaqueChildren.forEach((mesh, i) => {
             if (mesh.visible) {
+                if (i == 0) {
+                    gl.stencilFunc(gl.ALWAYS, 1, 0xFF); // каждый фрагмент обновит трафаретный буфер
+                    gl.stencilMask(0xFF); // включить запись в трафаретный буфер
+                }
                 mesh.draw(gl, this.getState(), isShadow, isLight);
+                if (i == 0) {
+                    gl.stencilFunc(gl.NOTEQUAL, 1, 0xFF);
+                    gl.stencilMask(0x00); 
+                    gl.disable(gl.DEPTH_TEST);
+                    mesh.matrix.scale(new Vector3([1.1, 1.1, 1.1]));
+                    mesh.updateMatrix();
+                    mesh.reflow = true;
+
+                    mesh.draw(gl, {...this.getState(), isOutline: true}, isShadow, isLight);
+                    gl.stencilMask(0xFF);
+                    gl.enable(gl.DEPTH_TEST);
+                    gl.disable(gl.STENCIL_TEST);
+                }
             }
         });
         if (this.scene.transparentChildren.length) {

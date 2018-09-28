@@ -22,6 +22,7 @@ uniform Material {
     vec3 lightPos;
     vec3 viewPos;
     mat3 textureMatrix;
+    float isOutline;
 };
 uniform sampler2D baseColorTexture;
 uniform sampler2D metallicRoughnessTexture;
@@ -197,6 +198,11 @@ vec3 ImprovedOrenNayarDiffuse(vec3 baseColor, float metallic, vec3 N, vec3 H, fl
 }
 
 void main() {
+    if (isOutline == 1.0) {
+        color = vec4(1.0);
+        return;
+    }
+
     #ifdef BASECOLORTEXTURE
         vec2 uv = outUV;
         #ifdef TEXTURE_TRANSFORM

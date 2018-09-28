@@ -22,6 +22,17 @@
             top: 0;
             left: 0;
         }
+        #debug {
+            position: absolute;
+            top: 50px;
+            right: 0;
+            background: #fff;
+            overflow: auto;
+            bottom: 0;
+        }
+        #debug .item {
+            display: block;
+        }
     </style>
 </head>
 
@@ -29,10 +40,11 @@
     <div>
         <canvas id="canvas"></canvas>
         <div id="selector"></div>
+        <div id="debug"></div>
     </div>
-    <script src="./dist/redcube.js"></script>
+    <script src="./redcube.js"></script>
     <script>
-        fetch('https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/model-index.json')
+        fetch('examples/model-index.json')
             .then(r => r.json())
             .then(samples => {
                 const name = localStorage.getItem('sample') || 'DamagedHelmet';
@@ -138,8 +150,20 @@
                         select.value =  renderer.parse.cameras[ renderer.parse.cameras.length - 1].name;
                         selector.appendChild(select);
                     }
+
+                    buildDebug(renderer.scene);
                 });
             });
+
+            function buildDebug(scene) {
+                scene.meshes.forEach(m => {
+                    const el = document.createElement('span');
+                    el.innerHTML = m.name;
+                    el.className = 'item';
+                    el.dataset.uuid = m.uuid;
+                    debug.appendChild(el);
+                });
+            }
     </script>
 </body>
 

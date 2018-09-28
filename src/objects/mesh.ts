@@ -100,7 +100,7 @@ export class Mesh extends Object3D {
         };
     }
 
-    draw(gl, {camera, light, preDepthTexture, fakeDepth, needUpdateView, needUpdateProjection, irradiancemap, prefilterMap, brdfLUT}, isShadow, isLight) {
+    draw(gl, {camera, light, preDepthTexture, fakeDepth, needUpdateView, needUpdateProjection, irradiancemap, prefilterMap, brdfLUT, isOutline}, isShadow, isLight) {
         gl.useProgram(this.program);
 
         gl.bindVertexArray(this.geometry.VAO);
@@ -142,6 +142,7 @@ export class Mesh extends Object3D {
                 this.material.uniformBuffer.update(gl, 'lightPos', light.getPosition());
                 this.material.uniformBuffer.update(gl, 'viewPos', camera.getPosition());
             }
+            this.material.uniformBuffer.update(gl, 'isOutline', new Float32Array(isOutline ? [1,1,1,1] : [0, 0, 0, 0]));
         }
 
         gl.uniform1i( gl.getUniformLocation(this.program, 'prefilterMap'), prefilterMap.index);

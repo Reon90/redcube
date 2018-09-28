@@ -10,7 +10,7 @@ class Events {
         const canvas = document.querySelector('#canvas');
         this.redraw = redraw;
         this.zoomValue = 0;
-        document.addEventListener('wheel', this);
+        canvas.addEventListener('wheel', this);
         canvas.addEventListener('mousedown', this);
         canvas.addEventListener('mousemove', this);
         canvas.addEventListener('mouseup', this);
