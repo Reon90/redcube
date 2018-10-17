@@ -1,7 +1,7 @@
 #version 300 es
 precision highp float;
 
-#define IBL 1;
+#define IBL 1
 
 in vec4 vColor;
 in vec2 outUV;

@@ -1,5 +1,5 @@
 import { Scene, Mesh, Camera, Bone } from './objects/index';
-import { Vector2, Vector3, Vector4, Frustum } from './matrix';
+import { Vector, Vector2, Vector3, Vector4, Frustum } from './matrix';
 import { getAnimationComponent, interpolation, walk, getAttributeIndex } from './utils';
 import { Parse } from './parse';
 import { PostProcessing } from './postprocessing';
@@ -83,8 +83,8 @@ export class Renderer {
                 vectorC = Vector3;
             } else if (component === 4) {
                 vectorC = Vector4;
-            } else if (component === 2) {
-                vectorC = Vector2;
+            } else {
+                vectorC = Vector;
             }
             const vector = new vectorC(startFrame.value);
             const vector2 = new vectorC(endFrame.value);
@@ -104,21 +104,28 @@ export class Renderer {
                     mesh.matrix.scale(out);
                 }
             } else if (v.type === 'weights') {
-                const out = new Vector2;
+                const out = new Vector(vector.elements);
                 out.lerp(vector.elements, vector2.elements, t);
 
                 for (const mesh of v.meshes) {
                     const geometry = {};
 
                     for (const k in mesh.geometry.targets[0]) {
-                        let offset = 0;
-                        geometry[k] = new Float32Array(mesh.geometry.attributes[k].length);
-                        for (let i = 0; i < geometry[k].length; i++) {
-                            if (k === 'TANGENT' && (i + 1) % 4 === 0) {
-                                offset++;
+                        if (k !== 'POSITION') continue;
+                        geometry[k] = mesh.geometry.attributes[k].slice();
+                        for (let i = 0; i < out.elements.length; i++) {
+                            if (out.elements[i] === 0) {
                                 continue;
                             }
-                            geometry[k][i] = mesh.geometry.attributes[k][i] + out.elements[0] * mesh.geometry.targets[0][k][i - offset] + out.elements[1] * mesh.geometry.targets[1][k][i - offset];
+
+                            let offset = 0;
+                            for (let l = 0; l < geometry[k].length; l++) {
+                                // if (k === 'TANGENT' && (l + 1) % 4 === 0) {
+                                //     offset++;
+                                //     continue;
+                                // }
+                                geometry[k][l] += out.elements[i] * mesh.geometry.targets[i][k][l - offset];
+                            }
                         }
                     }
 

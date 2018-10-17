@@ -71,7 +71,7 @@ export class Camera extends Object3D {
         const coordsMoveWorld = canvasToWorld(coordsMove, this.projection, width, height);
         const p0 = new Vector3(sceneToArcBall(coordsStartWorld));
         const p1 = new Vector3(sceneToArcBall(coordsMoveWorld));
-        const angle = Vector3.angle(p1, p0) * 10 / this.props.aspect;
+        const angle = Vector3.angle(p1, p0) * 30 / this.props.aspect;
         if (angle < 1e-6 || isNaN(angle)) {
             return;
         }

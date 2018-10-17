@@ -227,7 +227,10 @@ export class Parse {
                         offset++;
                         continue;
                     }
-                    vertexBuffers[k][i] = geometry[i] + weights[0] * targets[0][k][i - offset] + weights[1] * targets[1][k][i - offset];
+                    vertexBuffers[k][i] = geometry[i] + 
+                    weights.reduce((a, b, index) => {
+                        return a + weights[index] * targets[index][k][i - offset];
+                    }, 0);
                 }
             }
         }
@@ -244,6 +247,7 @@ export class Parse {
         mesh.setIndicesBuffer(indicesBuffer);
         mesh.setBoundingBox(boundingBox);
         mesh.setTargets(targets);
+        mesh.setDefines(defines);
         mesh.updateMatrix();
 
         const VAO = gl.createVertexArray();
@@ -463,8 +467,18 @@ export class Parse {
                     const inputArray = buildArray(this.arrayBuffer[inputBuffer.buffer], inputAccessor.componentType, calculateOffset(inputBuffer.byteOffset, inputAccessor.byteOffset), getDataType(inputAccessor.type) * inputAccessor.count);
                     const outputArray = buildArray(this.arrayBuffer[outputBuffer.buffer], outputAccessor.componentType, calculateOffset(outputBuffer.byteOffset, outputAccessor.byteOffset), getDataType(outputAccessor.type) * outputAccessor.count);
 
-                    const component = getAnimationComponent(target.path);
+                    const meshes = [];
+                    walk(this.scene, node => {
+                        if (node.name === name) {
+                            if (target.path === 'weights' && node instanceof Object3D) {
+                                // eslint-disable-next-line
+                                node = node.children[0];
+                            }
+                            meshes.push(node);
+                        }
+                    });
 
+                    const component = getAnimationComponent(target.path) || meshes[0].geometry.targets.length;
                     const keys = [];
                     for (let i = 0; i < inputArray.length; i++) {
                         const firstT = inputArray[i];
@@ -476,17 +490,6 @@ export class Parse {
                         });
                     }
                     this.duration = Math.max(keys[keys.length - 1].time, this.duration);
-
-                    const meshes = [];
-                    walk(this.scene, node => {
-                        if (node.name === name) {
-                            if (target.path === 'weights' && node instanceof Object3D) {
-                                // eslint-disable-next-line
-                                node = node.children[0];
-                            }
-                            meshes.push(node);
-                        }
-                    });
 
                     if ( meshes.length ) {
                         this.tracks.push({

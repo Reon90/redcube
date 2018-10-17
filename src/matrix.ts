@@ -639,6 +639,24 @@ class Matrix4 {
     }
 }
 
+class Vector {
+    elements: Float32Array;
+
+    constructor(src: Float32Array) {
+        this.elements = src.slice();
+    }
+
+    lerp(a, b, t) {
+        const out = this.elements;
+
+        for (let i = 0; i < out.length; i++) {
+            out[i] = a[i] + t * (b[i] - a[i]);
+        }
+
+        return this;
+    }
+}
+
 /**
  * Constructor of Vector3
  * If opt_src is specified, new vector is initialized by opt_src.
@@ -1064,4 +1082,4 @@ function Frustum( m ) {
     return planes;
 }
 
-export { Matrix2, Matrix3, Matrix4, Vector2, Vector3, Vector4, Frustum };
+export { Matrix2, Matrix3, Matrix4, Vector, Vector2, Vector3, Vector4, Frustum };

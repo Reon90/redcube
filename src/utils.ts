@@ -122,9 +122,7 @@ export function getMethod(type) {
 export function getAnimationComponent(type) {
     if (type === 'rotation') {
         return 4;
-    } else if (type === 'weights') {
-        return 2;
-    } else {
+    } else if (type === 'translation' || type === 'scale') {
         return 3;
     }
 }

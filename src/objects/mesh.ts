@@ -85,6 +85,10 @@ export class Mesh extends Object3D {
         this.mode = 4;
     }
 
+    setDefines(defines) {
+        this.defines = defines;
+    }
+
     setBlend(value) {
         this.material.blend = value;
     }
