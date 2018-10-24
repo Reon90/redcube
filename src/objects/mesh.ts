@@ -1,7 +1,7 @@
 import { Matrix4, Vector3 } from '../matrix';
 import { Material } from '../GLTF';
 import { Object3D } from './object3d';
-import { UniformBuffer } from './uniform';
+import { Geometry } from './geometry';
 
 interface MeshMaterial extends Material {
     blend: string;
@@ -17,33 +17,6 @@ interface Uniforms {
     emissiveTexture: WebGLUniformLocation;
 }
 
-interface Geometry {
-    UBO: WebGLBuffer;
-    VAO: WebGLBuffer;
-    uniformBuffer: UniformBuffer;
-    indicesBuffer: Float32Array;
-    attributes: Attributes;
-    targets: Attributes;
-    blend: string;
-    uniforms: object;
-    SKIN: WebGLBuffer;
-    boundingSphere: BoundingSphere;
-}
-interface Attributes {
-    'POSITION': Float32Array;
-    'NORMAL': Float32Array;
-    'TEXCOORD_0': Float32Array;
-    'JOINTS_0': Float32Array;
-    'WEIGHTS_0': Float32Array;
-    'TANGENT': Float32Array;
-}
-interface BoundingSphere {
-    min: Vector3;
-    max: Vector3;
-    center: Vector3;
-    radius: number;
-}
-
 export class Mesh extends Object3D {
     geometry: Geometry;
     material: MeshMaterial;
@@ -56,23 +29,6 @@ export class Mesh extends Object3D {
     constructor(name, parent) {
         super(name, parent);
 
-        this.geometry = {
-            boundingSphere: {
-                center: new Vector3,
-                radius: null,
-                min: null,
-                max: null
-            },
-            uniformBuffer: null,
-            UBO: null,
-            VAO: null,
-            indicesBuffer: null,
-            attributes: null,
-            targets: null,
-            blend: null,
-            uniforms: null,
-            SKIN: null
-        };
         this.material = {
             blend: null,
             uniforms: null,
@@ -204,37 +160,8 @@ export class Mesh extends Object3D {
         }
     }
 
-    calculateBounding() {
-        const vertices = this.geometry.attributes.POSITION;
-        let maxRadiusSq = 0;
-
-        this.geometry.boundingSphere.center
-            .add( this.geometry.boundingSphere.min )
-            .add( this.geometry.boundingSphere.max )
-            .scale( 0.5 );
-        
-        for (let i = 0; i < vertices.length; i = i + 3) {
-            maxRadiusSq = Math.max( maxRadiusSq, this.geometry.boundingSphere.center.distanceToSquared( vertices[i], vertices[i + 1], vertices[i + 2] ) );
-        }
-        this.geometry.boundingSphere.radius = Math.sqrt( maxRadiusSq );
-    }
-
-    setBoundingBox({min, max}) {
-        this.geometry.boundingSphere.min = new Vector3(min);
-        this.geometry.boundingSphere.max = new Vector3(max);
-        this.calculateBounding();
-    }
-
-    setIndicesBuffer(value) {
-        this.geometry.indicesBuffer = value;
-    }
-
-    setAttributes(value) {
-        this.geometry.attributes = value;
-    }
-
-    setTargets(value) {
-        this.geometry.targets = value;
+    setGeometry(geometry) {
+        this.geometry = geometry;
     }
 
     setProgram(value) {

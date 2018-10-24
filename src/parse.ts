@@ -5,6 +5,7 @@ import { GlTf } from './GLTF';
 
 import vertexShader from './shaders/vertex.glsl';
 import fragmentShader from './shaders/fragment.glsl';
+import { Geometry } from './objects/geometry';
 
 let gl;
 
@@ -21,14 +22,6 @@ interface Key {
 }
 interface Skin {
     jointNames: Array<number>;
-}
-interface Attributes {
-    'POSITION'?: Float32Array;
-    'NORMAL'?: Float32Array;
-    'TEXCOORD_0'?: Float32Array;
-    'JOINTS_0'?: Float32Array;
-    'WEIGHTS_0'?: Float32Array;
-    'TANGENT'?: Float32Array;
 }
 interface texturesMap {
     name?: string;
@@ -108,33 +101,8 @@ export class Parse {
             });
     }
 
-    buildPrim(parent, name, skin, weights, p) {
-        const indicesAccessor = this.json.accessors[p.indices];
-        const vertexAccessor = new Map;
-        for (const a in p.attributes) {
-            vertexAccessor.set(a, this.json.accessors[p.attributes[a]]);
-        }
-
-        const targets = [];
-        if (p.targets) {
-            for (const target of p.targets) {
-                const vertexAcc = {};
-                for (const a in target) {
-                    vertexAcc[a] = this.json.accessors[target[a]];
-                    const accessor = vertexAcc[a];
-                    const bufferView = this.json.bufferViews[accessor.bufferView];
-                    vertexAcc[a] = buildArray(
-                        this.arrayBuffer[bufferView.buffer], 
-                        accessor.componentType, 
-                        calculateOffset(bufferView.byteOffset, accessor.byteOffset), 
-                        getDataType(accessor.type) * accessor.count
-                    );
-                }
-                targets.push(vertexAcc);
-            }
-        }
-
-        const material = p.material !== undefined ? JSON.parse(JSON.stringify(this.json.materials[p.material])) : {pbrMetallicRoughness: {baseColorFactor: [0.8, 0.8, 0.8, 1.0]}};
+    buildPrim(parent, name, skin, weights, primitive) {
+        const material = primitive.material !== undefined ? JSON.parse(JSON.stringify(this.json.materials[primitive.material])) : {pbrMetallicRoughness: {baseColorFactor: [0.8, 0.8, 0.8, 1.0]}};
         const defines = [...this.defines];
         if (material.pbrMetallicRoughness.metallicRoughnessTexture) {
             material.pbrMetallicRoughness.metallicRoughnessTexture = this.textures[material.pbrMetallicRoughness.metallicRoughnessTexture.index];
@@ -184,7 +152,7 @@ export class Parse {
         if (skin !== undefined) {
             defines.push({name: 'JOINTNUMBER', value: this.skins[skin].jointNames.length});
         }
-        if (p.attributes.TANGENT || material.normalTexture) {
+        if (primitive.attributes.TANGENT || material.normalTexture) {
             defines.push({name: 'TANGENT'});
         }
 
@@ -203,72 +171,15 @@ export class Parse {
             this.programs[defines.map(define => `${define.name}${define.value || 1}`).join('')] = program;
         }
 
-        let indicesBuffer;
-        if (indicesAccessor) {
-            const bufferView = this.json.bufferViews[indicesAccessor.bufferView];
-            indicesBuffer = buildArray(this.arrayBuffer[bufferView.buffer], indicesAccessor.componentType, calculateOffset(bufferView.byteOffset, indicesAccessor.byteOffset), getDataType(indicesAccessor.type) * indicesAccessor.count);
-        }
-        const boundingBox = {
-            min: vertexAccessor.get('POSITION').min,
-            max: vertexAccessor.get('POSITION').max
-        };
-        const vertexBuffers: Attributes = {};
-        for (const k of vertexAccessor.keys()) {
-            const accessor = vertexAccessor.get(k);
-            const bufferView = this.json.bufferViews[accessor.bufferView];
-            vertexBuffers[k] = buildArray(this.arrayBuffer[bufferView.buffer], accessor.componentType, calculateOffset(bufferView.byteOffset, accessor.byteOffset), getDataType(accessor.type) * accessor.count, bufferView.byteStride, accessor.count);
-
-            if (p.targets && k in p.targets[0]) {
-                let offset = 0;
-                const geometry = vertexBuffers[k];
-                vertexBuffers[k] = new Float32Array(geometry.length);
-                for (let i = 0; i < vertexBuffers[k].length; i++) {
-                    if (k === 'TANGENT' && (i + 1) % 4 === 0) {
-                        offset++;
-                        continue;
-                    }
-                    vertexBuffers[k][i] = geometry[i] + 
-                    weights.reduce((a, b, index) => {
-                        return a + weights[index] * targets[index][k][i - offset];
-                    }, 0);
-                }
-            }
-        }
-        if (material.normalTexture && p.attributes.TANGENT === undefined) {
-            vertexBuffers.TANGENT = calculateBinormals(indicesBuffer, vertexBuffers.POSITION, vertexBuffers.NORMAL, vertexBuffers.TEXCOORD_0);
-        }
-
         const mesh = skin !== undefined ? new SkinnedMesh(name, parent).setSkin(skin) : new Mesh(name, parent);
+        const geometry = new Geometry(gl, this.json, this.arrayBuffer, weights, primitive, material.normalTexture);
         
         mesh.setProgram(program);
-        mesh.setMode(p.mode);
+        mesh.setMode(primitive.mode);
         mesh.setMaterial(material);
-        mesh.setAttributes(vertexBuffers);
-        mesh.setIndicesBuffer(indicesBuffer);
-        mesh.setBoundingBox(boundingBox);
-        mesh.setTargets(targets);
+        mesh.setGeometry(geometry);
         mesh.setDefines(defines);
         mesh.updateMatrix();
-
-        const VAO = gl.createVertexArray();
-        gl.bindVertexArray(VAO);
-
-        for (const k in vertexBuffers) {
-            const VBO = gl.createBuffer();
-            gl.bindBuffer(gl.ARRAY_BUFFER, VBO);
-            gl.bufferData(gl.ARRAY_BUFFER, vertexBuffers[k], gl.STATIC_DRAW);
-            const index = getAttributeIndex(k);
-            gl.enableVertexAttribArray(index[0]);
-            gl.vertexAttribPointer(index[0], index[1], index[2], false, 0, 0);
-        }
-        if (indicesBuffer) {
-            const VBO = gl.createBuffer();
-            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, VBO);
-            gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indicesBuffer, gl.STATIC_DRAW);
-        }
-        mesh.geometry.VAO = VAO;
-
-        gl.bindVertexArray(null);
 
         if (material.pbrMetallicRoughness.baseColorTexture) {
             mesh.material.uniforms.baseColorTexture = gl.getUniformLocation(mesh.program, 'baseColorTexture');
