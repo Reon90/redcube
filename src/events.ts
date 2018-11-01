@@ -83,6 +83,7 @@ class Events {
     }
 
     zoom(e) {
+        e.preventDefault();
         this.zoomValue = Math.min(this.zoomValue + e.deltaY, 1250);
         this.redraw('zoom', Math.pow(1.001, this.zoomValue));
     }

@@ -209,7 +209,7 @@ export class PostProcessing {
 
         const colorRB = gl.createRenderbuffer();
         gl.bindRenderbuffer(gl.RENDERBUFFER, colorRB);
-        gl.renderbufferStorageMultisample(gl.RENDERBUFFER, this.MSAA, gl.RGBA8, this.width, this.height);
+        gl.renderbufferStorageMultisample(gl.RENDERBUFFER, this.MSAA, gl.RGBA16F, this.width, this.height);
 
         const normalRB = gl.createRenderbuffer();
         gl.bindRenderbuffer(gl.RENDERBUFFER, normalRB);
@@ -229,7 +229,7 @@ export class PostProcessing {
         this.framebuffer = gl.createFramebuffer();
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
 
-        this.screenTexture = this.createByteTexture();
+        this.screenTexture = this.createDefaultTexture();
         this.normalTexture = this.createDefaultTexture();
         this.depthTexture = this.createDepthTexture();
 

@@ -8,10 +8,11 @@ import { Env } from './env';
 import { Parse } from './parse';
 import { PostProcessing } from './postprocessing';
 import { Particles } from './particles';
-import { setGl } from './utils';
+import { setGl, clearColor } from './utils';
 import { Light as PPLight } from './postprocessors/light';
 
 let gl;
+const FOV = 15; // degrees
 
 class RedCube {
     gl: WebGLRenderingContext;
@@ -21,7 +22,7 @@ class RedCube {
     ioc: Container;
     click: Array<number>;
 
-    constructor(url, canvas, processors) {
+    constructor(url, canvas, processors, envUrl, mode) {
         this.canvas = canvas;
         this.processors = processors;
 
@@ -32,16 +33,19 @@ class RedCube {
         if (processors.some(p => p === 'shadow')) {
             defines.push({name: 'SHADOWMAP'});
         }
+        if (mode === 'pbr') {
+            defines.push({name: 'USE_PBR'});
+        }
 
         this.ioc = new Container;
-        this.ioc.register('env', Env, ['camera', 'canvas', 'gl']);
+        this.ioc.register('env', Env, ['camera', 'canvas', 'gl'], envUrl);
         this.ioc.register('camera', Camera, [], {
             type: 'perspective', 
             isInitial: true,
             zoom: 1,
             aspect: this.canvas.offsetWidth / this.canvas.offsetHeight,
             perspective: {
-                yfov: 0.6
+                yfov: FOV * Math.PI / 180
             }
         });
         this.ioc.register('canvas', canvas);
@@ -62,25 +66,25 @@ class RedCube {
         return this.ioc.get('renderer');
     }
 
-    get scene () {
+    get scene() {
         return this.ioc.get('scene');
     }
-    get camera () {
+    get camera() {
         return this.ioc.get('camera');
     }
-    get light () {
+    get light() {
         return this.ioc.get('light');
     }
-    get env () {
+    get env() {
         return this.ioc.get('env');
     }
-    get PP () {
+    get PP() {
         return this.ioc.get('pp');
     }
-    get Particles () {
+    get Particles() {
         return this.ioc.get('particles');
     }
-    get parse () {
+    get parse() {
         return this.ioc.get('parser');
     }
 
@@ -136,7 +140,7 @@ class RedCube {
         gl.viewport( 0, 0, this.canvas.offsetWidth * devicePixelRatio, this.canvas.offsetHeight * devicePixelRatio);
 
         if (this.camera.props.isInitial) {
-            const z = 1 / this.canvas.width * this.camera.modelSize * 3000 * devicePixelRatio;
+            const z = 10000 / this.canvas.width * this.camera.modelSize * devicePixelRatio;
             this.camera.setZ(z);
             this.light.setZ(z);
             this.light.update(Math.PI / 2);
@@ -157,7 +161,7 @@ class RedCube {
     }
 
     glInit() {
-        gl = this.canvas.getContext('webgl2', { antialias: false });
+        gl = this.canvas.getContext('webgl2', { antialias: this.processors.length === 0 });
         this.gl = gl;
 
         if (!gl) {
@@ -169,7 +173,7 @@ class RedCube {
     }
 
     draw() {
-        gl.clearColor(0, 0, 0, 1);
+        gl.clearColor(...clearColor);
 
         this.renderer.render();
     }

@@ -44,8 +44,10 @@ export class Env {
     prefilterrender: WebGLRenderbuffer;
     brdfbuffer: FrameBuffer;
     canvas: HTMLCanvasElement;
+    url: string;
 
-    constructor() {
+    constructor(url) {
+        this.url = url;
         this.envMatrix = new Matrix4;
     }
 
@@ -73,7 +75,7 @@ export class Env {
         const m = new Matrix4;
         const cam = Object.assign({}, this._camera.props, {
             perspective: {
-                yfov: Math.PI / 2,
+                yfov: 0.3,
                 znear: 0.01,
                 zfar: 10000
             }
@@ -115,7 +117,7 @@ export class Env {
         gl.useProgram(program);
         gl.bindVertexArray(this.VAO);
         gl.uniformMatrix4fv(gl.getUniformLocation(program, 'projection'), false, m.elements);
-        gl.uniform1i(gl.getUniformLocation(program, 'environmentMap'), this.prefilterMap.index);
+        gl.uniform1i(gl.getUniformLocation(program, 'environmentMap'), this.map.index);
         gl.uniformMatrix4fv(gl.getUniformLocation(program, 'view'), false, this._camera.matrixWorldInvert.elements);
         gl.drawArrays(gl.TRIANGLES, 0, 36);
     }
@@ -124,6 +126,7 @@ export class Env {
         gl.enable(gl.CULL_FACE);
         const m = new Matrix4;
         const cam = Object.assign({}, this._camera.props, {
+            aspect: 1,
             perspective: {
                 yfov: Math.PI / 2,
                 znear: 0.01,
@@ -142,7 +145,7 @@ export class Env {
             gl.uniform1i(gl.getUniformLocation(this.cubeprogram, 'diffuse'), this.texture.index);
             const maxMipLevels = 5;
             for (let mip = 0; mip < maxMipLevels; ++mip) {
-                const mipWidth  = this.framebuffer.size * Math.pow(0.5, mip);
+                const mipWidth = this.framebuffer.size * Math.pow(0.5, mip);
                 const mipHeight = this.framebuffer.size * Math.pow(0.5, mip);
 
                 gl.viewport(0, 0, mipWidth, mipHeight);
@@ -189,7 +192,7 @@ export class Env {
             gl.uniform1i(gl.getUniformLocation(this.mipmapcubeprogram, 'environmentMap'), this.map.index);
             const maxMipLevels = 5;
             for (let mip = 0; mip < maxMipLevels; ++mip) {
-                const mipWidth  = this.prefilterbuffer.size * Math.pow(0.5, mip);
+                const mipWidth = this.prefilterbuffer.size * Math.pow(0.5, mip);
                 const mipHeight = this.prefilterbuffer.size * Math.pow(0.5, mip);
 
                 gl.viewport(0, 0, mipWidth, mipHeight);
@@ -342,47 +345,47 @@ export class Env {
         });
 
         const verts = [         
-            -1.0,  1.0, -1.0,
+            -1.0, 1.0, -1.0,
             -1.0, -1.0, -1.0,
-             1.0, -1.0, -1.0,
-             1.0, -1.0, -1.0,
-             1.0,  1.0, -1.0,
-            -1.0,  1.0, -1.0,
+            1.0, -1.0, -1.0,
+            1.0, -1.0, -1.0,
+            1.0, 1.0, -1.0,
+            -1.0, 1.0, -1.0,
     
-            -1.0, -1.0,  1.0,
+            -1.0, -1.0, 1.0,
             -1.0, -1.0, -1.0,
-            -1.0,  1.0, -1.0,
-            -1.0,  1.0, -1.0,
-            -1.0,  1.0,  1.0,
-            -1.0, -1.0,  1.0,
+            -1.0, 1.0, -1.0,
+            -1.0, 1.0, -1.0,
+            -1.0, 1.0, 1.0,
+            -1.0, -1.0, 1.0,
     
-             1.0, -1.0, -1.0,
-             1.0, -1.0,  1.0,
-             1.0,  1.0,  1.0,
-             1.0,  1.0,  1.0,
-             1.0,  1.0, -1.0,
-             1.0, -1.0, -1.0,
+            1.0, -1.0, -1.0,
+            1.0, -1.0, 1.0,
+            1.0, 1.0, 1.0,
+            1.0, 1.0, 1.0,
+            1.0, 1.0, -1.0,
+            1.0, -1.0, -1.0,
     
-            -1.0, -1.0,  1.0,
-            -1.0,  1.0,  1.0,
-             1.0,  1.0,  1.0,
-             1.0,  1.0,  1.0,
-             1.0, -1.0,  1.0,
-            -1.0, -1.0,  1.0,
+            -1.0, -1.0, 1.0,
+            -1.0, 1.0, 1.0,
+            1.0, 1.0, 1.0,
+            1.0, 1.0, 1.0,
+            1.0, -1.0, 1.0,
+            -1.0, -1.0, 1.0,
     
-            -1.0,  1.0, -1.0,
-             1.0,  1.0, -1.0,
-             1.0,  1.0,  1.0,
-             1.0,  1.0,  1.0,
-            -1.0,  1.0,  1.0,
-            -1.0,  1.0, -1.0,
+            -1.0, 1.0, -1.0,
+            1.0, 1.0, -1.0,
+            1.0, 1.0, 1.0,
+            1.0, 1.0, 1.0,
+            -1.0, 1.0, 1.0,
+            -1.0, 1.0, -1.0,
     
             -1.0, -1.0, -1.0,
-            -1.0, -1.0,  1.0,
-             1.0, -1.0, -1.0,
-             1.0, -1.0, -1.0,
-            -1.0, -1.0,  1.0,
-             1.0, -1.0,  1.0
+            -1.0, -1.0, 1.0,
+            1.0, -1.0, -1.0,
+            1.0, -1.0, -1.0,
+            -1.0, -1.0, 1.0,
+            1.0, -1.0, 1.0
         ];
 
         this.VAO = gl.createVertexArray();
@@ -401,8 +404,8 @@ export class Env {
         this.mipmapcubeprogram = createProgram(vertex, cubeMipmap);
         this.bdrfprogram = createProgram(quad, bdrf);
 
-        return fetch(`src/images/env.hdr`).then(res => res.arrayBuffer()).then(buffer => {
-            const data = parseHDR(buffer).data;
+        return fetch(`src/images/${this.url}.hdr`).then(res => res.arrayBuffer()).then(buffer => {
+            const { data } = parseHDR(buffer);
 
             this.texture = createTexture();
             gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);

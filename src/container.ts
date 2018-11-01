@@ -60,11 +60,12 @@ export class Container {
                 instance[`set${name.charAt(0).toUpperCase() + name.slice(1)}`].call(instance, definition);
             }
         }
+        this._singletons.set(name, definition);
     }
 
     _getResolvedDependencies(service) {
-        let classDependencies = []
-        if(service.dependencies) {
+        let classDependencies = [];
+        if (service.dependencies) {
             classDependencies = service.dependencies.map(dep => {
                 return [dep, this.get(dep)];
             });

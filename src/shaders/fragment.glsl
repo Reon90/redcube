@@ -1,9 +1,11 @@
 #version 300 es
 precision highp float;
 
-#define IBL 1;
+#define IBL 1
 
+in vec4 vColor;
 in vec2 outUV;
+in vec2 outUV2;
 in vec3 outPosition;
 in vec4 outPositionView;
 #ifdef TANGENT
@@ -19,6 +21,7 @@ uniform Material {
     vec4 baseColorFactor;
     vec3 lightPos;
     vec3 viewPos;
+    mat3 textureMatrix;
     vec4 isSelected;
 };
 uniform sampler2D baseColorTexture;
@@ -32,7 +35,9 @@ uniform sampler2D   brdfLUT;
 uniform samplerCube irradianceMap;
 uniform sampler2D depthTexture;
 
+const float RECIPROCAL_PI = 0.31830988618;
 const float PI = 3.14159265359;
+const float EPSILON = 1e-6;
 const float ambientStrength = 0.1;
 const float specularStrength = 2.5;
 const float specularPower = 32.0;
@@ -44,12 +49,28 @@ const vec3 lightColor = vec3(1.0, 1.0, 1.0);
 const vec3 emissiveFactor = vec3(1.0, 1.0, 1.0);
 const float gamma = 2.2;
 
+vec2 getUV(int index) {
+    if (index == 1) {
+        return outUV;
+    } else {
+        return outUV2;
+    }
+}
+
 float ShadowCalculation(vec4 fragPosLightSpace, float bias) {
     vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
     projCoords = projCoords * 0.5 + 0.5;
-    float closestDepth = texture(depthTexture, projCoords.xy).r; 
     float currentDepth = projCoords.z;
-    float shadow = currentDepth - bias > closestDepth ? 0.5 : 0.0;
+
+    float shadow = 0.0;
+    vec2 texelSize = 1.0 / vec2(textureSize(depthTexture, 0));
+    for (int x = -2; x <= 2; ++x) {
+        for (int y = -2; y <= 2; ++y) {
+            float pcfDepth = texture(depthTexture, projCoords.xy + vec2(x, y) * texelSize).r;
+            shadow += currentDepth - bias > pcfDepth ? 0.5 : 0.0;
+        }
+    }
+    shadow /= 25.0;
 
     return shadow;
 }
@@ -93,12 +114,15 @@ float GeometrySmith(vec3 N, vec3 V, vec3 L, float roughness) {
 vec3 fresnelSchlick(float cosTheta, vec3 F0) {
     return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
 }
+vec3 fresnelSchlickRoughness(float cosTheta, vec3 F0, float roughness) {
+    return F0 + (max(vec3(1.0 - roughness), F0) - F0) * pow(1.0 - cosTheta, 5.0);
+} 
 
 vec3 IBLAmbient(vec3 baseColor, float metallic, vec3 n, vec3 H, float roughness, vec3 viewDir, vec3 lightDir, float ao) {
     vec3 F0 = vec3(0.04);
     F0 = mix(F0, baseColor, metallic);
 
-    vec3 F = fresnelSchlick(max(dot(H, viewDir), 0.0), F0);    
+    vec3 F = fresnelSchlickRoughness(max(dot(n, viewDir), 0.0), F0, roughness);
 
     vec3 kD = vec3(1.0) - F;
     kD *= 1.0 - metallic;
@@ -145,14 +169,56 @@ vec3 LambertDiffuse(vec3 baseColor, float metallic, vec3 n, vec3 H, float roughn
     return baseColor * kD / PI;
 }
 
+float saturate(float a) {
+	if (a > 1.0f) return 1.0f;
+	if (a < 0.0f) return 0.0f;
+	return a;
+}
+vec3 ImprovedOrenNayarDiffuse(vec3 baseColor, float metallic, vec3 N, vec3 H, float a, vec3 V, vec3 L) {
+    vec3 F0 = vec3(0.04);
+    F0 = mix(F0, baseColor, metallic);
+    vec3 F = fresnelSchlick(max(dot(H, V), 0.0), F0);
+    vec3 kD = vec3(1.0) - F;
+    kD *= 1.0 - metallic;
+    vec3 diffuseColor = baseColor * kD;
+	// calculate intermediary values
+	float dotNL = saturate(dot(N, L));
+	float dotNV = saturate(dot(N, V));
+	float dotLV = saturate(dot(L, V));
+	float dotLH = saturate(dot(L, H));
+
+	float s = dotLV - dotNL * dotNV;
+	float t = mix(1.0, max(dotNL, dotNV), step(0.0, s));
+	float st = s * (1.0 / (t + EPSILON));
+
+	float sigma2 = a;
+	vec3 A = diffuseColor * (0.17 * sigma2 / (sigma2 + 0.13)) + vec3(1.0 - 0.5 * sigma2 / (sigma2 + 0.33));
+	float B = 0.45 * sigma2 / (sigma2 + 0.09);
+	return (diffuseColor * max(0.0, dotNL)) * (A + vec3(B * s / t) / PI);
+}
+
 void main() {
     #ifdef BASECOLORTEXTURE
-        vec3 baseColor = srgbToLinear(texture(baseColorTexture, outUV));
-        float alpha = texture(baseColorTexture, outUV).a;
+        vec2 uv = outUV;
+        #ifdef TEXTURE_TRANSFORM
+            uv = ( textureMatrix * vec3(uv.xy, 1.0) ).xy;
+        #endif
+        vec3 baseColor = srgbToLinear(texture(baseColorTexture, uv));
+        float alpha = texture(baseColorTexture, uv).a;
     #else
         vec3 baseColor = baseColorFactor.rgb;
         float alpha = baseColorFactor.a;
     #endif
+
+    #ifdef ALPHATEST
+    if ( alpha < ALPHATEST ) {
+        discard;
+    }
+    #endif
+
+    if ( length(vColor.rgb) != 0.0 ) {
+        baseColor.rgb *= vColor.rgb;
+    }
 
     #ifdef OCCLUSIONMAP
         float ao = texture(occlusionTexture, outUV).r;
@@ -163,6 +229,9 @@ void main() {
     #ifdef METALROUGHNESSMAP
         float roughness = texture(metallicRoughnessTexture, outUV).g;
         float metallic = texture(metallicRoughnessTexture, outUV).b;
+    #else
+        float roughness = 0.5;
+        float metallic = 0.5;
     #endif
 
     #ifdef TANGENT
@@ -192,7 +261,7 @@ void main() {
 
     #ifdef USE_PBR
         vec3 specular = CookTorranceSpecular(baseColor, metallic, n, H, roughness, viewDir, lightDir);
-        vec3 diffuse = LambertDiffuse(baseColor, metallic, n, H, roughness, viewDir, lightDir);
+        vec3 diffuse = ImprovedOrenNayarDiffuse(baseColor, metallic, n, H, roughness, viewDir, lightDir);
 
         vec3 ambient = vec3(0.0);
         #ifdef IBL
@@ -203,7 +272,7 @@ void main() {
 
         vec3 emissive = vec3(0.0);
         #ifdef EMISSIVEMAP
-            emissive = srgbToLinear(texture(emissiveTexture, outUV)) * emissiveFactor;
+            emissive = srgbToLinear(texture(emissiveTexture, getUV(EMISSIVEMAP))) * emissiveFactor;
         #endif
 
         color = vec4(shadow * (emissive + ambient + (diffuse + specular) * radiance * NdotL), isSelected.r);

@@ -3,6 +3,7 @@ import { Matrix2, Matrix3, Matrix4, Vector2, Vector3, Vector4 } from './matrix';
 const glEnum = {};
 let gl;
 let screenTextureCount = -1;
+export const clearColor = [0, 0, 0, 1];
 
 export function getTextureIndex() {
     screenTextureCount++;
@@ -121,9 +122,7 @@ export function getMethod(type) {
 export function getAnimationComponent(type) {
     if (type === 'rotation') {
         return 4;
-    } else if (type === 'weights') {
-        return 2;
-    } else {
+    } else if (type === 'translation' || type === 'scale') {
         return 3;
     }
 }
@@ -191,21 +190,27 @@ export function buildArray(arrayBuffer, type, offset, length, stride?, count?) {
     switch (glEnum[type]) {
     case 'BYTE':
         arr = new Int8Array(arrayBuffer, offset, length);
+        arr.type = 'BYTE';
         break;
     case 'UNSIGNED_BYTE':
         arr = new Uint8Array(arrayBuffer, offset, length);
+        arr.type = 'UNSIGNED_BYTE';
         break;
     case 'SHORT':
         arr = new Int16Array(arrayBuffer, offset, length);
+        arr.type = 'SHORT';
         break;
     case 'UNSIGNED_SHORT':
         arr = new Uint16Array(arrayBuffer, offset, length);
+        arr.type = 'UNSIGNED_SHORT';
         break;
     case 'UNSIGNED_INT':
         arr = new Uint32Array(arrayBuffer, offset, length);
+        arr.type = 'UNSIGNED_INT';
         break;
     case 'FLOAT':
         arr = new Float32Array(arrayBuffer, offset, length);
+        arr.type = 'FLOAT';
         break;
     }
     if (stride && stride !== getCount(type) * c) {
@@ -217,6 +222,8 @@ export function buildArray(arrayBuffer, type, offset, length, stride?, count?) {
             stridedArr[i + 2] = arr[j + 2];
             j = j + c * (stride / getCount(type) / c);
         }
+        // @ts-ignore
+        stridedArr.type = arr.type;
         return stridedArr;
     }
     return arr;
@@ -326,7 +333,7 @@ export function calculateProjection(cam) {
         const {yfov} = cam.perspective;
         const xfov = yfov * aspect;
 
-        proj = new Matrix4().setPerspective(xfov * zoom * (180 / Math.PI), aspect, cam.perspective.znear || 1, cam.perspective.zfar || 2e6);
+        proj = new Matrix4().setPerspective(xfov * zoom, aspect, cam.perspective.znear || 1, cam.perspective.zfar || 2e6);
     } else if ( cam.type === 'orthographic' && cam.orthographic ) {
         proj = new Matrix4().setOrtho( cam.orthographic.xmag * zoom, cam.orthographic.ymag * zoom, cam.orthographic.znear, cam.orthographic.zfar);
     }
@@ -361,6 +368,9 @@ export function getAttributeIndex(name) {
         break;
     case 'COLOR_0':
         index = [6, 4, gl.FLOAT];
+        break;
+    case 'TEXCOORD_1':
+        index = [7, 2, gl.FLOAT];
         break;
     }
     return index;

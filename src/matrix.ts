@@ -145,6 +145,34 @@ class Matrix3 {
 
         return this;
     }
+
+    multiply(matrix) {
+        const ae = this.elements;
+		const be = matrix.elements;
+		const te = this.elements;
+
+		const a11 = ae[ 0 ], a12 = ae[ 3 ], a13 = ae[ 6 ];
+		const a21 = ae[ 1 ], a22 = ae[ 4 ], a23 = ae[ 7 ];
+		const a31 = ae[ 2 ], a32 = ae[ 5 ], a33 = ae[ 8 ];
+
+		const b11 = be[ 0 ], b12 = be[ 3 ], b13 = be[ 6 ];
+		const b21 = be[ 1 ], b22 = be[ 4 ], b23 = be[ 7 ];
+		const b31 = be[ 2 ], b32 = be[ 5 ], b33 = be[ 8 ];
+
+		te[ 0 ] = a11 * b11 + a12 * b21 + a13 * b31;
+		te[ 3 ] = a11 * b12 + a12 * b22 + a13 * b32;
+		te[ 6 ] = a11 * b13 + a12 * b23 + a13 * b33;
+
+		te[ 1 ] = a21 * b11 + a22 * b21 + a23 * b31;
+		te[ 4 ] = a21 * b12 + a22 * b22 + a23 * b32;
+		te[ 7 ] = a21 * b13 + a22 * b23 + a23 * b33;
+
+		te[ 2 ] = a31 * b11 + a32 * b21 + a33 * b31;
+		te[ 5 ] = a31 * b12 + a32 * b22 + a33 * b32;
+		te[ 8 ] = a31 * b13 + a32 * b23 + a33 * b33;
+
+		return this;
+    }
 }
 
 /**
@@ -410,7 +438,7 @@ class Matrix4 {
             throw 'far <= 0';
         }
 
-        fovy = Math.PI * fovy / 180 / 2;
+        fovy /= 2;
         s = Math.sin(fovy);
         if (s === 0) {
             throw 'null frustum';
@@ -606,6 +634,24 @@ class Matrix4 {
         t = e[ 6];e[ 6] = e[ 9];e[ 9] = t;
         t = e[ 7];e[ 7] = e[13];e[13] = t;
         t = e[11];e[11] = e[14];e[14] = t;
+
+        return this;
+    }
+}
+
+class Vector {
+    elements: Float32Array;
+
+    constructor(src: Float32Array) {
+        this.elements = src.slice();
+    }
+
+    lerp(a, b, t) {
+        const out = this.elements;
+
+        for (let i = 0; i < out.length; i++) {
+            out[i] = a[i] + t * (b[i] - a[i]);
+        }
 
         return this;
     }
@@ -914,15 +960,77 @@ class Vector4 {
 
     lerp(a, b, t) {
         const out = this.elements;
-        const ax = a[0];
-        const ay = a[1];
-        const az = a[2];
-        const aw = a[3];
-        out[0] = ax + t * (b[0] - ax);
-        out[1] = ay + t * (b[1] - ay);
-        out[2] = az + t * (b[2] - az);
-        out[3] = aw + t * (b[3] - aw);
-        return this;
+
+        if ( t === 0 ) return this;
+		if ( t === 1 ) {
+            out[0] = b[0];
+            out[1] = b[1];
+            out[2] = b[2];
+            out[3] = b[3];
+
+            return this;
+        }
+
+        const x = a[0], y = a[1], z = a[2], w = a[3];
+
+		// http://www.euclideanspace.com/maths/algebra/realNormedAlgebra/quaternions/slerp/
+
+		let cosHalfTheta = w * b[3] + x * b[0] + y * b[1] + z * b[2];
+
+		if ( cosHalfTheta < 0 ) {
+
+			out[3] = - b[3];
+			out[0] = - b[0];
+			out[1] = - b[1];
+			out[2] = - b[2];
+
+			cosHalfTheta = - cosHalfTheta;
+
+		} else {
+
+            out[0] = b[0];
+            out[1] = b[1];
+            out[2] = b[2];
+            out[3] = b[3];
+
+		}
+
+		if ( cosHalfTheta >= 1.0 ) {
+
+			out[3] = w;
+			out[0] = x;
+			out[1] = y;
+			out[2] = z;
+
+			return this;
+
+		}
+
+		const sqrSinHalfTheta = 1.0 - cosHalfTheta * cosHalfTheta;
+
+		if ( sqrSinHalfTheta <= Number.EPSILON ) {
+
+			var s = 1 - t;
+			out[3] = s * w + t * out[3];
+			out[0] = s * x + t * out[0];
+			out[1] = s * y + t * out[1];
+			out[2] = s * z + t * out[2];
+
+			return this.normalize();
+
+		}
+
+		const sinHalfTheta = Math.sqrt( sqrSinHalfTheta );
+		const halfTheta = Math.atan2( sinHalfTheta, cosHalfTheta );
+		const ratioA = Math.sin( ( 1 - t ) * halfTheta ) / sinHalfTheta,
+			ratioB = Math.sin( t * halfTheta ) / sinHalfTheta;
+
+        out[3] = ( w * ratioA + out[3] * ratioB );
+		out[0] = ( x * ratioA + out[0] * ratioB );
+		out[1] = ( y * ratioA + out[1] * ratioB );
+		out[2] = ( z * ratioA + out[2] * ratioB );
+
+		return this;
     }
 }
 
@@ -974,4 +1082,4 @@ function Frustum( m ) {
     return planes;
 }
 
-export { Matrix2, Matrix3, Matrix4, Vector2, Vector3, Vector4, Frustum };
+export { Matrix2, Matrix3, Matrix4, Vector, Vector2, Vector3, Vector4, Frustum };

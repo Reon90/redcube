@@ -1,8 +1,8 @@
 import { Matrix4, Vector3 } from '../matrix';
 import { Material } from '../GLTF';
 import { Object3D } from './object3d';
-import { UniformBuffer } from './uniform';
 import { canvasToWorld2 } from '../utils';
+import { Geometry } from './geometry';
 
 interface MeshMaterial extends Material {
     blend: string;
@@ -18,33 +18,6 @@ interface Uniforms {
     emissiveTexture: WebGLUniformLocation;
 }
 
-interface Geometry {
-    UBO: WebGLBuffer;
-    VAO: WebGLBuffer;
-    uniformBuffer: UniformBuffer;
-    indicesBuffer: Float32Array;
-    attributes: Attributes;
-    targets: Attributes;
-    blend: string;
-    uniforms: object;
-    SKIN: WebGLBuffer;
-    boundingSphere: BoundingSphere;
-}
-interface Attributes {
-    'POSITION': Float32Array;
-    'NORMAL': Float32Array;
-    'TEXCOORD_0': Float32Array;
-    'JOINTS_0': Float32Array;
-    'WEIGHTS_0': Float32Array;
-    'TANGENT': Float32Array;
-}
-interface BoundingSphere {
-    min: Vector3;
-    max: Vector3;
-    center: Vector3;
-    radius: number;
-}
-
 export class Mesh extends Object3D {
     geometry: Geometry;
     material: MeshMaterial;
@@ -57,23 +30,6 @@ export class Mesh extends Object3D {
     constructor(name, parent) {
         super(name, parent);
 
-        this.geometry = {
-            boundingSphere: {
-                center: new Vector3,
-                radius: null,
-                min: null,
-                max: null
-            },
-            uniformBuffer: null,
-            UBO: null,
-            VAO: null,
-            indicesBuffer: null,
-            attributes: null,
-            targets: null,
-            blend: null,
-            uniforms: null,
-            SKIN: null
-        };
         this.material = {
             blend: null,
             uniforms: null,
@@ -84,6 +40,10 @@ export class Mesh extends Object3D {
         this.program = null;
         this.defines = null;
         this.mode = 4;
+    }
+
+    setDefines(defines) {
+        this.defines = defines;
     }
 
     setBlend(value) {
@@ -154,29 +114,51 @@ export class Mesh extends Object3D {
         gl.uniform1i( gl.getUniformLocation(this.program, 'brdfLUT'), brdfLUT.index);
         gl.uniform1i( gl.getUniformLocation(this.program, 'irradianceMap'), irradiancemap.index);
         gl.uniform1i( gl.getUniformLocation(this.program, 'depthTexture'), isShadow ? fakeDepth.index : preDepthTexture.index);
+        let index = 31;
         if (this.material.pbrMetallicRoughness.baseColorTexture) {
-            gl.uniform1i(this.material.uniforms.baseColorTexture, this.material.pbrMetallicRoughness.baseColorTexture.index);
+            gl.activeTexture(gl[`TEXTURE${index}`]);
+            gl.bindTexture(gl.TEXTURE_2D, this.material.pbrMetallicRoughness.baseColorTexture);
+            gl.bindSampler(index, this.material.pbrMetallicRoughness.baseColorTexture.sampler);
+            gl.uniform1i(this.material.uniforms.baseColorTexture, index);
+            index--;
         }
         if (this.material.pbrMetallicRoughness.metallicRoughnessTexture) {
-            gl.uniform1i(this.material.uniforms.metallicRoughnessTexture, this.material.pbrMetallicRoughness.metallicRoughnessTexture.index);
+            gl.activeTexture(gl[`TEXTURE${index}`]);
+            gl.bindTexture(gl.TEXTURE_2D, this.material.pbrMetallicRoughness.metallicRoughnessTexture);
+            gl.bindSampler(index, this.material.pbrMetallicRoughness.metallicRoughnessTexture.sampler);
+            gl.uniform1i(this.material.uniforms.metallicRoughnessTexture, index);
+            index--;
         }
         if (this.material.normalTexture) {
-            gl.uniform1i(this.material.uniforms.normalTexture, this.material.normalTexture.index);
+            gl.activeTexture(gl[`TEXTURE${index}`]);
+            gl.bindTexture(gl.TEXTURE_2D, this.material.normalTexture);
+            gl.bindSampler(index, this.material.normalTexture.sampler);
+            gl.uniform1i(this.material.uniforms.normalTexture, index);
+            index--;
         }
         if (this.material.occlusionTexture) {
-            gl.uniform1i(this.material.uniforms.occlusionTexture, this.material.occlusionTexture.index);
+            gl.activeTexture(gl[`TEXTURE${index}`]);
+            gl.bindTexture(gl.TEXTURE_2D, this.material.occlusionTexture);
+            gl.bindSampler(index, this.material.occlusionTexture.sampler);
+            gl.uniform1i(this.material.uniforms.occlusionTexture, index);
+            index--;
         }
         if (this.material.emissiveTexture) {
-            gl.uniform1i(this.material.uniforms.emissiveTexture, this.material.emissiveTexture.index);
+            gl.activeTexture(gl[`TEXTURE${index}`]);
+            gl.bindTexture(gl.TEXTURE_2D, this.material.emissiveTexture);
+            gl.bindSampler(index, this.material.emissiveTexture.sampler);
+            gl.uniform1i(this.material.uniforms.emissiveTexture, index);
+            index--;
         }
         if (this.material.doubleSided) {
             gl.disable(gl.CULL_FACE);
         }
 
         if (this.geometry.indicesBuffer) {
-            gl.drawElements(this.mode || gl.TRIANGLES, this.geometry.indicesBuffer.length, this.geometry.indicesBuffer.BYTES_PER_ELEMENT === 4 ? gl.UNSIGNED_INT : gl.UNSIGNED_SHORT, 0);
+            // @ts-ignore
+            gl.drawElements(this.mode, this.geometry.indicesBuffer.length, gl[this.geometry.indicesBuffer.type], 0);
         } else {
-            gl.drawArrays(this.mode || gl.TRIANGLES, 0, this.geometry.attributes.POSITION.length / 3);
+            gl.drawArrays(this.mode, 0, this.geometry.attributes.POSITION.length / 3);
         }
 
         if (this.material.doubleSided) {
@@ -184,44 +166,15 @@ export class Mesh extends Object3D {
         }
     }
 
-    calculateBounding() {
-        const vertices = this.geometry.attributes.POSITION;
-        let maxRadiusSq = 0;
-
-        this.geometry.boundingSphere.center
-            .add( this.geometry.boundingSphere.min )
-            .add( this.geometry.boundingSphere.max )
-            .scale( 0.5 );
-        
-        for (let i = 0; i < vertices.length; i = i + 3) {
-            maxRadiusSq = Math.max( maxRadiusSq, this.geometry.boundingSphere.center.distanceToSquared( vertices[i], vertices[i + 1], vertices[i + 2] ) );
-        }
-        this.geometry.boundingSphere.radius = Math.sqrt( maxRadiusSq );
-    }
-
-    setBoundingBox({min, max}) {
-        this.geometry.boundingSphere.min = new Vector3(min);
-        this.geometry.boundingSphere.max = new Vector3(max);
-        this.calculateBounding();
-    }
-
-    setIndicesBuffer(value) {
-        this.geometry.indicesBuffer = value;
-    }
-
-    setAttributes(value) {
-        this.geometry.attributes = value;
-    }
-
-    setTargets(value) {
-        this.geometry.targets = value;
+    setGeometry(geometry) {
+        this.geometry = geometry;
     }
 
     setProgram(value) {
         this.program = value;
     }
 
-    setMode(value) {
+    setMode(value = 4) {
         this.mode = value;
     }
 

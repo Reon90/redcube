@@ -7,8 +7,12 @@ layout (location = 2) in vec2 inUV;
 layout (location = 3) in vec4 inJoint;
 layout (location = 4) in vec4 inWeight;
 layout (location = 5) in vec4 inTangent;
+layout (location = 6) in vec4 inColor;
+layout (location = 7) in vec2 inUV2;
 
+out vec4 vColor;
 out vec2 outUV;
+out vec2 outUV2;
 out vec3 outPosition;
 out vec4 outPositionView;
 #ifdef TANGENT
@@ -42,7 +46,9 @@ void main() {
         mat4 skin = mat4(1.0);
     #endif
 
+    vColor = inColor;
     outUV = inUV;
+    outUV2 = inUV2;
     #ifdef TANGENT
         vec3 normalW = normalize(vec3(model * vec4(inNormal.xyz, 0.0)));
         vec3 tangentW = normalize(vec3(model * vec4(inTangent.xyz, 0.0)));
@@ -56,6 +62,6 @@ void main() {
     if (isShadow == 1.0) {
         gl_Position = projection * light * model * skin * vec4(inPosition, 1.0);
     } else {
-        gl_Position = projection * view * model * skin * vec4(inPosition, 1.0);
+        gl_Position = vec4(inPosition*10.0, 1.0);
     }
 }
