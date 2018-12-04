@@ -104,6 +104,18 @@ export class Parse {
     buildPrim(parent, name, skin, weights, primitive) {
         const material = primitive.material !== undefined ? JSON.parse(JSON.stringify(this.json.materials[primitive.material])) : {pbrMetallicRoughness: {baseColorFactor: [0.8, 0.8, 0.8, 1.0]}};
         const defines = [...this.defines];
+
+        if (!material.pbrMetallicRoughness && material.extensions && material.extensions.KHR_materials_pbrSpecularGlossiness) {
+            const SG = material.extensions.KHR_materials_pbrSpecularGlossiness;
+            material.pbrMetallicRoughness = {};
+            material.pbrMetallicRoughness.baseColorTexture = SG.diffuseTexture;
+            material.pbrMetallicRoughness.metallicRoughnessTexture = SG.specularGlossinessTexture;
+            material.pbrMetallicRoughness.baseColorFactor = SG.diffuseFactor;
+            material.pbrMetallicRoughness.specularFactor = SG.specularFactor;
+            material.pbrMetallicRoughness.glossinessFactor = SG.glossinessFactor;
+            defines.push({name: 'SPECULARGLOSSINESSMAP'});
+        }
+
         if (material.pbrMetallicRoughness.metallicRoughnessTexture) {
             material.pbrMetallicRoughness.metallicRoughnessTexture = this.textures[material.pbrMetallicRoughness.metallicRoughnessTexture.index];
             defines.push({name: 'METALROUGHNESSMAP'});
@@ -311,6 +323,8 @@ export class Parse {
                 materialUniformBuffer.add('lightPos', this.light.getPosition());
                 materialUniformBuffer.add('viewPos', this._camera.getPosition());
                 materialUniformBuffer.add('textureMatrix', (mesh.material.matrix && mesh.material.matrix.elements) || new Matrix3().elements);
+                materialUniformBuffer.add('specularFactor', mesh.material.pbrMetallicRoughness.specularFactor || [0, 0, 0]);
+                materialUniformBuffer.add('glossinessFactor', mesh.material.pbrMetallicRoughness.glossinessFactor || [0]);
                 materialUniformBuffer.done();
 
                 const mIndex = gl.getUniformBlockIndex(mesh.program, 'Material');

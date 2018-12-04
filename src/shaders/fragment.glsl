@@ -22,6 +22,8 @@ uniform Material {
     vec3 lightPos;
     vec3 viewPos;
     mat3 textureMatrix;
+    vec3 specularFactor;
+    float glossinessFactor;
 };
 uniform sampler2D baseColorTexture;
 uniform sampler2D metallicRoughnessTexture;
@@ -117,15 +119,18 @@ vec3 fresnelSchlickRoughness(float cosTheta, vec3 F0, float roughness) {
     return F0 + (max(vec3(1.0 - roughness), F0) - F0) * pow(1.0 - cosTheta, 5.0);
 } 
 
-vec3 IBLAmbient(vec3 baseColor, float metallic, vec3 n, vec3 H, float roughness, vec3 viewDir, vec3 lightDir, float ao) {
+vec3 IBLAmbient(vec3 specularMap, vec3 baseColor, float metallic, vec3 n, vec3 H, float roughness, vec3 viewDir, vec3 lightDir, float ao) {
     vec3 F0 = vec3(0.04);
     F0 = mix(F0, baseColor, metallic);
+
+    #ifdef SPECULARGLOSSINESSMAP
+        F0 = specularMap;
+    #endif
 
     vec3 F = fresnelSchlickRoughness(max(dot(n, viewDir), 0.0), F0, roughness);
 
     vec3 kD = vec3(1.0) - F;
     kD *= 1.0 - metallic;
-
 
     vec3 R = reflect(-viewDir, n);   
     const float MAX_REFLECTION_LOD = 4.0;
@@ -139,17 +144,17 @@ vec3 IBLAmbient(vec3 baseColor, float metallic, vec3 n, vec3 H, float roughness,
     return (kD * diffuse + specular) * ao;
 }
 
-vec3 CookTorranceSpecular(vec3 baseColor, float metallic, vec3 n, vec3 H, float roughness, vec3 viewDir, vec3 lightDir) {
+vec3 CookTorranceSpecular(vec3 specularMap, vec3 baseColor, float metallic, vec3 n, vec3 H, float roughness, vec3 viewDir, vec3 lightDir) {
     vec3 F0 = vec3(0.04); 
     F0 = mix(F0, baseColor, metallic);
 
+    #ifdef SPECULARGLOSSINESSMAP
+        F0 = specularMap;
+    #endif
+
     float D = DistributionGGX(n, H, roughness);
     float G = GeometrySmith(n, viewDir, lightDir, roughness);      
-    vec3 F = fresnelSchlick(max(dot(H, viewDir), 0.0), F0);       
-
-    vec3 kS = F;
-    vec3 kD = vec3(1.0) - kS;
-    kD *= 1.0 - metallic;     
+    vec3 F = fresnelSchlick(max(dot(H, viewDir), 0.0), F0); 
 
     vec3 nominator = D * G * F;
     float denominator = 4.0 * max(dot(n, viewDir), 0.0) * max(dot(n, lightDir), 0.0);
@@ -203,7 +208,7 @@ void main() {
             uv = ( textureMatrix * vec3(uv.xy, 1.0) ).xy;
         #endif
         vec3 baseColor = srgbToLinear(texture(baseColorTexture, uv));
-        float alpha = texture(baseColorTexture, uv).a;
+        float alpha = min(texture(baseColorTexture, uv).a, baseColorFactor.a);
     #else
         vec3 baseColor = baseColorFactor.rgb;
         float alpha = baseColorFactor.a;
@@ -225,12 +230,22 @@ void main() {
         float ao = 0.2;
     #endif
 
-    #ifdef METALROUGHNESSMAP
-        float roughness = texture(metallicRoughnessTexture, outUV).g;
-        float metallic = texture(metallicRoughnessTexture, outUV).b;
+    float roughness = 0.5;
+    float metallic = 0.5;
+    vec3 specularMap = vec3(0);
+    #ifdef SPECULARGLOSSINESSMAP
+        #ifdef METALROUGHNESSMAP
+            roughness = 1.0 - texture(metallicRoughnessTexture, outUV).a;
+            specularMap = srgbToLinear(texture(metallicRoughnessTexture, outUV));
+        #else
+            roughness = glossinessFactor;
+            specularMap = specularFactor;
+        #endif
     #else
-        float roughness = 0.5;
-        float metallic = 0.5;
+        #ifdef METALROUGHNESSMAP
+            roughness = texture(metallicRoughnessTexture, outUV).g;
+            metallic = texture(metallicRoughnessTexture, outUV).b;
+        #endif
     #endif
 
     #ifdef TANGENT
@@ -259,12 +274,15 @@ void main() {
     #endif
 
     #ifdef USE_PBR
-        vec3 specular = CookTorranceSpecular(baseColor, metallic, n, H, roughness, viewDir, lightDir);
+        vec3 specular = CookTorranceSpecular(specularMap, baseColor, metallic, n, H, roughness, viewDir, lightDir);
         vec3 diffuse = ImprovedOrenNayarDiffuse(baseColor, metallic, n, H, roughness, viewDir, lightDir);
+        #ifdef SPECULARGLOSSINESSMAP
+            diffuse = baseColor * (1.0 - max(max(specularMap.r, specularMap.g), specularMap.b));
+        #endif
 
         vec3 ambient = vec3(0.0);
         #ifdef IBL
-            ambient = IBLAmbient(baseColor, metallic, n, H, roughness, viewDir, lightDir, ao);
+            ambient = IBLAmbient(specularMap, baseColor, metallic, n, H, roughness, viewDir, lightDir, ao);
         #else
             ambient = vec3(0.03) * baseColor * ao;
         #endif
