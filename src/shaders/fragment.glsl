@@ -207,7 +207,7 @@ void main() {
         #ifdef TEXTURE_TRANSFORM
             uv = ( textureMatrix * vec3(uv.xy, 1.0) ).xy;
         #endif
-        vec3 baseColor = srgbToLinear(texture(baseColorTexture, uv));
+        vec3 baseColor = srgbToLinear(texture(baseColorTexture, uv)) * baseColorFactor.rgb;
         float alpha = min(texture(baseColorTexture, uv).a, baseColorFactor.a);
     #else
         vec3 baseColor = baseColorFactor.rgb;
