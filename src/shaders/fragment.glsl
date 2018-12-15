@@ -23,7 +23,10 @@ uniform Material {
     vec3 viewPos;
     mat3 textureMatrix;
     vec3 specularFactor;
+    vec3 emissiveFactor;
     float glossinessFactor;
+    float metallicFactor;
+    float roughnessFactor;
 };
 uniform sampler2D baseColorTexture;
 uniform sampler2D metallicRoughnessTexture;
@@ -47,7 +50,6 @@ const vec3 lightColor = vec3(10.0, 10.0, 10.0);
 #else
 const vec3 lightColor = vec3(1.0, 1.0, 1.0);
 #endif
-const vec3 emissiveFactor = vec3(1.0, 1.0, 1.0);
 const float gamma = 2.2;
 
 vec2 getUV(int index) {
@@ -230,8 +232,8 @@ void main() {
         float ao = 0.2;
     #endif
 
-    float roughness = 0.5;
-    float metallic = 0.5;
+    float roughness = roughnessFactor;
+    float metallic = metallicFactor;
     vec3 specularMap = vec3(0);
     #ifdef SPECULARGLOSSINESSMAP
         #ifdef METALROUGHNESSMAP
@@ -287,9 +289,9 @@ void main() {
             ambient = vec3(0.03) * baseColor * ao;
         #endif
 
-        vec3 emissive = vec3(0.0);
+        vec3 emissive = emissiveFactor;
         #ifdef EMISSIVEMAP
-            emissive = srgbToLinear(texture(emissiveTexture, getUV(EMISSIVEMAP))) * emissiveFactor;
+            emissive = srgbToLinear(texture(emissiveTexture, getUV(EMISSIVEMAP)));
         #endif
 
         color = vec4(shadow * (emissive + ambient + (diffuse + specular) * radiance * NdotL), alpha);

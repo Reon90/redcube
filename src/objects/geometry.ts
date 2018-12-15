@@ -1,14 +1,20 @@
 import { Vector3 } from '../matrix';
 import { UniformBuffer } from './uniform';
-import { buildArray, getDataType, calculateOffset, getAttributeIndex, calculateBinormals } from '../utils';
+import {
+    buildArray,
+    getDataType,
+    calculateOffset,
+    getAttributeIndex,
+    calculateBinormals
+} from '../utils';
 
 interface Attributes {
-    'POSITION': Float32Array;
-    'NORMAL': Float32Array;
-    'TEXCOORD_0': Float32Array;
-    'JOINTS_0': Float32Array;
-    'WEIGHTS_0': Float32Array;
-    'TANGENT': Float32Array;
+    POSITION: Float32Array;
+    NORMAL: Float32Array;
+    TEXCOORD_0: Float32Array;
+    JOINTS_0: Float32Array;
+    WEIGHTS_0: Float32Array;
+    TANGENT: Float32Array;
 }
 interface BoundingSphere {
     min: Vector3;
@@ -31,7 +37,7 @@ export class Geometry {
 
     constructor(gl, json, arrayBuffer, weights, primitive, hasNormal) {
         this.boundingSphere = {
-            center: new Vector3,
+            center: new Vector3(),
             radius: null,
             min: null,
             max: null
@@ -48,7 +54,7 @@ export class Geometry {
         this.targets = [];
 
         const indicesAccessor = json.accessors[primitive.indices];
-        const vertexAccessor = new Map;
+        const vertexAccessor = new Map();
         for (const a in primitive.attributes) {
             vertexAccessor.set(a, json.accessors[primitive.attributes[a]]);
         }
@@ -61,9 +67,12 @@ export class Geometry {
                     const accessor = vertexAcc[a];
                     const bufferView = json.bufferViews[accessor.bufferView];
                     vertexAcc[a] = buildArray(
-                        arrayBuffer[bufferView.buffer], 
-                        accessor.componentType, 
-                        calculateOffset(bufferView.byteOffset, accessor.byteOffset), 
+                        arrayBuffer[bufferView.buffer],
+                        accessor.componentType,
+                        calculateOffset(
+                            bufferView.byteOffset,
+                            accessor.byteOffset
+                        ),
                         getDataType(accessor.type) * accessor.count
                     );
                 }
@@ -74,7 +83,15 @@ export class Geometry {
         let indicesBuffer;
         if (indicesAccessor) {
             const bufferView = json.bufferViews[indicesAccessor.bufferView];
-            indicesBuffer = buildArray(arrayBuffer[bufferView.buffer], indicesAccessor.componentType, calculateOffset(bufferView.byteOffset, indicesAccessor.byteOffset), getDataType(indicesAccessor.type) * indicesAccessor.count);
+            indicesBuffer = buildArray(
+                arrayBuffer[bufferView.buffer],
+                indicesAccessor.componentType,
+                calculateOffset(
+                    bufferView.byteOffset,
+                    indicesAccessor.byteOffset
+                ),
+                getDataType(indicesAccessor.type) * indicesAccessor.count
+            );
         }
         const boundingBox = {
             min: vertexAccessor.get('POSITION').min,
@@ -84,7 +101,14 @@ export class Geometry {
         for (const k of vertexAccessor.keys()) {
             const accessor = vertexAccessor.get(k);
             const bufferView = json.bufferViews[accessor.bufferView];
-            vertexBuffers[k] = buildArray(arrayBuffer[bufferView.buffer], accessor.componentType, calculateOffset(bufferView.byteOffset, accessor.byteOffset), getDataType(accessor.type) * accessor.count, bufferView.byteStride, accessor.count);
+            vertexBuffers[k] = buildArray(
+                arrayBuffer[bufferView.buffer],
+                accessor.componentType,
+                calculateOffset(bufferView.byteOffset, accessor.byteOffset),
+                getDataType(accessor.type) * accessor.count,
+                bufferView.byteStride,
+                accessor.count
+            );
 
             if (primitive.targets && k in primitive.targets[0]) {
                 let offset = 0;
@@ -95,15 +119,25 @@ export class Geometry {
                         offset++;
                         continue;
                     }
-                    vertexBuffers[k][i] = geometry[i] + 
-                    weights.reduce((a, b, index) => {
-                        return a + weights[index] * this.targets[index][k][i - offset];
-                    }, 0);
+                    vertexBuffers[k][i] =
+                        geometry[i] +
+                        weights.reduce((a, b, index) => {
+                            return (
+                                a +
+                                weights[index] *
+                                    this.targets[index][k][i - offset]
+                            );
+                        }, 0);
                 }
             }
         }
         if (hasNormal && primitive.attributes.TANGENT === undefined) {
-            vertexBuffers.TANGENT = calculateBinormals(indicesBuffer, vertexBuffers.POSITION, vertexBuffers.NORMAL, vertexBuffers.TEXCOORD_0);
+            vertexBuffers.TANGENT = calculateBinormals(
+                indicesBuffer,
+                vertexBuffers.POSITION,
+                vertexBuffers.NORMAL,
+                vertexBuffers.TEXCOORD_0
+            );
         }
 
         const VAO = gl.createVertexArray();
@@ -120,12 +154,16 @@ export class Geometry {
         if (indicesBuffer) {
             const VBO = gl.createBuffer();
             gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, VBO);
-            gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indicesBuffer, gl.STATIC_DRAW);
+            gl.bufferData(
+                gl.ELEMENT_ARRAY_BUFFER,
+                indicesBuffer,
+                gl.STATIC_DRAW
+            );
         }
         this.VAO = VAO;
         this.attributes = vertexBuffers;
         this.indicesBuffer = indicesBuffer;
-        const {min, max} = boundingBox;
+        const { min, max } = boundingBox;
         this.boundingSphere.min = new Vector3(min);
         this.boundingSphere.max = new Vector3(max);
 
@@ -139,13 +177,20 @@ export class Geometry {
         let maxRadiusSq = 0;
 
         this.boundingSphere.center
-            .add( this.boundingSphere.min )
-            .add( this.boundingSphere.max )
-            .scale( 0.5 );
-        
+            .add(this.boundingSphere.min)
+            .add(this.boundingSphere.max)
+            .scale(0.5);
+
         for (let i = 0; i < vertices.length; i = i + 3) {
-            maxRadiusSq = Math.max( maxRadiusSq, this.boundingSphere.center.distanceToSquared( vertices[i], vertices[i + 1], vertices[i + 2] ) );
+            maxRadiusSq = Math.max(
+                maxRadiusSq,
+                this.boundingSphere.center.distanceToSquared(
+                    vertices[i],
+                    vertices[i + 1],
+                    vertices[i + 2]
+                )
+            );
         }
-        this.boundingSphere.radius = Math.sqrt( maxRadiusSq );
+        this.boundingSphere.radius = Math.sqrt(maxRadiusSq);
     }
 }

@@ -6,17 +6,18 @@
   "scripts": {
     "dev": "webpack-serve",
     "prod": "webpack --mode production",
-    "lint": "eslint --fix --ext .ts ./src/"
+    "lint": "eslint --fix --ext .ts ./src/ && prettier --write \"src/**/*.ts\""
   },
   "devDependencies": {
     "awesome-typescript-loader": "^5.0.0-1",
-    "eslint": "^4.18.2",
-    "raw-loader": "^0.5.1",
-    "typescript": "^2.8.3",
-    "typescript-eslint-parser": "^15.0.0",
-    "url-loader": "^0.6.2",
-    "webpack": "4.16.5",
-    "webpack-cli": "3.1.0",
+    "eslint": "^5.10.0",
+    "prettier": "^1.15.3",
+    "raw-loader": "^1.0.0",
+    "typescript": "^3.2.2",
+    "typescript-eslint-parser": "^21.0.2",
+    "url-loader": "^1.1.2",
+    "webpack": "^4.27.1",
+    "webpack-cli": "^3.1.2",
     "webpack-serve": "^2.0.2"
   },
   "repository": {

@@ -16,6 +16,6 @@ export class Scene {
         this.meshes = [];
         this.children = [];
         this.bin = [];
-        this.matrixWorld = new Matrix4;
+        this.matrixWorld = new Matrix4();
     }
 }

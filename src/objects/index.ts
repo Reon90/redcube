@@ -5,4 +5,13 @@ import { Camera } from './camera';
 import { Light } from './light';
 import { UniformBuffer } from './uniform';
 
-export { Scene, Object3D, Mesh, SkinnedMesh, Bone, Camera, Light, UniformBuffer };
+export {
+    Scene,
+    Object3D,
+    Mesh,
+    SkinnedMesh,
+    Bone,
+    Camera,
+    Light,
+    UniformBuffer
+};

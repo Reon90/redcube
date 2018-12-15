@@ -27,47 +27,87 @@ export class Light extends PostProcessor {
     setGL(g) {
         gl = g;
     }
-    
+
     preProcessing(PP) {
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
         PP.renderScene(true, true);
-        
+
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
-        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.texture, 0);
+        gl.framebufferTexture2D(
+            gl.FRAMEBUFFER,
+            gl.COLOR_ATTACHMENT0,
+            gl.TEXTURE_2D,
+            this.texture,
+            0
+        );
 
         gl.useProgram(this.program);
-        gl.viewport( 0, 0, this.width / this.scale, this.height / this.scale);
+        gl.viewport(0, 0, this.width / this.scale, this.height / this.scale);
         gl.bindVertexArray(this.quadVAO);
 
         const cam = Object.assign({}, this.camera.props, { zoom: 1 });
         const proj = calculateProjection(cam);
 
-        gl.uniformMatrix4fv(gl.getUniformLocation(this.program, 'Iproj'), false, new Matrix4().setInverseOf(proj).elements);
-        gl.uniformMatrix4fv(gl.getUniformLocation(this.program, 'proj'), false, proj.elements);
-        gl.uniformMatrix4fv(gl.getUniformLocation(this.program, 'Iview'), false, this.camera.matrixWorld.elements);
-        gl.uniformMatrix4fv(gl.getUniformLocation(this.program, 'light'), false, this.light.matrixWorldInvert.elements);
-        gl.uniform1i( gl.getUniformLocation(this.program, 'lightTexture'), PP.preDepthTexture.index);
-        gl.uniform1i( gl.getUniformLocation(this.program, 'cameraTexture'), PP.depthTexture.index);
-        gl.drawArrays( gl.TRIANGLES, 0, 6 );
+        gl.uniformMatrix4fv(
+            gl.getUniformLocation(this.program, 'Iproj'),
+            false,
+            new Matrix4().setInverseOf(proj).elements
+        );
+        gl.uniformMatrix4fv(
+            gl.getUniformLocation(this.program, 'proj'),
+            false,
+            proj.elements
+        );
+        gl.uniformMatrix4fv(
+            gl.getUniformLocation(this.program, 'Iview'),
+            false,
+            this.camera.matrixWorld.elements
+        );
+        gl.uniformMatrix4fv(
+            gl.getUniformLocation(this.program, 'light'),
+            false,
+            this.light.matrixWorldInvert.elements
+        );
+        gl.uniform1i(
+            gl.getUniformLocation(this.program, 'lightTexture'),
+            PP.preDepthTexture.index
+        );
+        gl.uniform1i(
+            gl.getUniformLocation(this.program, 'cameraTexture'),
+            PP.depthTexture.index
+        );
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
 
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-        gl.viewport( 0, 0, this.width, this.height);
+        gl.viewport(0, 0, this.width, this.height);
     }
 
     buildScreenBuffer(PP) {
         this.framebuffer = gl.createFramebuffer();
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
         this.texture = PP.createOneChannelTexture(this.scale);
-        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.texture, 0);
+        gl.framebufferTexture2D(
+            gl.FRAMEBUFFER,
+            gl.COLOR_ATTACHMENT0,
+            gl.TEXTURE_2D,
+            this.texture,
+            0
+        );
         this.program = createProgram(lightVertShader, lightShader);
 
         const verts = [
-            1.0, 1.0,
-            -1.0, 1.0,
-            -1.0, -1.0,
-            -1.0, -1.0,
-            1.0, -1.0,
-            1.0, 1.0
+            1.0,
+            1.0,
+            -1.0,
+            1.0,
+            -1.0,
+            -1.0,
+            -1.0,
+            -1.0,
+            1.0,
+            -1.0,
+            1.0,
+            1.0
         ];
         this.quadVAO = gl.createVertexArray();
         gl.bindVertexArray(this.quadVAO);
@@ -78,11 +118,14 @@ export class Light extends PostProcessor {
         gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
         gl.bindVertexArray(null);
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-        return {name: 'LIGHT'};
+        return { name: 'LIGHT' };
     }
 
     attachUniform(program) {
-        gl.uniform1i( gl.getUniformLocation(program, 'light'), this.texture.index);
+        gl.uniform1i(
+            gl.getUniformLocation(program, 'light'),
+            this.texture.index
+        );
     }
 
     postProcessing() {}

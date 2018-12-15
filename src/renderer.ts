@@ -1,6 +1,11 @@
 import { Scene, Mesh, Camera, Bone } from './objects/index';
-import { Vector, Vector2, Vector3, Vector4, Frustum } from './matrix';
-import { getAnimationComponent, interpolation, walk, getAttributeIndex } from './utils';
+import { Vector, Vector3, Vector4, Frustum } from './matrix';
+import {
+    getAnimationComponent,
+    interpolation,
+    walk,
+    getAttributeIndex
+} from './utils';
 import { Parse } from './parse';
 import { PostProcessing } from './postprocessing';
 import { Particles } from './particles';
@@ -26,7 +31,7 @@ export class Renderer {
 
     constructor(getState) {
         this.reflow = true;
-        this.fps = new FPS;
+        this.fps = new FPS();
         this.getState = getState;
     }
 
@@ -72,11 +77,11 @@ export class Renderer {
             //     v.stoped = true;
             // }
 
-            const startFrame = v.keys[ val[0] ];
-            const endFrame = v.keys[ val[1] ];
+            const startFrame = v.keys[val[0]];
+            const endFrame = v.keys[val[1]];
             // eslint-disable-next-line
             const t = val[2];
-            
+
             const component = getAnimationComponent(v.type);
             let vectorC;
             if (component === 3) {
@@ -90,14 +95,14 @@ export class Renderer {
             const vector2 = new vectorC(endFrame.value);
 
             if (v.type === 'rotation') {
-                const out = new Vector4;
+                const out = new Vector4();
                 out.lerp(vector.elements, vector2.elements, t);
-                
+
                 for (const mesh of v.meshes) {
                     mesh.matrix.makeRotationFromQuaternion(out.elements);
                 }
             } else if (v.type === 'scale') {
-                const out = new Vector3;
+                const out = new Vector3();
                 out.lerp(vector.elements, vector2.elements, t);
 
                 for (const mesh of v.meshes) {
@@ -111,20 +116,24 @@ export class Renderer {
                     const geometry = {};
 
                     for (const k in mesh.geometry.targets[0]) {
-                        if (k !== 'POSITION') continue;
+                        if (k !== 'POSITION') {
+                            continue;
+                        }
                         geometry[k] = mesh.geometry.attributes[k].slice();
                         for (let i = 0; i < out.elements.length; i++) {
                             if (out.elements[i] === 0) {
                                 continue;
                             }
 
-                            let offset = 0;
+                            const offset = 0;
                             for (let l = 0; l < geometry[k].length; l++) {
                                 // if (k === 'TANGENT' && (l + 1) % 4 === 0) {
                                 //     offset++;
                                 //     continue;
                                 // }
-                                geometry[k][l] += out.elements[i] * mesh.geometry.targets[i][k][l - offset];
+                                geometry[k][l] +=
+                                    out.elements[i] *
+                                    mesh.geometry.targets[i][k][l - offset];
                             }
                         }
                     }
@@ -134,16 +143,27 @@ export class Renderer {
                     for (const k in geometry) {
                         const VBO = gl.createBuffer();
                         gl.bindBuffer(gl.ARRAY_BUFFER, VBO);
-                        gl.bufferData(gl.ARRAY_BUFFER, geometry[k], gl.STATIC_DRAW);
+                        gl.bufferData(
+                            gl.ARRAY_BUFFER,
+                            geometry[k],
+                            gl.STATIC_DRAW
+                        );
                         const index = getAttributeIndex(k);
                         gl.enableVertexAttribArray(index[0]);
-                        gl.vertexAttribPointer(index[0], index[1], index[2], false, 0, 0);
+                        gl.vertexAttribPointer(
+                            index[0],
+                            index[1],
+                            index[2],
+                            false,
+                            0,
+                            0
+                        );
                     }
 
                     gl.bindVertexArray(null);
                 }
             } else if (v.type === 'translation') {
-                const out = new Vector3;
+                const out = new Vector3();
                 out.lerp(vector.elements, vector2.elements, t);
 
                 for (const mesh of v.meshes) {
@@ -179,7 +199,7 @@ export class Renderer {
         const sec = time / 1000;
 
         this.animate(sec);
-        
+
         if (this.reflow) {
             if (this.PP.postprocessors.length > 0) {
                 this.PP.bindPrePass();
@@ -191,7 +211,10 @@ export class Renderer {
 
             //this.env.draw();
 
-            this.renderScene(!this.PP.postprocessors.some(p => p instanceof Shadow), false);
+            this.renderScene(
+                !this.PP.postprocessors.some(p => p instanceof Shadow),
+                false
+            );
             this.clean();
 
             if (this.PP.postprocessors.some(p => p instanceof PPLight)) {
@@ -228,7 +251,7 @@ export class Renderer {
         });
         if (this.scene.transparentChildren.length) {
             gl.enable(gl.BLEND);
-            gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);  
+            gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
             this.scene.transparentChildren.forEach(mesh => {
                 if (mesh.visible) {
@@ -237,7 +260,7 @@ export class Renderer {
             });
 
             gl.disable(gl.BLEND);
-            gl.blendFunc(gl.ONE, gl.ZERO); 
+            gl.blendFunc(gl.ONE, gl.ZERO);
         }
     }
 

@@ -5,11 +5,11 @@ export abstract class PostProcessor {
     camera: Camera;
     light: Light;
     framebuffer: WebGLFramebuffer;
-    abstract postProcessing(PP)
-    abstract preProcessing(PP)
-    abstract buildScreenBuffer(pp)
-    abstract setGL(gl)
-    abstract attachUniform(program)
+    abstract postProcessing(PP);
+    abstract preProcessing(PP);
+    abstract buildScreenBuffer(pp);
+    abstract setGL(gl);
+    abstract attachUniform(program);
     setCanvas(canvas) {
         this.canvas = canvas;
     }
@@ -24,5 +24,5 @@ export abstract class PostProcessor {
     }
     get height() {
         return this.canvas.offsetHeight * devicePixelRatio;
-    } 
+    }
 }

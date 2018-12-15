@@ -7,7 +7,7 @@ export class Light extends Object3D {
     constructor(name?, parent?) {
         super(name, parent);
 
-        this.matrixWorldInvert = new Matrix4;
+        this.matrixWorldInvert = new Matrix4();
     }
 
     setMatrixWorld(matrix) {
@@ -21,7 +21,7 @@ export class Light extends Object3D {
     }
 
     update(v) {
-        const camMatrix = new Matrix4;
+        const camMatrix = new Matrix4();
         camMatrix.makeRotationAxis(new Vector3([0, 1, 0]), v);
         camMatrix.multiply(this.matrix);
         this.setMatrixWorld(camMatrix.elements);

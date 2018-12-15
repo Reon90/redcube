@@ -13,13 +13,17 @@ export class Object3D {
         this.uuid = Math.floor(Date.now() * Math.random());
         this.name = name;
         this.children = [];
-        this.matrix = new Matrix4;
-        this.matrixWorld = new Matrix4;
+        this.matrix = new Matrix4();
+        this.matrixWorld = new Matrix4();
         this.parent = parent;
     }
 
     getPosition() {
-        return new Float32Array([this.matrixWorld.elements[12], this.matrixWorld.elements[13], this.matrixWorld.elements[14]]);
+        return new Float32Array([
+            this.matrixWorld.elements[12],
+            this.matrixWorld.elements[13],
+            this.matrixWorld.elements[14]
+        ]);
     }
 
     setPosition(translation, rotation, scale) {
@@ -43,8 +47,8 @@ export class Object3D {
     }
 
     updateMatrix() {
-        const m = new Matrix4;
-        m.multiply( this.parent.matrixWorld );
+        const m = new Matrix4();
+        m.multiply(this.parent.matrixWorld);
         m.multiply(this.matrix);
         this.setMatrixWorld(m.elements);
     }

@@ -1,6 +1,6 @@
 /* eslint-disable */
 
-/** 
+/**
  * This is a class treating 4x4 matrix.
  * This class contains the function that is equivalent to OpenGL matrix stack.
  * The matrix after conversion is calculated by multiplying a conversion matrix from the right.
@@ -14,7 +14,11 @@ class Matrix2 {
         let i;
         let s;
         let d;
-        if (opt_src && typeof opt_src === 'object' && opt_src.hasOwnProperty('elements')) {
+        if (
+            opt_src &&
+            typeof opt_src === 'object' &&
+            opt_src.hasOwnProperty('elements')
+        ) {
             s = opt_src.elements;
             d = new Float32Array(4);
             for (i = 0; i < 4; ++i) {
@@ -59,7 +63,11 @@ class Matrix3 {
         let i;
         let s;
         let d;
-        if (opt_src && typeof opt_src === 'object' && opt_src.hasOwnProperty('elements')) {
+        if (
+            opt_src &&
+            typeof opt_src === 'object' &&
+            opt_src.hasOwnProperty('elements')
+        ) {
             s = opt_src.elements;
             d = new Float32Array(9);
             for (i = 0; i < 9; ++i) {
@@ -124,7 +132,13 @@ class Matrix3 {
         const b11 = a22 * a33 - a23 * a32;
 
         let // Calculate the determinant
-            det = b00 * b11 - b01 * b10 + b02 * b09 + b03 * b08 - b04 * b07 + b05 * b06;
+            det =
+                b00 * b11 -
+                b01 * b10 +
+                b02 * b09 +
+                b03 * b08 -
+                b04 * b07 +
+                b05 * b06;
 
         if (!det) {
             return null;
@@ -148,30 +162,42 @@ class Matrix3 {
 
     multiply(matrix) {
         const ae = this.elements;
-		const be = matrix.elements;
-		const te = this.elements;
+        const be = matrix.elements;
+        const te = this.elements;
 
-		const a11 = ae[ 0 ], a12 = ae[ 3 ], a13 = ae[ 6 ];
-		const a21 = ae[ 1 ], a22 = ae[ 4 ], a23 = ae[ 7 ];
-		const a31 = ae[ 2 ], a32 = ae[ 5 ], a33 = ae[ 8 ];
+        const a11 = ae[0],
+            a12 = ae[3],
+            a13 = ae[6];
+        const a21 = ae[1],
+            a22 = ae[4],
+            a23 = ae[7];
+        const a31 = ae[2],
+            a32 = ae[5],
+            a33 = ae[8];
 
-		const b11 = be[ 0 ], b12 = be[ 3 ], b13 = be[ 6 ];
-		const b21 = be[ 1 ], b22 = be[ 4 ], b23 = be[ 7 ];
-		const b31 = be[ 2 ], b32 = be[ 5 ], b33 = be[ 8 ];
+        const b11 = be[0],
+            b12 = be[3],
+            b13 = be[6];
+        const b21 = be[1],
+            b22 = be[4],
+            b23 = be[7];
+        const b31 = be[2],
+            b32 = be[5],
+            b33 = be[8];
 
-		te[ 0 ] = a11 * b11 + a12 * b21 + a13 * b31;
-		te[ 3 ] = a11 * b12 + a12 * b22 + a13 * b32;
-		te[ 6 ] = a11 * b13 + a12 * b23 + a13 * b33;
+        te[0] = a11 * b11 + a12 * b21 + a13 * b31;
+        te[3] = a11 * b12 + a12 * b22 + a13 * b32;
+        te[6] = a11 * b13 + a12 * b23 + a13 * b33;
 
-		te[ 1 ] = a21 * b11 + a22 * b21 + a23 * b31;
-		te[ 4 ] = a21 * b12 + a22 * b22 + a23 * b32;
-		te[ 7 ] = a21 * b13 + a22 * b23 + a23 * b33;
+        te[1] = a21 * b11 + a22 * b21 + a23 * b31;
+        te[4] = a21 * b12 + a22 * b22 + a23 * b32;
+        te[7] = a21 * b13 + a22 * b23 + a23 * b33;
 
-		te[ 2 ] = a31 * b11 + a32 * b21 + a33 * b31;
-		te[ 5 ] = a31 * b12 + a32 * b22 + a33 * b32;
-		te[ 8 ] = a31 * b13 + a32 * b23 + a33 * b33;
+        te[2] = a31 * b11 + a32 * b21 + a33 * b31;
+        te[5] = a31 * b12 + a32 * b22 + a33 * b32;
+        te[8] = a31 * b13 + a32 * b23 + a33 * b33;
 
-		return this;
+        return this;
     }
 }
 
@@ -188,7 +214,11 @@ class Matrix4 {
         let i;
         let s;
         let d;
-        if (opt_src && typeof opt_src === 'object' && opt_src.hasOwnProperty('elements')) {
+        if (
+            opt_src &&
+            typeof opt_src === 'object' &&
+            opt_src.hasOwnProperty('elements')
+        ) {
             s = opt_src.elements;
             d = new Float32Array(16);
             for (i = 0; i < 16; ++i) {
@@ -196,16 +226,33 @@ class Matrix4 {
             }
             this.elements = d;
         } else {
-            this.elements = new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
+            this.elements = new Float32Array([
+                1,
+                0,
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0,
+                0,
+                1
+            ]);
         }
     }
 
     getScaleZ() {
         const te = this.elements;
-        const x = te[ 8 ];
-        const y = te[ 9 ];
-        const z = te[ 10 ];
-        return Math.sqrt( x * x + y * y + z * z );
+        const x = te[8];
+        const y = te[9];
+        const z = te[10];
+        return Math.sqrt(x * x + y * y + z * z);
     }
 
     /**
@@ -242,7 +289,7 @@ class Matrix4 {
      * @param other The multiply matrix
      * @return this
      */
-    concat({elements}) {
+    concat({ elements }) {
         let i;
         let e;
         let a;
@@ -266,7 +313,10 @@ class Matrix4 {
         }
 
         for (i = 0; i < 4; i++) {
-            ai0 = a[i]; ai1 = a[i + 4]; ai2 = a[i + 8]; ai3 = a[i + 12];
+            ai0 = a[i];
+            ai1 = a[i + 4];
+            ai2 = a[i + 8];
+            ai3 = a[i + 12];
             e[i] = ai0 * b[0] + ai1 * b[1] + ai2 * b[2] + ai3 * b[3];
             e[i + 4] = ai0 * b[4] + ai1 * b[5] + ai2 * b[6] + ai3 * b[7];
             e[i + 8] = ai0 * b[8] + ai1 * b[9] + ai2 * b[10] + ai3 * b[11];
@@ -281,7 +331,7 @@ class Matrix4 {
      * @param other The source matrix
      * @return this
      */
-    setInverseOf({elements}) {
+    setInverseOf({ elements }) {
         let i;
         let s;
         let d;
@@ -292,41 +342,121 @@ class Matrix4 {
         d = this.elements;
         inv = new Float32Array(16);
 
-        inv[0] = s[5] * s[10] * s[15] - s[5] * s[11] * s[14] - s[9] * s[6] * s[15]
-                + s[9] * s[7] * s[14] + s[13] * s[6] * s[11] - s[13] * s[7] * s[10];
-        inv[4] = -s[4] * s[10] * s[15] + s[4] * s[11] * s[14] + s[8] * s[6] * s[15]
-                - s[8] * s[7] * s[14] - s[12] * s[6] * s[11] + s[12] * s[7] * s[10];
-        inv[8] = s[4] * s[9] * s[15] - s[4] * s[11] * s[13] - s[8] * s[5] * s[15]
-                + s[8] * s[7] * s[13] + s[12] * s[5] * s[11] - s[12] * s[7] * s[9];
-        inv[12] = -s[4] * s[9] * s[14] + s[4] * s[10] * s[13] + s[8] * s[5] * s[14]
-                - s[8] * s[6] * s[13] - s[12] * s[5] * s[10] + s[12] * s[6] * s[9];
+        inv[0] =
+            s[5] * s[10] * s[15] -
+            s[5] * s[11] * s[14] -
+            s[9] * s[6] * s[15] +
+            s[9] * s[7] * s[14] +
+            s[13] * s[6] * s[11] -
+            s[13] * s[7] * s[10];
+        inv[4] =
+            -s[4] * s[10] * s[15] +
+            s[4] * s[11] * s[14] +
+            s[8] * s[6] * s[15] -
+            s[8] * s[7] * s[14] -
+            s[12] * s[6] * s[11] +
+            s[12] * s[7] * s[10];
+        inv[8] =
+            s[4] * s[9] * s[15] -
+            s[4] * s[11] * s[13] -
+            s[8] * s[5] * s[15] +
+            s[8] * s[7] * s[13] +
+            s[12] * s[5] * s[11] -
+            s[12] * s[7] * s[9];
+        inv[12] =
+            -s[4] * s[9] * s[14] +
+            s[4] * s[10] * s[13] +
+            s[8] * s[5] * s[14] -
+            s[8] * s[6] * s[13] -
+            s[12] * s[5] * s[10] +
+            s[12] * s[6] * s[9];
 
-        inv[1] = -s[1] * s[10] * s[15] + s[1] * s[11] * s[14] + s[9] * s[2] * s[15]
-                - s[9] * s[3] * s[14] - s[13] * s[2] * s[11] + s[13] * s[3] * s[10];
-        inv[5] = s[0] * s[10] * s[15] - s[0] * s[11] * s[14] - s[8] * s[2] * s[15]
-                + s[8] * s[3] * s[14] + s[12] * s[2] * s[11] - s[12] * s[3] * s[10];
-        inv[9] = -s[0] * s[9] * s[15] + s[0] * s[11] * s[13] + s[8] * s[1] * s[15]
-                - s[8] * s[3] * s[13] - s[12] * s[1] * s[11] + s[12] * s[3] * s[9];
-        inv[13] = s[0] * s[9] * s[14] - s[0] * s[10] * s[13] - s[8] * s[1] * s[14]
-                + s[8] * s[2] * s[13] + s[12] * s[1] * s[10] - s[12] * s[2] * s[9];
+        inv[1] =
+            -s[1] * s[10] * s[15] +
+            s[1] * s[11] * s[14] +
+            s[9] * s[2] * s[15] -
+            s[9] * s[3] * s[14] -
+            s[13] * s[2] * s[11] +
+            s[13] * s[3] * s[10];
+        inv[5] =
+            s[0] * s[10] * s[15] -
+            s[0] * s[11] * s[14] -
+            s[8] * s[2] * s[15] +
+            s[8] * s[3] * s[14] +
+            s[12] * s[2] * s[11] -
+            s[12] * s[3] * s[10];
+        inv[9] =
+            -s[0] * s[9] * s[15] +
+            s[0] * s[11] * s[13] +
+            s[8] * s[1] * s[15] -
+            s[8] * s[3] * s[13] -
+            s[12] * s[1] * s[11] +
+            s[12] * s[3] * s[9];
+        inv[13] =
+            s[0] * s[9] * s[14] -
+            s[0] * s[10] * s[13] -
+            s[8] * s[1] * s[14] +
+            s[8] * s[2] * s[13] +
+            s[12] * s[1] * s[10] -
+            s[12] * s[2] * s[9];
 
-        inv[2] = s[1] * s[6] * s[15] - s[1] * s[7] * s[14] - s[5] * s[2] * s[15]
-                + s[5] * s[3] * s[14] + s[13] * s[2] * s[7] - s[13] * s[3] * s[6];
-        inv[6] = -s[0] * s[6] * s[15] + s[0] * s[7] * s[14] + s[4] * s[2] * s[15]
-                - s[4] * s[3] * s[14] - s[12] * s[2] * s[7] + s[12] * s[3] * s[6];
-        inv[10] = s[0] * s[5] * s[15] - s[0] * s[7] * s[13] - s[4] * s[1] * s[15]
-                + s[4] * s[3] * s[13] + s[12] * s[1] * s[7] - s[12] * s[3] * s[5];
-        inv[14] = -s[0] * s[5] * s[14] + s[0] * s[6] * s[13] + s[4] * s[1] * s[14]
-                - s[4] * s[2] * s[13] - s[12] * s[1] * s[6] + s[12] * s[2] * s[5];
+        inv[2] =
+            s[1] * s[6] * s[15] -
+            s[1] * s[7] * s[14] -
+            s[5] * s[2] * s[15] +
+            s[5] * s[3] * s[14] +
+            s[13] * s[2] * s[7] -
+            s[13] * s[3] * s[6];
+        inv[6] =
+            -s[0] * s[6] * s[15] +
+            s[0] * s[7] * s[14] +
+            s[4] * s[2] * s[15] -
+            s[4] * s[3] * s[14] -
+            s[12] * s[2] * s[7] +
+            s[12] * s[3] * s[6];
+        inv[10] =
+            s[0] * s[5] * s[15] -
+            s[0] * s[7] * s[13] -
+            s[4] * s[1] * s[15] +
+            s[4] * s[3] * s[13] +
+            s[12] * s[1] * s[7] -
+            s[12] * s[3] * s[5];
+        inv[14] =
+            -s[0] * s[5] * s[14] +
+            s[0] * s[6] * s[13] +
+            s[4] * s[1] * s[14] -
+            s[4] * s[2] * s[13] -
+            s[12] * s[1] * s[6] +
+            s[12] * s[2] * s[5];
 
-        inv[3] = -s[1] * s[6] * s[11] + s[1] * s[7] * s[10] + s[5] * s[2] * s[11]
-                - s[5] * s[3] * s[10] - s[9] * s[2] * s[7] + s[9] * s[3] * s[6];
-        inv[7] = s[0] * s[6] * s[11] - s[0] * s[7] * s[10] - s[4] * s[2] * s[11]
-                + s[4] * s[3] * s[10] + s[8] * s[2] * s[7] - s[8] * s[3] * s[6];
-        inv[11] = -s[0] * s[5] * s[11] + s[0] * s[7] * s[9] + s[4] * s[1] * s[11]
-                - s[4] * s[3] * s[9] - s[8] * s[1] * s[7] + s[8] * s[3] * s[5];
-        inv[15] = s[0] * s[5] * s[10] - s[0] * s[6] * s[9] - s[4] * s[1] * s[10]
-                + s[4] * s[2] * s[9] + s[8] * s[1] * s[6] - s[8] * s[2] * s[5];
+        inv[3] =
+            -s[1] * s[6] * s[11] +
+            s[1] * s[7] * s[10] +
+            s[5] * s[2] * s[11] -
+            s[5] * s[3] * s[10] -
+            s[9] * s[2] * s[7] +
+            s[9] * s[3] * s[6];
+        inv[7] =
+            s[0] * s[6] * s[11] -
+            s[0] * s[7] * s[10] -
+            s[4] * s[2] * s[11] +
+            s[4] * s[3] * s[10] +
+            s[8] * s[2] * s[7] -
+            s[8] * s[3] * s[6];
+        inv[11] =
+            -s[0] * s[5] * s[11] +
+            s[0] * s[7] * s[9] +
+            s[4] * s[1] * s[11] -
+            s[4] * s[3] * s[9] -
+            s[8] * s[1] * s[7] +
+            s[8] * s[3] * s[5];
+        inv[15] =
+            s[0] * s[5] * s[10] -
+            s[0] * s[6] * s[9] -
+            s[4] * s[1] * s[10] +
+            s[4] * s[2] * s[9] +
+            s[8] * s[1] * s[6] -
+            s[8] * s[2] * s[5];
 
         det = s[0] * inv[0] + s[1] * inv[4] + s[2] * inv[8] + s[3] * inv[12];
         if (det === 0) {
@@ -349,25 +479,35 @@ class Matrix4 {
         return this.setInverseOf(this);
     }
 
-    makeOrthographic ( left, right, top, bottom, near, far ) {
+    makeOrthographic(left, right, top, bottom, near, far) {
+        var te = this.elements;
+        var w = 1.0 / (right - left);
+        var h = 1.0 / (top - bottom);
+        var p = 1.0 / (far - near);
 
-		var te = this.elements;
-		var w = 1.0 / ( right - left );
-		var h = 1.0 / ( top - bottom );
-		var p = 1.0 / ( far - near );
+        var x = (right + left) * w;
+        var y = (top + bottom) * h;
+        var z = (far + near) * p;
 
-		var x = ( right + left ) * w;
-		var y = ( top + bottom ) * h;
-		var z = ( far + near ) * p;
+        te[0] = 2 * w;
+        te[4] = 0;
+        te[8] = 0;
+        te[12] = -x;
+        te[1] = 0;
+        te[5] = 2 * h;
+        te[9] = 0;
+        te[13] = -y;
+        te[2] = 0;
+        te[6] = 0;
+        te[10] = -2 * p;
+        te[14] = -z;
+        te[3] = 0;
+        te[7] = 0;
+        te[11] = 0;
+        te[15] = 1;
 
-		te[ 0 ] = 2 * w;	te[ 4 ] = 0;	te[ 8 ] = 0;	te[ 12 ] = - x;
-		te[ 1 ] = 0;	te[ 5 ] = 2 * h;	te[ 9 ] = 0;	te[ 13 ] = - y;
-		te[ 2 ] = 0;	te[ 6 ] = 0;	te[ 10 ] = - 2 * p;	te[ 14 ] = - z;
-		te[ 3 ] = 0;	te[ 7 ] = 0;	te[ 11 ] = 0;	te[ 15 ] = 1;
-
-		return this;
-
-	}
+        return this;
+    }
 
     /**
      * Set the orthographic projection matrix.
@@ -481,7 +621,9 @@ class Matrix4 {
      * @return this
      */
     perspective(fovy, aspect, near, far) {
-        return this.concat(new Matrix4().setPerspective(fovy, aspect, near, far));
+        return this.concat(
+            new Matrix4().setPerspective(fovy, aspect, near, far)
+        );
     }
 
     /**
@@ -489,14 +631,14 @@ class Matrix4 {
      * @param pos  The multiply vector
      * @return The result of multiplication(Float32Array)
      */
-    multiplyVector4({elements}) {
+    multiplyVector4({ elements }) {
         const e = this.elements;
         const p = elements;
         const v = new Vector4();
         const result = v.elements;
 
-        result[0] = p[0] * e[0] + p[1] * e[4] + p[2] * e[ 8] + p[3] * e[12];
-        result[1] = p[0] * e[1] + p[1] * e[5] + p[2] * e[ 9] + p[3] * e[13];
+        result[0] = p[0] * e[0] + p[1] * e[4] + p[2] * e[8] + p[3] * e[12];
+        result[1] = p[0] * e[1] + p[1] * e[5] + p[2] * e[9] + p[3] * e[13];
         result[2] = p[0] * e[2] + p[1] * e[6] + p[2] * e[10] + p[3] * e[14];
         result[3] = p[0] * e[3] + p[1] * e[7] + p[2] * e[11] + p[3] * e[15];
 
@@ -508,10 +650,18 @@ class Matrix4 {
         const y = vec3.elements[1];
         const z = vec3.elements[2];
         const e = this.elements;
-        e[0] *= x; e[4] *= y; e[8] *= z;
-        e[1] *= x; e[5] *= y; e[9] *= z;
-        e[2] *= x; e[6] *= y; e[10] *= z;
-        e[3] *= x; e[7] *= y; e[11] *= z;
+        e[0] *= x;
+        e[4] *= y;
+        e[8] *= z;
+        e[1] *= x;
+        e[5] *= y;
+        e[9] *= z;
+        e[2] *= x;
+        e[6] *= y;
+        e[10] *= z;
+        e[3] *= x;
+        e[7] *= y;
+        e[11] *= z;
         return this;
     }
 
@@ -544,48 +694,47 @@ class Matrix4 {
     }
 
     getMaxScaleOnAxis() {
-
         const te = this.elements;
 
-        const scaleXSq = te[ 0 ] * te[ 0 ] + te[ 1 ] * te[ 1 ] + te[ 2 ] * te[ 2 ];
-        const scaleYSq = te[ 4 ] * te[ 4 ] + te[ 5 ] * te[ 5 ] + te[ 6 ] * te[ 6 ];
-        const scaleZSq = te[ 8 ] * te[ 8 ] + te[ 9 ] * te[ 9 ] + te[ 10 ] * te[ 10 ];
+        const scaleXSq = te[0] * te[0] + te[1] * te[1] + te[2] * te[2];
+        const scaleYSq = te[4] * te[4] + te[5] * te[5] + te[6] * te[6];
+        const scaleZSq = te[8] * te[8] + te[9] * te[9] + te[10] * te[10];
 
-        return Math.sqrt( Math.max( scaleXSq, scaleYSq, scaleZSq ) );
-
+        return Math.sqrt(Math.max(scaleXSq, scaleYSq, scaleZSq));
     }
 
-    makeRotationAxis ( axis, angle ) {
-
-		// Based on http://www.gamedev.net/reference/articles/article1199.asp
+    makeRotationAxis(axis, angle) {
+        // Based on http://www.gamedev.net/reference/articles/article1199.asp
 
         const te = this.elements;
-		const c = Math.cos( angle );
-		const s = Math.sin( angle );
-		const t = 1 - c;
-		const x = axis.elements[0], y = axis.elements[1], z = axis.elements[2];
-		const tx = t * x, ty = t * y;
+        const c = Math.cos(angle);
+        const s = Math.sin(angle);
+        const t = 1 - c;
+        const x = axis.elements[0],
+            y = axis.elements[1],
+            z = axis.elements[2];
+        const tx = t * x,
+            ty = t * y;
 
         te[0] = tx * x + c;
-        te[1] = tx * y - s * z; 
-        te[2] = tx * z + s * y; 
+        te[1] = tx * y - s * z;
+        te[2] = tx * z + s * y;
         te[3] = 0;
-        te[4] = tx * y + s * z; 
-        te[5] =  ty * y + c;
-        te[6] = ty * z - s * x; 
+        te[4] = tx * y + s * z;
+        te[5] = ty * y + c;
+        te[6] = ty * z - s * x;
         te[7] = 0;
-        te[8] = tx * z - s * y; 
-        te[9] = ty * z + s * x; 
+        te[8] = tx * z - s * y;
+        te[9] = ty * z + s * x;
         te[10] = t * z * z + c;
         te[11] = 0;
-        // te[12] = 0; 
-        // te[13] = 0; 
-        // te[14] = 0; 
+        // te[12] = 0;
+        // te[13] = 0;
+        // te[14] = 0;
         te[15] = 1;
 
-		return this;
-
-	}
+        return this;
+    }
 
     makeRotationFromQuaternion(q) {
         const te = this.elements;
@@ -607,17 +756,17 @@ class Matrix4 {
         const wy = w * y2;
         const wz = w * z2;
 
-        te[ 0 ] = 1 - ( yy + zz );
-        te[ 4 ] = xy - wz;
-        te[ 8 ] = xz + wy;
+        te[0] = 1 - (yy + zz);
+        te[4] = xy - wz;
+        te[8] = xz + wy;
 
-        te[ 1 ] = xy + wz;
-        te[ 5 ] = 1 - ( xx + zz );
-        te[ 9 ] = yz - wx;
+        te[1] = xy + wz;
+        te[5] = 1 - (xx + zz);
+        te[9] = yz - wx;
 
-        te[ 2 ] = xz - wy;
-        te[ 6 ] = yz + wx;
-        te[ 10 ] = 1 - ( xx + yy );
+        te[2] = xz - wy;
+        te[6] = yz + wx;
+        te[10] = 1 - (xx + yy);
 
         return this;
     }
@@ -628,12 +777,24 @@ class Matrix4 {
 
         e = this.elements;
 
-        t = e[ 1];e[ 1] = e[ 4];e[ 4] = t;
-        t = e[ 2];e[ 2] = e[ 8];e[ 8] = t;
-        t = e[ 3];e[ 3] = e[12];e[12] = t;
-        t = e[ 6];e[ 6] = e[ 9];e[ 9] = t;
-        t = e[ 7];e[ 7] = e[13];e[13] = t;
-        t = e[11];e[11] = e[14];e[14] = t;
+        t = e[1];
+        e[1] = e[4];
+        e[4] = t;
+        t = e[2];
+        e[2] = e[8];
+        e[8] = t;
+        t = e[3];
+        e[3] = e[12];
+        e[12] = t;
+        t = e[6];
+        e[6] = e[9];
+        e[9] = t;
+        t = e[7];
+        e[7] = e[13];
+        e[13] = t;
+        t = e[11];
+        e[11] = e[14];
+        e[14] = t;
 
         return this;
     }
@@ -668,12 +829,14 @@ class Vector3 {
     constructor(opt_src?: Array<number> | Float32Array) {
         const v = new Float32Array(3);
         if (opt_src && typeof opt_src === 'object') {
-            v[0] = opt_src[0]; v[1] = opt_src[1]; v[2] = opt_src[2];
-        } 
+            v[0] = opt_src[0];
+            v[1] = opt_src[1];
+            v[2] = opt_src[2];
+        }
         this.elements = v;
     }
 
-    applyQuaternion({elements}) {
+    applyQuaternion({ elements }) {
         const x = this.elements[0];
         const y = this.elements[1];
         const z = this.elements[2];
@@ -699,9 +862,9 @@ class Vector3 {
     }
 
     /**
-      * Normalize.
-      * @return this
-      */
+     * Normalize.
+     * @return this
+     */
     normalize() {
         const v = this.elements;
         const c = v[0];
@@ -713,22 +876,26 @@ class Vector3 {
                 return this;
             }
         } else {
-            v[0] = 0; v[1] = 0; v[2] = 0;
+            v[0] = 0;
+            v[1] = 0;
+            v[2] = 0;
             return this;
         }
         g = 1 / g;
-        v[0] = c * g;v[1] = d * g;v[2] = e * g;
+        v[0] = c * g;
+        v[1] = d * g;
+        v[2] = e * g;
         return this;
     }
 
     /**
-         * Scales a vec3 by a scalar number
-         *
-         * @param {vec3} out the receiving vector
-         * @param {vec3} a the vector to scale
-         * @param {Number} b amount to scale the vector by
-         * @returns {vec3} out
-         */
+     * Scales a vec3 by a scalar number
+     *
+     * @param {vec3} out the receiving vector
+     * @param {vec3} a the vector to scale
+     * @param {Number} b amount to scale the vector by
+     * @returns {vec3} out
+     */
     add(b) {
         const a = this.elements;
         b = b.elements;
@@ -772,21 +939,21 @@ class Vector3 {
     }
 
     divideScalar(scalar) {
-        return this.scale( 1 / scalar );
+        return this.scale(1 / scalar);
     }
 
-    applyMatrix4({elements}) {
+    applyMatrix4({ elements }) {
         const x = this.elements[0];
         const y = this.elements[1];
         const z = this.elements[2];
         const e = elements;
 
-        this.elements[0] = e[ 0 ] * x + e[ 4 ] * y + e[ 8 ] * z + e[ 12 ];
-        this.elements[1] = e[ 1 ] * x + e[ 5 ] * y + e[ 9 ] * z + e[ 13 ];
-        this.elements[2] = e[ 2 ] * x + e[ 6 ] * y + e[ 10 ] * z + e[ 14 ];
-        const w = e[ 3 ] * x + e[ 7 ] * y + e[ 11 ] * z + e[ 15 ];
+        this.elements[0] = e[0] * x + e[4] * y + e[8] * z + e[12];
+        this.elements[1] = e[1] * x + e[5] * y + e[9] * z + e[13];
+        this.elements[2] = e[2] * x + e[6] * y + e[10] * z + e[14];
+        const w = e[3] * x + e[7] * y + e[11] * z + e[15];
 
-        return this.divideScalar( w );
+        return this.divideScalar(w);
     }
 
     lerp(a, b, t) {
@@ -801,10 +968,14 @@ class Vector3 {
     }
 
     lengthSq() {
-        return this.elements[0] * this.elements[0] + this.elements[1] * this.elements[1] + this.elements[2] * this.elements[2];
+        return (
+            this.elements[0] * this.elements[0] +
+            this.elements[1] * this.elements[1] +
+            this.elements[2] * this.elements[2]
+        );
     }
 
-    multiply({elements}) {
+    multiply({ elements }) {
         this.elements[0] *= elements[0];
         this.elements[1] *= elements[1];
         this.elements[2] *= elements[2];
@@ -815,19 +986,19 @@ class Vector3 {
     static angle(a, b) {
         const tempA = new Vector3(a.elements);
         const tempB = new Vector3(b.elements);
-     
+
         tempA.normalize();
         tempB.normalize();
-     
+
         const cosine = Vector3.dot(tempA, tempB);
-    
+
         if (cosine > 1.0) {
             return 0;
         } else {
             return Math.acos(cosine);
-        }     
+        }
     }
-    
+
     static cross(a, b) {
         a = a.elements;
         b = b.elements;
@@ -837,14 +1008,14 @@ class Vector3 {
         const bx = b[0];
         const by = b[1];
         const bz = b[2];
-    
+
         const out = new Vector3();
         out.elements[0] = ay * bz - az * by;
         out.elements[1] = az * bx - ax * bz;
         out.elements[2] = ax * by - ay * bx;
         return out;
     }
-    
+
     static dot(a, b) {
         a = a.elements;
         b = b.elements;
@@ -863,8 +1034,11 @@ class Vector4 {
     constructor(opt_src?: Array<number>) {
         const v = new Float32Array(4);
         if (opt_src && typeof opt_src === 'object') {
-            v[0] = opt_src[0]; v[1] = opt_src[1]; v[2] = opt_src[2]; v[3] = opt_src[3];
-        } 
+            v[0] = opt_src[0];
+            v[1] = opt_src[1];
+            v[2] = opt_src[2];
+            v[3] = opt_src[3];
+        }
         this.elements = v;
     }
 
@@ -903,56 +1077,48 @@ class Vector4 {
         return this;
     }
 
-    setFromRotationMatrix({elements}) {
+    setFromRotationMatrix({ elements }) {
         const te = elements;
-        const m11 = te[ 0 ];
-        const m12 = te[ 4 ];
-        const m13 = te[ 8 ];
-        const m21 = te[ 1 ];
-        const m22 = te[ 5 ];
-        const m23 = te[ 9 ];
-        const m31 = te[ 2 ];
-        const m32 = te[ 6 ];
-        const m33 = te[ 10 ];
+        const m11 = te[0];
+        const m12 = te[4];
+        const m13 = te[8];
+        const m21 = te[1];
+        const m22 = te[5];
+        const m23 = te[9];
+        const m31 = te[2];
+        const m32 = te[6];
+        const m33 = te[10];
         const trace = m11 + m22 + m33;
         let s;
 
-        if ( trace > 0 ) {
-
-            s = 0.5 / Math.sqrt( trace + 1.0 );
+        if (trace > 0) {
+            s = 0.5 / Math.sqrt(trace + 1.0);
 
             this.elements[3] = 0.25 / s;
-            this.elements[0] = ( m32 - m23 ) * s;
-            this.elements[1] = ( m13 - m31 ) * s;
-            this.elements[2] = ( m21 - m12 ) * s;
+            this.elements[0] = (m32 - m23) * s;
+            this.elements[1] = (m13 - m31) * s;
+            this.elements[2] = (m21 - m12) * s;
+        } else if (m11 > m22 && m11 > m33) {
+            s = 2.0 * Math.sqrt(1.0 + m11 - m22 - m33);
 
-        } else if ( m11 > m22 && m11 > m33 ) {
-
-            s = 2.0 * Math.sqrt( 1.0 + m11 - m22 - m33 );
-
-            this.elements[3] = ( m32 - m23 ) / s;
+            this.elements[3] = (m32 - m23) / s;
             this.elements[0] = 0.25 * s;
-            this.elements[1] = ( m12 + m21 ) / s;
-            this.elements[2] = ( m13 + m31 ) / s;
+            this.elements[1] = (m12 + m21) / s;
+            this.elements[2] = (m13 + m31) / s;
+        } else if (m22 > m33) {
+            s = 2.0 * Math.sqrt(1.0 + m22 - m11 - m33);
 
-        } else if ( m22 > m33 ) {
-
-            s = 2.0 * Math.sqrt( 1.0 + m22 - m11 - m33 );
-
-            this.elements[3] = ( m13 - m31 ) / s;
-            this.elements[0] = ( m12 + m21 ) / s;
+            this.elements[3] = (m13 - m31) / s;
+            this.elements[0] = (m12 + m21) / s;
             this.elements[1] = 0.25 * s;
-            this.elements[2] = ( m23 + m32 ) / s;
-
+            this.elements[2] = (m23 + m32) / s;
         } else {
+            s = 2.0 * Math.sqrt(1.0 + m33 - m11 - m22);
 
-            s = 2.0 * Math.sqrt( 1.0 + m33 - m11 - m22 );
-
-            this.elements[3] = ( m21 - m12 ) / s;
-            this.elements[0] = ( m13 + m31 ) / s;
-            this.elements[1] = ( m23 + m32 ) / s;
+            this.elements[3] = (m21 - m12) / s;
+            this.elements[0] = (m13 + m31) / s;
+            this.elements[1] = (m23 + m32) / s;
             this.elements[2] = 0.25 * s;
-
         }
 
         return this;
@@ -961,8 +1127,8 @@ class Vector4 {
     lerp(a, b, t) {
         const out = this.elements;
 
-        if ( t === 0 ) return this;
-		if ( t === 1 ) {
+        if (t === 0) return this;
+        if (t === 1) {
             out[0] = b[0];
             out[1] = b[1];
             out[2] = b[2];
@@ -971,66 +1137,61 @@ class Vector4 {
             return this;
         }
 
-        const x = a[0], y = a[1], z = a[2], w = a[3];
+        const x = a[0],
+            y = a[1],
+            z = a[2],
+            w = a[3];
 
-		// http://www.euclideanspace.com/maths/algebra/realNormedAlgebra/quaternions/slerp/
+        // http://www.euclideanspace.com/maths/algebra/realNormedAlgebra/quaternions/slerp/
 
-		let cosHalfTheta = w * b[3] + x * b[0] + y * b[1] + z * b[2];
+        let cosHalfTheta = w * b[3] + x * b[0] + y * b[1] + z * b[2];
 
-		if ( cosHalfTheta < 0 ) {
+        if (cosHalfTheta < 0) {
+            out[3] = -b[3];
+            out[0] = -b[0];
+            out[1] = -b[1];
+            out[2] = -b[2];
 
-			out[3] = - b[3];
-			out[0] = - b[0];
-			out[1] = - b[1];
-			out[2] = - b[2];
-
-			cosHalfTheta = - cosHalfTheta;
-
-		} else {
-
+            cosHalfTheta = -cosHalfTheta;
+        } else {
             out[0] = b[0];
             out[1] = b[1];
             out[2] = b[2];
             out[3] = b[3];
+        }
 
-		}
+        if (cosHalfTheta >= 1.0) {
+            out[3] = w;
+            out[0] = x;
+            out[1] = y;
+            out[2] = z;
 
-		if ( cosHalfTheta >= 1.0 ) {
+            return this;
+        }
 
-			out[3] = w;
-			out[0] = x;
-			out[1] = y;
-			out[2] = z;
+        const sqrSinHalfTheta = 1.0 - cosHalfTheta * cosHalfTheta;
 
-			return this;
+        if (sqrSinHalfTheta <= Number.EPSILON) {
+            var s = 1 - t;
+            out[3] = s * w + t * out[3];
+            out[0] = s * x + t * out[0];
+            out[1] = s * y + t * out[1];
+            out[2] = s * z + t * out[2];
 
-		}
+            return this.normalize();
+        }
 
-		const sqrSinHalfTheta = 1.0 - cosHalfTheta * cosHalfTheta;
+        const sinHalfTheta = Math.sqrt(sqrSinHalfTheta);
+        const halfTheta = Math.atan2(sinHalfTheta, cosHalfTheta);
+        const ratioA = Math.sin((1 - t) * halfTheta) / sinHalfTheta,
+            ratioB = Math.sin(t * halfTheta) / sinHalfTheta;
 
-		if ( sqrSinHalfTheta <= Number.EPSILON ) {
+        out[3] = w * ratioA + out[3] * ratioB;
+        out[0] = x * ratioA + out[0] * ratioB;
+        out[1] = y * ratioA + out[1] * ratioB;
+        out[2] = z * ratioA + out[2] * ratioB;
 
-			var s = 1 - t;
-			out[3] = s * w + t * out[3];
-			out[0] = s * x + t * out[0];
-			out[1] = s * y + t * out[1];
-			out[2] = s * z + t * out[2];
-
-			return this.normalize();
-
-		}
-
-		const sinHalfTheta = Math.sqrt( sqrSinHalfTheta );
-		const halfTheta = Math.atan2( sinHalfTheta, cosHalfTheta );
-		const ratioA = Math.sin( ( 1 - t ) * halfTheta ) / sinHalfTheta,
-			ratioB = Math.sin( t * halfTheta ) / sinHalfTheta;
-
-        out[3] = ( w * ratioA + out[3] * ratioB );
-		out[0] = ( x * ratioA + out[0] * ratioB );
-		out[1] = ( y * ratioA + out[1] * ratioB );
-		out[2] = ( z * ratioA + out[2] * ratioB );
-
-		return this;
+        return this;
     }
 }
 
@@ -1040,8 +1201,9 @@ class Vector2 {
     constructor(opt_src?: Array<number>) {
         const v = new Float32Array(2);
         if (opt_src && typeof opt_src === 'object') {
-            v[0] = opt_src[0]; v[1] = opt_src[1];
-        } 
+            v[0] = opt_src[0];
+            v[1] = opt_src[1];
+        }
         this.elements = v;
     }
 
@@ -1064,22 +1226,50 @@ class Vector2 {
 }
 
 // { 0: right, 1: left, 2: bottom. 3: top, 4: far, 5: near }
-function Frustum( m ) {
-    const planes = [new Vector4, new Vector4, new Vector4, new Vector4, new Vector4, new Vector4];
+function Frustum(m) {
+    const planes = [
+        new Vector4(),
+        new Vector4(),
+        new Vector4(),
+        new Vector4(),
+        new Vector4(),
+        new Vector4()
+    ];
     const me = m.elements;
-    let me0 = me[ 0 ], me1 = me[ 1 ], me2 = me[ 2 ], me3 = me[ 3 ];
-    let me4 = me[ 4 ], me5 = me[ 5 ], me6 = me[ 6 ], me7 = me[ 7 ];
-    let me8 = me[ 8 ], me9 = me[ 9 ], me10 = me[ 10 ], me11 = me[ 11 ];
-    let me12 = me[ 12 ], me13 = me[ 13 ], me14 = me[ 14 ], me15 = me[ 15 ];
+    let me0 = me[0],
+        me1 = me[1],
+        me2 = me[2],
+        me3 = me[3];
+    let me4 = me[4],
+        me5 = me[5],
+        me6 = me[6],
+        me7 = me[7];
+    let me8 = me[8],
+        me9 = me[9],
+        me10 = me[10],
+        me11 = me[11];
+    let me12 = me[12],
+        me13 = me[13],
+        me14 = me[14],
+        me15 = me[15];
 
-    planes[ 0 ].set( [me3 - me0, me7 - me4, me11 - me8, me15 - me12] ).normalize();
-    planes[ 1 ].set( [me3 + me0, me7 + me4, me11 + me8, me15 + me12] ).normalize();
-    planes[ 2 ].set( [me3 + me1, me7 + me5, me11 + me9, me15 + me13] ).normalize();
-    planes[ 3 ].set( [me3 - me1, me7 - me5, me11 - me9, me15 - me13] ).normalize();
-    planes[ 4 ].set( [me3 - me2, me7 - me6, me11 - me10, me15 - me14] ).normalize();
-    planes[ 5 ].set( [me3 + me2, me7 + me6, me11 + me10, me15 + me14] ).normalize();
+    planes[0].set([me3 - me0, me7 - me4, me11 - me8, me15 - me12]).normalize();
+    planes[1].set([me3 + me0, me7 + me4, me11 + me8, me15 + me12]).normalize();
+    planes[2].set([me3 + me1, me7 + me5, me11 + me9, me15 + me13]).normalize();
+    planes[3].set([me3 - me1, me7 - me5, me11 - me9, me15 - me13]).normalize();
+    planes[4].set([me3 - me2, me7 - me6, me11 - me10, me15 - me14]).normalize();
+    planes[5].set([me3 + me2, me7 + me6, me11 + me10, me15 + me14]).normalize();
 
     return planes;
 }
 
-export { Matrix2, Matrix3, Matrix4, Vector, Vector2, Vector3, Vector4, Frustum };
+export {
+    Matrix2,
+    Matrix3,
+    Matrix4,
+    Vector,
+    Vector2,
+    Vector3,
+    Vector4,
+    Frustum
+};

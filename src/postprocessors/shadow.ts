@@ -17,7 +17,7 @@ export class Shadow extends PostProcessor {
     }
 
     buildScreenBuffer() {
-        return {name: 'SHADOW'};
+        return { name: 'SHADOW' };
     }
     attachUniform() {}
     postProcessing() {}

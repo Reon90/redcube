@@ -43,7 +43,7 @@ export class PostProcessing {
 
     constructor(processors, renderScene) {
         this.renderScene = renderScene;
-        this.postprocessors = processors.map(name => new processorsMap[name]);
+        this.postprocessors = processors.map(name => new processorsMap[name]());
         this.MSAA = 4;
     }
 
@@ -70,7 +70,10 @@ export class PostProcessing {
             this.postprocessors.forEach(postProcessor => {
                 postProcessor.setGL(gl);
             });
-            this.fakeDepth = this.createNoiceTexture(1, new Float32Array([1, 1, 0]));
+            this.fakeDepth = this.createNoiceTexture(
+                1,
+                new Float32Array([1, 1, 0])
+            );
         }
     }
 
@@ -98,8 +101,8 @@ export class PostProcessing {
     }
 
     preProcessing() {
-        this.postprocessors.forEach(
-            postProcessor => postProcessor.preProcessing(this)
+        this.postprocessors.forEach(postProcessor =>
+            postProcessor.preProcessing(this)
         );
     }
 
@@ -109,17 +112,50 @@ export class PostProcessing {
 
         gl.readBuffer(gl.COLOR_ATTACHMENT0);
         gl.drawBuffers([gl.COLOR_ATTACHMENT0]);
-        gl.blitFramebuffer(0, 0, this.width, this.height, 0, 0, this.width, this.height, gl.COLOR_BUFFER_BIT, gl.NEAREST);
+        gl.blitFramebuffer(
+            0,
+            0,
+            this.width,
+            this.height,
+            0,
+            0,
+            this.width,
+            this.height,
+            gl.COLOR_BUFFER_BIT,
+            gl.NEAREST
+        );
 
         gl.readBuffer(gl.COLOR_ATTACHMENT1);
         gl.drawBuffers([gl.NONE, gl.COLOR_ATTACHMENT1]);
-        gl.blitFramebuffer(0, 0, this.width, this.height, 0, 0, this.width, this.height, gl.COLOR_BUFFER_BIT, gl.NEAREST);
+        gl.blitFramebuffer(
+            0,
+            0,
+            this.width,
+            this.height,
+            0,
+            0,
+            this.width,
+            this.height,
+            gl.COLOR_BUFFER_BIT,
+            gl.NEAREST
+        );
 
-        gl.blitFramebuffer(0, 0, this.width, this.height, 0, 0, this.width, this.height, gl.DEPTH_BUFFER_BIT, gl.NEAREST);
+        gl.blitFramebuffer(
+            0,
+            0,
+            this.width,
+            this.height,
+            0,
+            0,
+            this.width,
+            this.height,
+            gl.DEPTH_BUFFER_BIT,
+            gl.NEAREST
+        );
 
         gl.bindVertexArray(this.VAO);
-        this.postprocessors.forEach(
-            postProcessor => postProcessor.postProcessing(this)
+        this.postprocessors.forEach(postProcessor =>
+            postProcessor.postProcessing(this)
         );
 
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
@@ -129,19 +165,41 @@ export class PostProcessing {
             postProcessor.attachUniform(this.program);
         });
 
-        gl.uniform1i( gl.getUniformLocation(this.program, 'original'), this.screenTexture.index);
-        gl.uniform1i( gl.getUniformLocation(this.program, 'normal'), this.normalTexture.index);
-        gl.uniform1i( gl.getUniformLocation(this.program, 'depth'), this.depthTexture.index);
-        gl.uniform1i( gl.getUniformLocation(this.program, 'preDepth'), this.preDepthTexture.index);
+        gl.uniform1i(
+            gl.getUniformLocation(this.program, 'original'),
+            this.screenTexture.index
+        );
+        gl.uniform1i(
+            gl.getUniformLocation(this.program, 'normal'),
+            this.normalTexture.index
+        );
+        gl.uniform1i(
+            gl.getUniformLocation(this.program, 'depth'),
+            this.depthTexture.index
+        );
+        gl.uniform1i(
+            gl.getUniformLocation(this.program, 'preDepth'),
+            this.preDepthTexture.index
+        );
 
-        gl.drawArrays( gl.TRIANGLES, 0, 6 );
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
     }
 
     createByteTexture() {
         const texture = createTexture();
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, this.width, this.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+        gl.texImage2D(
+            gl.TEXTURE_2D,
+            0,
+            gl.RGBA,
+            this.width,
+            this.height,
+            0,
+            gl.RGBA,
+            gl.UNSIGNED_BYTE,
+            null
+        );
         return texture;
     }
 
@@ -149,7 +207,17 @@ export class PostProcessing {
         const texture = createTexture();
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, this.width / scale, this.height / scale, 0, gl.RGBA, gl.FLOAT, null);
+        gl.texImage2D(
+            gl.TEXTURE_2D,
+            0,
+            gl.RGBA16F,
+            this.width / scale,
+            this.height / scale,
+            0,
+            gl.RGBA,
+            gl.FLOAT,
+            null
+        );
         return texture;
     }
 
@@ -157,7 +225,17 @@ export class PostProcessing {
         const texture = createTexture();
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, this.width / scale, this.height / scale, 0, gl.RED, gl.UNSIGNED_BYTE, null);
+        gl.texImage2D(
+            gl.TEXTURE_2D,
+            0,
+            gl.R8,
+            this.width / scale,
+            this.height / scale,
+            0,
+            gl.RED,
+            gl.UNSIGNED_BYTE,
+            null
+        );
         return texture;
     }
 
@@ -165,7 +243,17 @@ export class PostProcessing {
         const texture = createTexture();
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.DEPTH_COMPONENT24, this.width, this.height, 0, gl.DEPTH_COMPONENT, gl.UNSIGNED_INT, null);
+        gl.texImage2D(
+            gl.TEXTURE_2D,
+            0,
+            gl.DEPTH_COMPONENT24,
+            this.width,
+            this.height,
+            0,
+            gl.DEPTH_COMPONENT,
+            gl.UNSIGNED_INT,
+            null
+        );
         return texture;
     }
 
@@ -175,7 +263,17 @@ export class PostProcessing {
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB16F, size, size, 0, gl.RGB, gl.FLOAT, data);
+        gl.texImage2D(
+            gl.TEXTURE_2D,
+            0,
+            gl.RGB16F,
+            size,
+            size,
+            0,
+            gl.RGB,
+            gl.FLOAT,
+            data
+        );
         return texture;
     }
 
@@ -187,16 +285,26 @@ export class PostProcessing {
             return true;
         }
 
-        const defines = this.postprocessors.map(postProcessor => postProcessor.buildScreenBuffer(this));
-        const defineStr = defines.map(define => `#define ${define.name} ${define.value || 1}` + '\n').join('');
+        const defines = this.postprocessors.map(postProcessor =>
+            postProcessor.buildScreenBuffer(this)
+        );
+        const defineStr = defines
+            .map(define => `#define ${define.name} ${define.value || 1}` + '\n')
+            .join('');
 
         const verts = [
-            1.0, 1.0,
-            -1.0, 1.0,
-            -1.0, -1.0,
-            -1.0, -1.0,
-            1.0, -1.0,
-            1.0, 1.0
+            1.0,
+            1.0,
+            -1.0,
+            1.0,
+            -1.0,
+            -1.0,
+            -1.0,
+            -1.0,
+            1.0,
+            -1.0,
+            1.0,
+            1.0
         ];
         this.VAO = gl.createVertexArray();
         gl.bindVertexArray(this.VAO);
@@ -209,23 +317,56 @@ export class PostProcessing {
 
         const colorRB = gl.createRenderbuffer();
         gl.bindRenderbuffer(gl.RENDERBUFFER, colorRB);
-        gl.renderbufferStorageMultisample(gl.RENDERBUFFER, this.MSAA, gl.RGBA16F, this.width, this.height);
+        gl.renderbufferStorageMultisample(
+            gl.RENDERBUFFER,
+            this.MSAA,
+            gl.RGBA16F,
+            this.width,
+            this.height
+        );
 
         const normalRB = gl.createRenderbuffer();
         gl.bindRenderbuffer(gl.RENDERBUFFER, normalRB);
-        gl.renderbufferStorageMultisample(gl.RENDERBUFFER, this.MSAA, gl.RGBA16F, this.width, this.height);
+        gl.renderbufferStorageMultisample(
+            gl.RENDERBUFFER,
+            this.MSAA,
+            gl.RGBA16F,
+            this.width,
+            this.height
+        );
 
         const depthRB = gl.createRenderbuffer();
         gl.bindRenderbuffer(gl.RENDERBUFFER, depthRB);
-        gl.renderbufferStorageMultisample(gl.RENDERBUFFER, this.MSAA, gl.DEPTH_COMPONENT24, this.width, this.height);
+        gl.renderbufferStorageMultisample(
+            gl.RENDERBUFFER,
+            this.MSAA,
+            gl.DEPTH_COMPONENT24,
+            this.width,
+            this.height
+        );
 
         this.renderframebuffer = gl.createFramebuffer();
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.renderframebuffer);
-        gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.RENDERBUFFER, colorRB);
-        gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, gl.RENDERBUFFER, normalRB);
-        gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, depthRB);
+        gl.framebufferRenderbuffer(
+            gl.FRAMEBUFFER,
+            gl.COLOR_ATTACHMENT0,
+            gl.RENDERBUFFER,
+            colorRB
+        );
+        gl.framebufferRenderbuffer(
+            gl.FRAMEBUFFER,
+            gl.COLOR_ATTACHMENT1,
+            gl.RENDERBUFFER,
+            normalRB
+        );
+        gl.framebufferRenderbuffer(
+            gl.FRAMEBUFFER,
+            gl.DEPTH_ATTACHMENT,
+            gl.RENDERBUFFER,
+            depthRB
+        );
         gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1]);
-        
+
         this.framebuffer = gl.createFramebuffer();
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
 
@@ -233,19 +374,46 @@ export class PostProcessing {
         this.normalTexture = this.createDefaultTexture();
         this.depthTexture = this.createDepthTexture();
 
-        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.screenTexture, 0);
-        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, gl.TEXTURE_2D, this.normalTexture, 0);
-        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, this.depthTexture, 0);
+        gl.framebufferTexture2D(
+            gl.FRAMEBUFFER,
+            gl.COLOR_ATTACHMENT0,
+            gl.TEXTURE_2D,
+            this.screenTexture,
+            0
+        );
+        gl.framebufferTexture2D(
+            gl.FRAMEBUFFER,
+            gl.COLOR_ATTACHMENT1,
+            gl.TEXTURE_2D,
+            this.normalTexture,
+            0
+        );
+        gl.framebufferTexture2D(
+            gl.FRAMEBUFFER,
+            gl.DEPTH_ATTACHMENT,
+            gl.TEXTURE_2D,
+            this.depthTexture,
+            0
+        );
         gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1]);
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
         this.preframebuffer = gl.createFramebuffer();
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.preframebuffer);
         this.preDepthTexture = this.createDepthTexture();
-        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, this.preDepthTexture, 0);
+        gl.framebufferTexture2D(
+            gl.FRAMEBUFFER,
+            gl.DEPTH_ATTACHMENT,
+            gl.TEXTURE_2D,
+            this.preDepthTexture,
+            0
+        );
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
-        this.program = createProgram(quadShader.replace(/\n/, `\n${ defineStr}`), composerShader.replace(/\n/, `\n${ defineStr}`));
+        this.program = createProgram(
+            quadShader.replace(/\n/, `\n${defineStr}`),
+            composerShader.replace(/\n/, `\n${defineStr}`)
+        );
     }
 
     clear() {
