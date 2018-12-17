@@ -51,27 +51,27 @@ export function getMatrixType(type) {
 export function getDataType(type) {
     let count;
     switch (type) {
-    case 'MAT2':
-        count = 4;
-        break;
-    case 'MAT3':
-        count = 9;
-        break;
-    case 'MAT4':
-        count = 16;
-        break;
-    case 'VEC4':
-        count = 4;
-        break;
-    case 'VEC3':
-        count = 3;
-        break;
-    case 'VEC2':
-        count = 2;
-        break;
-    case 'SCALAR':
-        count = 1;
-        break;
+        case 'MAT2':
+            count = 4;
+            break;
+        case 'MAT3':
+            count = 9;
+            break;
+        case 'MAT4':
+            count = 16;
+            break;
+        case 'VEC4':
+            count = 4;
+            break;
+        case 'VEC3':
+            count = 3;
+            break;
+        case 'VEC2':
+            count = 2;
+            break;
+        case 'SCALAR':
+            count = 1;
+            break;
     }
     return count;
 }
@@ -79,15 +79,15 @@ export function getDataType(type) {
 export function getComponentType(type) {
     let count;
     switch (glEnum[type]) {
-    case 'FLOAT_VEC4':
-        count = 4;
-        break;
-    case 'FLOAT_VEC3':
-        count = 3;
-        break;
-    case 'FLOAT_VEC2':
-        count = 2;
-        break;
+        case 'FLOAT_VEC4':
+            count = 4;
+            break;
+        case 'FLOAT_VEC3':
+            count = 3;
+            break;
+        case 'FLOAT_VEC2':
+            count = 2;
+            break;
     }
     return count;
 }
@@ -95,30 +95,30 @@ export function getComponentType(type) {
 export function getMethod(type) {
     let method;
     switch (glEnum[type]) {
-    case 'FLOAT_VEC2':
-        method = 'uniform2f';
-        break;
-    case 'FLOAT_VEC4':
-        method = 'uniform4f';
-        break;
-    case 'FLOAT':
-        method = 'uniform1f';
-        break;
-    case 'FLOAT_VEC3':
-        method = 'uniform3f';
-        break;
-    case 'FLOAT_MAT4':
-        method = 'uniformMatrix4fv';
-        break;
-    case 'FLOAT_MAT3':
-        method = 'uniformMatrix3fv';
-        break;
-    case 'FLOAT_MAT2':
-        method = 'uniformMatrix2fv';
-        break;
-    case 'SAMPLER_2D':
-        method = 'uniform1i';
-        break;
+        case 'FLOAT_VEC2':
+            method = 'uniform2f';
+            break;
+        case 'FLOAT_VEC4':
+            method = 'uniform4f';
+            break;
+        case 'FLOAT':
+            method = 'uniform1f';
+            break;
+        case 'FLOAT_VEC3':
+            method = 'uniform3f';
+            break;
+        case 'FLOAT_MAT4':
+            method = 'uniformMatrix4fv';
+            break;
+        case 'FLOAT_MAT3':
+            method = 'uniformMatrix3fv';
+            break;
+        case 'FLOAT_MAT2':
+            method = 'uniformMatrix2fv';
+            break;
+        case 'SAMPLER_2D':
+            method = 'uniform1i';
+            break;
     }
     return method;
 }
@@ -167,18 +167,18 @@ export function interpolation(time, frames) {
 function getCount(type) {
     let arr;
     switch (glEnum[type]) {
-    case 'BYTE':
-    case 'UNSIGNED_BYTE':
-        arr = 1;
-        break;
-    case 'SHORT':
-    case 'UNSIGNED_SHORT':
-        arr = 2;
-        break;
-    case 'UNSIGNED_INT':
-    case 'FLOAT':
-        arr = 4;
-        break;
+        case 'BYTE':
+        case 'UNSIGNED_BYTE':
+            arr = 1;
+            break;
+        case 'SHORT':
+        case 'UNSIGNED_SHORT':
+            arr = 2;
+            break;
+        case 'UNSIGNED_INT':
+        case 'FLOAT':
+            arr = 4;
+            break;
     }
     return arr;
 }
@@ -192,30 +192,30 @@ export function buildArray(arrayBuffer, type, offset, length, stride?, count?) {
 
     let arr;
     switch (glEnum[type]) {
-    case 'BYTE':
-        arr = new Int8Array(arrayBuffer, offset, length);
-        arr.type = 'BYTE';
-        break;
-    case 'UNSIGNED_BYTE':
-        arr = new Uint8Array(arrayBuffer, offset, length);
-        arr.type = 'UNSIGNED_BYTE';
-        break;
-    case 'SHORT':
-        arr = new Int16Array(arrayBuffer, offset, length);
-        arr.type = 'SHORT';
-        break;
-    case 'UNSIGNED_SHORT':
-        arr = new Uint16Array(arrayBuffer, offset, length);
-        arr.type = 'UNSIGNED_SHORT';
-        break;
-    case 'UNSIGNED_INT':
-        arr = new Uint32Array(arrayBuffer, offset, length);
-        arr.type = 'UNSIGNED_INT';
-        break;
-    case 'FLOAT':
-        arr = new Float32Array(arrayBuffer, offset, length);
-        arr.type = 'FLOAT';
-        break;
+        case 'BYTE':
+            arr = new Int8Array(arrayBuffer, offset, length);
+            arr.type = 'BYTE';
+            break;
+        case 'UNSIGNED_BYTE':
+            arr = new Uint8Array(arrayBuffer, offset, length);
+            arr.type = 'UNSIGNED_BYTE';
+            break;
+        case 'SHORT':
+            arr = new Int16Array(arrayBuffer, offset, length);
+            arr.type = 'SHORT';
+            break;
+        case 'UNSIGNED_SHORT':
+            arr = new Uint16Array(arrayBuffer, offset, length);
+            arr.type = 'UNSIGNED_SHORT';
+            break;
+        case 'UNSIGNED_INT':
+            arr = new Uint32Array(arrayBuffer, offset, length);
+            arr.type = 'UNSIGNED_INT';
+            break;
+        case 'FLOAT':
+            arr = new Float32Array(arrayBuffer, offset, length);
+            arr.type = 'FLOAT';
+            break;
     }
     if (stride && stride !== getCount(type) * c) {
         const stridedArr = new Float32Array(l);
@@ -337,30 +337,30 @@ export function calculateOffset(a = 0, b = 0) {
 export function getAttributeIndex(name) {
     let index;
     switch (name) {
-    case 'POSITION':
-        index = [0, 3, gl.FLOAT];
-        break;
-    case 'NORMAL':
-        index = [1, 3, gl.FLOAT];
-        break;
-    case 'TEXCOORD_0':
-        index = [2, 2, gl.FLOAT];
-        break;
-    case 'JOINTS_0':
-        index = [3, 4, gl.UNSIGNED_SHORT];
-        break;
-    case 'WEIGHTS_0':
-        index = [4, 4, gl.FLOAT];
-        break;
-    case 'TANGENT':
-        index = [5, 4, gl.FLOAT];
-        break;
-    case 'COLOR_0':
-        index = [6, 4, gl.FLOAT];
-        break;
-    case 'TEXCOORD_1':
-        index = [7, 2, gl.FLOAT];
-        break;
+        case 'POSITION':
+            index = [0, 3, gl.FLOAT];
+            break;
+        case 'NORMAL':
+            index = [1, 3, gl.FLOAT];
+            break;
+        case 'TEXCOORD_0':
+            index = [2, 2, gl.FLOAT];
+            break;
+        case 'JOINTS_0':
+            index = [3, 4, gl.UNSIGNED_SHORT];
+            break;
+        case 'WEIGHTS_0':
+            index = [4, 4, gl.FLOAT];
+            break;
+        case 'TANGENT':
+            index = [5, 4, gl.FLOAT];
+            break;
+        case 'COLOR_0':
+            index = [6, 4, gl.FLOAT];
+            break;
+        case 'TEXCOORD_1':
+            index = [7, 2, gl.FLOAT];
+            break;
     }
     return index;
 }

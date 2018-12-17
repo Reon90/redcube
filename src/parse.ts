@@ -15,9 +15,10 @@ import {
     Object3D,
     Scene,
     Light,
-    UniformBuffer
+    UniformBuffer,
+    Material
 } from './objects/index';
-import { Matrix3, Matrix4, Frustum } from './matrix';
+import { Matrix4, Frustum } from './matrix';
 import { GlTf } from '../GLTF';
 
 import vertexShader from './shaders/vertex.glsl';
@@ -66,7 +67,7 @@ export class Parse {
     cameras: Array<Camera>;
     programs: object;
     scene: Scene;
-    _camera: Camera;
+    camera: Camera;
     light: Light;
     aspect: number;
     zoom: number;
@@ -99,7 +100,7 @@ export class Parse {
     }
 
     setCamera(camera) {
-        this._camera = camera;
+        this.camera = camera;
     }
 
     setLight(light) {
@@ -120,161 +121,13 @@ export class Parse {
         });
     }
 
-    buildPrim(parent, name, skin, weights, primitive) {
-        const material =
-            primitive.material !== undefined
-                ? JSON.parse(
-                    JSON.stringify(this.json.materials[primitive.material])
-                )
-                : {
-                    pbrMetallicRoughness: {
-                        baseColorFactor: [0.8, 0.8, 0.8, 1.0]
-                    }
-                };
-        const defines = [...this.defines];
-
-        if (
-            !material.pbrMetallicRoughness &&
-            material.extensions &&
-            material.extensions.KHR_materials_pbrSpecularGlossiness
-        ) {
-            const SG = material.extensions.KHR_materials_pbrSpecularGlossiness;
-            material.pbrMetallicRoughness = {};
-            material.pbrMetallicRoughness.baseColorTexture = SG.diffuseTexture;
-            material.pbrMetallicRoughness.metallicRoughnessTexture =
-                SG.specularGlossinessTexture;
-            material.pbrMetallicRoughness.baseColorFactor = SG.diffuseFactor;
-            material.pbrMetallicRoughness.specularFactor = SG.specularFactor;
-            material.pbrMetallicRoughness.glossinessFactor =
-                SG.glossinessFactor;
-            defines.push({ name: 'SPECULARGLOSSINESSMAP' });
-        }
-
-        if (material.pbrMetallicRoughness.metallicRoughnessTexture) {
-            material.pbrMetallicRoughness.metallicRoughnessTexture = this.textures[
-                material.pbrMetallicRoughness.metallicRoughnessTexture.index
-            ];
-            defines.push({ name: 'METALROUGHNESSMAP' });
-        }
-        if (material.normalTexture) {
-            material.normalTexture = this.textures[
-                material.normalTexture.index
-            ];
-            defines.push({ name: 'NORMALMAP' });
-        }
-        if (material.occlusionTexture) {
-            material.occlusionTexture = this.textures[
-                material.occlusionTexture.index
-            ];
-            defines.push({ name: 'OCCLUSIONMAP' });
-        }
-        if (material.pbrMetallicRoughness.baseColorTexture) {
-            const {
-                extensions
-            } = material.pbrMetallicRoughness.baseColorTexture;
-            material.pbrMetallicRoughness.baseColorTexture = this.textures[
-                material.pbrMetallicRoughness.baseColorTexture.index
-            ];
-            defines.push({ name: 'BASECOLORTEXTURE' });
-
-            if (extensions) {
-                const ex = extensions.KHR_texture_transform;
-                if (ex) {
-                    const translation =
-                        ex.offset &&
-                        new Matrix3().set([
-                            1,
-                            0,
-                            0,
-                            0,
-                            1,
-                            0,
-                            ex.offset[0],
-                            ex.offset[1],
-                            1
-                        ]);
-                    const rotation =
-                        ex.rotation &&
-                        new Matrix3().set([
-                            -Math.sin(ex.rotation),
-                            Math.cos(ex.rotation),
-                            0,
-                            Math.cos(ex.rotation),
-                            Math.sin(ex.rotation),
-                            0,
-                            0,
-                            0,
-                            1
-                        ]);
-                    const scale =
-                        ex.scale &&
-                        new Matrix3().set([
-                            ex.scale[0],
-                            0,
-                            0,
-                            0,
-                            ex.scale[1],
-                            0,
-                            0,
-                            0,
-                            1
-                        ]);
-
-                    const matrix = new Matrix3();
-                    if (scale) {
-                        matrix.multiply(scale);
-                    }
-                    if (rotation) {
-                        matrix.multiply(rotation);
-                    }
-                    if (translation) {
-                        matrix.multiply(translation);
-                    }
-                    material.matrix = matrix;
-                    defines.push({ name: 'TEXTURE_TRANSFORM' });
-                }
-            }
-        }
-        if (material.emissiveTexture) {
-            const { texCoord } = material.emissiveTexture;
-            material.emissiveTexture = this.textures[
-                material.emissiveTexture.index
-            ];
-            defines.push({ name: 'EMISSIVEMAP', value: texCoord ? 2 : 1 });
-        }
-
-        if (skin !== undefined) {
-            defines.push({
-                name: 'JOINTNUMBER',
-                value: this.skins[skin].jointNames.length
-            });
-        }
-        if (primitive.attributes.TANGENT || material.normalTexture) {
-            defines.push({ name: 'TANGENT' });
-        }
-
-        if (material.alphaMode === 'MASK') {
-            defines.push({
-                name: 'ALPHATEST',
-                value: material.alphaCutoff || 0.5
-            });
-        } else if (material.alphaMode === 'BLEND') {
-            defines.push({ name: 'ALPHATEST', value: 0.01 });
-        }
-
+    createProgram(defines) {
         let program;
-        if (
-            this.programs[
-                defines
-                    .map(define => `${define.name}${define.value || 1}`)
-                    .join('')
-            ]
-        ) {
-            program = this.programs[
-                defines
-                    .map(define => `${define.name}${define.value || 1}`)
-                    .join('')
-            ];
+        const programHash = defines
+            .map(define => `${define.name}${define.value || 1}`)
+            .join('');
+        if (this.programs[programHash]) {
+            program = this.programs[programHash];
         } else {
             const defineStr = defines
                 .map(
@@ -286,16 +139,33 @@ export class Parse {
                 vertexShader.replace(/\n/, `\n${defineStr}`),
                 fragmentShader.replace(/\n/, `\n${defineStr}`)
             );
-            this.programs[
-                defines
-                    .map(define => `${define.name}${define.value || 1}`)
-                    .join('')
-            ] = program;
+            this.programs[programHash] = program;
         }
+
+        return program;
+    }
+
+    buildPrim(parent, name, skin, weights, primitive) {
+        const m =
+            this.json.materials && this.json.materials[primitive.material];
+        const defines = [...this.defines];
+        const material = new Material(m, this.textures, defines);
+        if (skin !== undefined) {
+            defines.push({
+                name: 'JOINTNUMBER',
+                value: this.skins[skin].jointNames.length
+            });
+        }
+        if (primitive.attributes.TANGENT || material.hasNormal()) {
+            defines.push({ name: 'TANGENT' });
+        }
+        const program = this.createProgram(defines);
+        material.createUniforms(gl, program);
+        material.updateUniforms(gl, program, this.camera, this.light);
 
         const mesh =
             skin !== undefined
-                ? new SkinnedMesh(name, parent).setSkin(skin)
+                ? new SkinnedMesh(name, parent)
                 : new Mesh(name, parent);
         const geometry = new Geometry(
             gl,
@@ -303,51 +173,23 @@ export class Parse {
             this.arrayBuffer,
             weights,
             primitive,
-            material.normalTexture
+            material.hasNormal()
         );
 
         mesh.setProgram(program);
         mesh.setMode(primitive.mode);
         mesh.setMaterial(material);
         mesh.setGeometry(geometry);
-        mesh.setDefines(defines);
+        mesh.setDefines(material.defines);
+        if (mesh instanceof SkinnedMesh) {
+            mesh.setSkin(gl, this.skins[skin]);
+        }
         mesh.updateMatrix();
-
-        if (material.pbrMetallicRoughness.baseColorTexture) {
-            mesh.material.uniforms.baseColorTexture = gl.getUniformLocation(
-                mesh.program,
-                'baseColorTexture'
-            );
-        }
-        if (material.pbrMetallicRoughness.metallicRoughnessTexture) {
-            mesh.material.uniforms.metallicRoughnessTexture = gl.getUniformLocation(
-                mesh.program,
-                'metallicRoughnessTexture'
-            );
-        }
-        if (material.normalTexture) {
-            mesh.material.uniforms.normalTexture = gl.getUniformLocation(
-                mesh.program,
-                'normalTexture'
-            );
-        }
-        if (material.occlusionTexture) {
-            mesh.material.uniforms.occlusionTexture = gl.getUniformLocation(
-                mesh.program,
-                'occlusionTexture'
-            );
-        }
-        if (material.emissiveTexture) {
-            mesh.material.uniforms.emissiveTexture = gl.getUniformLocation(
-                mesh.program,
-                'emissiveTexture'
-            );
-        }
 
         return mesh;
     }
 
-    walkByMesh(parent, name) {
+    buildNode(parent, name) {
         const el = this.json.nodes[name];
         let child;
 
@@ -367,7 +209,7 @@ export class Parse {
                 parent
             );
 
-            child = this._camera;
+            child = this.camera;
             const proj = calculateProjection(child.props);
             child.setProjection(proj);
 
@@ -414,7 +256,7 @@ export class Parse {
         }
 
         if (el.children && el.children.length) {
-            el.children.forEach(this.walkByMesh.bind(this, parent));
+            el.children.forEach(this.buildNode.bind(this, parent));
         }
     }
 
@@ -435,7 +277,7 @@ export class Parse {
         });
         const z = Math.max(biggestMesh.matrixWorld.getScaleZ(), 1);
         const pos = Math.hypot(...biggestMesh.getPosition());
-        this._camera.modelSize =
+        this.camera.modelSize =
             biggestMesh.geometry.boundingSphere.radius * z +
             pos +
             Math.hypot(...biggestMesh.geometry.boundingSphere.center.elements);
@@ -451,138 +293,29 @@ export class Parse {
                 this.json.nodes[n].children &&
                 this.json.nodes[n].children.length
             ) {
-                this.walkByMesh(this.scene, n);
+                this.buildNode(this.scene, n);
             }
             if (this.json.nodes[n].mesh !== undefined) {
-                this.walkByMesh(this.scene, n);
+                this.buildNode(this.scene, n);
             }
             if (this.json.nodes[n].camera !== undefined) {
-                this.walkByMesh(this.scene, n);
+                this.buildNode(this.scene, n);
             }
         });
 
         this.calculateFov();
 
-        const planes = Frustum(this._camera.getViewProjMatrix());
+        const planes = Frustum(this.camera.getViewProjMatrix());
 
         walk(this.scene, mesh => {
-            if (mesh instanceof SkinnedMesh) {
-                mesh.bones = this.skins[mesh.skin].bones;
-                mesh.boneInverses = this.skins[mesh.skin].boneInverses;
-
-                const jointMatrix = mesh.getJointMatrix();
-                const matrices = new Float32Array(jointMatrix.length * 16);
-                let i = 0;
-                for (const j of jointMatrix) {
-                    matrices.set(j.elements, 0 + 16 * i);
-                    i++;
-                }
-                const uIndex = gl.getUniformBlockIndex(mesh.program, 'Skin');
-                gl.uniformBlockBinding(mesh.program, uIndex, 2);
-                const UBO = gl.createBuffer();
-                gl.bindBuffer(gl.UNIFORM_BUFFER, UBO);
-                gl.bufferData(gl.UNIFORM_BUFFER, matrices, gl.DYNAMIC_DRAW);
-                mesh.geometry.SKIN = UBO;
-                gl.bindBuffer(gl.UNIFORM_BUFFER, null);
-            }
             if (mesh instanceof Mesh) {
-                const materialUniformBuffer = new UniformBuffer();
-                materialUniformBuffer.add(
-                    'baseColorFactor',
-                    mesh.material.pbrMetallicRoughness.baseColorFactor || [
-                        0.8,
-                        0.8,
-                        0.8,
-                        1.0
-                    ]
-                );
-                materialUniformBuffer.add('lightPos', this.light.getPosition());
-                materialUniformBuffer.add(
-                    'viewPos',
-                    this._camera.getPosition()
-                );
-                materialUniformBuffer.add(
-                    'textureMatrix',
-                    (mesh.material.matrix && mesh.material.matrix.elements) ||
-                        new Matrix3().elements
-                );
-                materialUniformBuffer.add(
-                    'specularFactor',
-                    mesh.material.pbrMetallicRoughness.specularFactor || [
-                        0,
-                        0,
-                        0
-                    ]
-                );
-                materialUniformBuffer.add(
-                    'emissiveFactor',
-                    mesh.material.emissiveFactor || [0, 0, 0]
-                );
-                materialUniformBuffer.add(
-                    'glossinessFactor',
-                    mesh.material.pbrMetallicRoughness.glossinessFactor || 0
-                );
-                materialUniformBuffer.add(
-                    'metallicFactor',
-                    mesh.material.pbrMetallicRoughness.metallicFactor || 0
-                );
-                materialUniformBuffer.add(
-                    'roughnessFactor',
-                    mesh.material.pbrMetallicRoughness.roughnessFactor || 0
-                );
-                materialUniformBuffer.done();
-
-                const mIndex = gl.getUniformBlockIndex(
+                mesh.geometry.updateUniforms(
+                    gl,
                     mesh.program,
-                    'Material'
+                    mesh.matrixWorld,
+                    this.camera,
+                    this.light
                 );
-                gl.uniformBlockBinding(mesh.program, mIndex, 1);
-                const mUBO = gl.createBuffer();
-                gl.bindBuffer(gl.UNIFORM_BUFFER, mUBO);
-                gl.bufferData(
-                    gl.UNIFORM_BUFFER,
-                    materialUniformBuffer.store,
-                    gl.STATIC_DRAW
-                );
-                mesh.material.UBO = mUBO;
-                mesh.material.uniformBuffer = materialUniformBuffer;
-
-                const normalMatrix = new Matrix4(mesh.matrixWorld);
-                normalMatrix.invert().transpose();
-
-                const uniformBuffer = new UniformBuffer();
-                uniformBuffer.add('model', mesh.matrixWorld.elements);
-                uniformBuffer.add('normalMatrix', normalMatrix.elements);
-                uniformBuffer.add(
-                    'view',
-                    this._camera.matrixWorldInvert.elements
-                );
-                uniformBuffer.add(
-                    'projection',
-                    this._camera.projection.elements
-                );
-                uniformBuffer.add(
-                    'light',
-                    this.light.matrixWorldInvert.elements
-                );
-                uniformBuffer.add('isShadow', new Float32Array([0]));
-                uniformBuffer.done();
-
-                const uIndex = gl.getUniformBlockIndex(
-                    mesh.program,
-                    'Matrices'
-                );
-                gl.uniformBlockBinding(mesh.program, uIndex, 0);
-                const UBO = gl.createBuffer();
-                gl.bindBuffer(gl.UNIFORM_BUFFER, UBO);
-                gl.bufferData(
-                    gl.UNIFORM_BUFFER,
-                    uniformBuffer.store,
-                    gl.DYNAMIC_DRAW
-                );
-                mesh.geometry.UBO = UBO;
-                mesh.geometry.uniformBuffer = uniformBuffer;
-                gl.bindBuffer(gl.UNIFORM_BUFFER, null);
 
                 if (mesh.material.alphaMode) {
                     this.scene.transparentChildren.push(mesh);

@@ -398,7 +398,7 @@ export interface MaterialOcclusionTextureInfo {
 /**
  * The material appearance of a primitive.
  */
-export interface Material {
+export abstract class Material {
   'name'?: any;
   'extensions'?: any;
   'extras'?: any;

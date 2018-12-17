@@ -1,25 +1,11 @@
 import { Matrix4, Vector3 } from '../matrix';
-import { Material } from '../../GLTF';
 import { Object3D } from './object3d';
 import { Geometry } from './geometry';
-
-interface MeshMaterial extends Material {
-    blend: string;
-    uniforms: Uniforms;
-    alphaMode: string;
-    UBO: WebGLBuffer;
-}
-interface Uniforms {
-    baseColorTexture: WebGLUniformLocation;
-    metallicRoughnessTexture: WebGLUniformLocation;
-    normalTexture: WebGLUniformLocation;
-    occlusionTexture: WebGLUniformLocation;
-    emissiveTexture: WebGLUniformLocation;
-}
+import { Material } from './material';
 
 export class Mesh extends Object3D {
     geometry: Geometry;
-    material: MeshMaterial;
+    material: Material;
     program: WebGLProgram;
     defines: Array<string>;
     mode: number;
@@ -29,13 +15,6 @@ export class Mesh extends Object3D {
     constructor(name, parent) {
         super(name, parent);
 
-        this.material = {
-            blend: null,
-            uniforms: null,
-            alphaMode: null,
-            UBO: null,
-            pbrMetallicRoughness: null
-        };
         this.program = null;
         this.defines = null;
         this.mode = 4;
@@ -51,13 +30,6 @@ export class Mesh extends Object3D {
 
     setMaterial(material) {
         this.material = material;
-        this.material.uniforms = {
-            baseColorTexture: null,
-            metallicRoughnessTexture: null,
-            normalTexture: null,
-            occlusionTexture: null,
-            emissiveTexture: null
-        };
     }
 
     draw(
@@ -116,11 +88,7 @@ export class Mesh extends Object3D {
                 camera.projection.elements
             );
         }
-        this.geometry.uniformBuffer.update(
-            gl,
-            'isShadow',
-            new Float32Array([isLight ? 1 : 0])
-        );
+        this.geometry.uniformBuffer.update(gl, 'isShadow', isLight ? 1 : 0);
 
         if (this instanceof SkinnedMesh) {
             gl.bindBufferBase(gl.UNIFORM_BUFFER, 2, this.geometry.SKIN);
@@ -285,15 +253,31 @@ export class Mesh extends Object3D {
 
 export class SkinnedMesh extends Mesh {
     bones: Array<Bone>;
-    skin: string;
     boneInverses: Array<Matrix4>;
 
     constructor(name, parent) {
         super(name, parent);
     }
 
-    setSkin(value) {
-        this.skin = value;
+    setSkin(gl, skin) {
+        this.bones = skin.bones;
+        this.boneInverses = skin.boneInverses;
+
+        const jointMatrix = this.getJointMatrix();
+        const matrices = new Float32Array(jointMatrix.length * 16);
+        let i = 0;
+        for (const j of jointMatrix) {
+            matrices.set(j.elements, 0 + 16 * i);
+            i++;
+        }
+        const uIndex = gl.getUniformBlockIndex(this.program, 'Skin');
+        gl.uniformBlockBinding(this.program, uIndex, 2);
+        const UBO = gl.createBuffer();
+        gl.bindBuffer(gl.UNIFORM_BUFFER, UBO);
+        gl.bufferData(gl.UNIFORM_BUFFER, matrices, gl.DYNAMIC_DRAW);
+        this.geometry.SKIN = UBO;
+        gl.bindBuffer(gl.UNIFORM_BUFFER, null);
+
         return this;
     }
 

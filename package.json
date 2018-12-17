@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "webpack-serve",
     "prod": "webpack --mode production",
-    "lint": "eslint --fix --ext .ts ./src/ && prettier --write \"src/**/*.ts\""
+    "lint": "eslint --fix --ext .ts ./src/ || true && prettier --write \"src/**/*.ts\""
   },
   "devDependencies": {
     "awesome-typescript-loader": "^5.0.0-1",

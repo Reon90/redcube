@@ -49,6 +49,9 @@ export class UniformBuffer {
     }
 
     update(gl, name, value) {
+        if (value.length === undefined) {
+            value = new Float32Array([value]);
+        }
         const offset = this.map.get(name);
         this.store.set(value, offset);
         gl.bufferSubData(

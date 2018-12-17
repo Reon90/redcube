@@ -4,6 +4,7 @@ import { Object3D } from './object3d';
 import { Camera } from './camera';
 import { Light } from './light';
 import { UniformBuffer } from './uniform';
+import { Material } from './material';
 
 export {
     Scene,
@@ -13,5 +14,6 @@ export {
     Bone,
     Camera,
     Light,
-    UniformBuffer
+    UniformBuffer,
+    Material
 };

@@ -25,7 +25,7 @@ interface FrameBuffer extends WebGLFramebuffer {
 }
 
 export class Env {
-    _camera: Camera;
+    camera: Camera;
     envMatrix: Matrix4;
     VAO: WebGLBuffer;
     quadVAO: WebGLBuffer;
@@ -57,7 +57,7 @@ export class Env {
     }
 
     setCamera(camera) {
-        this._camera = camera;
+        this.camera = camera;
     }
 
     setGl(g) {
@@ -78,7 +78,7 @@ export class Env {
 
     draw() {
         const m = new Matrix4();
-        const cam = Object.assign({}, this._camera.props, {
+        const cam = Object.assign({}, this.camera.props, {
             perspective: {
                 yfov: 0.3,
                 znear: 0.01,
@@ -141,7 +141,7 @@ export class Env {
         gl.uniformMatrix4fv(
             gl.getUniformLocation(program, 'view'),
             false,
-            this._camera.matrixWorldInvert.elements
+            this.camera.matrixWorldInvert.elements
         );
         gl.drawArrays(gl.TRIANGLES, 0, 36);
     }
@@ -149,7 +149,7 @@ export class Env {
     createEnvironment() {
         gl.enable(gl.CULL_FACE);
         const m = new Matrix4();
-        const cam = Object.assign({}, this._camera.props, {
+        const cam = Object.assign({}, this.camera.props, {
             aspect: 1,
             perspective: {
                 yfov: Math.PI / 2,
@@ -555,7 +555,7 @@ export class Env {
                 camMatrix.multiply(m);
             }
 
-            camMatrix.multiply(this._camera.matrix);
+            camMatrix.multiply(this.camera.matrix);
             return new Matrix4().setInverseOf(camMatrix);
         });
 

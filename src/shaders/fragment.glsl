@@ -24,9 +24,9 @@ uniform Material {
     mat3 textureMatrix;
     vec3 specularFactor;
     vec3 emissiveFactor;
-    float glossinessFactor;
-    float metallicFactor;
-    float roughnessFactor;
+    vec4 glossinessFactor;
+    vec4 metallicFactor;
+    vec4 roughnessFactor;
 };
 uniform sampler2D baseColorTexture;
 uniform sampler2D metallicRoughnessTexture;
@@ -35,7 +35,7 @@ uniform sampler2D emissiveTexture;
 uniform sampler2D occlusionTexture;
 
 uniform samplerCube prefilterMap;
-uniform sampler2D   brdfLUT;  
+uniform sampler2D brdfLUT;  
 uniform samplerCube irradianceMap;
 uniform sampler2D depthTexture;
 
@@ -232,15 +232,15 @@ void main() {
         float ao = 0.2;
     #endif
 
-    float roughness = roughnessFactor;
-    float metallic = metallicFactor;
+    float roughness = roughnessFactor.x;
+    float metallic = metallicFactor.x;
     vec3 specularMap = vec3(0);
     #ifdef SPECULARGLOSSINESSMAP
         #ifdef METALROUGHNESSMAP
             roughness = 1.0 - texture(metallicRoughnessTexture, outUV).a;
             specularMap = srgbToLinear(texture(metallicRoughnessTexture, outUV));
         #else
-            roughness = glossinessFactor;
+            roughness = glossinessFactor.x;
             specularMap = specularFactor;
         #endif
     #else

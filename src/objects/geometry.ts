@@ -1,4 +1,4 @@
-import { Vector3 } from '../matrix';
+import { Vector3, Matrix4 } from '../matrix';
 import { UniformBuffer } from './uniform';
 import {
     buildArray,
@@ -192,5 +192,28 @@ export class Geometry {
             );
         }
         this.boundingSphere.radius = Math.sqrt(maxRadiusSq);
+    }
+
+    updateUniforms(gl, program, matrixWorld, camera, light) {
+        const normalMatrix = new Matrix4(matrixWorld);
+        normalMatrix.invert().transpose();
+
+        const uniformBuffer = new UniformBuffer();
+        uniformBuffer.add('model', matrixWorld.elements);
+        uniformBuffer.add('normalMatrix', normalMatrix.elements);
+        uniformBuffer.add('view', camera.matrixWorldInvert.elements);
+        uniformBuffer.add('projection', camera.projection.elements);
+        uniformBuffer.add('light', light.matrixWorldInvert.elements);
+        uniformBuffer.add('isShadow', 0);
+        uniformBuffer.done();
+
+        const uIndex = gl.getUniformBlockIndex(program, 'Matrices');
+        gl.uniformBlockBinding(program, uIndex, 0);
+        const UBO = gl.createBuffer();
+        gl.bindBuffer(gl.UNIFORM_BUFFER, UBO);
+        gl.bufferData(gl.UNIFORM_BUFFER, uniformBuffer.store, gl.DYNAMIC_DRAW);
+        this.UBO = UBO;
+        this.uniformBuffer = uniformBuffer;
+        gl.bindBuffer(gl.UNIFORM_BUFFER, null);
     }
 }
