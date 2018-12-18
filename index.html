@@ -29,10 +29,13 @@
     <div>
         <canvas id="canvas"></canvas>
         <div id="selector"></div>
+        <video id="player" controls autoplay></video>
+        <canvas id="canvas2d" width=512 height=256 style="width: 512px; height: 256px;"></canvas>
     </div>
-    <script src="./dist/redcube.js"></script>
+    <script src="./redcube.js"></script>
     <script>
-        fetch('https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/model-index.json')
+        const context2d = canvas2d.getContext('2d');
+        fetch('examples/model-index.json')
             .then(r => r.json())
             .then(samples => {
                 const name = localStorage.getItem('sample') || 'DamagedHelmet';
@@ -115,30 +118,42 @@
 
                 //https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/
                 window.renderer = new redcube.RedCube(
-                    'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/' + name + '/glTF/' + name + '.gltf', 
+                    'examples/' + name + '/glTF/' + name + '.glTF', 
                     canvas, 
                     [localStorage.getItem('ssao'), localStorage.getItem('bloom'), localStorage.getItem('shadow'), localStorage.getItem('light')].filter(name => name),
                     envname,
                     mode
                 );
-                renderer.init(() => {
-                    if (renderer.parse.cameras.length) {
-                        const select = document.createElement('select');
-                        select.onchange = () => {
-                            renderer.ioc._updateDep('camera', renderer.parse.cameras.find((it) => { 
-                                return Number(select.value) === it.name; 
-                            }));
-                        }
-                        renderer.parse.cameras.forEach((it) => {
-                            const option = document.createElement('option');
-                            option.innerHTML = it.name;
-                            option.value = it.name;
-                            select.appendChild(option);
+                const constraints = {
+                    video: true,
+                };
+                navigator.mediaDevices.getUserMedia(constraints)
+                .then(stream => {
+                    player.srcObject = stream;
+                    
+                    setTimeout(() => {
+                        renderer.init(() => {
+                            if (renderer.parse.cameras.length) {
+                                const select = document.createElement('select');
+                                select.onchange = () => {
+                                    renderer.ioc._updateDep('camera', renderer.parse.cameras.find((it) => { 
+                                        return Number(select.value) === it.name; 
+                                    }));
+                                }
+                                renderer.parse.cameras.forEach((it) => {
+                                    const option = document.createElement('option');
+                                    option.innerHTML = it.name;
+                                    option.value = it.name;
+                                    select.appendChild(option);
+                                });
+                                select.value =  renderer.parse.cameras[ renderer.parse.cameras.length - 1].name;
+                                selector.appendChild(select);
+                            }
                         });
-                        select.value =  renderer.parse.cameras[ renderer.parse.cameras.length - 1].name;
-                        selector.appendChild(select);
-                    }
-                });
+                    }, 5000)
+                })
+                
+                
             });
     </script>
 </body>

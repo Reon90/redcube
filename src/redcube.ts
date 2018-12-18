@@ -94,7 +94,7 @@ class RedCube {
     get light() {
         return this.ioc.get('light');
     }
-    get env() {
+    get env(): Env {
         return this.ioc.get('env');
     }
     get PP() {
@@ -118,7 +118,9 @@ class RedCube {
         this.parse.buildMesh();
         this.resize(null);
         this.parse.buildAnimation();
-        await this.env.createEnvironmentBuffer();
+        
+        this.env.createEnvironmentBuffer();
+        this.env.createEnvironment();
         this.draw();
 
         cb();
@@ -176,8 +178,8 @@ class RedCube {
                 (10000 / this.canvas.width) *
                 this.camera.modelSize *
                 devicePixelRatio;
-            this.camera.setZ(z);
-            this.light.setZ(z);
+            this.camera.setZ(10);
+            this.light.setZ(10);
             this.light.update(Math.PI / 2);
 
             this.renderer.needUpdateView = true;

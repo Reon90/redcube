@@ -232,8 +232,8 @@ void main() {
         float ao = 0.2;
     #endif
 
-    float roughness = roughnessFactor.x;
-    float metallic = metallicFactor.x;
+    float roughness = 0.0;
+    float metallic = 1.0;
     vec3 specularMap = vec3(0);
     #ifdef SPECULARGLOSSINESSMAP
         #ifdef METALROUGHNESSMAP

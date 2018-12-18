@@ -200,7 +200,7 @@ export class Renderer {
 
         this.animate(sec);
 
-        if (this.reflow) {
+        if (true) {
             if (this.PP.postprocessors.length > 0) {
                 this.PP.bindPrePass();
                 this.PP.preProcessing();
@@ -208,6 +208,8 @@ export class Renderer {
             }
 
             gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+            this.env.createEnvironment();
 
             //this.env.draw();
 

@@ -147,6 +147,22 @@ export class Env {
     }
 
     createEnvironment() {
+        context2d.drawImage(player, 0, 0, canvas2d.width, canvas2d.height);
+
+        gl.activeTexture(gl[`TEXTURE${this.texture.index}`]);
+        gl.bindTexture(
+            gl.TEXTURE_2D,
+            this.texture
+        );
+        gl.texImage2D(
+            gl.TEXTURE_2D,
+            0,
+            gl.RGBA,
+            gl.RGBA,
+            gl.UNSIGNED_BYTE,
+            canvas2d
+        );
+
         gl.enable(gl.CULL_FACE);
         const m = new Matrix4();
         const cam = Object.assign({}, this.camera.props, {
@@ -318,6 +334,7 @@ export class Env {
     }
 
     createEnvironmentBuffer() {
+        
         {
             const size = 32;
             const captureFBO = gl.createFramebuffer();
@@ -375,7 +392,7 @@ export class Env {
         }
 
         {
-            const size = 512;
+            const size = 32;
             const captureFBO = gl.createFramebuffer();
             this.framebuffer = captureFBO;
             this.framebuffer.size = size;
@@ -432,7 +449,7 @@ export class Env {
         }
 
         {
-            const size = 128;
+            const size = 32;
             const captureFBO = gl.createFramebuffer();
             this.prefilterbuffer = captureFBO;
             this.prefilterbuffer.size = size;
@@ -489,7 +506,7 @@ export class Env {
         }
 
         {
-            const size = 512;
+            const size = 32;
             const captureFBO = gl.createFramebuffer();
             this.brdfbuffer = captureFBO;
             this.brdfbuffer.size = size;
@@ -695,48 +712,37 @@ export class Env {
         this.mipmapcubeprogram = createProgram(vertex, cubeMipmap);
         this.bdrfprogram = createProgram(quad, bdrf);
 
-        return fetch(`src/images/${this.url}.hdr`)
-            .then(res => res.arrayBuffer())
-            .then(buffer => {
-                const { data } = parseHDR(buffer);
+        // return fetch(`src/images/${this.url}.hdr`)
+        //     .then(res => res.arrayBuffer())
+        //     .then(buffer => {
+        //         const { data } = parseHDR(buffer);
 
-                this.texture = createTexture();
-                gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-                gl.texParameteri(
-                    gl.TEXTURE_2D,
-                    gl.TEXTURE_MAG_FILTER,
-                    gl.LINEAR
-                );
-                gl.texParameteri(
-                    gl.TEXTURE_2D,
-                    gl.TEXTURE_MIN_FILTER,
-                    gl.LINEAR
-                );
-                gl.texParameteri(
-                    gl.TEXTURE_2D,
-                    gl.TEXTURE_WRAP_S,
-                    gl.CLAMP_TO_EDGE
-                );
-                gl.texParameteri(
-                    gl.TEXTURE_2D,
-                    gl.TEXTURE_WRAP_T,
-                    gl.CLAMP_TO_EDGE
-                );
-                gl.texImage2D(
-                    gl.TEXTURE_2D,
-                    0,
-                    gl.RGBA16F,
-                    1024,
-                    512,
-                    0,
-                    gl.RGBA,
-                    gl.FLOAT,
-                    data
-                );
+                
 
-                this.createEnvironment();
-
+                
+        this.texture = createTexture();
+        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+        gl.texParameteri(
+            gl.TEXTURE_2D,
+            gl.TEXTURE_MAG_FILTER,
+            gl.LINEAR
+        );
+        gl.texParameteri(
+            gl.TEXTURE_2D,
+            gl.TEXTURE_MIN_FILTER,
+            gl.LINEAR
+        );
+        gl.texParameteri(
+            gl.TEXTURE_2D,
+            gl.TEXTURE_WRAP_S,
+            gl.CLAMP_TO_EDGE
+        );
+        gl.texParameteri(
+            gl.TEXTURE_2D,
+            gl.TEXTURE_WRAP_T,
+            gl.CLAMP_TO_EDGE
+        );
                 return true;
-            });
+            //});
     }
 }
