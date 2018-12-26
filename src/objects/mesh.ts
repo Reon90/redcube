@@ -88,7 +88,7 @@ export class Mesh extends Object3D {
                 camera.projection.elements
             );
         }
-        this.geometry.uniformBuffer.update(gl, 'isShadow', isLight ? 1 : 0);
+        //this.geometry.uniformBuffer.update(gl, 'isShadow', isLight ? 1 : 0);
 
         if (this instanceof SkinnedMesh) {
             gl.bindBufferBase(gl.UNIFORM_BUFFER, 2, this.geometry.SKIN);
@@ -120,73 +120,48 @@ export class Mesh extends Object3D {
             }
         }
 
-        gl.uniform1i(
-            gl.getUniformLocation(this.program, 'prefilterMap'),
-            prefilterMap.index
-        );
-        gl.uniform1i(
-            gl.getUniformLocation(this.program, 'brdfLUT'),
-            brdfLUT.index
-        );
-        gl.uniform1i(
-            gl.getUniformLocation(this.program, 'irradianceMap'),
-            irradiancemap.index
-        );
-        gl.uniform1i(
-            gl.getUniformLocation(this.program, 'depthTexture'),
-            isShadow ? fakeDepth.index : preDepthTexture.index
-        );
-        let index = 31;
+        // gl.uniform1i(
+        //     this.material.uniforms.depthTexture,
+        //     isShadow ? fakeDepth.index : preDepthTexture.index
+        // );
+
         if (this.material.pbrMetallicRoughness.baseColorTexture) {
-            gl.activeTexture(gl[`TEXTURE${index}`]);
+            gl.activeTexture(gl[`TEXTURE${0}`]);
             gl.bindTexture(
                 gl.TEXTURE_2D,
                 this.material.pbrMetallicRoughness.baseColorTexture
             );
             gl.bindSampler(
-                index,
+                0,
                 this.material.pbrMetallicRoughness.baseColorTexture.sampler
             );
-            gl.uniform1i(this.material.uniforms.baseColorTexture, index);
-            index--;
         }
         if (this.material.pbrMetallicRoughness.metallicRoughnessTexture) {
-            gl.activeTexture(gl[`TEXTURE${index}`]);
+            gl.activeTexture(gl[`TEXTURE${1}`]);
             gl.bindTexture(
                 gl.TEXTURE_2D,
                 this.material.pbrMetallicRoughness.metallicRoughnessTexture
             );
             gl.bindSampler(
-                index,
+                1,
                 this.material.pbrMetallicRoughness.metallicRoughnessTexture
                     .sampler
             );
-            gl.uniform1i(
-                this.material.uniforms.metallicRoughnessTexture,
-                index
-            );
-            index--;
         }
         if (this.material.normalTexture) {
-            gl.activeTexture(gl[`TEXTURE${index}`]);
+            gl.activeTexture(gl[`TEXTURE${2}`]);
             gl.bindTexture(gl.TEXTURE_2D, this.material.normalTexture);
-            gl.bindSampler(index, this.material.normalTexture.sampler);
-            gl.uniform1i(this.material.uniforms.normalTexture, index);
-            index--;
+            gl.bindSampler(2, this.material.normalTexture.sampler);
         }
         if (this.material.occlusionTexture) {
-            gl.activeTexture(gl[`TEXTURE${index}`]);
+            gl.activeTexture(gl[`TEXTURE${3}`]);
             gl.bindTexture(gl.TEXTURE_2D, this.material.occlusionTexture);
-            gl.bindSampler(index, this.material.occlusionTexture.sampler);
-            gl.uniform1i(this.material.uniforms.occlusionTexture, index);
-            index--;
+            gl.bindSampler(3, this.material.occlusionTexture.sampler);
         }
         if (this.material.emissiveTexture) {
-            gl.activeTexture(gl[`TEXTURE${index}`]);
+            gl.activeTexture(gl[`TEXTURE${4}`]);
             gl.bindTexture(gl.TEXTURE_2D, this.material.emissiveTexture);
-            gl.bindSampler(index, this.material.emissiveTexture.sampler);
-            gl.uniform1i(this.material.uniforms.emissiveTexture, index);
-            index--;
+            gl.bindSampler(4, this.material.emissiveTexture.sampler);
         }
         if (this.material.doubleSided) {
             gl.disable(gl.CULL_FACE);

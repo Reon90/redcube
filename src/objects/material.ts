@@ -14,6 +14,10 @@ interface Uniforms {
     normalTexture: WebGLUniformLocation;
     occlusionTexture: WebGLUniformLocation;
     emissiveTexture: WebGLUniformLocation;
+    prefilterMap: WebGLUniformLocation;
+    brdfLUT: WebGLUniformLocation;
+    irradianceMap: WebGLUniformLocation;
+    depthTexture: WebGLUniformLocation;
 }
 
 export class Material extends M {
@@ -21,6 +25,7 @@ export class Material extends M {
     uniforms: Uniforms;
     alphaMode: string;
     UBO: WebGLBuffer;
+    doubleSided: boolean;
 
     constructor(m = defaultMaterial, textures, defines) {
         super();
@@ -50,7 +55,11 @@ export class Material extends M {
             metallicRoughnessTexture: null,
             normalTexture: null,
             occlusionTexture: null,
-            emissiveTexture: null
+            emissiveTexture: null,
+            prefilterMap: null,
+            brdfLUT: null,
+            irradianceMap: null,
+            depthTexture: null
         };
         this.pbrMetallicRoughness = {
             baseColorFactor: material.pbrMetallicRoughness.baseColorFactor,
@@ -60,6 +69,9 @@ export class Material extends M {
             specularFactor: material.pbrMetallicRoughness.specularFactor,
             glossinessFactor: material.pbrMetallicRoughness.glossinessFactor
         };
+        this.alphaMode = material.alphaMode;
+        this.blend = material.blend;
+        this.doubleSided = material.doubleSided;
 
         if (material.pbrMetallicRoughness.metallicRoughnessTexture) {
             this.pbrMetallicRoughness.metallicRoughnessTexture =
@@ -156,39 +168,68 @@ export class Material extends M {
         } else if (material.alphaMode === 'BLEND') {
             defines.push({ name: 'ALPHATEST', value: 0.01 });
         }
+
+        if (this.doubleSided) {
+            defines.push({ name: 'DOUBLESIDED' });
+        }
     }
 
     createUniforms(gl, program) {
+        gl.useProgram(program);
+
         if (this.pbrMetallicRoughness.baseColorTexture) {
             this.uniforms.baseColorTexture = gl.getUniformLocation(
                 program,
                 'baseColorTexture'
             );
+            gl.uniform1i(this.uniforms.baseColorTexture, 0);
         }
         if (this.pbrMetallicRoughness.metallicRoughnessTexture) {
             this.uniforms.metallicRoughnessTexture = gl.getUniformLocation(
                 program,
                 'metallicRoughnessTexture'
             );
+            gl.uniform1i(this.uniforms.metallicRoughnessTexture, 1);
         }
         if (this.normalTexture) {
             this.uniforms.normalTexture = gl.getUniformLocation(
                 program,
                 'normalTexture'
             );
+            gl.uniform1i(this.uniforms.normalTexture, 2);
         }
         if (this.occlusionTexture) {
             this.uniforms.occlusionTexture = gl.getUniformLocation(
                 program,
                 'occlusionTexture'
             );
+            gl.uniform1i(this.uniforms.occlusionTexture, 3);
         }
         if (this.emissiveTexture) {
             this.uniforms.emissiveTexture = gl.getUniformLocation(
                 program,
                 'emissiveTexture'
             );
+            gl.uniform1i(this.uniforms.emissiveTexture, 4);
         }
+
+        this.uniforms.prefilterMap = gl.getUniformLocation(program, 'prefilterMap');
+        this.uniforms.brdfLUT = gl.getUniformLocation(program, 'brdfLUT');
+        this.uniforms.irradianceMap = gl.getUniformLocation(program, 'irradianceMap');
+        this.uniforms.depthTexture = gl.getUniformLocation(program, 'depthTexture');
+
+        gl.uniform1i(
+            this.uniforms.prefilterMap,
+            8
+        );
+        gl.uniform1i(
+            this.uniforms.brdfLUT,
+            9
+        );
+        gl.uniform1i(
+            this.uniforms.irradianceMap,
+            6
+        );
     }
 
     updateUniforms(gl, program, camera, light) {

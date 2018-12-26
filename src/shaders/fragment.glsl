@@ -46,7 +46,7 @@ const float ambientStrength = 0.1;
 const float specularStrength = 2.5;
 const float specularPower = 32.0;
 #ifdef USE_PBR
-const vec3 lightColor = vec3(10.0, 10.0, 10.0);
+const vec3 lightColor = vec3(1.0, 1.0, 1.0);
 #else
 const vec3 lightColor = vec3(1.0, 1.0, 1.0);
 #endif
@@ -269,6 +269,12 @@ void main() {
     float attenuation = 1.0 / (distance * distance);
     vec3 radiance = lightColor; //* attenuation;
 
+    #ifdef DOUBLESIDED
+    if (dot(n, viewDir) < 0.0) {
+        n = -n;
+    }
+    #endif
+
     float shadow = 1.0;
     #ifdef SHADOWMAP
         float shadowBias = max(0.05 * (1.0 - dot(n, lightDir)), 0.005);
@@ -294,7 +300,7 @@ void main() {
             emissive = srgbToLinear(texture(emissiveTexture, getUV(EMISSIVEMAP)));
         #endif
 
-        color = vec4(shadow * (emissive + ambient + (diffuse + specular) * radiance * NdotL), alpha);
+        color = vec4(shadow * (emissive + ambient + diffuse + specular * radiance * NdotL), alpha);
     #else
         vec3 ambient = ambientStrength * lightColor;
 

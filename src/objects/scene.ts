@@ -4,7 +4,7 @@ import { Mesh } from './mesh';
 
 export class Scene {
     children: Array<Object3D>;
-    bin: Array<object>;
+    bin: Array<string | ArrayBuffer>;
     matrixWorld: Matrix4;
     transparentChildren: Array<Mesh>;
     opaqueChildren: Array<Mesh>;

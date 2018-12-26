@@ -12,6 +12,9 @@ const config = {
         libraryTarget: 'umd',
         umdNamedDefine: true
     },
+    node: {
+        fs: 'empty'
+    },
     devtool: "source-map",
     resolve: {extensions: ['.ts', '.js']},
     module: {

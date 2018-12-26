@@ -81,29 +81,29 @@ class RedCube {
         this.events = new Events(this.redraw.bind(this));
     }
 
-    get renderer() {
+    get renderer(): Renderer {
         return this.ioc.get('renderer');
     }
 
-    get scene() {
+    get scene(): Scene {
         return this.ioc.get('scene');
     }
-    get camera() {
+    get camera(): Camera {
         return this.ioc.get('camera');
     }
-    get light() {
+    get light(): Light {
         return this.ioc.get('light');
     }
-    get env() {
+    get env(): Env {
         return this.ioc.get('env');
     }
-    get PP() {
+    get PP(): PostProcessing {
         return this.ioc.get('pp');
     }
-    get Particles() {
+    get Particles(): Particles {
         return this.ioc.get('particles');
     }
-    get parse() {
+    get parse(): Parse {
         return this.ioc.get('parser');
     }
 
@@ -124,8 +124,8 @@ class RedCube {
         cb();
     }
 
-    renderScene(...args) {
-        this.renderer.renderScene(...args);
+    renderScene(isShadow, isLight) {
+        this.renderer.renderScene(isShadow, isLight);
     }
 
     redraw(type, coordsStart, coordsMove) {
@@ -211,6 +211,8 @@ class RedCube {
 
     draw() {
         gl.clearColor(...clearColor);
+        gl.enable(gl.DEPTH_TEST);
+        gl.enable(gl.CULL_FACE);
 
         this.renderer.render();
     }

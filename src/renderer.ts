@@ -233,9 +233,6 @@ export class Renderer {
     }
 
     renderScene(isShadow, isLight) {
-        gl.enable(gl.DEPTH_TEST);
-        gl.enable(gl.CULL_FACE);
-
         if (this.needUpdateView) {
             const planes = Frustum(this.camera.getViewProjMatrix());
 

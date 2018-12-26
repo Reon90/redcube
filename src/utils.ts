@@ -2,7 +2,7 @@ import { Matrix2, Matrix3, Matrix4, Vector2, Vector3, Vector4 } from './matrix';
 
 const glEnum = {};
 let gl;
-let screenTextureCount = -1;
+let screenTextureCount = 4;
 export const clearColor = [0, 0, 0, 1];
 
 export function getTextureIndex() {
@@ -454,4 +454,8 @@ export function measureGPU() {
         const timeElapsed = ext.getQueryObjectEXT(query, ext.QUERY_RESULT_EXT);
         console.log(timeElapsed / 1000000);
     }
+}
+
+export function getGlEnum(name) {
+    return glEnum[name];
 }

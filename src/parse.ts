@@ -26,6 +26,7 @@ import fragmentShader from './shaders/fragment.glsl';
 import { Geometry } from './objects/geometry';
 
 let gl;
+const BASE64_MARKER = ';base64,';
 
 interface Track {
     keys: Array<Key>;
@@ -113,9 +114,25 @@ export class Parse {
 
     getBuffer() {
         return Promise.all(
-            this.scene.bin.map(url =>
-                fetch(`${this.host}${url}`).then(res => res.arrayBuffer())
-            )
+            this.scene.bin.map(url => {
+                if (typeof url === 'string') {
+                    if (/base64/.test(url)) {
+                        const base64Index = url.indexOf(BASE64_MARKER) + BASE64_MARKER.length;
+                        const base64 = url.substring(base64Index);
+                        const raw = window.atob(base64);
+                        const buffer = new ArrayBuffer(raw.length);
+                        const array = new Uint8Array(buffer);
+                        for(let i = 0; i < raw.length; i++) {
+                            array[i] = raw.charCodeAt(i);
+                        }
+                        return buffer;
+                    } else {
+                        return fetch(`${this.host}${url}`).then(res => res.arrayBuffer());
+                    }
+                } else {
+                    return Promise.resolve(url);
+                }
+            })
         ).then(buffers => {
             this.arrayBuffer = buffers;
         });
@@ -470,16 +487,33 @@ export class Parse {
     }
 
     getJson() {
-        return fetch(this.url)
-            .then(res => res.json())
-            .then(j => {
-                for (const key in j.buffers) {
-                    this.scene.bin.push(j.buffers[key].uri);
-                }
-                this.json = j;
+        if (/glb/.test(this.url)) {
+            return fetch(this.url)
+                .then(res => res.arrayBuffer())
+                .then(b => {
+                    const decoder = new TextDecoder('utf-8');
+                    const jsonLength = new Uint32Array(b, 12, 1)[0];
+                    const jsonBuffer = new Uint8Array(b, 20, jsonLength);
+                    const json = JSON.parse(decoder.decode(jsonBuffer));
+                    const bufferLength = new Uint32Array(b, 20 + jsonLength , 1)[0];
+                    const buffer = b.slice(28 + jsonLength, 28 + jsonLength + bufferLength);
 
-                return true;
-            });
+                    this.json = json;
+
+                    this.scene.bin.push(buffer);
+                });
+        } else {
+            return fetch(this.url)
+                .then(res => res.json())
+                .then(j => {
+                    for (const key in j.buffers) {
+                        this.scene.bin.push(j.buffers[key].uri);
+                    }
+                    this.json = j;
+
+                    return true;
+                });
+        }
     }
 
     initTextures() {
@@ -525,7 +559,11 @@ export class Parse {
                     reject(err);
                 };
                 image.crossOrigin = 'anonymous';
-                image.src = `${this.host}${source.uri}`;
+                if (/base64/.test(source.uri)) {
+                    image.src = source.uri;
+                } else {
+                    image.src = `${this.host}${source.uri}`;
+                }
             });
         });
 
