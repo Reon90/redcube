@@ -365,6 +365,33 @@ export function getAttributeIndex(name) {
     return index;
 }
 
+export function calculateNormals(index, vertex) {
+    const normal = new Float32Array((vertex.length / 3) * 3);
+    for (let i = 0; i < index.length; i += 3) {
+        const faceIndexes = [index[i], index[i + 1], index[i + 2]];
+        const faceVertices = faceIndexes.map(ix => vectorFromArray(vertex, ix));
+
+        const dv1 = faceVertices[1].subtract(faceVertices[0]);
+        const dv2 = faceVertices[2].subtract(faceVertices[0]);
+
+        const n = Vector3.cross( dv1.normalize(), dv2.normalize() );
+        normal[i] = n.elements[0];
+        normal[i + 1] = n.elements[1];
+        normal[i + 2] = n.elements[2];
+    }
+
+    return normal;
+
+    function vectorFromArray(array, index, elements = 3) {
+        index = index * elements;
+        return new Vector3([
+            array[index],
+            array[index + 1],
+            array[index + 2]
+        ]);
+    }
+}
+
 export function calculateBinormals(index, vertex, normal, uv) {
     const tangent = new Float32Array((normal.length / 3) * 4);
 

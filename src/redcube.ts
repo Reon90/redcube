@@ -21,7 +21,11 @@ class RedCube {
     processors: Array<String>;
     ioc: Container;
 
-    constructor(url, canvas, processors, envUrl, mode) {
+    constructor(url, canvas, processors = [], envUrl = 'env', mode = 'pbr') {
+        if (!url || !canvas) {
+            throw new Error('Url or Canvas not found');
+        }
+
         this.canvas = canvas;
         this.processors = processors;
 
@@ -178,12 +182,10 @@ class RedCube {
                 devicePixelRatio;
             this.camera.setZ(z);
             this.light.setZ(z);
-            this.light.update(Math.PI / 2);
 
             this.renderer.needUpdateView = true;
         } else {
             this.light.setZ(this.camera.matrixWorld.elements[14]);
-            this.light.update(Math.PI / 2);
             this.renderer.needUpdateView = true;
         }
 

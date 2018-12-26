@@ -6,7 +6,8 @@ import {
     calculateOffset,
     getAttributeIndex,
     calculateBinormals,
-    getGlEnum
+    getGlEnum,
+    calculateNormals
 } from '../utils';
 import { decoderModule, decodeDracoData, getArray } from '../decoder';
 
@@ -191,6 +192,10 @@ export class Geometry {
                 vertexBuffers.NORMAL,
                 vertexBuffers.TEXCOORD_0
             );
+        }
+
+        if (!vertexBuffers.NORMAL) {
+            vertexBuffers.NORMAL = calculateNormals(indicesBuffer, vertexBuffers.POSITION);
         }
 
         const VAO = gl.createVertexArray();

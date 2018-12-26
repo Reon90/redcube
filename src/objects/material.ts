@@ -254,15 +254,15 @@ export class Material extends M {
         );
         materialUniformBuffer.add(
             'glossinessFactor',
-            this.pbrMetallicRoughness.glossinessFactor || 0
+            this.pbrMetallicRoughness.glossinessFactor || 0.5
         );
         materialUniformBuffer.add(
             'metallicFactor',
-            this.pbrMetallicRoughness.metallicFactor || 0
+            this.pbrMetallicRoughness.metallicFactor || 0.5
         );
         materialUniformBuffer.add(
             'roughnessFactor',
-            this.pbrMetallicRoughness.roughnessFactor || 0
+            this.pbrMetallicRoughness.roughnessFactor || 0.5
         );
         materialUniformBuffer.done();
 
