@@ -24,10 +24,10 @@ npm install redcube.js
 [Demo](https://reon90.github.io/redcube/)
 
 ```js
-const canvas = document.querySelector('canvas');
+<canvas style="width: 600px; height: 600px;"></canvas>
+
 const renderer = new RedCube('./box.gltf', canvas);
-renderer.init()
-    .then(() => {
-        console.log('loaded');
-    });
+renderer.init(() => {
+    console.log('loaded');
+});
 ```
