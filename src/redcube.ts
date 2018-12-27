@@ -54,33 +54,13 @@ class RedCube {
         this.ioc.register('canvas', canvas);
         this.ioc.register('scene', Scene);
         this.ioc.register('light', Light);
-        this.ioc.register(
-            'pp',
-            PostProcessing,
-            ['light', 'camera', 'canvas', 'gl'],
-            processors,
-            this.renderScene.bind(this)
-        );
-        this.ioc.register(
-            'parser',
-            Parse,
-            ['scene', 'light', 'camera', 'canvas', 'gl'],
-            url,
-            defines,
-            this.resize.bind(this)
-        );
+        this.ioc.register('pp', PostProcessing, ['light', 'camera', 'canvas', 'gl'], processors, this.renderScene.bind(this));
+        this.ioc.register('parser', Parse, ['scene', 'light', 'camera', 'canvas', 'gl'], url, defines, this.resize.bind(this));
         this.ioc.register('particles', Particles, ['camera', 'gl'], () => {
-            const l = this.PP.postprocessors.find(
-                p => p instanceof PPLight
-            ) as PPLight;
+            const l = this.PP.postprocessors.find(p => p instanceof PPLight) as PPLight;
             return l.texture.index;
         });
-        this.ioc.register(
-            'renderer',
-            Renderer,
-            ['gl', 'parser', 'pp', 'scene', 'camera', 'particles', 'env'],
-            this.getState.bind(this)
-        );
+        this.ioc.register('renderer', Renderer, ['gl', 'parser', 'pp', 'scene', 'camera', 'particles', 'env'], this.getState.bind(this));
 
         this.events = new Events(canvas, this.redraw.bind(this));
     }
@@ -142,21 +122,11 @@ class RedCube {
             this.renderer.needUpdateProjection = true;
         }
         if (type === 'rotate') {
-            this.camera.rotate(
-                coordsStart,
-                coordsMove,
-                this.canvas.offsetWidth,
-                this.canvas.offsetHeight
-            );
+            this.camera.rotate(coordsStart, coordsMove, this.canvas.offsetWidth, this.canvas.offsetHeight);
             this.renderer.needUpdateView = true;
         }
         if (type === 'pan') {
-            this.camera.pan(
-                coordsStart,
-                coordsMove,
-                this.canvas.offsetWidth,
-                this.canvas.offsetHeight
-            );
+            this.camera.pan(coordsStart, coordsMove, this.canvas.offsetWidth, this.canvas.offsetHeight);
             this.renderer.needUpdateView = true;
         }
         if (type === 'resize') {
@@ -168,22 +138,13 @@ class RedCube {
     }
 
     resize(e) {
-        this.camera.props.aspect =
-            this.canvas.offsetWidth / this.canvas.offsetHeight;
+        this.camera.props.aspect = this.canvas.offsetWidth / this.canvas.offsetHeight;
         this.canvas.width = this.canvas.offsetWidth * devicePixelRatio;
         this.canvas.height = this.canvas.offsetHeight * devicePixelRatio;
-        gl.viewport(
-            0,
-            0,
-            this.canvas.offsetWidth * devicePixelRatio,
-            this.canvas.offsetHeight * devicePixelRatio
-        );
+        gl.viewport(0, 0, this.canvas.offsetWidth * devicePixelRatio, this.canvas.offsetHeight * devicePixelRatio);
 
         if (this.camera.props.isInitial) {
-            const z =
-                (10000 / this.canvas.width) *
-                this.camera.modelSize *
-                devicePixelRatio;
+            const z = (10000 / this.canvas.width) * this.camera.modelSize * devicePixelRatio;
             this.camera.setZ(z);
             this.light.setZ(z);
 

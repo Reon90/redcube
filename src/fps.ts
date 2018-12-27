@@ -6,10 +6,7 @@ export class FPS {
 
     constructor() {
         this.counterEl = document.createElement('div');
-        this.counterEl.setAttribute(
-            'style',
-            'position: absolute; top: 0; right: 0; color: #fff; font-size: 30px; background: #000;'
-        );
+        this.counterEl.setAttribute('style', 'position: absolute; top: 0; right: 0; color: #fff; font-size: 30px; background: #000;');
         document.body.appendChild(this.counterEl);
         this.fps = 0;
         this.elapsedTime = 0;

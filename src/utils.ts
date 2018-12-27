@@ -35,11 +35,7 @@ export function setGl(_gl) {
 }
 
 export function isMatrix(type) {
-    return (
-        glEnum[type] === 'FLOAT_MAT4' ||
-        glEnum[type] === 'FLOAT_MAT3' ||
-        glEnum[type] === 'FLOAT_MAT2'
-    );
+    return glEnum[type] === 'FLOAT_MAT4' || glEnum[type] === 'FLOAT_MAT3' || glEnum[type] === 'FLOAT_MAT2';
 }
 
 export function random(min, max) {
@@ -325,12 +321,7 @@ export function calculateProjection(cam) {
         const { yfov } = cam.perspective;
         const xfov = yfov * aspect;
 
-        proj = new Matrix4().setPerspective(
-            xfov * zoom,
-            aspect,
-            cam.perspective.znear || 1,
-            cam.perspective.zfar || 2e6
-        );
+        proj = new Matrix4().setPerspective(xfov * zoom, aspect, cam.perspective.znear || 1, cam.perspective.zfar || 2e6);
     } else if (cam.type === 'orthographic' && cam.orthographic) {
         proj = new Matrix4().setOrtho(
             cam.orthographic.xmag * zoom,
@@ -387,7 +378,7 @@ export function calculateNormals(index, vertex) {
         const dv1 = faceVertices[1].subtract(faceVertices[0]);
         const dv2 = faceVertices[2].subtract(faceVertices[0]);
 
-        const n = Vector3.cross( dv1.normalize(), dv2.normalize() );
+        const n = Vector3.cross(dv1.normalize(), dv2.normalize());
         normal[i] = n.elements[0];
         normal[i + 1] = n.elements[1];
         normal[i + 2] = n.elements[2];
@@ -397,11 +388,7 @@ export function calculateNormals(index, vertex) {
 
     function vectorFromArray(array, index, elements = 3) {
         index = index * elements;
-        return new Vector3([
-            array[index],
-            array[index + 1],
-            array[index + 2]
-        ]);
+        return new Vector3([array[index], array[index + 1], array[index + 2]]);
     }
 }
 
@@ -419,20 +406,12 @@ export function calculateBinormals(index, vertex, normal, uv) {
         const duv1 = faceUVs[1].subtract(faceUVs[0]);
         const duv2 = faceUVs[2].subtract(faceUVs[0]);
 
-        let r =
-            duv1.elements[0] * duv2.elements[1] -
-            duv1.elements[1] * duv2.elements[0];
+        let r = duv1.elements[0] * duv2.elements[1] - duv1.elements[1] * duv2.elements[0];
         r = r !== 0 ? 1.0 / r : 1.0;
         const udir = new Vector3([
-            (duv2.elements[1] * dv1.elements[0] -
-                duv1.elements[1] * dv2.elements[0]) *
-                r,
-            (duv2.elements[1] * dv1.elements[1] -
-                duv1.elements[1] * dv2.elements[1]) *
-                r,
-            (duv2.elements[1] * dv1.elements[2] -
-                duv1.elements[1] * dv2.elements[2]) *
-                r
+            (duv2.elements[1] * dv1.elements[0] - duv1.elements[1] * dv2.elements[0]) * r,
+            (duv2.elements[1] * dv1.elements[1] - duv1.elements[1] * dv2.elements[1]) * r,
+            (duv2.elements[1] * dv1.elements[2] - duv1.elements[1] * dv2.elements[2]) * r
         ]);
         udir.normalize();
 
@@ -446,33 +425,20 @@ export function calculateBinormals(index, vertex, normal, uv) {
     function vectorFromArray(array, index, elements = 3) {
         index = index * elements;
         if (elements === 3) {
-            return new Vector3([
-                array[index],
-                array[index + 1],
-                array[index + 2]
-            ]);
+            return new Vector3([array[index], array[index + 1], array[index + 2]]);
         }
         if (elements === 2) {
             return new Vector2([array[index], array[index + 1]]);
         }
     }
 
-    function accumulateVectorInArray(
-        array,
-        index,
-        vector,
-        elements = 4,
-        accumulator = (acc, x) => acc + x
-    ) {
+    function accumulateVectorInArray(array, index, vector, elements = 4, accumulator = (acc, x) => acc + x) {
         index = index * elements;
         for (let i = 0; i < elements; ++i) {
             if (i === 3) {
                 array[index + i] = -1;
             } else {
-                array[index + i] = accumulator(
-                    array[index + i],
-                    vector.elements[i]
-                );
+                array[index + i] = accumulator(array[index + i], vector.elements[i]);
             }
         }
     }
@@ -485,10 +451,7 @@ export function measureGPU() {
     ext.beginQueryEXT(ext.TIME_ELAPSED_EXT, query);
     ext.endQueryEXT(ext.TIME_ELAPSED_EXT);
 
-    const available = ext.getQueryObjectEXT(
-        query,
-        ext.QUERY_RESULT_AVAILABLE_EXT
-    );
+    const available = ext.getQueryObjectEXT(query, ext.QUERY_RESULT_AVAILABLE_EXT);
     const disjoint = gl.getParameter(ext.GPU_DISJOINT_EXT);
     if (available && !disjoint) {
         const timeElapsed = ext.getQueryObjectEXT(query, ext.QUERY_RESULT_EXT);

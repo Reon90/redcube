@@ -26,27 +26,15 @@ export class Bloom extends PostProcessor {
     }
 
     attachUniform(program) {
-        gl.uniform1i(
-            gl.getUniformLocation(program, 'bloom'),
-            this.blurTexture.index
-        );
+        gl.uniform1i(gl.getUniformLocation(program, 'bloom'), this.blurTexture.index);
     }
 
     postProcessing(PP) {
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
 
         gl.useProgram(this.bloorProgram);
-        gl.framebufferTexture2D(
-            gl.FRAMEBUFFER,
-            gl.COLOR_ATTACHMENT0,
-            gl.TEXTURE_2D,
-            this.hdrTexture,
-            0
-        );
-        gl.uniform1i(
-            gl.getUniformLocation(this.bloorProgram, 'diff'),
-            PP.screenTexture.index
-        );
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.hdrTexture, 0);
+        gl.uniform1i(gl.getUniformLocation(this.bloorProgram, 'diff'), PP.screenTexture.index);
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
         gl.useProgram(this.program);
@@ -76,35 +64,15 @@ export class Bloom extends PostProcessor {
     }
 
     renderBlur(inTexture, program) {
-        gl.framebufferTexture2D(
-            gl.FRAMEBUFFER,
-            gl.COLOR_ATTACHMENT0,
-            gl.TEXTURE_2D,
-            this.tempBlurTexture,
-            0
-        );
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.tempBlurTexture, 0);
         gl.clearColor(...clearColor);
-        gl.clear(
-            gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENSIL_BUFFER_BIT
-        );
-        gl.uniform1i(
-            gl.getUniformLocation(program, 'uTexture'),
-            inTexture.index
-        );
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENSIL_BUFFER_BIT);
+        gl.uniform1i(gl.getUniformLocation(program, 'uTexture'), inTexture.index);
         gl.uniform2f(gl.getUniformLocation(program, 'denom'), 1, 0);
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
-        gl.framebufferTexture2D(
-            gl.FRAMEBUFFER,
-            gl.COLOR_ATTACHMENT0,
-            gl.TEXTURE_2D,
-            this.blurTexture,
-            0
-        );
-        gl.uniform1i(
-            gl.getUniformLocation(program, 'uTexture'),
-            this.tempBlurTexture.index
-        );
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.blurTexture, 0);
+        gl.uniform1i(gl.getUniformLocation(program, 'uTexture'), this.tempBlurTexture.index);
         gl.uniform2f(gl.getUniformLocation(program, 'denom'), 0, 1);
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     }

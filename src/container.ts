@@ -56,12 +56,8 @@ export class Container {
 
     _updateDep(name, definition) {
         for (const [key, instance] of this._singletons) {
-            if (
-                this._services.get(key).dependencies.some(dep => dep === name)
-            ) {
-                instance[
-                    `set${name.charAt(0).toUpperCase() + name.slice(1)}`
-                ].call(instance, definition);
+            if (this._services.get(key).dependencies.some(dep => dep === name)) {
+                instance[`set${name.charAt(0).toUpperCase() + name.slice(1)}`].call(instance, definition);
             }
         }
         this._singletons.set(name, definition);
@@ -80,19 +76,13 @@ export class Container {
     _createInstance(service) {
         const instance = new service.definition(...service.args);
         this._getResolvedDependencies(service).forEach(([name, dep]) => {
-            instance[`set${name.charAt(0).toUpperCase() + name.slice(1)}`].call(
-                instance,
-                dep
-            );
+            instance[`set${name.charAt(0).toUpperCase() + name.slice(1)}`].call(instance, dep);
         });
 
         return instance;
     }
 
     _isClass(definition) {
-        return (
-            typeof definition === 'function' &&
-            /^class\s/.test(Function.prototype.toString.call(definition))
-        );
+        return typeof definition === 'function' && /^class\s/.test(Function.prototype.toString.call(definition));
     }
 }

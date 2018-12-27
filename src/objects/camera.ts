@@ -55,18 +55,8 @@ export class Camera extends Object3D {
     }
 
     pan(coordsStart, coordsMove, width, height) {
-        const coordsStartWorld = canvasToWorld(
-            coordsStart,
-            this.projection,
-            width,
-            height
-        );
-        const coordsMoveWorld = canvasToWorld(
-            coordsMove,
-            this.projection,
-            width,
-            height
-        );
+        const coordsStartWorld = canvasToWorld(coordsStart, this.projection, width, height);
+        const coordsMoveWorld = canvasToWorld(coordsMove, this.projection, width, height);
         const p0 = new Vector3([...coordsStartWorld, 0]);
         const p1 = new Vector3([...coordsMoveWorld, 0]);
         const pan = this.modelSize * 100;
@@ -77,18 +67,8 @@ export class Camera extends Object3D {
     }
 
     rotate(coordsStart, coordsMove, width, height) {
-        const coordsStartWorld = canvasToWorld(
-            coordsStart,
-            this.projection,
-            width,
-            height
-        );
-        const coordsMoveWorld = canvasToWorld(
-            coordsMove,
-            this.projection,
-            width,
-            height
-        );
+        const coordsStartWorld = canvasToWorld(coordsStart, this.projection, width, height);
+        const coordsMoveWorld = canvasToWorld(coordsMove, this.projection, width, height);
         const p0 = new Vector3(sceneToArcBall(coordsStartWorld));
         const p1 = new Vector3(sceneToArcBall(coordsMoveWorld));
         const angle = (Vector3.angle(p1, p0) * 30) / this.props.aspect;
@@ -96,9 +76,7 @@ export class Camera extends Object3D {
             return;
         }
 
-        const camStart = new Vector3(p0.elements).applyMatrix4(
-            this.matrixWorld
-        );
+        const camStart = new Vector3(p0.elements).applyMatrix4(this.matrixWorld);
         const camEnd = new Vector3(p1.elements).applyMatrix4(this.matrixWorld);
         const camVector = Vector3.cross(camEnd, camStart).normalize();
         const camMatrix = new Matrix4();

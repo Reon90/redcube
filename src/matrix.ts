@@ -14,11 +14,7 @@ class Matrix2 {
         let i;
         let s;
         let d;
-        if (
-            opt_src &&
-            typeof opt_src === 'object' &&
-            opt_src.hasOwnProperty('elements')
-        ) {
+        if (opt_src && typeof opt_src === 'object' && opt_src.hasOwnProperty('elements')) {
             s = opt_src.elements;
             d = new Float32Array(4);
             for (i = 0; i < 4; ++i) {
@@ -63,11 +59,7 @@ class Matrix3 {
         let i;
         let s;
         let d;
-        if (
-            opt_src &&
-            typeof opt_src === 'object' &&
-            opt_src.hasOwnProperty('elements')
-        ) {
+        if (opt_src && typeof opt_src === 'object' && opt_src.hasOwnProperty('elements')) {
             s = opt_src.elements;
             d = new Float32Array(9);
             for (i = 0; i < 9; ++i) {
@@ -132,13 +124,7 @@ class Matrix3 {
         const b11 = a22 * a33 - a23 * a32;
 
         let // Calculate the determinant
-            det =
-                b00 * b11 -
-                b01 * b10 +
-                b02 * b09 +
-                b03 * b08 -
-                b04 * b07 +
-                b05 * b06;
+            det = b00 * b11 - b01 * b10 + b02 * b09 + b03 * b08 - b04 * b07 + b05 * b06;
 
         if (!det) {
             return null;
@@ -214,11 +200,7 @@ class Matrix4 {
         let i;
         let s;
         let d;
-        if (
-            opt_src &&
-            typeof opt_src === 'object' &&
-            opt_src.hasOwnProperty('elements')
-        ) {
+        if (opt_src && typeof opt_src === 'object' && opt_src.hasOwnProperty('elements')) {
             s = opt_src.elements;
             d = new Float32Array(16);
             for (i = 0; i < 16; ++i) {
@@ -226,24 +208,7 @@ class Matrix4 {
             }
             this.elements = d;
         } else {
-            this.elements = new Float32Array([
-                1,
-                0,
-                0,
-                0,
-                0,
-                1,
-                0,
-                0,
-                0,
-                0,
-                1,
-                0,
-                0,
-                0,
-                0,
-                1
-            ]);
+            this.elements = new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
         }
     }
 
@@ -437,26 +402,11 @@ class Matrix4 {
             s[9] * s[2] * s[7] +
             s[9] * s[3] * s[6];
         inv[7] =
-            s[0] * s[6] * s[11] -
-            s[0] * s[7] * s[10] -
-            s[4] * s[2] * s[11] +
-            s[4] * s[3] * s[10] +
-            s[8] * s[2] * s[7] -
-            s[8] * s[3] * s[6];
+            s[0] * s[6] * s[11] - s[0] * s[7] * s[10] - s[4] * s[2] * s[11] + s[4] * s[3] * s[10] + s[8] * s[2] * s[7] - s[8] * s[3] * s[6];
         inv[11] =
-            -s[0] * s[5] * s[11] +
-            s[0] * s[7] * s[9] +
-            s[4] * s[1] * s[11] -
-            s[4] * s[3] * s[9] -
-            s[8] * s[1] * s[7] +
-            s[8] * s[3] * s[5];
+            -s[0] * s[5] * s[11] + s[0] * s[7] * s[9] + s[4] * s[1] * s[11] - s[4] * s[3] * s[9] - s[8] * s[1] * s[7] + s[8] * s[3] * s[5];
         inv[15] =
-            s[0] * s[5] * s[10] -
-            s[0] * s[6] * s[9] -
-            s[4] * s[1] * s[10] +
-            s[4] * s[2] * s[9] +
-            s[8] * s[1] * s[6] -
-            s[8] * s[2] * s[5];
+            s[0] * s[5] * s[10] - s[0] * s[6] * s[9] - s[4] * s[1] * s[10] + s[4] * s[2] * s[9] + s[8] * s[1] * s[6] - s[8] * s[2] * s[5];
 
         det = s[0] * inv[0] + s[1] * inv[4] + s[2] * inv[8] + s[3] * inv[12];
         if (det === 0) {
@@ -621,9 +571,7 @@ class Matrix4 {
      * @return this
      */
     perspective(fovy, aspect, near, far) {
-        return this.concat(
-            new Matrix4().setPerspective(fovy, aspect, near, far)
-        );
+        return this.concat(new Matrix4().setPerspective(fovy, aspect, near, far));
     }
 
     /**
@@ -968,11 +916,7 @@ class Vector3 {
     }
 
     lengthSq() {
-        return (
-            this.elements[0] * this.elements[0] +
-            this.elements[1] * this.elements[1] +
-            this.elements[2] * this.elements[2]
-        );
+        return this.elements[0] * this.elements[0] + this.elements[1] * this.elements[1] + this.elements[2] * this.elements[2];
     }
 
     multiply({ elements }) {
@@ -1227,14 +1171,7 @@ class Vector2 {
 
 // { 0: right, 1: left, 2: bottom. 3: top, 4: far, 5: near }
 function Frustum(m) {
-    const planes = [
-        new Vector4(),
-        new Vector4(),
-        new Vector4(),
-        new Vector4(),
-        new Vector4(),
-        new Vector4()
-    ];
+    const planes = [new Vector4(), new Vector4(), new Vector4(), new Vector4(), new Vector4(), new Vector4()];
     const me = m.elements;
     let me0 = me[0],
         me1 = me[1],
@@ -1263,13 +1200,4 @@ function Frustum(m) {
     return planes;
 }
 
-export {
-    Matrix2,
-    Matrix3,
-    Matrix4,
-    Vector,
-    Vector2,
-    Vector3,
-    Vector4,
-    Frustum
-};
+export { Matrix2, Matrix3, Matrix4, Vector, Vector2, Vector3, Vector4, Frustum };

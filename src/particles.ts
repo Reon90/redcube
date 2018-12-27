@@ -43,12 +43,7 @@ export class Particles {
         compileShader(gl.VERTEX_SHADER, instanceTransShader, program);
         compileShader(gl.FRAGMENT_SHADER, instanceFragShader2, program);
 
-        const varyings = [
-            'v_position',
-            'v_velocity',
-            'v_spawntime',
-            'v_lifetime'
-        ];
+        const varyings = ['v_position', 'v_velocity', 'v_spawntime', 'v_lifetime'];
         gl.transformFeedbackVaryings(program, varyings, gl.SEPARATE_ATTRIBS);
 
         gl.linkProgram(program);
@@ -58,10 +53,7 @@ export class Particles {
         this.program2 = program2;
 
         const VAO = [gl.createVertexArray(), gl.createVertexArray()];
-        const TFO = [
-            gl.createTransformFeedback(),
-            gl.createTransformFeedback()
-        ];
+        const TFO = [gl.createTransformFeedback(), gl.createTransformFeedback()];
         this.VAO = VAO;
         this.TFO = TFO;
 
@@ -78,11 +70,7 @@ export class Particles {
                 }
                 const VBO = gl.createBuffer();
                 gl.bindBuffer(gl.ARRAY_BUFFER, VBO);
-                gl.bufferData(
-                    gl.ARRAY_BUFFER,
-                    vertexPositionData,
-                    gl.STREAM_COPY
-                );
+                gl.bufferData(gl.ARRAY_BUFFER, vertexPositionData, gl.STREAM_COPY);
                 gl.enableVertexAttribArray(0);
                 gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
                 gl.vertexAttribDivisor(0, 1);
@@ -97,11 +85,7 @@ export class Particles {
                 }
                 const VBO = gl.createBuffer();
                 gl.bindBuffer(gl.ARRAY_BUFFER, VBO);
-                gl.bufferData(
-                    gl.ARRAY_BUFFER,
-                    vertexPositionData,
-                    gl.STREAM_COPY
-                );
+                gl.bufferData(gl.ARRAY_BUFFER, vertexPositionData, gl.STREAM_COPY);
                 gl.enableVertexAttribArray(1);
                 gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 0, 0);
                 gl.vertexAttribDivisor(1, 1);
@@ -114,11 +98,7 @@ export class Particles {
                 }
                 const VBO = gl.createBuffer();
                 gl.bindBuffer(gl.ARRAY_BUFFER, VBO);
-                gl.bufferData(
-                    gl.ARRAY_BUFFER,
-                    vertexPositionData,
-                    gl.STREAM_COPY
-                );
+                gl.bufferData(gl.ARRAY_BUFFER, vertexPositionData, gl.STREAM_COPY);
                 gl.enableVertexAttribArray(2);
                 gl.vertexAttribPointer(2, 1, gl.FLOAT, false, 0, 0);
                 gl.vertexAttribDivisor(2, 1);
@@ -131,11 +111,7 @@ export class Particles {
                 }
                 const VBO = gl.createBuffer();
                 gl.bindBuffer(gl.ARRAY_BUFFER, VBO);
-                gl.bufferData(
-                    gl.ARRAY_BUFFER,
-                    vertexPositionData,
-                    gl.STREAM_COPY
-                );
+                gl.bufferData(gl.ARRAY_BUFFER, vertexPositionData, gl.STREAM_COPY);
                 gl.enableVertexAttribArray(3);
                 gl.vertexAttribPointer(3, 1, gl.FLOAT, false, 0, 0);
                 gl.vertexAttribDivisor(3, 1);
@@ -167,11 +143,7 @@ export class Particles {
         this.texture3d = createTexture(gl.TEXTURE_3D);
         gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_BASE_LEVEL, 0);
         gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MAX_LEVEL, Math.log2(SIZE));
-        gl.texParameteri(
-            gl.TEXTURE_3D,
-            gl.TEXTURE_MIN_FILTER,
-            gl.LINEAR_MIPMAP_LINEAR
-        );
+        gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
         gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
         gl.texImage3D(
             gl.TEXTURE_3D, // target
@@ -192,23 +164,14 @@ export class Particles {
         const destinationIdx = (this.currentSourceIdx + 1) % 2;
         gl.useProgram(this.program);
         gl.bindVertexArray(this.VAO[this.currentSourceIdx]);
-        gl.bindTransformFeedback(
-            gl.TRANSFORM_FEEDBACK,
-            this.TFO[destinationIdx]
-        );
+        gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, this.TFO[destinationIdx]);
 
         const m = new Matrix4();
         m.multiply(this.camera.projection);
         m.multiply(this.camera.matrixWorldInvert);
-        gl.uniform1f(
-            gl.getUniformLocation(this.program, 'u_time'),
-            time + 5000
-        );
+        gl.uniform1f(gl.getUniformLocation(this.program, 'u_time'), time + 5000);
         gl.uniform1f(gl.getUniformLocation(this.program, 'count'), amount);
-        gl.uniform1i(
-            gl.getUniformLocation(this.program, 'noize'),
-            this.texture3d.index
-        );
+        gl.uniform1i(gl.getUniformLocation(this.program, 'noize'), this.texture3d.index);
 
         gl.enable(gl.RASTERIZER_DISCARD);
         gl.beginTransformFeedback(gl.POINTS);
@@ -224,15 +187,8 @@ export class Particles {
 
         gl.useProgram(this.program2);
         gl.bindVertexArray(this.VAO[destinationIdx]);
-        gl.uniformMatrix4fv(
-            gl.getUniformLocation(this.program2, 'MVPMatrix'),
-            false,
-            m.elements
-        );
-        gl.uniform1i(
-            gl.getUniformLocation(this.program2, 'light'),
-            this.getLight()
-        );
+        gl.uniformMatrix4fv(gl.getUniformLocation(this.program2, 'MVPMatrix'), false, m.elements);
+        gl.uniform1i(gl.getUniformLocation(this.program2, 'light'), this.getLight());
         gl.drawArraysInstanced(gl.POINTS, 0, 1, amount);
 
         this.currentSourceIdx = (this.currentSourceIdx + 1) % 2;

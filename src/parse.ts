@@ -1,23 +1,5 @@
-import {
-    buildArray,
-    getDataType,
-    walk,
-    getAnimationComponent,
-    calculateProjection,
-    createProgram,
-    calculateOffset
-} from './utils';
-import {
-    Mesh,
-    SkinnedMesh,
-    Bone,
-    Camera,
-    Object3D,
-    Scene,
-    Light,
-    UniformBuffer,
-    Material
-} from './objects/index';
+import { buildArray, getDataType, walk, getAnimationComponent, calculateProjection, createProgram, calculateOffset } from './utils';
+import { Mesh, SkinnedMesh, Bone, Camera, Object3D, Scene, Light, UniformBuffer, Material } from './objects/index';
 import { Matrix4, Frustum } from './matrix';
 import { GlTf } from '../GLTF';
 
@@ -122,7 +104,7 @@ export class Parse {
                         const raw = window.atob(base64);
                         const buffer = new ArrayBuffer(raw.length);
                         const array = new Uint8Array(buffer);
-                        for(let i = 0; i < raw.length; i++) {
+                        for (let i = 0; i < raw.length; i++) {
                             array[i] = raw.charCodeAt(i);
                         }
                         return buffer;
@@ -140,22 +122,12 @@ export class Parse {
 
     createProgram(defines) {
         let program;
-        const programHash = defines
-            .map(define => `${define.name}${define.value || 1}`)
-            .join('');
+        const programHash = defines.map(define => `${define.name}${define.value || 1}`).join('');
         if (this.programs[programHash]) {
             program = this.programs[programHash];
         } else {
-            const defineStr = defines
-                .map(
-                    define =>
-                        `#define ${define.name} ${define.value || 1}` + '\n'
-                )
-                .join('');
-            program = createProgram(
-                vertexShader.replace(/\n/, `\n${defineStr}`),
-                fragmentShader.replace(/\n/, `\n${defineStr}`)
-            );
+            const defineStr = defines.map(define => `#define ${define.name} ${define.value || 1}` + '\n').join('');
+            program = createProgram(vertexShader.replace(/\n/, `\n${defineStr}`), fragmentShader.replace(/\n/, `\n${defineStr}`));
             this.programs[programHash] = program;
         }
 
@@ -163,8 +135,7 @@ export class Parse {
     }
 
     buildPrim(parent, name, skin, weights, primitive) {
-        const m =
-            this.json.materials && this.json.materials[primitive.material];
+        const m = this.json.materials && this.json.materials[primitive.material];
         const defines = [...this.defines];
         const material = new Material(m, this.textures, defines);
         if (skin !== undefined) {
@@ -180,18 +151,8 @@ export class Parse {
         material.createUniforms(gl, program);
         material.updateUniforms(gl, program, this.camera, this.light);
 
-        const mesh =
-            skin !== undefined
-                ? new SkinnedMesh(name, parent)
-                : new Mesh(name, parent);
-        const geometry = new Geometry(
-            gl,
-            this.json,
-            this.arrayBuffer,
-            weights,
-            primitive,
-            material.hasNormal()
-        );
+        const mesh = skin !== undefined ? new SkinnedMesh(name, parent) : new Mesh(name, parent);
+        const geometry = new Geometry(gl, this.json, this.arrayBuffer, weights, primitive, material.hasNormal());
 
         mesh.setProgram(program);
         mesh.setMode(primitive.mode);
@@ -217,8 +178,7 @@ export class Parse {
                 Object.assign(
                     {
                         zoom: 1,
-                        aspect:
-                            this.canvas.offsetWidth / this.canvas.offsetHeight
+                        aspect: this.canvas.offsetWidth / this.canvas.offsetHeight
                     },
                     this.json.cameras[el.camera]
                 ),
@@ -253,21 +213,12 @@ export class Parse {
         if (el.mesh !== undefined) {
             if (el.skin !== undefined) {
                 for (const join of this.skins[el.skin].jointNames) {
-                    walk(
-                        this.scene,
-                        this.buildBones.bind(this, join, this.skins[el.skin])
-                    );
+                    walk(this.scene, this.buildBones.bind(this, join, this.skins[el.skin]));
                 }
             }
             parent.children.push(
                 ...this.json.meshes[el.mesh].primitives.map(
-                    this.buildPrim.bind(
-                        this,
-                        parent,
-                        this.json.meshes[el.mesh].name,
-                        el.skin,
-                        this.json.meshes[el.mesh].weights
-                    )
+                    this.buildPrim.bind(this, parent, this.json.meshes[el.mesh].name, el.skin, this.json.meshes[el.mesh].weights)
                 )
             );
         }
@@ -284,10 +235,7 @@ export class Parse {
                 if (!biggestMesh) {
                     biggestMesh = node;
                 }
-                if (
-                    node.geometry.boundingSphere.radius >
-                    biggestMesh.geometry.boundingSphere.radius
-                ) {
+                if (node.geometry.boundingSphere.radius > biggestMesh.geometry.boundingSphere.radius) {
                     biggestMesh = node;
                 }
             }
@@ -295,21 +243,14 @@ export class Parse {
         const z = Math.max(biggestMesh.matrixWorld.getScaleZ(), 1);
         const pos = Math.hypot(...biggestMesh.getPosition());
         this.camera.modelSize =
-            biggestMesh.geometry.boundingSphere.radius * z +
-            pos +
-            Math.hypot(...biggestMesh.geometry.boundingSphere.center.elements);
+            biggestMesh.geometry.boundingSphere.radius * z + pos + Math.hypot(...biggestMesh.geometry.boundingSphere.center.elements);
 
         this.resize();
     }
 
     buildMesh() {
-        this.json.scenes[
-            this.json.scene !== undefined ? this.json.scene : 0
-        ].nodes.forEach(n => {
-            if (
-                this.json.nodes[n].children &&
-                this.json.nodes[n].children.length
-            ) {
+        this.json.scenes[this.json.scene !== undefined ? this.json.scene : 0].nodes.forEach(n => {
+            if (this.json.nodes[n].children && this.json.nodes[n].children.length) {
                 this.buildNode(this.scene, n);
             }
             if (this.json.nodes[n].mesh !== undefined) {
@@ -326,13 +267,7 @@ export class Parse {
 
         walk(this.scene, mesh => {
             if (mesh instanceof Mesh) {
-                mesh.geometry.updateUniforms(
-                    gl,
-                    mesh.program,
-                    mesh.matrixWorld,
-                    this.camera,
-                    this.light
-                );
+                mesh.geometry.updateUniforms(gl, mesh.program, mesh.matrixWorld, this.camera, this.light);
 
                 if (mesh.material.alphaMode) {
                     this.scene.transparentChildren.push(mesh);
@@ -359,50 +294,31 @@ export class Parse {
                 if (sampler) {
                     const { target } = channel;
                     const name = target.node;
-                    const input =
-                        animation.parameters !== undefined
-                            ? animation.parameters[sampler.input]
-                            : sampler.input;
-                    const output =
-                        animation.parameters !== undefined
-                            ? animation.parameters[sampler.output]
-                            : sampler.output;
+                    const input = animation.parameters !== undefined ? animation.parameters[sampler.input] : sampler.input;
+                    const output = animation.parameters !== undefined ? animation.parameters[sampler.output] : sampler.output;
 
                     const inputAccessor = this.json.accessors[input];
                     const outputAccessor = this.json.accessors[output];
-                    const inputBuffer = this.json.bufferViews[
-                        inputAccessor.bufferView
-                    ];
-                    const outputBuffer = this.json.bufferViews[
-                        outputAccessor.bufferView
-                    ];
+                    const inputBuffer = this.json.bufferViews[inputAccessor.bufferView];
+                    const outputBuffer = this.json.bufferViews[outputAccessor.bufferView];
 
                     const inputArray = buildArray(
                         this.arrayBuffer[inputBuffer.buffer],
                         inputAccessor.componentType,
-                        calculateOffset(
-                            inputBuffer.byteOffset,
-                            inputAccessor.byteOffset
-                        ),
+                        calculateOffset(inputBuffer.byteOffset, inputAccessor.byteOffset),
                         getDataType(inputAccessor.type) * inputAccessor.count
                     );
                     const outputArray = buildArray(
                         this.arrayBuffer[outputBuffer.buffer],
                         outputAccessor.componentType,
-                        calculateOffset(
-                            outputBuffer.byteOffset,
-                            outputAccessor.byteOffset
-                        ),
+                        calculateOffset(outputBuffer.byteOffset, outputAccessor.byteOffset),
                         getDataType(outputAccessor.type) * outputAccessor.count
                     );
 
                     const meshes = [];
                     walk(this.scene, node => {
                         if (node.name === name) {
-                            if (
-                                target.path === 'weights' &&
-                                node instanceof Object3D
-                            ) {
+                            if (target.path === 'weights' && node instanceof Object3D) {
                                 // eslint-disable-next-line
                                 node = node.children[0];
                             }
@@ -410,26 +326,18 @@ export class Parse {
                         }
                     });
 
-                    const component =
-                        getAnimationComponent(target.path) ||
-                        meshes[0].geometry.targets.length;
+                    const component = getAnimationComponent(target.path) || meshes[0].geometry.targets.length;
                     const keys = [];
                     for (let i = 0; i < inputArray.length; i++) {
                         const firstT = inputArray[i];
-                        const firstV = outputArray.slice(
-                            i * component,
-                            (i + 1) * component
-                        );
+                        const firstV = outputArray.slice(i * component, (i + 1) * component);
 
                         keys.push({
                             time: firstT,
                             value: firstV
                         });
                     }
-                    this.duration = Math.max(
-                        keys[keys.length - 1].time,
-                        this.duration
-                    );
+                    this.duration = Math.max(keys[keys.length - 1].time, this.duration);
 
                     if (meshes.length) {
                         this.tracks.push({
@@ -495,7 +403,7 @@ export class Parse {
                     const jsonLength = new Uint32Array(b, 12, 1)[0];
                     const jsonBuffer = new Uint8Array(b, 20, jsonLength);
                     const json = JSON.parse(decoder.decode(jsonBuffer));
-                    const bufferLength = new Uint32Array(b, 20 + jsonLength , 1)[0];
+                    const bufferLength = new Uint32Array(b, 20 + jsonLength, 1)[0];
                     const buffer = b.slice(28 + jsonLength, 28 + jsonLength + bufferLength);
 
                     this.json = json;
@@ -523,16 +431,8 @@ export class Parse {
         const samplers = this.json.samplers || [{}];
         this.samplers = samplers.map(s => {
             const sampler = gl.createSampler();
-            gl.samplerParameteri(
-                sampler,
-                gl.TEXTURE_MIN_FILTER,
-                s.minFilter || 9986
-            );
-            gl.samplerParameteri(
-                sampler,
-                gl.TEXTURE_MAG_FILTER,
-                s.magFilter || 9729
-            );
+            gl.samplerParameteri(sampler, gl.TEXTURE_MIN_FILTER, s.minFilter || 9986);
+            gl.samplerParameteri(sampler, gl.TEXTURE_MAG_FILTER, s.magFilter || 9729);
             gl.samplerParameteri(sampler, gl.TEXTURE_WRAP_S, s.wrapS || 10497);
             gl.samplerParameteri(sampler, gl.TEXTURE_WRAP_T, s.wrapT || 10497);
             return sampler;
@@ -547,9 +447,7 @@ export class Parse {
         });
         const promiseArr = Object.values(texturesMap).map(t => {
             return new Promise((resolve, reject) => {
-                const sampler = this.samplers[
-                    t.sampler !== undefined ? t.sampler : 0
-                ];
+                const sampler = this.samplers[t.sampler !== undefined ? t.sampler : 0];
                 const source = this.json.images[t.source];
                 const image = new Image();
                 image.onload = () => {
@@ -583,14 +481,7 @@ export class Parse {
 
         gl.activeTexture(gl[`TEXTURE${31}`]);
         gl.bindTexture(gl.TEXTURE_2D, t);
-        gl.texImage2D(
-            gl.TEXTURE_2D,
-            0,
-            gl.RGBA,
-            gl.RGBA,
-            gl.UNSIGNED_BYTE,
-            image
-        );
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
         gl.generateMipmap(gl.TEXTURE_2D);
 
         return t;

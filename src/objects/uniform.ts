@@ -19,20 +19,7 @@ export class UniformBuffer {
             return v;
         }
         if (length === 9) {
-            return new Float32Array([
-                v[0],
-                v[1],
-                v[2],
-                0,
-                v[3],
-                v[4],
-                v[5],
-                0,
-                v[6],
-                v[7],
-                v[8],
-                0
-            ]);
+            return new Float32Array([v[0], v[1], v[2], 0, v[3], v[4], v[5], 0, v[6], v[7], v[8], 0]);
         }
 
         return v;
@@ -54,11 +41,7 @@ export class UniformBuffer {
         }
         const offset = this.map.get(name);
         this.store.set(value, offset);
-        gl.bufferSubData(
-            gl.UNIFORM_BUFFER,
-            offset * Float32Array.BYTES_PER_ELEMENT,
-            value
-        );
+        gl.bufferSubData(gl.UNIFORM_BUFFER, offset * Float32Array.BYTES_PER_ELEMENT, value);
     }
 
     done() {

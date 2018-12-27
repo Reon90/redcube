@@ -19,11 +19,7 @@ export class Object3D {
     }
 
     getPosition() {
-        return new Float32Array([
-            this.matrixWorld.elements[12],
-            this.matrixWorld.elements[13],
-            this.matrixWorld.elements[14]
-        ]);
+        return new Float32Array([this.matrixWorld.elements[12], this.matrixWorld.elements[13], this.matrixWorld.elements[14]]);
     }
 
     setPosition(translation, rotation, scale) {

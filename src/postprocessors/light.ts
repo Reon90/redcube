@@ -33,13 +33,7 @@ export class Light extends PostProcessor {
         PP.renderScene(true, true);
 
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
-        gl.framebufferTexture2D(
-            gl.FRAMEBUFFER,
-            gl.COLOR_ATTACHMENT0,
-            gl.TEXTURE_2D,
-            this.texture,
-            0
-        );
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.texture, 0);
 
         gl.useProgram(this.program);
         gl.viewport(0, 0, this.width / this.scale, this.height / this.scale);
@@ -48,34 +42,12 @@ export class Light extends PostProcessor {
         const cam = Object.assign({}, this.camera.props, { zoom: 1 });
         const proj = calculateProjection(cam);
 
-        gl.uniformMatrix4fv(
-            gl.getUniformLocation(this.program, 'Iproj'),
-            false,
-            new Matrix4().setInverseOf(proj).elements
-        );
-        gl.uniformMatrix4fv(
-            gl.getUniformLocation(this.program, 'proj'),
-            false,
-            proj.elements
-        );
-        gl.uniformMatrix4fv(
-            gl.getUniformLocation(this.program, 'Iview'),
-            false,
-            this.camera.matrixWorld.elements
-        );
-        gl.uniformMatrix4fv(
-            gl.getUniformLocation(this.program, 'light'),
-            false,
-            this.light.matrixWorldInvert.elements
-        );
-        gl.uniform1i(
-            gl.getUniformLocation(this.program, 'lightTexture'),
-            PP.preDepthTexture.index
-        );
-        gl.uniform1i(
-            gl.getUniformLocation(this.program, 'cameraTexture'),
-            PP.depthTexture.index
-        );
+        gl.uniformMatrix4fv(gl.getUniformLocation(this.program, 'Iproj'), false, new Matrix4().setInverseOf(proj).elements);
+        gl.uniformMatrix4fv(gl.getUniformLocation(this.program, 'proj'), false, proj.elements);
+        gl.uniformMatrix4fv(gl.getUniformLocation(this.program, 'Iview'), false, this.camera.matrixWorld.elements);
+        gl.uniformMatrix4fv(gl.getUniformLocation(this.program, 'light'), false, this.light.matrixWorldInvert.elements);
+        gl.uniform1i(gl.getUniformLocation(this.program, 'lightTexture'), PP.preDepthTexture.index);
+        gl.uniform1i(gl.getUniformLocation(this.program, 'cameraTexture'), PP.depthTexture.index);
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
@@ -86,29 +58,10 @@ export class Light extends PostProcessor {
         this.framebuffer = gl.createFramebuffer();
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
         this.texture = PP.createOneChannelTexture(this.scale);
-        gl.framebufferTexture2D(
-            gl.FRAMEBUFFER,
-            gl.COLOR_ATTACHMENT0,
-            gl.TEXTURE_2D,
-            this.texture,
-            0
-        );
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.texture, 0);
         this.program = createProgram(lightVertShader, lightShader);
 
-        const verts = [
-            1.0,
-            1.0,
-            -1.0,
-            1.0,
-            -1.0,
-            -1.0,
-            -1.0,
-            -1.0,
-            1.0,
-            -1.0,
-            1.0,
-            1.0
-        ];
+        const verts = [1.0, 1.0, -1.0, 1.0, -1.0, -1.0, -1.0, -1.0, 1.0, -1.0, 1.0, 1.0];
         this.quadVAO = gl.createVertexArray();
         gl.bindVertexArray(this.quadVAO);
         const quadVBO = gl.createBuffer();
@@ -122,10 +75,7 @@ export class Light extends PostProcessor {
     }
 
     attachUniform(program) {
-        gl.uniform1i(
-            gl.getUniformLocation(program, 'light'),
-            this.texture.index
-        );
+        gl.uniform1i(gl.getUniformLocation(program, 'light'), this.texture.index);
     }
 
     postProcessing() {}

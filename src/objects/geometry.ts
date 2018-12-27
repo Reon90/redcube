@@ -1,14 +1,6 @@
 import { Vector3, Matrix4 } from '../matrix';
 import { UniformBuffer } from './uniform';
-import {
-    buildArray,
-    getDataType,
-    calculateOffset,
-    getAttributeIndex,
-    calculateBinormals,
-    getGlEnum,
-    calculateNormals
-} from '../utils';
+import { buildArray, getDataType, calculateOffset, getAttributeIndex, calculateBinormals, getGlEnum, calculateNormals } from '../utils';
 import { decoderModule, decodeDracoData, getArray } from '../decoder';
 
 interface Attributes {
@@ -57,7 +49,7 @@ export class Geometry {
         this.targets = [];
 
         let indicesBuffer;
-        let vertexBuffers = <Attributes>{};
+        const vertexBuffers = <Attributes>{};
         const indicesAccessor = json.accessors[primitive.indices];
         const vertexAccessor = new Map();
         for (const a in primitive.attributes) {
@@ -72,19 +64,20 @@ export class Geometry {
         if (compresedMesh) {
             const bufferView = json.bufferViews[compresedMesh.bufferView];
             const decoder = new decoderModule.Decoder();
-            const decodedGeometry = decodeDracoData(
-                arrayBuffer[bufferView.buffer],
-                decoder,
-                bufferView.byteOffset,
-                bufferView.byteLength
-            );
+            const decodedGeometry = decodeDracoData(arrayBuffer[bufferView.buffer], decoder, bufferView.byteOffset, bufferView.byteLength);
             const numFaces = decodedGeometry.num_faces();
             const numPoints = decodedGeometry.num_points();
 
             for (const k of vertexAccessor.keys()) {
                 const attribute = decoder.GetAttributeByUniqueId(decodedGeometry, compresedMesh.attributes[k]);
                 const size = getDataType(vertexAccessor.get(k).type);
-                const [dracoArr, arr] = getArray(getGlEnum(vertexAccessor.get(k).componentType), numPoints * size, decodedGeometry, attribute, decoder);
+                const [dracoArr, arr] = getArray(
+                    getGlEnum(vertexAccessor.get(k).componentType),
+                    numPoints * size,
+                    decodedGeometry,
+                    attribute,
+                    decoder
+                );
 
                 for (let i = 0; i < numPoints * size; i += size) {
                     arr[i] = dracoArr.GetValue(i);
@@ -127,10 +120,7 @@ export class Geometry {
                         vertexAcc[a] = buildArray(
                             arrayBuffer[bufferView.buffer],
                             accessor.componentType,
-                            calculateOffset(
-                                bufferView.byteOffset,
-                                accessor.byteOffset
-                            ),
+                            calculateOffset(bufferView.byteOffset, accessor.byteOffset),
                             getDataType(accessor.type) * accessor.count
                         );
                     }
@@ -143,10 +133,7 @@ export class Geometry {
                 indicesBuffer = buildArray(
                     arrayBuffer[bufferView.buffer],
                     indicesAccessor.componentType,
-                    calculateOffset(
-                        bufferView.byteOffset,
-                        indicesAccessor.byteOffset
-                    ),
+                    calculateOffset(bufferView.byteOffset, indicesAccessor.byteOffset),
                     getDataType(indicesAccessor.type) * indicesAccessor.count
                 );
             }
@@ -174,11 +161,7 @@ export class Geometry {
                         vertexBuffers[k][i] =
                             geometry[i] +
                             weights.reduce((a, b, index) => {
-                                return (
-                                    a +
-                                    weights[index] *
-                                        this.targets[index][k][i - offset]
-                                );
+                                return a + weights[index] * this.targets[index][k][i - offset];
                             }, 0);
                     }
                 }
@@ -212,11 +195,7 @@ export class Geometry {
         if (indicesBuffer) {
             const VBO = gl.createBuffer();
             gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, VBO);
-            gl.bufferData(
-                gl.ELEMENT_ARRAY_BUFFER,
-                indicesBuffer,
-                gl.STATIC_DRAW
-            );
+            gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indicesBuffer, gl.STATIC_DRAW);
         }
         this.VAO = VAO;
         this.attributes = vertexBuffers;
@@ -242,11 +221,7 @@ export class Geometry {
         for (let i = 0; i < vertices.length; i = i + 3) {
             maxRadiusSq = Math.max(
                 maxRadiusSq,
-                this.boundingSphere.center.distanceToSquared(
-                    vertices[i],
-                    vertices[i + 1],
-                    vertices[i + 2]
-                )
+                this.boundingSphere.center.distanceToSquared(vertices[i], vertices[i + 1], vertices[i + 2])
             );
         }
         this.boundingSphere.radius = Math.sqrt(maxRadiusSq);

@@ -34,17 +34,7 @@ export class Mesh extends Object3D {
 
     draw(
         gl,
-        {
-            camera,
-            light,
-            preDepthTexture,
-            fakeDepth,
-            needUpdateView,
-            needUpdateProjection,
-            irradiancemap,
-            prefilterMap,
-            brdfLUT
-        },
+        { camera, light, preDepthTexture, fakeDepth, needUpdateView, needUpdateProjection, irradiancemap, prefilterMap, brdfLUT },
         isShadow,
         isLight
     ) {
@@ -57,36 +47,16 @@ export class Mesh extends Object3D {
             const normalMatrix = new Matrix4(this.matrixWorld);
             normalMatrix.invert().transpose();
 
-            this.geometry.uniformBuffer.update(
-                gl,
-                'model',
-                this.matrixWorld.elements
-            );
-            this.geometry.uniformBuffer.update(
-                gl,
-                'normalMatrix',
-                normalMatrix.elements
-            );
+            this.geometry.uniformBuffer.update(gl, 'model', this.matrixWorld.elements);
+            this.geometry.uniformBuffer.update(gl, 'normalMatrix', normalMatrix.elements);
         }
 
         if (needUpdateView) {
-            this.geometry.uniformBuffer.update(
-                gl,
-                'view',
-                camera.matrixWorldInvert.elements
-            );
-            this.geometry.uniformBuffer.update(
-                gl,
-                'light',
-                light.matrixWorldInvert.elements
-            );
+            this.geometry.uniformBuffer.update(gl, 'view', camera.matrixWorldInvert.elements);
+            this.geometry.uniformBuffer.update(gl, 'light', light.matrixWorldInvert.elements);
         }
         if (needUpdateProjection) {
-            this.geometry.uniformBuffer.update(
-                gl,
-                'projection',
-                camera.projection.elements
-            );
+            this.geometry.uniformBuffer.update(gl, 'projection', camera.projection.elements);
         }
         //this.geometry.uniformBuffer.update(gl, 'isShadow', isLight ? 1 : 0);
 
@@ -107,16 +77,8 @@ export class Mesh extends Object3D {
             gl.bindBufferBase(gl.UNIFORM_BUFFER, 1, this.material.UBO);
 
             if (needUpdateView) {
-                this.material.uniformBuffer.update(
-                    gl,
-                    'lightPos',
-                    light.getPosition()
-                );
-                this.material.uniformBuffer.update(
-                    gl,
-                    'viewPos',
-                    camera.getPosition()
-                );
+                this.material.uniformBuffer.update(gl, 'lightPos', light.getPosition());
+                this.material.uniformBuffer.update(gl, 'viewPos', camera.getPosition());
             }
         }
 
@@ -127,26 +89,13 @@ export class Mesh extends Object3D {
 
         if (this.material.pbrMetallicRoughness.baseColorTexture) {
             gl.activeTexture(gl[`TEXTURE${0}`]);
-            gl.bindTexture(
-                gl.TEXTURE_2D,
-                this.material.pbrMetallicRoughness.baseColorTexture
-            );
-            gl.bindSampler(
-                0,
-                this.material.pbrMetallicRoughness.baseColorTexture.sampler
-            );
+            gl.bindTexture(gl.TEXTURE_2D, this.material.pbrMetallicRoughness.baseColorTexture);
+            gl.bindSampler(0, this.material.pbrMetallicRoughness.baseColorTexture.sampler);
         }
         if (this.material.pbrMetallicRoughness.metallicRoughnessTexture) {
             gl.activeTexture(gl[`TEXTURE${1}`]);
-            gl.bindTexture(
-                gl.TEXTURE_2D,
-                this.material.pbrMetallicRoughness.metallicRoughnessTexture
-            );
-            gl.bindSampler(
-                1,
-                this.material.pbrMetallicRoughness.metallicRoughnessTexture
-                    .sampler
-            );
+            gl.bindTexture(gl.TEXTURE_2D, this.material.pbrMetallicRoughness.metallicRoughnessTexture);
+            gl.bindSampler(1, this.material.pbrMetallicRoughness.metallicRoughnessTexture.sampler);
         }
         if (this.material.normalTexture) {
             gl.activeTexture(gl[`TEXTURE${2}`]);
@@ -176,11 +125,7 @@ export class Mesh extends Object3D {
                 0
             );
         } else {
-            gl.drawArrays(
-                this.mode,
-                0,
-                this.geometry.attributes.POSITION.length / 3
-            );
+            gl.drawArrays(this.mode, 0, this.geometry.attributes.POSITION.length / 3);
         }
 
         if (this.material.doubleSided) {
@@ -201,20 +146,12 @@ export class Mesh extends Object3D {
     }
 
     isVisible(planes) {
-        const c = new Vector3(
-            this.geometry.boundingSphere.center.elements
-        ).applyMatrix4(this.matrixWorld);
-        const r =
-            this.geometry.boundingSphere.radius *
-            this.matrixWorld.getMaxScaleOnAxis();
+        const c = new Vector3(this.geometry.boundingSphere.center.elements).applyMatrix4(this.matrixWorld);
+        const r = this.geometry.boundingSphere.radius * this.matrixWorld.getMaxScaleOnAxis();
         let dist;
         let visible = true;
         for (const p of planes) {
-            dist =
-                p.elements[0] * c.elements[0] +
-                p.elements[1] * c.elements[1] +
-                p.elements[2] * c.elements[2] +
-                p.elements[3];
+            dist = p.elements[0] * c.elements[0] + p.elements[1] * c.elements[1] + p.elements[2] * c.elements[2] + p.elements[3];
             if (dist < -r) {
                 visible = false;
                 break;

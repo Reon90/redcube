@@ -6,14 +6,4 @@ import { Light } from './light';
 import { UniformBuffer } from './uniform';
 import { Material } from './material';
 
-export {
-    Scene,
-    Object3D,
-    Mesh,
-    SkinnedMesh,
-    Bone,
-    Camera,
-    Light,
-    UniformBuffer,
-    Material
-};
+export { Scene, Object3D, Mesh, SkinnedMesh, Bone, Camera, Light, UniformBuffer, Material };
