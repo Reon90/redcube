@@ -1,14 +1,28 @@
 import { Matrix2, Matrix3, Matrix4, Vector2, Vector3, Vector4 } from './matrix';
 
+// @ts-ignore
+export const currentPath = document.currentScript.src.substring(0, document.currentScript.src.lastIndexOf('/'));
+
 const glEnum = {};
 let gl;
-let screenTextureCount = 4;
+let screenTextureCount = 32;
 export const clearColor = [0, 0, 0, 1];
 
 export function getTextureIndex() {
-    screenTextureCount++;
+    screenTextureCount--;
     return screenTextureCount;
 }
+
+export const textureEnum = {
+    baseColorTexture: 0,
+    metallicRoughnessTexture: 1,
+    normalTexture: 2,
+    occlusionTexture: 3,
+    emissiveTexture: 4,
+    irradianceTexture: 5,
+    prefilterTexture: 6,
+    brdfLUTTexture: 7
+};
 
 export function setGl(_gl) {
     gl = _gl;
@@ -259,8 +273,7 @@ export function createProgram(vertex, fragment) {
     return program;
 }
 
-export function createTexture(type = gl.TEXTURE_2D) {
-    const index = getTextureIndex();
+export function createTexture(type = gl.TEXTURE_2D, index = getTextureIndex()) {
     const texture = gl.createTexture();
     gl.activeTexture(gl[`TEXTURE${index}`]);
     gl.bindTexture(type, texture);

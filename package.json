@@ -1,10 +1,10 @@
 {
   "name": "redcube.js",
-  "version": "2.0.1",
+  "version": "2.0.3",
   "description": "A javascript library for rendering webgl.",
   "main": "dist/redcube",
   "scripts": {
-    "dev": "webpack-serve",
+    "dev": "webpack-dev-server",
     "prod": "webpack --mode production",
     "lint": "eslint --fix --ext .ts ./src/ || true && prettier --write \"src/**/*.ts\""
   },
@@ -18,7 +18,7 @@
     "url-loader": "^1.1.2",
     "webpack": "^4.27.1",
     "webpack-cli": "^3.1.2",
-    "webpack-serve": "^2.0.2"
+    "webpack-dev-server": "^3.1.14"
   },
   "repository": {
     "type": "git",

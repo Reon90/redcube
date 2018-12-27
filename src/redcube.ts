@@ -82,7 +82,7 @@ class RedCube {
             this.getState.bind(this)
         );
 
-        this.events = new Events(this.redraw.bind(this));
+        this.events = new Events(canvas, this.redraw.bind(this));
     }
 
     get renderer(): Renderer {
@@ -114,9 +114,13 @@ class RedCube {
     async init(cb) {
         await this.parse.getJson();
         this.glInit();
-        this.Particles.build();
+        if (this.PP.postprocessors.some(p => p instanceof PPLight)) {
+            this.Particles.build();
+        }
         await this.parse.initTextures();
-        this.PP.buildScreenBuffer();
+        if (this.PP.postprocessors.length > 0) {
+            this.PP.buildScreenBuffer();
+        }
         await this.parse.getBuffer();
         this.parse.buildSkin();
         this.parse.buildMesh();
@@ -209,6 +213,9 @@ class RedCube {
 
         setGl(gl);
         this.ioc.register('gl', gl);
+
+        gl.getExtension('EXT_color_buffer_float');
+        gl.getExtension('OES_texture_float_linear');
     }
 
     draw() {

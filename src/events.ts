@@ -6,8 +6,7 @@ class Events {
     y: number;
     zoomValue: number;
 
-    constructor(redraw) {
-        const canvas = document.querySelector('#canvas');
+    constructor(canvas, redraw) {
         this.redraw = redraw;
         this.zoomValue = 0;
         document.addEventListener('wheel', this);

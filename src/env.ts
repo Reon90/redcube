@@ -2,7 +2,9 @@ import {
     compileShader,
     createProgram,
     createTexture,
-    calculateProjection
+    calculateProjection,
+    textureEnum,
+    currentPath
 } from './utils';
 import { Matrix4, Vector3 } from './matrix';
 import { Camera } from './objects/index';
@@ -14,6 +16,7 @@ import irradiance from './shaders/irradiance.frag';
 import cubeMipmap from './shaders/cube-mipmap.frag';
 import bdrf from './shaders/bdrf.frag';
 import quad from './shaders/quad.glsl';
+import { cubeVertex, quadVertex } from './vertex';
 
 let gl;
 
@@ -37,19 +40,22 @@ export class Env {
     level: WebGLUniformLocation;
     diffuse: WebGLUniformLocation;
     MVPMatrix: WebGLUniformLocation;
-    texture: Texture;
-    irradiancemap: Texture;
-    prefilterMap: Texture;
     framebuffer: FrameBuffer;
     irradiancebuffer: FrameBuffer;
     prefilterbuffer: FrameBuffer;
     views: Array<Matrix4>;
-    map: Texture;
-    brdfLUTTexture: Texture;
     prefilterrender: WebGLRenderbuffer;
     brdfbuffer: FrameBuffer;
     canvas: HTMLCanvasElement;
     url: string;
+    sampler: WebGLTexture;
+    samplerCube: WebGLTexture;
+
+    originalCubeTexture: Texture;
+    brdfLUTTexture: Texture;
+    original2DTexture: Texture;
+    irradiancemap: Texture;
+    prefilterMap: Texture;
 
     constructor(url) {
         this.url = url;
@@ -74,6 +80,76 @@ export class Env {
 
     get height() {
         return this.canvas.offsetHeight * devicePixelRatio;
+    }
+
+    drawQuad() {
+        const m = new Matrix4();
+        const cam = Object.assign({}, this.camera.props, {
+            perspective: {
+                yfov: 0.3,
+                znear: 0.01,
+                zfar: 10000
+            }
+        });
+        m.multiply(calculateProjection(cam));
+
+        gl.enable(gl.CULL_FACE);
+        const program = gl.createProgram();
+        compileShader(
+            gl.VERTEX_SHADER,
+            `#version 300 es
+        precision highp float;
+        
+        layout (location = 0) in vec2 inPosition;
+        
+        out vec2 outUV;
+
+        uniform mat4 projection;
+        uniform mat4 view;
+        
+        void main() {
+            outUV = inPosition;
+            gl_Position = projection * view * vec4(inPosition, 0.0, 1.0);
+        }
+        `,
+            program
+        );
+        compileShader(
+            gl.FRAGMENT_SHADER,
+            `#version 300 es
+        precision highp float;
+        
+        in vec2 outUV;
+        layout (location = 0) out vec4 color;
+
+        uniform sampler2D environmentMap;
+        
+        void main() {
+            vec3 c = texture(environmentMap, outUV).rgb;
+            
+            color = vec4(c, 1.0);
+        }
+        `,
+            program
+        );
+        gl.linkProgram(program);
+        gl.useProgram(program);
+        gl.bindVertexArray(this.quadVAO);
+        gl.uniformMatrix4fv(
+            gl.getUniformLocation(program, 'projection'),
+            false,
+            m.elements
+        );
+        gl.uniform1i(
+            gl.getUniformLocation(program, 'environmentMap'),
+            this.brdfLUTTexture.index
+        );
+        gl.uniformMatrix4fv(
+            gl.getUniformLocation(program, 'view'),
+            false,
+            this.camera.matrixWorldInvert.elements
+        );
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     }
 
     draw() {
@@ -136,7 +212,7 @@ export class Env {
         );
         gl.uniform1i(
             gl.getUniformLocation(program, 'environmentMap'),
-            this.map.index
+            this.originalCubeTexture.index
         );
         gl.uniformMatrix4fv(
             gl.getUniformLocation(program, 'view'),
@@ -172,7 +248,7 @@ export class Env {
             );
             gl.uniform1i(
                 gl.getUniformLocation(this.cubeprogram, 'diffuse'),
-                this.texture.index
+                this.original2DTexture.index
             );
             const maxMipLevels = 5;
             for (let mip = 0; mip < maxMipLevels; ++mip) {
@@ -188,7 +264,7 @@ export class Env {
                         gl.FRAMEBUFFER,
                         gl.COLOR_ATTACHMENT0,
                         gl.TEXTURE_CUBE_MAP_POSITIVE_X + i,
-                        this.map,
+                        this.originalCubeTexture,
                         mip
                     );
                     gl.uniformMatrix4fv(
@@ -223,7 +299,7 @@ export class Env {
             );
             gl.uniform1i(
                 gl.getUniformLocation(this.irradianceprogram, 'environmentMap'),
-                this.map.index
+                this.originalCubeTexture.index
             );
             for (let i = 0; i < 6; i++) {
                 gl.framebufferTexture2D(
@@ -258,7 +334,7 @@ export class Env {
             );
             gl.uniform1i(
                 gl.getUniformLocation(this.mipmapcubeprogram, 'environmentMap'),
-                this.map.index
+                this.originalCubeTexture.index
             );
             const maxMipLevels = 5;
             for (let mip = 0; mip < maxMipLevels; ++mip) {
@@ -319,13 +395,48 @@ export class Env {
 
     createEnvironmentBuffer() {
         {
+            const sampler = gl.createSampler();
+            gl.samplerParameteri(
+                sampler,
+                gl.TEXTURE_MIN_FILTER,
+                gl.LINEAR
+            );
+            gl.samplerParameteri(
+                sampler,
+                gl.TEXTURE_MAG_FILTER,
+                gl.LINEAR
+            );
+            gl.samplerParameteri(sampler, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+            gl.samplerParameteri(sampler, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+            this.sampler = sampler;
+        }
+
+        {
+            const sampler = gl.createSampler();
+            gl.samplerParameteri(
+                sampler,
+                gl.TEXTURE_MIN_FILTER,
+                gl.LINEAR_MIPMAP_LINEAR
+            );
+            gl.samplerParameteri(
+                sampler,
+                gl.TEXTURE_MAG_FILTER,
+                gl.LINEAR
+            );
+            gl.samplerParameteri(sampler, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+            gl.samplerParameteri(sampler, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+            gl.samplerParameteri(sampler, gl.TEXTURE_WRAP_R, gl.CLAMP_TO_EDGE);
+            this.samplerCube = sampler;
+        }
+
+        {
             const size = 32;
             const captureFBO = gl.createFramebuffer();
             this.irradiancebuffer = captureFBO;
             this.irradiancebuffer.size = size;
             gl.bindFramebuffer(gl.FRAMEBUFFER, captureFBO);
 
-            const texture = createTexture(gl.TEXTURE_CUBE_MAP);
+            const texture = createTexture(gl.TEXTURE_CUBE_MAP, textureEnum.irradianceTexture);
             for (let i = 0; i < 6; i++) {
                 gl.texImage2D(
                     gl.TEXTURE_CUBE_MAP_POSITIVE_X + i,
@@ -348,21 +459,6 @@ export class Env {
             }
             gl.texParameteri(
                 gl.TEXTURE_CUBE_MAP,
-                gl.TEXTURE_WRAP_S,
-                gl.CLAMP_TO_EDGE
-            );
-            gl.texParameteri(
-                gl.TEXTURE_CUBE_MAP,
-                gl.TEXTURE_WRAP_T,
-                gl.CLAMP_TO_EDGE
-            );
-            gl.texParameteri(
-                gl.TEXTURE_CUBE_MAP,
-                gl.TEXTURE_WRAP_R,
-                gl.CLAMP_TO_EDGE
-            );
-            gl.texParameteri(
-                gl.TEXTURE_CUBE_MAP,
                 gl.TEXTURE_MIN_FILTER,
                 gl.LINEAR
             );
@@ -371,6 +467,9 @@ export class Env {
                 gl.TEXTURE_MAG_FILTER,
                 gl.LINEAR
             );
+            gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_R, gl.CLAMP_TO_EDGE);
             this.irradiancemap = texture;
         }
 
@@ -402,33 +501,9 @@ export class Env {
                     0
                 );
             }
-            gl.texParameteri(
-                gl.TEXTURE_CUBE_MAP,
-                gl.TEXTURE_WRAP_S,
-                gl.CLAMP_TO_EDGE
-            );
-            gl.texParameteri(
-                gl.TEXTURE_CUBE_MAP,
-                gl.TEXTURE_WRAP_T,
-                gl.CLAMP_TO_EDGE
-            );
-            gl.texParameteri(
-                gl.TEXTURE_CUBE_MAP,
-                gl.TEXTURE_WRAP_R,
-                gl.CLAMP_TO_EDGE
-            );
-            gl.texParameteri(
-                gl.TEXTURE_CUBE_MAP,
-                gl.TEXTURE_MIN_FILTER,
-                gl.LINEAR_MIPMAP_LINEAR
-            );
-            gl.texParameteri(
-                gl.TEXTURE_CUBE_MAP,
-                gl.TEXTURE_MAG_FILTER,
-                gl.LINEAR
-            );
+            gl.bindSampler(texture.index, this.samplerCube);
             gl.generateMipmap(gl.TEXTURE_CUBE_MAP);
-            this.map = texture;
+            this.originalCubeTexture = texture;
         }
 
         {
@@ -438,7 +513,7 @@ export class Env {
             this.prefilterbuffer.size = size;
             gl.bindFramebuffer(gl.FRAMEBUFFER, captureFBO);
 
-            const texture = createTexture(gl.TEXTURE_CUBE_MAP);
+            const texture = createTexture(gl.TEXTURE_CUBE_MAP, textureEnum.prefilterTexture);
             for (let i = 0; i < 6; i++) {
                 gl.texImage2D(
                     gl.TEXTURE_CUBE_MAP_POSITIVE_X + i,
@@ -459,31 +534,7 @@ export class Env {
                     i
                 );
             }
-            gl.texParameteri(
-                gl.TEXTURE_CUBE_MAP,
-                gl.TEXTURE_WRAP_S,
-                gl.CLAMP_TO_EDGE
-            );
-            gl.texParameteri(
-                gl.TEXTURE_CUBE_MAP,
-                gl.TEXTURE_WRAP_T,
-                gl.CLAMP_TO_EDGE
-            );
-            gl.texParameteri(
-                gl.TEXTURE_CUBE_MAP,
-                gl.TEXTURE_WRAP_R,
-                gl.CLAMP_TO_EDGE
-            );
-            gl.texParameteri(
-                gl.TEXTURE_CUBE_MAP,
-                gl.TEXTURE_MIN_FILTER,
-                gl.LINEAR_MIPMAP_LINEAR
-            );
-            gl.texParameteri(
-                gl.TEXTURE_CUBE_MAP,
-                gl.TEXTURE_MAG_FILTER,
-                gl.LINEAR
-            );
+            gl.bindSampler(texture.index, this.samplerCube);
             gl.generateMipmap(gl.TEXTURE_CUBE_MAP);
             this.prefilterMap = texture;
         }
@@ -495,7 +546,7 @@ export class Env {
             this.brdfbuffer.size = size;
             gl.bindFramebuffer(gl.FRAMEBUFFER, captureFBO);
 
-            const texture = createTexture();
+            const texture = createTexture(gl.TEXTURE_2D, textureEnum.brdfLUTTexture);
             gl.texImage2D(
                 gl.TEXTURE_2D,
                 0,
@@ -507,28 +558,16 @@ export class Env {
                 gl.FLOAT,
                 null
             );
-            gl.texParameteri(
-                gl.TEXTURE_2D,
-                gl.TEXTURE_WRAP_S,
-                gl.CLAMP_TO_EDGE
-            );
-            gl.texParameteri(
-                gl.TEXTURE_2D,
-                gl.TEXTURE_WRAP_T,
-                gl.CLAMP_TO_EDGE
-            );
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+            gl.bindSampler(texture.index, this.sampler);
             this.brdfLUTTexture = texture;
 
-            const verts = [-1.0, 1.0, -1.0, -1.0, 1.0, 1.0, 1.0, -1.0];
             this.quadVAO = gl.createVertexArray();
             gl.bindVertexArray(this.quadVAO);
             const quadVBO = gl.createBuffer();
             gl.bindBuffer(gl.ARRAY_BUFFER, quadVBO);
             gl.bufferData(
                 gl.ARRAY_BUFFER,
-                new Float32Array(verts),
+                new Float32Array(quadVertex),
                 gl.STATIC_DRAW
             );
             gl.enableVertexAttribArray(0);
@@ -559,122 +598,6 @@ export class Env {
             return new Matrix4().setInverseOf(camMatrix);
         });
 
-        const verts = [
-            -1.0,
-            1.0,
-            -1.0,
-            -1.0,
-            -1.0,
-            -1.0,
-            1.0,
-            -1.0,
-            -1.0,
-            1.0,
-            -1.0,
-            -1.0,
-            1.0,
-            1.0,
-            -1.0,
-            -1.0,
-            1.0,
-            -1.0,
-
-            -1.0,
-            -1.0,
-            1.0,
-            -1.0,
-            -1.0,
-            -1.0,
-            -1.0,
-            1.0,
-            -1.0,
-            -1.0,
-            1.0,
-            -1.0,
-            -1.0,
-            1.0,
-            1.0,
-            -1.0,
-            -1.0,
-            1.0,
-
-            1.0,
-            -1.0,
-            -1.0,
-            1.0,
-            -1.0,
-            1.0,
-            1.0,
-            1.0,
-            1.0,
-            1.0,
-            1.0,
-            1.0,
-            1.0,
-            1.0,
-            -1.0,
-            1.0,
-            -1.0,
-            -1.0,
-
-            -1.0,
-            -1.0,
-            1.0,
-            -1.0,
-            1.0,
-            1.0,
-            1.0,
-            1.0,
-            1.0,
-            1.0,
-            1.0,
-            1.0,
-            1.0,
-            -1.0,
-            1.0,
-            -1.0,
-            -1.0,
-            1.0,
-
-            -1.0,
-            1.0,
-            -1.0,
-            1.0,
-            1.0,
-            -1.0,
-            1.0,
-            1.0,
-            1.0,
-            1.0,
-            1.0,
-            1.0,
-            -1.0,
-            1.0,
-            1.0,
-            -1.0,
-            1.0,
-            -1.0,
-
-            -1.0,
-            -1.0,
-            -1.0,
-            -1.0,
-            -1.0,
-            1.0,
-            1.0,
-            -1.0,
-            -1.0,
-            1.0,
-            -1.0,
-            -1.0,
-            -1.0,
-            -1.0,
-            1.0,
-            1.0,
-            -1.0,
-            1.0
-        ];
-
         this.VAO = gl.createVertexArray();
         gl.bindVertexArray(this.VAO);
         {
@@ -682,7 +605,7 @@ export class Env {
             gl.bindBuffer(gl.ARRAY_BUFFER, VBO);
             gl.bufferData(
                 gl.ARRAY_BUFFER,
-                new Float32Array(verts),
+                new Float32Array(cubeVertex),
                 gl.STATIC_DRAW
             );
             gl.enableVertexAttribArray(0);
@@ -695,33 +618,13 @@ export class Env {
         this.mipmapcubeprogram = createProgram(vertex, cubeMipmap);
         this.bdrfprogram = createProgram(quad, bdrf);
 
-        return fetch(`src/images/${this.url}.hdr`)
+        return fetch(`${currentPath}/../src/images/${this.url}.hdr`)
             .then(res => res.arrayBuffer())
             .then(buffer => {
                 const { data } = parseHDR(buffer);
 
-                this.texture = createTexture();
+                this.original2DTexture = createTexture();
                 gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-                gl.texParameteri(
-                    gl.TEXTURE_2D,
-                    gl.TEXTURE_MAG_FILTER,
-                    gl.LINEAR
-                );
-                gl.texParameteri(
-                    gl.TEXTURE_2D,
-                    gl.TEXTURE_MIN_FILTER,
-                    gl.LINEAR
-                );
-                gl.texParameteri(
-                    gl.TEXTURE_2D,
-                    gl.TEXTURE_WRAP_S,
-                    gl.CLAMP_TO_EDGE
-                );
-                gl.texParameteri(
-                    gl.TEXTURE_2D,
-                    gl.TEXTURE_WRAP_T,
-                    gl.CLAMP_TO_EDGE
-                );
                 gl.texImage2D(
                     gl.TEXTURE_2D,
                     0,
@@ -733,6 +636,7 @@ export class Env {
                     gl.FLOAT,
                     data
                 );
+                gl.bindSampler(this.original2DTexture.index, this.sampler);
 
                 this.createEnvironment();
 

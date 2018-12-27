@@ -102,7 +102,7 @@ export class SSAO extends PostProcessor {
         );
 
         gl.viewport(0, 0, this.width / this.scale, this.height / this.scale);
-        gl.drawArrays(gl.TRIANGLES, 0, 6);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
         gl.framebufferTexture2D(
             gl.FRAMEBUFFER,
@@ -125,7 +125,7 @@ export class SSAO extends PostProcessor {
             1,
             0
         );
-        gl.drawArrays(gl.TRIANGLES, 0, 6);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
         gl.framebufferTexture2D(
             gl.FRAMEBUFFER,
@@ -143,7 +143,7 @@ export class SSAO extends PostProcessor {
             0,
             1
         );
-        gl.drawArrays(gl.TRIANGLES, 0, 6);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
         gl.viewport(0, 0, this.width, this.height);

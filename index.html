@@ -79,14 +79,14 @@
                 selector.appendChild(slider);
                 slider.value = 0;
 
-                const envname = localStorage.getItem('env') || 'env';
+                const envname = localStorage.getItem('env') || 'env4';
                 {
                     const select = document.createElement('select');
                     select.onchange = () => {
                         localStorage.setItem('env', select.value);
                         window.location.reload();
                     }
-                    ['env', 'env1', 'env2'].forEach((it) => {
+                    ['env', 'env1', 'env2', 'env3', 'env4'].forEach((it) => {
                         const option = document.createElement('option');
                         option.innerHTML = it;
                         option.value = it;

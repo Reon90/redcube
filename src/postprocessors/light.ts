@@ -76,7 +76,7 @@ export class Light extends PostProcessor {
             gl.getUniformLocation(this.program, 'cameraTexture'),
             PP.depthTexture.index
         );
-        gl.drawArrays(gl.TRIANGLES, 0, 6);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
         gl.viewport(0, 0, this.width, this.height);

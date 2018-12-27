@@ -47,7 +47,7 @@ export class Bloom extends PostProcessor {
             gl.getUniformLocation(this.bloorProgram, 'diff'),
             PP.screenTexture.index
         );
-        gl.drawArrays(gl.TRIANGLES, 0, 6);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
         gl.useProgram(this.program);
 
@@ -92,7 +92,7 @@ export class Bloom extends PostProcessor {
             inTexture.index
         );
         gl.uniform2f(gl.getUniformLocation(program, 'denom'), 1, 0);
-        gl.drawArrays(gl.TRIANGLES, 0, 6);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
         gl.framebufferTexture2D(
             gl.FRAMEBUFFER,
@@ -106,7 +106,7 @@ export class Bloom extends PostProcessor {
             this.tempBlurTexture.index
         );
         gl.uniform2f(gl.getUniformLocation(program, 'denom'), 0, 1);
-        gl.drawArrays(gl.TRIANGLES, 0, 6);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     }
 
     preProcessing() {}

@@ -1,6 +1,7 @@
 import { Matrix3 } from '../matrix';
 import { UniformBuffer } from './uniform';
 import { Material as M } from '../../GLTF';
+import { textureEnum } from '../utils';
 
 const defaultMaterial = {
     pbrMetallicRoughness: {
@@ -182,35 +183,35 @@ export class Material extends M {
                 program,
                 'baseColorTexture'
             );
-            gl.uniform1i(this.uniforms.baseColorTexture, 0);
+            gl.uniform1i(this.uniforms.baseColorTexture, textureEnum.baseColorTexture);
         }
         if (this.pbrMetallicRoughness.metallicRoughnessTexture) {
             this.uniforms.metallicRoughnessTexture = gl.getUniformLocation(
                 program,
                 'metallicRoughnessTexture'
             );
-            gl.uniform1i(this.uniforms.metallicRoughnessTexture, 1);
+            gl.uniform1i(this.uniforms.metallicRoughnessTexture, textureEnum.metallicRoughnessTexture);
         }
         if (this.normalTexture) {
             this.uniforms.normalTexture = gl.getUniformLocation(
                 program,
                 'normalTexture'
             );
-            gl.uniform1i(this.uniforms.normalTexture, 2);
+            gl.uniform1i(this.uniforms.normalTexture, textureEnum.normalTexture);
         }
         if (this.occlusionTexture) {
             this.uniforms.occlusionTexture = gl.getUniformLocation(
                 program,
                 'occlusionTexture'
             );
-            gl.uniform1i(this.uniforms.occlusionTexture, 3);
+            gl.uniform1i(this.uniforms.occlusionTexture, textureEnum.occlusionTexture);
         }
         if (this.emissiveTexture) {
             this.uniforms.emissiveTexture = gl.getUniformLocation(
                 program,
                 'emissiveTexture'
             );
-            gl.uniform1i(this.uniforms.emissiveTexture, 4);
+            gl.uniform1i(this.uniforms.emissiveTexture, textureEnum.emissiveTexture);
         }
 
         this.uniforms.prefilterMap = gl.getUniformLocation(program, 'prefilterMap');
@@ -220,15 +221,15 @@ export class Material extends M {
 
         gl.uniform1i(
             this.uniforms.prefilterMap,
-            8
+            textureEnum.prefilterTexture
         );
         gl.uniform1i(
             this.uniforms.brdfLUT,
-            9
+            textureEnum.brdfLUTTexture
         );
         gl.uniform1i(
             this.uniforms.irradianceMap,
-            6
+            textureEnum.irradianceTexture
         );
     }
 

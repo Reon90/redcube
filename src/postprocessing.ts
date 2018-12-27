@@ -9,6 +9,7 @@ import { PostProcessor } from './postprocessors/base';
 
 import quadShader from './shaders/quad.glsl';
 import composerShader from './shaders/composer.glsl';
+import { quadVertex } from './vertex';
 
 let gl;
 
@@ -182,7 +183,7 @@ export class PostProcessing {
             this.preDepthTexture.index
         );
 
-        gl.drawArrays(gl.TRIANGLES, 0, 6);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     }
 
     createByteTexture() {
@@ -278,9 +279,6 @@ export class PostProcessing {
     }
 
     buildScreenBuffer() {
-        gl.getExtension('EXT_color_buffer_float');
-        gl.getExtension('OES_texture_float_linear');
-
         if (this.postprocessors.length === 0) {
             return true;
         }
@@ -292,25 +290,11 @@ export class PostProcessing {
             .map(define => `#define ${define.name} ${define.value || 1}` + '\n')
             .join('');
 
-        const verts = [
-            1.0,
-            1.0,
-            -1.0,
-            1.0,
-            -1.0,
-            -1.0,
-            -1.0,
-            -1.0,
-            1.0,
-            -1.0,
-            1.0,
-            1.0
-        ];
         this.VAO = gl.createVertexArray();
         gl.bindVertexArray(this.VAO);
         const VBO = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, VBO);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(verts), gl.STATIC_DRAW);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(quadVertex), gl.STATIC_DRAW);
         gl.enableVertexAttribArray(0);
         gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
         gl.bindVertexArray(null);

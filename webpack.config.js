@@ -15,6 +15,9 @@ const config = {
     node: {
         fs: 'empty'
     },
+    devServer: {
+        publicPath: '/dist/'
+    },
     devtool: "source-map",
     resolve: {extensions: ['.ts', '.js']},
     module: {
