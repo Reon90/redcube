@@ -16,6 +16,7 @@ Support all glTF features and Khronos extensions ([Samples](https://github.com/K
 ## How to convert 3D model to gltf
 
 &bull; Blender 2.80 File -> Export -> glTF 2.0
+
 &bull; [Sketchfab](https://sketchfab.com/models?features=downloadable&sort_by=-likeCount) 100,000+ models
 
 ## Usage
