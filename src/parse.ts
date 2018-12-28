@@ -147,6 +147,12 @@ export class Parse {
         if (primitive.attributes.TANGENT || material.hasNormal()) {
             defines.push({ name: 'TANGENT' });
         }
+        if (this.light.type === 'point') {
+            defines.push({ name: 'LIGHT_POINT' });
+        }
+        if (this.light.type === 'spot') {
+            defines.push({ name: 'LIGHT_SPOT' });
+        }
         const program = this.createProgram(defines);
         material.createUniforms(gl, program);
         material.updateUniforms(gl, program, this.camera, this.light);
@@ -191,6 +197,19 @@ export class Parse {
             child.setProjection(proj);
 
             this.cameras.push(child);
+        } else if (el.extensions && el.extensions.KHR_lights_punctual) {
+            const light = this.json.extensions.KHR_lights_punctual.lights[el.extensions.KHR_lights_punctual.light];
+            light.isInitial = false;
+
+            // @ts-ignore
+            Parse.__update(
+                'light',
+                light,
+                name,
+                parent
+            );
+
+            child = this.light;
         } else {
             if (el.isBone !== undefined) {
                 child = new Bone(name, parent);
@@ -249,6 +268,12 @@ export class Parse {
     }
 
     buildMesh() {
+        this.json.scenes[this.json.scene !== undefined ? this.json.scene : 0].nodes.forEach(n => {
+            if (this.json.nodes[n].extensions) { //&& this.json.nodes[n].extensions.KHR_lights_punctual) {
+                this.buildNode(this.scene, n);
+            }
+        });
+
         this.json.scenes[this.json.scene !== undefined ? this.json.scene : 0].nodes.forEach(n => {
             if (this.json.nodes[n].children && this.json.nodes[n].children.length) {
                 this.buildNode(this.scene, n);

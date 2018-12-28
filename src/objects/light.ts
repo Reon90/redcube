@@ -1,11 +1,28 @@
 import { Matrix4, Vector3 } from '../matrix';
 import { Object3D } from './object3d';
 
+interface Spot {
+    innerConeAngle: number;
+    outerConeAngle: number;
+}
+
 export class Light extends Object3D {
     matrixWorldInvert: Matrix4;
+    type: 'point' | 'directional' | 'spot';
+    color: Vector3;
+    intensity: number;
+    isInitial: boolean;
+    spot: Spot;
 
-    constructor(name?, parent?) {
+    constructor(props, name?, parent?) {
         super(name, parent);
+
+        const { type, color, intensity, isInitial, spot = {} } = props;
+        this.type = type;
+        this.color = new Vector3(color);
+        this.intensity = intensity;
+        this.isInitial = isInitial;
+        this.spot = spot;
 
         this.matrixWorldInvert = new Matrix4();
     }
@@ -21,9 +38,11 @@ export class Light extends Object3D {
     }
 
     update(v) {
-        const camMatrix = new Matrix4();
-        camMatrix.makeRotationAxis(new Vector3([0, 1, 0]), v);
-        camMatrix.multiply(this.matrix);
-        this.setMatrixWorld(camMatrix.elements);
+        if (this.isInitial || this.type === 'directional') {
+            const camMatrix = new Matrix4();
+            camMatrix.makeRotationAxis(new Vector3([0, 1, 0]), v);
+            camMatrix.multiply(this.matrix);
+            this.setMatrixWorld(camMatrix.elements);
+        }
     }
 }

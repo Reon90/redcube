@@ -1,4 +1,4 @@
-import { Matrix3 } from '../matrix';
+import { Matrix3, Vector3 } from '../matrix';
 import { UniformBuffer } from './uniform';
 import { Material as M } from '../../GLTF';
 import { textureEnum } from '../utils';
@@ -174,6 +174,7 @@ export class Material extends M {
     }
 
     updateUniforms(gl, program, camera, light) {
+        const spotDir = new Vector3([0, 0, 1]).applyMatrix4(light.matrixWorld).normalize();
         const materialUniformBuffer = new UniformBuffer();
         materialUniformBuffer.add('baseColorFactor', this.pbrMetallicRoughness.baseColorFactor || [0.8, 0.8, 0.8, 1.0]);
         materialUniformBuffer.add('lightPos', light.getPosition());
@@ -184,6 +185,9 @@ export class Material extends M {
         materialUniformBuffer.add('glossinessFactor', this.pbrMetallicRoughness.glossinessFactor || 0.5);
         materialUniformBuffer.add('metallicFactor', this.pbrMetallicRoughness.metallicFactor || 0.5);
         materialUniformBuffer.add('roughnessFactor', this.pbrMetallicRoughness.roughnessFactor || 0.5);
+        materialUniformBuffer.add('lightColor', light.color.elements);
+        materialUniformBuffer.add('lightIntensity', [light.intensity, light.spot.innerConeAngle, light.spot.outerConeAngle]);
+        materialUniformBuffer.add('spotdir', spotDir.elements);
         materialUniformBuffer.done();
 
         const mIndex = gl.getUniformBlockIndex(program, 'Material');

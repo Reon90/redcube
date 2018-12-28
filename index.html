@@ -32,7 +32,7 @@
     </div>
     <script src="./dist/redcube.js"></script>
     <script>
-        fetch('https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/model-index.json')
+        fetch('examples/model-index.json')
             .then(r => r.json())
             .then(samples => {
                 const name = localStorage.getItem('sample') || 'DamagedHelmet';
@@ -115,7 +115,7 @@
 
                 //https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/
                 window.renderer = new redcube.RedCube(
-                    'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/' + name + '/glTF/' + name + '.gltf',
+                    'examples/' + name + '/glTF/' + name + '.gltf',
                     canvas, 
                     [localStorage.getItem('ssao'), localStorage.getItem('bloom'), localStorage.getItem('shadow'), localStorage.getItem('light')].filter(name => name),
                     envname,

@@ -53,7 +53,13 @@ class RedCube {
         });
         this.ioc.register('canvas', canvas);
         this.ioc.register('scene', Scene);
-        this.ioc.register('light', Light);
+        this.ioc.register('light', Light, [], {
+            type: 'directional',
+            intensity: 1,
+            color: [1, 1, 1],
+            isInitial: true,
+            spot: {}
+        });
         this.ioc.register('pp', PostProcessing, ['light', 'camera', 'canvas', 'gl'], processors, this.renderScene.bind(this));
         this.ioc.register('parser', Parse, ['scene', 'light', 'camera', 'canvas', 'gl'], url, defines, this.resize.bind(this));
         this.ioc.register('particles', Particles, ['camera', 'gl'], () => {
@@ -142,18 +148,16 @@ class RedCube {
         this.canvas.width = this.canvas.offsetWidth * devicePixelRatio;
         this.canvas.height = this.canvas.offsetHeight * devicePixelRatio;
         gl.viewport(0, 0, this.canvas.offsetWidth * devicePixelRatio, this.canvas.offsetHeight * devicePixelRatio);
+        const z = (10000 / this.canvas.width) * this.camera.modelSize * devicePixelRatio;
 
         if (this.camera.props.isInitial) {
-            const z = (10000 / this.canvas.width) * this.camera.modelSize * devicePixelRatio;
             this.camera.setZ(z);
+        }
+        if (this.light.isInitial || this.light.type === 'directional') {
             this.light.setZ(z);
-
-            this.renderer.needUpdateView = true;
-        } else {
-            this.light.setZ(this.camera.matrixWorld.elements[14]);
-            this.renderer.needUpdateView = true;
         }
 
+        this.renderer.needUpdateView = true;
         this.camera.updateNF();
 
         if (e) {

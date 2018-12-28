@@ -1,7 +1,7 @@
 #version 300 es
 precision highp float;
 
-#define IBL 1
+//#define IBL 1
 
 in vec4 vColor;
 in vec2 outUV;
@@ -27,6 +27,9 @@ uniform Material {
     vec4 glossinessFactor;
     vec4 metallicFactor;
     vec4 roughnessFactor;
+    vec3 lightColor;
+    vec4 lightIntensity;
+    vec4 spotdir;
 };
 uniform sampler2D baseColorTexture;
 uniform sampler2D metallicRoughnessTexture;
@@ -45,11 +48,6 @@ const float EPSILON = 1e-6;
 const float ambientStrength = 0.1;
 const float specularStrength = 2.5;
 const float specularPower = 32.0;
-#ifdef USE_PBR
-const vec3 lightColor = vec3(1.0, 1.0, 1.0);
-#else
-const vec3 lightColor = vec3(1.0, 1.0, 1.0);
-#endif
 const float gamma = 2.2;
 
 vec2 getUV(int index) {
@@ -176,8 +174,8 @@ vec3 LambertDiffuse(vec3 baseColor, float metallic, vec3 n, vec3 H, float roughn
 }
 
 float saturate(float a) {
-	if (a > 1.0f) return 1.0f;
-	if (a < 0.0f) return 0.0f;
+	if (a > 1.0) return 1.0;
+	if (a < 0.0) return 0.0;
 	return a;
 }
 vec3 ImprovedOrenNayarDiffuse(vec3 baseColor, float metallic, vec3 N, vec3 H, float a, vec3 V, vec3 L) {
@@ -265,9 +263,23 @@ void main() {
     vec3 lightDir = normalize(lightPos - outPosition);
     float NdotL = max(dot(n, lightDir), 0.0);
     vec3 H = normalize(viewDir + lightDir);
+    
+    vec3 radiance = lightColor * lightIntensity.x;
     float distance = length(lightPos - outPosition);
     float attenuation = 1.0 / (distance * distance);
-    vec3 radiance = lightColor; //* attenuation;
+    #ifdef LIGHT_POINT
+        radiance = radiance * attenuation;
+    #endif
+    #ifdef LIGHT_SPOT
+        float lightAngleScale = 1.0 / max(0.001, cos(lightIntensity.y) - cos(lightIntensity.z));
+        float lightAngleOffset = -cos(lightIntensity.z) * lightAngleScale;
+
+        float cd = dot(spotdir.xyz, lightDir);
+        float attenuationSpot = saturate(cd * lightAngleScale + lightAngleOffset);
+        attenuationSpot *= attenuationSpot;
+
+        radiance = radiance * attenuationSpot * attenuation;
+    #endif
 
     #ifdef DOUBLESIDED
     if (dot(n, viewDir) < 0.0) {
@@ -300,7 +312,7 @@ void main() {
             emissive = srgbToLinear(texture(emissiveTexture, getUV(EMISSIVEMAP)));
         #endif
 
-        color = vec4(shadow * (emissive + ambient + diffuse + specular * radiance * NdotL), alpha);
+        color = vec4(shadow * (emissive + ambient + (diffuse + specular) * radiance * NdotL), alpha);
     #else
         vec3 ambient = ambientStrength * lightColor;
 
