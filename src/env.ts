@@ -448,11 +448,11 @@ export class Env {
         return fetch(`${currentPath}/../src/images/${this.url}.hdr`)
             .then(res => res.arrayBuffer())
             .then(buffer => {
-                const { data } = parseHDR(buffer);
+                const { data, shape } = parseHDR(buffer);
 
                 this.original2DTexture = createTexture();
                 gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, 1024, 512, 0, gl.RGBA, gl.FLOAT, data);
+                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, shape[0], shape[1], 0, gl.RGBA, gl.FLOAT, data);
                 gl.bindSampler(this.original2DTexture.index, this.sampler);
 
                 this.createEnvironment();
