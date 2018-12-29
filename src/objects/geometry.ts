@@ -177,7 +177,7 @@ export class Geometry {
             );
         }
 
-        if (!vertexBuffers.NORMAL) {
+        if (!vertexBuffers.NORMAL && indicesBuffer) {
             vertexBuffers.NORMAL = calculateNormals(indicesBuffer, vertexBuffers.POSITION);
         }
 

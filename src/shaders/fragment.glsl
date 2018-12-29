@@ -312,7 +312,7 @@ void main() {
             emissive = srgbToLinear(texture(emissiveTexture, getUV(EMISSIVEMAP)));
         #endif
 
-        color = vec4(shadow * (emissive + ambient + (diffuse + specular) * radiance * NdotL), alpha);
+        color = vec4(shadow * (emissive + ambient + diffuse + specular * radiance * NdotL), alpha);
     #else
         vec3 ambient = ambientStrength * lightColor;
 
