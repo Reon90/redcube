@@ -218,6 +218,8 @@ void main() {
     if ( alpha < ALPHATEST ) {
         discard;
     }
+    #else
+        alpha = 1.0;
     #endif
 
     if ( length(vColor.rgb) != 0.0 ) {
