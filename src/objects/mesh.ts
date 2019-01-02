@@ -166,6 +166,7 @@ export class Mesh extends Object3D {
 export class SkinnedMesh extends Mesh {
     bones: Array<Bone>;
     boneInverses: Array<Matrix4>;
+    skin: string;
 
     constructor(name, parent) {
         super(name, parent);

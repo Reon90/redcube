@@ -23,6 +23,7 @@ interface Key {
 }
 interface Skin {
     jointNames: Array<number>;
+    bones: Array<Bone>;
 }
 interface texturesMap {
     name?: string;
@@ -166,7 +167,7 @@ export class Parse {
         mesh.setGeometry(geometry);
         mesh.setDefines(material.defines);
         if (mesh instanceof SkinnedMesh) {
-            mesh.setSkin(gl, this.skins[skin]);
+            mesh.skin = skin;
         }
         mesh.updateMatrix();
 
@@ -226,15 +227,11 @@ export class Parse {
 
         child.updateMatrix();
 
+        child.id = el.name;
         parent.children.push(child);
         parent = child;
 
         if (el.mesh !== undefined) {
-            if (el.skin !== undefined) {
-                for (const join of this.skins[el.skin].jointNames) {
-                    walk(this.scene, this.buildBones.bind(this, join, this.skins[el.skin]));
-                }
-            }
             parent.children.push(
                 ...this.json.meshes[el.mesh].primitives.map(
                     this.buildPrim.bind(this, parent, this.json.meshes[el.mesh].name, el.skin, this.json.meshes[el.mesh].weights)
@@ -259,10 +256,10 @@ export class Parse {
                 }
             }
         });
-        const z = Math.max(biggestMesh.matrixWorld.getScaleZ(), 1);
+        const z = biggestMesh.matrixWorld.getScaleZ();
         const pos = Math.hypot(...biggestMesh.getPosition());
         this.camera.modelSize =
-            biggestMesh.geometry.boundingSphere.radius * z + pos + Math.hypot(...biggestMesh.geometry.boundingSphere.center.elements);
+            biggestMesh.geometry.boundingSphere.radius * z + pos + Math.hypot(...biggestMesh.geometry.boundingSphere.center.elements) * z;
 
         this.resize();
     }
@@ -294,13 +291,20 @@ export class Parse {
             if (mesh instanceof Mesh) {
                 mesh.geometry.updateUniforms(gl, mesh.program, mesh.matrixWorld, this.camera, this.light);
 
-                if (mesh.material.alphaMode) {
+                if (mesh.material.alpha) {
                     this.scene.transparentChildren.push(mesh);
                 } else {
                     this.scene.opaqueChildren.push(mesh);
                 }
                 this.scene.meshes.push(mesh);
                 mesh.visible = mesh.isVisible(planes);
+
+                if (mesh instanceof SkinnedMesh) {
+                    for (const join of this.skins[mesh.skin].jointNames) {
+                        walk(this.scene, this.buildBones.bind(this, join, this.skins[mesh.skin]));
+                    }
+                    mesh.setSkin(gl, this.skins[mesh.skin]);
+                }
             }
         });
 
@@ -362,17 +366,19 @@ export class Parse {
                             value: firstV
                         });
                     }
-                    this.duration = Math.max(keys[keys.length - 1].time, this.duration);
+                    if (keys.length >= 2) {
+                        this.duration = Math.max(keys[keys.length - 1].time, this.duration);
 
-                    if (meshes.length) {
-                        this.tracks.push({
-                            stoped: false,
-                            meshes: meshes,
-                            type: target.path,
-                            name: `${meshes[0].name}.${target.path}`,
-                            keys: keys,
-                            interpolation: sampler.interpolation
-                        });
+                        if (meshes.length) {
+                            this.tracks.push({
+                                stoped: false,
+                                meshes: meshes,
+                                type: target.path,
+                                name: `${meshes[0].name}.${target.path}`,
+                                keys: keys,
+                                interpolation: sampler.interpolation
+                            });
+                        }
                     }
                 }
             }
@@ -482,7 +488,12 @@ export class Parse {
                     reject(err);
                 };
                 image.crossOrigin = 'anonymous';
-                if (/base64/.test(source.uri)) {
+                if (source.bufferView !== undefined) {
+                    const bufferView = this.json.bufferViews[source.bufferView];
+                    const buffer = new Uint8Array(this.arrayBuffer[bufferView.buffer], bufferView.byteOffset, bufferView.byteLength);
+                    const blob = new Blob( [ buffer ], { type: source.mimeType } );
+                    image.src = URL.createObjectURL( blob );
+                } else if (/base64/.test(source.uri)) {
                     image.src = source.uri;
                 } else {
                     image.src = `${this.host}${source.uri}`;

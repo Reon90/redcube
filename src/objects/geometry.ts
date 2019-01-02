@@ -149,6 +149,34 @@ export class Geometry {
                     accessor.count
                 );
 
+                if ( accessor.sparse !== undefined ) {
+                    const itemSize = getDataType(accessor.type);
+                    const indicesBufferView = json.bufferViews[accessor.sparse.indices.bufferView];
+                    const valuesBufferView =json.bufferViews[accessor.sparse.values.bufferView];
+
+                    const sparseIndices = buildArray(
+                        arrayBuffer[indicesBufferView.buffer],
+                        accessor.sparse.indices.componentType,
+                        calculateOffset(indicesBufferView.byteOffset, accessor.sparse.indices.byteOffset),
+                        accessor.sparse.count
+                    );
+                    const sparseValues = buildArray(
+                        arrayBuffer[valuesBufferView.buffer],
+                        accessor.componentType,
+                        calculateOffset(valuesBufferView.byteOffset, accessor.byteOffset),
+                        getDataType(accessor.type) * accessor.sparse.count
+                    );
+
+                    for ( let i = 0, il = sparseIndices.length; i < il; i ++ ) {
+                        const index = sparseIndices[ i ];
+
+                        vertexBuffers[k][index * itemSize] = sparseValues[ i * itemSize ];
+                        if ( itemSize >= 2 ) vertexBuffers[k][index * itemSize + 1] = sparseValues[ i * itemSize + 1 ];
+                        if ( itemSize >= 3 ) vertexBuffers[k][index * itemSize + 2] = sparseValues[ i * itemSize + 2 ];
+                        if ( itemSize >= 4 ) vertexBuffers[k][index * itemSize + 3] = sparseValues[ i * itemSize + 3 ];
+                    }
+                }
+
                 if (primitive.targets && k in primitive.targets[0]) {
                     let offset = 0;
                     const geometry = vertexBuffers[k];

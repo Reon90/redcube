@@ -122,14 +122,6 @@
                     mode
                 );
                 renderer.init(() => {
-                    if (name === 'Sponza') {
-                        renderer.camera.setZ(7);
-                        renderer.light.setZ(7);
-                        renderer.renderer.reflow = true;
-                        renderer.renderer.needUpdateView = true;
-                        renderer.renderer.needUpdateProjection = true;
-                        renderer.camera.updateNF();
-                    }
                     if (renderer.parse.cameras.length) {
                         const select = document.createElement('select');
                         select.onchange = () => {

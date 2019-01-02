@@ -3,6 +3,7 @@ import { Matrix4, Vector3 } from '../matrix';
 export class Object3D {
     uuid: number;
     name: string;
+    id: string;
     children: Array<Object3D>;
     matrix: Matrix4;
     matrixWorld: Matrix4;

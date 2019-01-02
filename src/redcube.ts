@@ -103,11 +103,11 @@ class RedCube {
         if (this.PP.postprocessors.some(p => p instanceof PPLight)) {
             this.Particles.build();
         }
-        await this.parse.initTextures();
         if (this.PP.postprocessors.length > 0) {
             this.PP.buildScreenBuffer();
         }
         await this.parse.getBuffer();
+        await this.parse.initTextures();
         this.parse.buildSkin();
         this.parse.buildMesh();
         this.resize(null);

@@ -24,7 +24,7 @@ interface Uniforms {
 export class Material extends M {
     blend: string;
     uniforms: Uniforms;
-    alphaMode: string;
+    alpha: boolean;
     UBO: WebGLBuffer;
     doubleSided: boolean;
 
@@ -64,7 +64,7 @@ export class Material extends M {
             specularFactor: material.pbrMetallicRoughness.specularFactor,
             glossinessFactor: material.pbrMetallicRoughness.glossinessFactor
         };
-        this.alphaMode = material.alphaMode;
+        this.alpha = material.alphaMode === 'BLEND';
         this.blend = material.blend;
         this.doubleSided = material.doubleSided;
 
