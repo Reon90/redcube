@@ -593,6 +593,17 @@ class Matrix4 {
         return v;
     }
 
+    setScale(vec3: Vector3) {
+        const x = vec3.elements[0];
+        const y = vec3.elements[1];
+        const z = vec3.elements[2];
+        const e = this.elements;
+        e[0] = x;
+        e[5] = y;
+        e[10] = z;
+        return this;
+    }
+
     scale(vec3: Vector3) {
         const x = vec3.elements[0];
         const y = vec3.elements[1];

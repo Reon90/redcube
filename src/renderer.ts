@@ -58,103 +58,183 @@ export class Renderer {
         this.parse = parser;
     }
 
+    step(sec, v) {
+        let current;
+        for (let i = v.keys.length - 1; i >= 0; i--) {
+            if (sec >= v.keys[i].time) {
+                current = v.keys[i];
+                break;
+            }
+        }
+        const component = getAnimationComponent(v.type);
+        let vectorC;
+        if (component === 3) {
+            vectorC = Vector3;
+        } else if (component === 4) {
+            vectorC = Vector4;
+        } else {
+            vectorC = Vector;
+        }
+        const vector = new vectorC(current.value);
+
+        if (v.type === 'scale') {
+            for (const mesh of v.meshes) {
+                mesh.matrix.setScale(vector);
+            }
+        }
+    }
+
+    spline(sec, v) {
+        const val = interpolation(sec, v.keys);
+        const t = sec;
+        const t1 = v.keys[val[1]].time;
+        const t0 = v.keys[val[0]].time;
+        const stride = getAnimationComponent(v.type);
+
+        const td = t1 - t0;
+        const p = ( t - t0 ) / td;
+		const pp = p * p;
+		const ppp = pp * p;
+
+        const s2 = - 2 * ppp + 3 * pp;
+		const s3 = ppp - pp;
+		const s0 = 1 - s2;
+		const s1 = s3 - pp + p;
+
+        const result = new Float32Array(stride);
+        for ( let i = 0; i !== stride; i ++ ) {
+			const p0 = v.keys[val[0]].value[stride + i]; // point
+			const m0 = v.keys[val[0]].value[stride * 2 + i] * td; // outTangent
+			const p1 = v.keys[val[1]].value[stride + i]; // point + 1
+			const m1 = v.keys[val[1]].value[i] * td; // inTangent + 1
+
+			result[ i ] = s0 * p0 + s1 * m0 + s2 * p1 + s3 * m1;
+        }
+
+        if (v.type === 'translation') {
+            const out = new Vector3(result);
+
+            for (const mesh of v.meshes) {
+                mesh.matrix.setTranslate(out);
+            }
+        }
+    }
+
+    interpolation(sec, v) {
+        const val = interpolation(sec, v.keys);
+
+        if (val[0] === -1 || val[1] === -1 || v.stoped) {
+            return false;
+        }
+        // if (val[0] === v.keys.length - 1) {
+        //     v.stoped = true;
+        // }
+
+        const startFrame = v.keys[val[0]];
+        const endFrame = v.keys[val[1]];
+        // eslint-disable-next-line
+        const t = val[2];
+
+        const component = getAnimationComponent(v.type);
+        let vectorC;
+        if (component === 3) {
+            vectorC = Vector3;
+        } else if (component === 4) {
+            vectorC = Vector4;
+        } else {
+            vectorC = Vector;
+        }
+        const vector = new vectorC(startFrame.value);
+        const vector2 = new vectorC(endFrame.value);
+
+        if (v.type === 'rotation') {
+            const out = new Vector4();
+            out.lerp(vector.elements, vector2.elements, t);
+
+            for (const mesh of v.meshes) {
+                mesh.matrix.makeRotationFromQuaternion(out.elements);
+            }
+        } else if (v.type === 'scale') {
+            const out = new Vector3();
+            out.lerp(vector.elements, vector2.elements, t);
+
+            for (const mesh of v.meshes) {
+                mesh.matrix.scale(out);
+            }
+        } else if (v.type === 'weights') {
+            const out = new Vector(vector.elements);
+            out.lerp(vector.elements, vector2.elements, t);
+
+            for (const mesh of v.meshes) {
+                const geometry = {};
+
+                for (const k in mesh.geometry.targets[0]) {
+                    if (k !== 'POSITION') {
+                        continue;
+                    }
+                    geometry[k] = mesh.geometry.attributes[k].slice();
+                    for (let i = 0; i < out.elements.length; i++) {
+                        if (out.elements[i] === 0) {
+                            continue;
+                        }
+
+                        const offset = 0;
+                        for (let l = 0; l < geometry[k].length; l++) {
+                            // if (k === 'TANGENT' && (l + 1) % 4 === 0) {
+                            //     offset++;
+                            //     continue;
+                            // }
+                            geometry[k][l] += out.elements[i] * mesh.geometry.targets[i][k][l - offset];
+                        }
+                    }
+                }
+
+                gl.bindVertexArray(mesh.geometry.VAO);
+
+                for (const k in geometry) {
+                    const VBO = gl.createBuffer();
+                    gl.bindBuffer(gl.ARRAY_BUFFER, VBO);
+                    gl.bufferData(gl.ARRAY_BUFFER, geometry[k], gl.STATIC_DRAW);
+                    const index = getAttributeIndex(k);
+                    gl.enableVertexAttribArray(index[0]);
+                    gl.vertexAttribPointer(index[0], index[1], index[2], false, 0, 0);
+                }
+
+                gl.bindVertexArray(null);
+            }
+        } else if (v.type === 'translation') {
+            const out = new Vector3();
+            out.lerp(vector.elements, vector2.elements, t);
+
+            for (const mesh of v.meshes) {
+                mesh.matrix.setTranslate(out);
+            }
+        } else {
+            console.error('ERROR');
+        }
+    }
+
     animate(sec) {
         const increment = Math.floor(sec / this.parse.duration);
         sec -= increment * this.parse.duration;
 
         for (const v of this.parse.tracks) {
-            const val = interpolation(sec, v.keys);
+            let result;
+            switch(v.interpolation) {
+                case 'LINEAR':
+                result = this.interpolation(sec, v);
+                break;
+                case 'CUBICSPLINE':
+                result = this.spline(sec, v);
+                break;
+                case 'STEP':
+                result = this.step(sec, v);
+                break;
+            }
 
-            if (val[0] === -1 || val[1] === -1 || v.stoped) {
+            if (result === false) {
                 continue;
             }
-            // if (val[0] === v.keys.length - 1) {
-            //     v.stoped = true;
-            // }
-
-            const startFrame = v.keys[val[0]];
-            const endFrame = v.keys[val[1]];
-            // eslint-disable-next-line
-            const t = val[2];
-
-            const component = getAnimationComponent(v.type);
-            let vectorC;
-            if (component === 3) {
-                vectorC = Vector3;
-            } else if (component === 4) {
-                vectorC = Vector4;
-            } else {
-                vectorC = Vector;
-            }
-            const vector = new vectorC(startFrame.value);
-            const vector2 = new vectorC(endFrame.value);
-
-            if (v.type === 'rotation') {
-                const out = new Vector4();
-                out.lerp(vector.elements, vector2.elements, t);
-
-                for (const mesh of v.meshes) {
-                    mesh.matrix.makeRotationFromQuaternion(out.elements);
-                }
-            } else if (v.type === 'scale') {
-                const out = new Vector3();
-                out.lerp(vector.elements, vector2.elements, t);
-
-                for (const mesh of v.meshes) {
-                    mesh.matrix.scale(out);
-                }
-            } else if (v.type === 'weights') {
-                const out = new Vector(vector.elements);
-                out.lerp(vector.elements, vector2.elements, t);
-
-                for (const mesh of v.meshes) {
-                    const geometry = {};
-
-                    for (const k in mesh.geometry.targets[0]) {
-                        if (k !== 'POSITION') {
-                            continue;
-                        }
-                        geometry[k] = mesh.geometry.attributes[k].slice();
-                        for (let i = 0; i < out.elements.length; i++) {
-                            if (out.elements[i] === 0) {
-                                continue;
-                            }
-
-                            const offset = 0;
-                            for (let l = 0; l < geometry[k].length; l++) {
-                                // if (k === 'TANGENT' && (l + 1) % 4 === 0) {
-                                //     offset++;
-                                //     continue;
-                                // }
-                                geometry[k][l] += out.elements[i] * mesh.geometry.targets[i][k][l - offset];
-                            }
-                        }
-                    }
-
-                    gl.bindVertexArray(mesh.geometry.VAO);
-
-                    for (const k in geometry) {
-                        const VBO = gl.createBuffer();
-                        gl.bindBuffer(gl.ARRAY_BUFFER, VBO);
-                        gl.bufferData(gl.ARRAY_BUFFER, geometry[k], gl.STATIC_DRAW);
-                        const index = getAttributeIndex(k);
-                        gl.enableVertexAttribArray(index[0]);
-                        gl.vertexAttribPointer(index[0], index[1], index[2], false, 0, 0);
-                    }
-
-                    gl.bindVertexArray(null);
-                }
-            } else if (v.type === 'translation') {
-                const out = new Vector3();
-                out.lerp(vector.elements, vector2.elements, t);
-
-                for (const mesh of v.meshes) {
-                    mesh.matrix.setTranslate(out);
-                }
-            } else {
-                console.error('ERROR');
-            }
-
             for (const mesh of v.meshes) {
                 walk(mesh, node => {
                     node.updateMatrix();

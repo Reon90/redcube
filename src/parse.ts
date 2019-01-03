@@ -355,7 +355,10 @@ export class Parse {
                         }
                     });
 
-                    const component = getAnimationComponent(target.path) || meshes[0].geometry.targets.length;
+                    let component = getAnimationComponent(target.path) || meshes[0].geometry.targets.length;
+                    if (sampler.interpolation === 'CUBICSPLINE') {
+                        component = component * 3;
+                    }
                     const keys = [];
                     for (let i = 0; i < inputArray.length; i++) {
                         const firstT = inputArray[i];

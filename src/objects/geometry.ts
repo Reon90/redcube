@@ -149,6 +149,20 @@ export class Geometry {
                     accessor.count
                 );
 
+                if (k === 'COLOR_0' && accessor.type === 'VEC3') {
+                    const temp = new vertexBuffers[k].constructor(accessor.count * 4);
+                    let j = 0;
+                    for ( let i = 0; i < temp.length; i++ ) {
+                        if ((i + 1) % 4 === 0) {
+                            temp[i] = 1;
+                        } else {
+                            temp[i] = vertexBuffers[k][j];
+                            j++;
+                        }
+                    }
+                    vertexBuffers[k] = temp;
+                }
+
                 if ( accessor.sparse !== undefined ) {
                     const itemSize = getDataType(accessor.type);
                     const indicesBufferView = json.bufferViews[accessor.sparse.indices.bufferView];
