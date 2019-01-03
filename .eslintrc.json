@@ -8,12 +8,16 @@
     "parserOptions": {
         "sourceType": "module"
     },
+    "plugins": ["typescript"],
     "rules": {
         "no-undef": "off",
         "no-redeclare": [
             "error"
         ],
         "no-unused-vars": [
+            "off"
+        ],
+        "typescript/no-unused-vars": [
             "error"
         ],
         "no-console": [

@@ -203,12 +203,7 @@ export class Parse {
             light.isInitial = false;
 
             // @ts-ignore
-            Parse.__update(
-                'light',
-                light,
-                name,
-                parent
-            );
+            Parse.__update('light', light, name, parent);
 
             child = this.light;
         } else {
@@ -266,7 +261,8 @@ export class Parse {
 
     buildMesh() {
         this.json.scenes[this.json.scene !== undefined ? this.json.scene : 0].nodes.forEach(n => {
-            if (this.json.nodes[n].extensions) { //&& this.json.nodes[n].extensions.KHR_lights_punctual) {
+            if (this.json.nodes[n].extensions) {
+                //&& this.json.nodes[n].extensions.KHR_lights_punctual) {
                 this.buildNode(this.scene, n);
             }
         });
@@ -434,10 +430,10 @@ export class Parse {
                 .then(res => res.arrayBuffer())
                 .then(b => {
                     const decoder = new TextDecoder('utf-8');
-                    const jsonLength = new Uint32Array(b, 12, 1)[0];
+                    const [jsonLength] = new Uint32Array(b, 12, 1);
                     const jsonBuffer = new Uint8Array(b, 20, jsonLength);
                     const json = JSON.parse(decoder.decode(jsonBuffer));
-                    const bufferLength = new Uint32Array(b, 20 + jsonLength, 1)[0];
+                    const [bufferLength] = new Uint32Array(b, 20 + jsonLength, 1);
                     const buffer = b.slice(28 + jsonLength, 28 + jsonLength + bufferLength);
 
                     this.json = json;
@@ -494,8 +490,8 @@ export class Parse {
                 if (source.bufferView !== undefined) {
                     const bufferView = this.json.bufferViews[source.bufferView];
                     const buffer = new Uint8Array(this.arrayBuffer[bufferView.buffer], bufferView.byteOffset, bufferView.byteLength);
-                    const blob = new Blob( [ buffer ], { type: source.mimeType } );
-                    image.src = URL.createObjectURL( blob );
+                    const blob = new Blob([buffer], { type: source.mimeType });
+                    image.src = URL.createObjectURL(blob);
                 } else if (/base64/.test(source.uri)) {
                     image.src = source.uri;
                 } else {

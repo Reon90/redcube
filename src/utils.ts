@@ -379,9 +379,10 @@ export function calculateNormals(index, vertex) {
         const dv2 = faceVertices[2].subtract(faceVertices[0]);
 
         const n = Vector3.cross(dv1.normalize(), dv2.normalize());
-        normal[i] = n.elements[0];
-        normal[i + 1] = n.elements[1];
-        normal[i + 2] = n.elements[2];
+        const [x, y, z] = n.elements;
+        normal[i] = x;
+        normal[i + 1] = y;
+        normal[i + 2] = z;
     }
 
     return normal;

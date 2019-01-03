@@ -92,23 +92,23 @@ export class Renderer {
         const stride = getAnimationComponent(v.type);
 
         const td = t1 - t0;
-        const p = ( t - t0 ) / td;
-		const pp = p * p;
-		const ppp = pp * p;
+        const p = (t - t0) / td;
+        const pp = p * p;
+        const ppp = pp * p;
 
-        const s2 = - 2 * ppp + 3 * pp;
-		const s3 = ppp - pp;
-		const s0 = 1 - s2;
-		const s1 = s3 - pp + p;
+        const s2 = -2 * ppp + 3 * pp;
+        const s3 = ppp - pp;
+        const s0 = 1 - s2;
+        const s1 = s3 - pp + p;
 
         const result = new Float32Array(stride);
-        for ( let i = 0; i !== stride; i ++ ) {
-			const p0 = v.keys[val[0]].value[stride + i]; // point
-			const m0 = v.keys[val[0]].value[stride * 2 + i] * td; // outTangent
-			const p1 = v.keys[val[1]].value[stride + i]; // point + 1
-			const m1 = v.keys[val[1]].value[i] * td; // inTangent + 1
+        for (let i = 0; i !== stride; i++) {
+            const p0 = v.keys[val[0]].value[stride + i]; // point
+            const m0 = v.keys[val[0]].value[stride * 2 + i] * td; // outTangent
+            const p1 = v.keys[val[1]].value[stride + i]; // point + 1
+            const m1 = v.keys[val[1]].value[i] * td; // inTangent + 1
 
-			result[ i ] = s0 * p0 + s1 * m0 + s2 * p1 + s3 * m1;
+            result[i] = s0 * p0 + s1 * m0 + s2 * p1 + s3 * m1;
         }
 
         if (v.type === 'translation') {
@@ -220,16 +220,16 @@ export class Renderer {
 
         for (const v of this.parse.tracks) {
             let result;
-            switch(v.interpolation) {
+            switch (v.interpolation) {
                 case 'LINEAR':
-                result = this.interpolation(sec, v);
-                break;
+                    result = this.interpolation(sec, v);
+                    break;
                 case 'CUBICSPLINE':
-                result = this.spline(sec, v);
-                break;
+                    result = this.spline(sec, v);
+                    break;
                 case 'STEP':
-                result = this.step(sec, v);
-                break;
+                    result = this.step(sec, v);
+                    break;
             }
 
             if (result === false) {

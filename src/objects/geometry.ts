@@ -152,7 +152,7 @@ export class Geometry {
                 if (k === 'COLOR_0' && accessor.type === 'VEC3') {
                     const temp = new vertexBuffers[k].constructor(accessor.count * 4);
                     let j = 0;
-                    for ( let i = 0; i < temp.length; i++ ) {
+                    for (let i = 0; i < temp.length; i++) {
                         if ((i + 1) % 4 === 0) {
                             temp[i] = 1;
                         } else {
@@ -163,10 +163,10 @@ export class Geometry {
                     vertexBuffers[k] = temp;
                 }
 
-                if ( accessor.sparse !== undefined ) {
+                if (accessor.sparse !== undefined) {
                     const itemSize = getDataType(accessor.type);
                     const indicesBufferView = json.bufferViews[accessor.sparse.indices.bufferView];
-                    const valuesBufferView =json.bufferViews[accessor.sparse.values.bufferView];
+                    const valuesBufferView = json.bufferViews[accessor.sparse.values.bufferView];
 
                     const sparseIndices = buildArray(
                         arrayBuffer[indicesBufferView.buffer],
@@ -181,13 +181,19 @@ export class Geometry {
                         getDataType(accessor.type) * accessor.sparse.count
                     );
 
-                    for ( let i = 0, il = sparseIndices.length; i < il; i ++ ) {
-                        const index = sparseIndices[ i ];
+                    for (let i = 0, il = sparseIndices.length; i < il; i++) {
+                        const index = sparseIndices[i];
 
-                        vertexBuffers[k][index * itemSize] = sparseValues[ i * itemSize ];
-                        if ( itemSize >= 2 ) vertexBuffers[k][index * itemSize + 1] = sparseValues[ i * itemSize + 1 ];
-                        if ( itemSize >= 3 ) vertexBuffers[k][index * itemSize + 2] = sparseValues[ i * itemSize + 2 ];
-                        if ( itemSize >= 4 ) vertexBuffers[k][index * itemSize + 3] = sparseValues[ i * itemSize + 3 ];
+                        vertexBuffers[k][index * itemSize] = sparseValues[i * itemSize];
+                        if (itemSize >= 2) {
+                            vertexBuffers[k][index * itemSize + 1] = sparseValues[i * itemSize + 1];
+                        }
+                        if (itemSize >= 3) {
+                            vertexBuffers[k][index * itemSize + 2] = sparseValues[i * itemSize + 2];
+                        }
+                        if (itemSize >= 4) {
+                            vertexBuffers[k][index * itemSize + 3] = sparseValues[i * itemSize + 3];
+                        }
                     }
                 }
 
