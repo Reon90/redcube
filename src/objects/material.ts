@@ -21,6 +21,12 @@ interface Uniforms {
     depthTexture: WebGLUniformLocation;
 }
 
+const lightEnum = {
+    directional: 0,
+    point: 1,
+    spot: 2
+};
+
 export class Material extends M {
     blend: string;
     uniforms: Uniforms;
@@ -28,7 +34,7 @@ export class Material extends M {
     UBO: WebGLBuffer;
     doubleSided: boolean;
 
-    constructor(m = defaultMaterial, textures, defines) {
+    constructor(m = defaultMaterial, textures, defines, lights) {
         super();
 
         const material = Object.assign({}, m);
@@ -137,6 +143,7 @@ export class Material extends M {
         if (this.doubleSided) {
             defines.push({ name: 'DOUBLESIDED' });
         }
+        defines.push({ name: 'LIGHTNUMBER', value: lights.length });
     }
 
     createUniforms(gl, program) {
@@ -173,30 +180,94 @@ export class Material extends M {
         gl.uniform1i(this.uniforms.irradianceMap, textureEnum.irradianceTexture);
     }
 
-    updateUniforms(gl, program, camera, light) {
-        const spotDir = new Vector3([0, 0, 1]).applyMatrix4(light.matrixWorld).normalize();
-        const materialUniformBuffer = new UniformBuffer();
-        materialUniformBuffer.add('baseColorFactor', this.pbrMetallicRoughness.baseColorFactor || [0.8, 0.8, 0.8, 1.0]);
-        materialUniformBuffer.add('lightPos', light.getPosition());
-        materialUniformBuffer.add('viewPos', camera.getPosition());
-        materialUniformBuffer.add('textureMatrix', (this.matrix && this.matrix.elements) || new Matrix3().elements);
-        materialUniformBuffer.add('specularFactor', this.pbrMetallicRoughness.specularFactor || [0, 0, 0]);
-        materialUniformBuffer.add('emissiveFactor', this.emissiveFactor || [0, 0, 0]);
-        materialUniformBuffer.add('glossinessFactor', this.pbrMetallicRoughness.glossinessFactor || 0.5);
-        materialUniformBuffer.add('metallicFactor', this.pbrMetallicRoughness.metallicFactor || 0.5);
-        materialUniformBuffer.add('roughnessFactor', this.pbrMetallicRoughness.roughnessFactor || 0.5);
-        materialUniformBuffer.add('lightColor', light.color.elements);
-        materialUniformBuffer.add('lightIntensity', [light.intensity, light.spot.innerConeAngle, light.spot.outerConeAngle]);
-        materialUniformBuffer.add('spotdir', spotDir.elements);
-        materialUniformBuffer.done();
+    updateUniforms(gl, program, camera, lights) {
+        const spotDirs = new Float32Array(lights.length * 3);
+        const lightPos = new Float32Array(lights.length * 3);
+        const lightColor = new Float32Array(lights.length * 3);
+        const lightProps = new Float32Array(lights.length * 4);
+        lights.forEach((light, i) => {
+            spotDirs.set(
+                new Vector3([light.matrixWorld.elements[8], light.matrixWorld.elements[9], light.matrixWorld.elements[10]]).normalize()
+                    .elements,
+                i * 3
+            );
+            lightPos.set(light.getPosition(), i * 3);
+            lightColor.set(light.color.elements, i * 3);
+            lightProps.set([light.intensity, light.spot.innerConeAngle || 0, light.spot.outerConeAngle || 0, lightEnum[light.type]], i * 4);
+        });
 
-        const mIndex = gl.getUniformBlockIndex(program, 'Material');
-        gl.uniformBlockBinding(program, mIndex, 1);
-        const mUBO = gl.createBuffer();
-        gl.bindBuffer(gl.UNIFORM_BUFFER, mUBO);
-        gl.bufferData(gl.UNIFORM_BUFFER, materialUniformBuffer.store, gl.STATIC_DRAW);
-        this.UBO = mUBO;
-        this.uniformBuffer = materialUniformBuffer;
+        {
+            const materialUniformBuffer = new UniformBuffer();
+            materialUniformBuffer.add('baseColorFactor', this.pbrMetallicRoughness.baseColorFactor || [0.8, 0.8, 0.8, 1.0]);
+            materialUniformBuffer.add('viewPos', camera.getPosition());
+            materialUniformBuffer.add('textureMatrix', (this.matrix && this.matrix.elements) || new Matrix3().elements);
+            materialUniformBuffer.add('specularFactor', this.pbrMetallicRoughness.specularFactor || [0, 0, 0]);
+            materialUniformBuffer.add('emissiveFactor', this.emissiveFactor || [0, 0, 0]);
+            materialUniformBuffer.add('glossinessFactor', this.pbrMetallicRoughness.glossinessFactor || 0.5);
+            materialUniformBuffer.add('metallicFactor', this.pbrMetallicRoughness.metallicFactor || 0.5);
+            materialUniformBuffer.add('roughnessFactor', this.pbrMetallicRoughness.roughnessFactor || 0.5);
+            materialUniformBuffer.done();
+
+            const mIndex = gl.getUniformBlockIndex(program, 'Material');
+            gl.uniformBlockBinding(program, mIndex, 1);
+            const mUBO = gl.createBuffer();
+            gl.bindBuffer(gl.UNIFORM_BUFFER, mUBO);
+            gl.bufferData(gl.UNIFORM_BUFFER, materialUniformBuffer.store, gl.STATIC_DRAW);
+            this.UBO = mUBO;
+            this.uniformBuffer = materialUniformBuffer;
+        }
+        {
+            const materialUniformBuffer = new UniformBuffer();
+            materialUniformBuffer.add('lightColor', lightColor);
+            materialUniformBuffer.done();
+
+            const mIndex = gl.getUniformBlockIndex(program, 'LightColor');
+            gl.uniformBlockBinding(program, mIndex, 3);
+            const mUBO = gl.createBuffer();
+            gl.bindBuffer(gl.UNIFORM_BUFFER, mUBO);
+            gl.bufferData(gl.UNIFORM_BUFFER, materialUniformBuffer.store, gl.STATIC_DRAW);
+            this.lightUBO1 = mUBO;
+            this.lightUniformBuffer1 = materialUniformBuffer;
+        }
+        {
+            const materialUniformBuffer = new UniformBuffer();
+            materialUniformBuffer.add('lightPos', lightPos);
+            materialUniformBuffer.done();
+
+            const mIndex = gl.getUniformBlockIndex(program, 'LightPos');
+            gl.uniformBlockBinding(program, mIndex, 4);
+            const mUBO = gl.createBuffer();
+            gl.bindBuffer(gl.UNIFORM_BUFFER, mUBO);
+            gl.bufferData(gl.UNIFORM_BUFFER, materialUniformBuffer.store, gl.STATIC_DRAW);
+            this.lightUBO2 = mUBO;
+            this.lightUniformBuffer2 = materialUniformBuffer;
+        }
+        {
+            const materialUniformBuffer = new UniformBuffer();
+            materialUniformBuffer.add('spotdir', spotDirs);
+            materialUniformBuffer.done();
+
+            const mIndex = gl.getUniformBlockIndex(program, 'Spotdir');
+            gl.uniformBlockBinding(program, mIndex, 5);
+            const mUBO = gl.createBuffer();
+            gl.bindBuffer(gl.UNIFORM_BUFFER, mUBO);
+            gl.bufferData(gl.UNIFORM_BUFFER, materialUniformBuffer.store, gl.STATIC_DRAW);
+            this.lightUBO3 = mUBO;
+            this.lightUniformBuffer3 = materialUniformBuffer;
+        }
+        {
+            const materialUniformBuffer = new UniformBuffer();
+            materialUniformBuffer.add('lightIntensity', lightProps);
+            materialUniformBuffer.done();
+
+            const mIndex = gl.getUniformBlockIndex(program, 'LightIntensity');
+            gl.uniformBlockBinding(program, mIndex, 6);
+            const mUBO = gl.createBuffer();
+            gl.bindBuffer(gl.UNIFORM_BUFFER, mUBO);
+            gl.bufferData(gl.UNIFORM_BUFFER, materialUniformBuffer.store, gl.STATIC_DRAW);
+            this.lightUBO4 = mUBO;
+            this.lightUniformBuffer4 = materialUniformBuffer;
+        }
     }
 
     hasNormal() {

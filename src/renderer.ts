@@ -273,7 +273,7 @@ export class Renderer {
 
             //this.env.draw();
 
-            this.renderScene(!this.PP.postprocessors.some(p => p instanceof Shadow), false);
+            this.renderScene();
             this.clean();
 
             if (this.PP.postprocessors.some(p => p instanceof PPLight)) {
@@ -291,7 +291,7 @@ export class Renderer {
         requestAnimationFrame(this.render.bind(this));
     }
 
-    renderScene(isShadow, isLight) {
+    renderScene() {
         if (this.needUpdateView) {
             const planes = Frustum(this.camera.getViewProjMatrix());
 
@@ -302,7 +302,7 @@ export class Renderer {
 
         this.scene.opaqueChildren.forEach(mesh => {
             if (mesh.visible) {
-                mesh.draw(gl, this.getState(), isShadow, isLight);
+                mesh.draw(gl, this.getState());
             }
         });
         if (this.scene.transparentChildren.length) {
@@ -311,7 +311,7 @@ export class Renderer {
 
             this.scene.transparentChildren.forEach(mesh => {
                 if (mesh.visible) {
-                    mesh.draw(gl, this.getState(), isShadow, isLight);
+                    mesh.draw(gl, this.getState());
                 }
             });
 

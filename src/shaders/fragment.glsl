@@ -19,7 +19,6 @@ layout (location = 1) out vec3 normalColor;
 
 uniform Material {
     vec4 baseColorFactor;
-    vec3 lightPos;
     vec3 viewPos;
     mat3 textureMatrix;
     vec3 specularFactor;
@@ -27,9 +26,18 @@ uniform Material {
     vec4 glossinessFactor;
     vec4 metallicFactor;
     vec4 roughnessFactor;
-    vec3 lightColor;
-    vec4 lightIntensity;
-    vec4 spotdir;
+};
+uniform LightColor {
+    vec3 lightColor[LIGHTNUMBER];
+};
+uniform Spotdir {
+    vec3 spotdir[LIGHTNUMBER];
+};
+uniform LightIntensity {
+    vec4 lightIntensity[LIGHTNUMBER];
+};
+uniform LightPos {
+    vec3 lightPos[LIGHTNUMBER];
 };
 uniform sampler2D baseColorTexture;
 uniform sampler2D metallicRoughnessTexture;
@@ -119,7 +127,7 @@ vec3 fresnelSchlickRoughness(float cosTheta, vec3 F0, float roughness) {
     return F0 + (max(vec3(1.0 - roughness), F0) - F0) * pow(1.0 - cosTheta, 5.0);
 } 
 
-vec3 IBLAmbient(vec3 specularMap, vec3 baseColor, float metallic, vec3 n, vec3 H, float roughness, vec3 viewDir, vec3 lightDir, float ao) {
+vec3 IBLAmbient(vec3 specularMap, vec3 baseColor, float metallic, vec3 n, float roughness, vec3 viewDir, float ao) {
     vec3 F0 = vec3(0.04);
     F0 = mix(F0, baseColor, metallic);
 
@@ -262,26 +270,6 @@ void main() {
     #endif
 
     vec3 viewDir = normalize(viewPos - outPosition);
-    vec3 lightDir = normalize(lightPos - outPosition);
-    float NdotL = max(dot(n, lightDir), 0.0);
-    vec3 H = normalize(viewDir + lightDir);
-    
-    vec3 radiance = lightColor * lightIntensity.x;
-    float distance = length(lightPos - outPosition);
-    float attenuation = 1.0 / (distance * distance);
-    #ifdef LIGHT_POINT
-        radiance = radiance * attenuation;
-    #endif
-    #ifdef LIGHT_SPOT
-        float lightAngleScale = 1.0 / max(0.001, cos(lightIntensity.y) - cos(lightIntensity.z));
-        float lightAngleOffset = -cos(lightIntensity.z) * lightAngleScale;
-
-        float cd = dot(spotdir.xyz, lightDir);
-        float attenuationSpot = saturate(cd * lightAngleScale + lightAngleOffset);
-        attenuationSpot *= attenuationSpot;
-
-        radiance = radiance * attenuationSpot * attenuation;
-    #endif
 
     #ifdef DOUBLESIDED
     if (dot(n, viewDir) < 0.0) {
@@ -296,15 +284,41 @@ void main() {
     #endif
 
     #ifdef USE_PBR
-        vec3 specular = CookTorranceSpecular(specularMap, baseColor, metallic, n, H, roughness, viewDir, lightDir);
-        vec3 diffuse = ImprovedOrenNayarDiffuse(baseColor, metallic, n, H, roughness, viewDir, lightDir);
-        #ifdef SPECULARGLOSSINESSMAP
-            diffuse = baseColor * (1.0 - max(max(specularMap.r, specularMap.g), specularMap.b));
-        #endif
+        vec3 Lo = vec3(0.0);
+        for (int i = 0; i < LIGHTNUMBER; ++i) {
+            vec3 lightDir = normalize(lightPos[i] - outPosition);
+            float NdotL = max(dot(n, lightDir), 0.0);
+            vec3 H = normalize(viewDir + lightDir);
+
+            vec3 radiance = lightColor[i] * lightIntensity[i].x;
+            float distance = length(lightPos[i] - outPosition);
+            float attenuation = 1.0 / (distance * distance);
+            if (lightIntensity[i].w == 1.0) { // point
+                radiance = radiance * attenuation;
+            }
+            if (lightIntensity[i].w == 2.0) { // spot
+                float lightAngleScale = 1.0 / max(0.001, cos(lightIntensity[i].y) - cos(lightIntensity[i].z));
+                float lightAngleOffset = -cos(lightIntensity[i].z) * lightAngleScale;
+
+                float cd = dot(spotdir[i], lightDir);
+                float attenuationSpot = saturate(cd * lightAngleScale + lightAngleOffset);
+                attenuationSpot *= attenuationSpot;
+
+                radiance = radiance * attenuationSpot * attenuation;
+            }
+
+            vec3 specular = CookTorranceSpecular(specularMap, baseColor, metallic, n, H, roughness, viewDir, lightDir);
+            vec3 diffuse = ImprovedOrenNayarDiffuse(baseColor, metallic, n, H, roughness, viewDir, lightDir);
+            #ifdef SPECULARGLOSSINESSMAP
+                diffuse = baseColor * (1.0 - max(max(specularMap.r, specularMap.g), specularMap.b));
+            #endif
+
+            Lo += (diffuse + specular * NdotL) * radiance;
+        }
 
         vec3 ambient = vec3(0.0);
         #ifdef IBL
-            ambient = IBLAmbient(specularMap, baseColor, metallic, n, H, roughness, viewDir, lightDir, ao);
+            ambient = IBLAmbient(specularMap, baseColor, metallic, n, roughness, viewDir, ao);
         #else
             ambient = vec3(0.03) * baseColor * ao;
         #endif
@@ -314,7 +328,7 @@ void main() {
             emissive = srgbToLinear(texture(emissiveTexture, getUV(EMISSIVEMAP)));
         #endif
 
-        color = vec4(shadow * (emissive + ambient + diffuse + specular * radiance * NdotL), alpha);
+        color = vec4(shadow * (emissive + ambient + Lo), alpha);
     #else
         vec3 ambient = ambientStrength * lightColor;
 

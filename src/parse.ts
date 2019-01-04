@@ -49,6 +49,7 @@ export class Parse {
     samplers: Array<object>;
     arrayBuffer: object;
     cameras: Array<Camera>;
+    lights: Array<Light>;
     programs: object;
     scene: Scene;
     camera: Camera;
@@ -70,6 +71,7 @@ export class Parse {
         this.samplers = null;
         this.arrayBuffer = null;
         this.cameras = [];
+        this.lights = [];
         this.programs = {};
         this.defines = defines;
         this.resize = resize;
@@ -138,7 +140,7 @@ export class Parse {
     buildPrim(parent, name, skin, weights, primitive) {
         const m = this.json.materials && this.json.materials[primitive.material];
         const defines = [...this.defines];
-        const material = new Material(m, this.textures, defines);
+        const material = new Material(m, this.textures, defines, this.lights);
         if (skin !== undefined) {
             defines.push({
                 name: 'JOINTNUMBER',
@@ -148,15 +150,9 @@ export class Parse {
         if (primitive.attributes.TANGENT || material.hasNormal()) {
             defines.push({ name: 'TANGENT' });
         }
-        if (this.light.type === 'point') {
-            defines.push({ name: 'LIGHT_POINT' });
-        }
-        if (this.light.type === 'spot') {
-            defines.push({ name: 'LIGHT_SPOT' });
-        }
         const program = this.createProgram(defines);
         material.createUniforms(gl, program);
-        material.updateUniforms(gl, program, this.camera, this.light);
+        material.updateUniforms(gl, program, this.camera, this.lights);
 
         const mesh = skin !== undefined ? new SkinnedMesh(name, parent) : new Mesh(name, parent);
         const geometry = new Geometry(gl, this.json, this.arrayBuffer, weights, primitive, material.hasNormal());
@@ -206,6 +202,7 @@ export class Parse {
             Parse.__update('light', light, name, parent);
 
             child = this.light;
+            this.lights.push(child);
         } else {
             if (el.isBone !== undefined) {
                 child = new Bone(name, parent);
@@ -262,13 +259,16 @@ export class Parse {
     buildMesh() {
         this.json.scenes[this.json.scene !== undefined ? this.json.scene : 0].nodes.forEach(n => {
             if (this.json.nodes[n].extensions) {
-                //&& this.json.nodes[n].extensions.KHR_lights_punctual) {
                 this.buildNode(this.scene, n);
             }
         });
 
+        if (this.lights.length === 0) {
+            this.lights.push(this.light);
+        }
+
         this.json.scenes[this.json.scene !== undefined ? this.json.scene : 0].nodes.forEach(n => {
-            if (this.json.nodes[n].children && this.json.nodes[n].children.length) {
+            if (this.json.nodes[n].children && this.json.nodes[n].children.length && !this.json.nodes[n].extensions) {
                 this.buildNode(this.scene, n);
             }
             if (this.json.nodes[n].mesh !== undefined) {

@@ -32,12 +32,7 @@ export class Mesh extends Object3D {
         this.material = material;
     }
 
-    draw(
-        gl,
-        { camera, light, preDepthTexture, fakeDepth, needUpdateView, needUpdateProjection, irradiancemap, prefilterMap, brdfLUT },
-        isShadow,
-        isLight
-    ) {
+    draw(gl, { lights, camera, light, needUpdateView, needUpdateProjection }) {
         gl.useProgram(this.program);
 
         gl.bindVertexArray(this.geometry.VAO);
@@ -77,9 +72,22 @@ export class Mesh extends Object3D {
             gl.bindBufferBase(gl.UNIFORM_BUFFER, 1, this.material.UBO);
 
             if (needUpdateView) {
-                this.material.uniformBuffer.update(gl, 'lightPos', light.getPosition());
+                const lightPos = new Float32Array(lights.length * 3);
+                lights.forEach((light, i) => {
+                    lightPos.set(light.getPosition(), i * 3);
+                });
+
                 this.material.uniformBuffer.update(gl, 'viewPos', camera.getPosition());
+
+                gl.bindBufferBase(gl.UNIFORM_BUFFER, 4, this.material.lightUBO2);
+                this.material.lightUniformBuffer2.update(gl, 'lightPos', lightPos);
             }
+        }
+        if (this.material.lightUBO1) {
+            gl.bindBufferBase(gl.UNIFORM_BUFFER, 3, this.material.lightUBO1);
+            gl.bindBufferBase(gl.UNIFORM_BUFFER, 4, this.material.lightUBO2);
+            gl.bindBufferBase(gl.UNIFORM_BUFFER, 5, this.material.lightUBO3);
+            gl.bindBufferBase(gl.UNIFORM_BUFFER, 6, this.material.lightUBO4);
         }
 
         // gl.uniform1i(

@@ -55,7 +55,7 @@ class RedCube {
         this.ioc.register('scene', Scene);
         this.ioc.register('light', Light, [], {
             type: 'directional',
-            intensity: 1,
+            intensity: 10,
             color: [1, 1, 1],
             isInitial: true,
             spot: {}
@@ -118,8 +118,8 @@ class RedCube {
         cb();
     }
 
-    renderScene(isShadow, isLight) {
-        this.renderer.renderScene(isShadow, isLight);
+    renderScene() {
+        this.renderer.renderScene();
     }
 
     redraw(type, coordsStart, coordsMove) {
@@ -193,6 +193,7 @@ class RedCube {
 
     getState() {
         return {
+            lights: this.parse.lights,
             camera: this.camera,
             light: this.light,
             preDepthTexture: this.PP.preDepthTexture,

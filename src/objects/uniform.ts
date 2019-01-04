@@ -15,11 +15,15 @@ export class UniformBuffer {
 
     getBuffer(v) {
         const { length } = v;
-        if (length <= 4) {
-            return v;
+        if (length === 3) {
+            return new Float32Array([v[0], v[1], v[2], 0]);
         }
         if (length === 9) {
             return new Float32Array([v[0], v[1], v[2], 0, v[3], v[4], v[5], 0, v[6], v[7], v[8], 0]);
+        }
+
+        if (length === 6) {
+            return new Float32Array([v[0], v[1], v[2], 0, v[3], v[4], v[5], 0]);
         }
 
         return v;
@@ -40,8 +44,9 @@ export class UniformBuffer {
             value = new Float32Array([value]);
         }
         const offset = this.map.get(name);
-        this.store.set(value, offset);
-        gl.bufferSubData(gl.UNIFORM_BUFFER, offset * Float32Array.BYTES_PER_ELEMENT, value);
+        const buffer = this.getBuffer(value);
+        this.store.set(buffer, offset);
+        gl.bufferSubData(gl.UNIFORM_BUFFER, offset * Float32Array.BYTES_PER_ELEMENT, buffer);
     }
 
     done() {
