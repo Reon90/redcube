@@ -986,7 +986,7 @@ class Vector3 {
 class Vector4 {
     elements: Float32Array;
 
-    constructor(opt_src?: Array<number>) {
+    constructor(opt_src?: Array<number> | Float32Array) {
         const v = new Float32Array(4);
         if (opt_src && typeof opt_src === 'object') {
             v[0] = opt_src[0];

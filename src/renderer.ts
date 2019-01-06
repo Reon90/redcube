@@ -59,13 +59,13 @@ export class Renderer {
     }
 
     step(sec, v) {
-        let current;
-        for (let i = v.keys.length - 1; i >= 0; i--) {
-            if (sec >= v.keys[i].time) {
-                current = v.keys[i];
-                break;
-            }
+        const val = interpolation(sec, v.keys);
+
+        if (val[0] === -1 || val[1] === -1 || v.stoped) {
+            return false;
         }
+
+        const current = v.keys[val[0]];
         const component = getAnimationComponent(v.type);
         let vectorC;
         if (component === 3) {
@@ -77,15 +77,28 @@ export class Renderer {
         }
         const vector = new vectorC(current.value);
 
-        if (v.type === 'scale') {
+        if (v.type === 'rotation') {
+            for (const mesh of v.meshes) {
+                mesh.matrix.makeRotationFromQuaternion(vector.elements);
+            }
+        } else if (v.type === 'scale') {
             for (const mesh of v.meshes) {
                 mesh.matrix.setScale(vector);
+            }
+        } else if (v.type === 'translation') {
+            for (const mesh of v.meshes) {
+                mesh.matrix.setTranslate(vector);
             }
         }
     }
 
     spline(sec, v) {
         const val = interpolation(sec, v.keys);
+
+        if (val[0] === -1 || val[1] === -1 || v.stoped) {
+            return false;
+        }
+
         const t = sec;
         const t1 = v.keys[val[1]].time;
         const t0 = v.keys[val[0]].time;
@@ -111,7 +124,19 @@ export class Renderer {
             result[i] = s0 * p0 + s1 * m0 + s2 * p1 + s3 * m1;
         }
 
-        if (v.type === 'translation') {
+        if (v.type === 'rotation') {
+            const out = new Vector4(result).normalize();
+
+            for (const mesh of v.meshes) {
+                mesh.matrix.makeRotationFromQuaternion(out.elements);
+            }
+        } else if (v.type === 'scale') {
+            const out = new Vector3(result);
+
+            for (const mesh of v.meshes) {
+                mesh.matrix.setScale(out);
+            }
+        } else if (v.type === 'translation') {
             const out = new Vector3(result);
 
             for (const mesh of v.meshes) {
@@ -159,7 +184,7 @@ export class Renderer {
             out.lerp(vector.elements, vector2.elements, t);
 
             for (const mesh of v.meshes) {
-                mesh.matrix.scale(out);
+                mesh.matrix.setScale(out);
             }
         } else if (v.type === 'weights') {
             const out = new Vector(vector.elements);

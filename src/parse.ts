@@ -243,7 +243,9 @@ export class Parse {
                 if (!biggestMesh) {
                     biggestMesh = node;
                 }
-                if (node.geometry.boundingSphere.radius > biggestMesh.geometry.boundingSphere.radius) {
+                const candidateZ = node.matrixWorld.getScaleZ();
+                const z = biggestMesh.matrixWorld.getScaleZ();
+                if (node.geometry.boundingSphere.radius * candidateZ > biggestMesh.geometry.boundingSphere.radius * z) {
                     biggestMesh = node;
                 }
             }
