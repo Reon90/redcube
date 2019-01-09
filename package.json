@@ -1,6 +1,6 @@
 {
   "name": "redcube.js",
-  "version": "2.0.7",
+  "version": "2.0.8",
   "description": "A javascript library for rendering webgl.",
   "main": "dist/redcube",
   "scripts": {
