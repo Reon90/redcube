@@ -6,6 +6,7 @@ export class Scene {
     children: Array<Object3D>;
     bin: Array<string | ArrayBuffer>;
     matrixWorld: Matrix4;
+    matrix: Matrix4;
     transparentChildren: Array<Mesh>;
     opaqueChildren: Array<Mesh>;
     meshes: Array<Mesh>;
@@ -17,5 +18,6 @@ export class Scene {
         this.children = [];
         this.bin = [];
         this.matrixWorld = new Matrix4();
+        this.matrix = new Matrix4();
     }
 }

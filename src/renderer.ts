@@ -83,7 +83,13 @@ export class Renderer {
             }
         } else if (v.type === 'scale') {
             for (const mesh of v.meshes) {
-                mesh.matrix.setScale(vector);
+                if (mesh.matrix.animated) {
+                    const scale = mesh.matrix.getScaling();
+                    mesh.matrix.restoreScale(scale);
+                }
+
+                mesh.matrix.scale(vector);
+                mesh.matrix.animated = true;
             }
         } else if (v.type === 'translation') {
             for (const mesh of v.meshes) {
@@ -122,6 +128,10 @@ export class Renderer {
             const m1 = v.keys[val[1]].value[i] * td; // inTangent + 1
 
             result[i] = s0 * p0 + s1 * m0 + s2 * p1 + s3 * m1;
+
+            if (isNaN(result[i])) {
+                return false;
+            }
         }
 
         if (v.type === 'rotation') {
@@ -134,7 +144,13 @@ export class Renderer {
             const out = new Vector3(result);
 
             for (const mesh of v.meshes) {
-                mesh.matrix.setScale(out);
+                if (mesh.matrix.animated) {
+                    const scale = mesh.matrix.getScaling();
+                    mesh.matrix.restoreScale(scale);
+                }
+
+                mesh.matrix.scale(out);
+                mesh.matrix.animated = true;
             }
         } else if (v.type === 'translation') {
             const out = new Vector3(result);
@@ -184,7 +200,13 @@ export class Renderer {
             out.lerp(vector.elements, vector2.elements, t);
 
             for (const mesh of v.meshes) {
-                mesh.matrix.setScale(out);
+                if (mesh.matrix.animated) {
+                    const scale = mesh.matrix.getScaling();
+                    mesh.matrix.restoreScale(scale);
+                }
+
+                mesh.matrix.scale(out);
+                mesh.matrix.animated = true;
             }
         } else if (v.type === 'weights') {
             const out = new Vector(vector.elements);

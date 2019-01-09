@@ -96,8 +96,8 @@ export class Camera extends Object3D {
         const cameraZ = Math.abs(this.matrixWorldInvert.elements[14]);
         const cameraProps = this.props.perspective || this.props.orthographic;
         if (cameraZ > this.modelSize) {
-            cameraProps.znear = Math.max(cameraZ - this.modelSize * 2, 0.001);
-            cameraProps.zfar = cameraZ + this.modelSize * 2;
+            cameraProps.znear = Math.max(cameraZ - this.modelSize, 0.001);
+            cameraProps.zfar = cameraZ + this.modelSize;
         } else {
             cameraProps.znear = 1;
             cameraProps.zfar = 10000;

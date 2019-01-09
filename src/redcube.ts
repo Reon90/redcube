@@ -148,7 +148,7 @@ class RedCube {
         this.canvas.width = this.canvas.offsetWidth * devicePixelRatio;
         this.canvas.height = this.canvas.offsetHeight * devicePixelRatio;
         gl.viewport(0, 0, this.canvas.offsetWidth * devicePixelRatio, this.canvas.offsetHeight * devicePixelRatio);
-        const z = (10000 / this.canvas.width) * this.camera.modelSize * devicePixelRatio;
+        const z = (5000 / this.canvas.width) * this.camera.modelSize * devicePixelRatio;
 
         if (this.camera.props.isInitial) {
             this.camera.setZ(z);

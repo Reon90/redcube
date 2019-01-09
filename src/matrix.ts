@@ -212,14 +212,6 @@ class Matrix4 {
         }
     }
 
-    getScaleZ() {
-        const te = this.elements;
-        const x = te[8];
-        const y = te[9];
-        const z = te[10];
-        return Math.sqrt(x * x + y * y + z * z);
-    }
-
     /**
      * Copy matrix.
      * @param src source matrix
@@ -593,15 +585,23 @@ class Matrix4 {
         return v;
     }
 
-    setScale(vec3: Vector3) {
-        const x = vec3.elements[0];
-        const y = vec3.elements[1];
-        const z = vec3.elements[2];
-        const e = this.elements;
-        e[0] = x;
-        e[5] = y;
-        e[10] = z;
-        return this;
+    getScaling() {
+        let e = this.elements;
+        let m11 = e[0];
+        let m12 = e[1];
+        let m13 = e[2];
+        let m21 = e[4];
+        let m22 = e[5];
+        let m23 = e[6];
+        let m31 = e[8];
+        let m32 = e[9];
+        let m33 = e[10];
+        let out = new Vector3([
+            Math.sqrt(m11 * m11 + m12 * m12 + m13 * m13),
+            Math.sqrt(m21 * m21 + m22 * m22 + m23 * m23),
+            Math.sqrt(m31 * m31 + m32 * m32 + m33 * m33)
+        ]);
+        return out;
     }
 
     scale(vec3: Vector3) {
@@ -621,6 +621,26 @@ class Matrix4 {
         e[3] *= x;
         e[7] *= y;
         e[11] *= z;
+        return this;
+    }
+
+    restoreScale(vec3: Vector3) {
+        const x = vec3.elements[0];
+        const y = vec3.elements[1];
+        const z = vec3.elements[2];
+        const e = this.elements;
+        e[0] /= x;
+        e[4] /= y;
+        e[8] /= z;
+        e[1] /= x;
+        e[5] /= y;
+        e[9] /= z;
+        e[2] /= x;
+        e[6] /= y;
+        e[10] /= z;
+        e[3] /= x;
+        e[7] /= y;
+        e[11] /= z;
         return this;
     }
 

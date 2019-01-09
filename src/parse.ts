@@ -243,14 +243,14 @@ export class Parse {
                 if (!biggestMesh) {
                     biggestMesh = node;
                 }
-                const candidateZ = node.matrixWorld.getScaleZ();
-                const z = biggestMesh.matrixWorld.getScaleZ();
+                const candidateZ = Math.hypot(...node.matrixWorld.getScaling().elements);
+                const z = Math.hypot(...biggestMesh.matrixWorld.getScaling().elements);
                 if (node.geometry.boundingSphere.radius * candidateZ > biggestMesh.geometry.boundingSphere.radius * z) {
                     biggestMesh = node;
                 }
             }
         });
-        const z = biggestMesh.matrixWorld.getScaleZ();
+        const z = Math.hypot(...biggestMesh.matrixWorld.getScaling().elements);
         const pos = Math.hypot(...biggestMesh.getPosition());
         this.camera.modelSize =
             biggestMesh.geometry.boundingSphere.radius * z + pos + Math.hypot(...biggestMesh.geometry.boundingSphere.center.elements) * z;
