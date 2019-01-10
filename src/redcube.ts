@@ -42,15 +42,21 @@ class RedCube {
 
         this.ioc = new Container();
         this.ioc.register('env', Env, ['camera', 'canvas', 'gl'], envUrl);
-        this.ioc.register('camera', Camera, [], {
-            type: 'perspective',
-            isInitial: true,
-            zoom: 1,
-            aspect: this.canvas.offsetWidth / this.canvas.offsetHeight,
-            perspective: {
-                yfov: (FOV * Math.PI) / 180
-            }
-        });
+        this.ioc.register(
+            'camera',
+            Camera,
+            [],
+            {
+                type: 'perspective',
+                isInitial: true,
+                zoom: 1,
+                aspect: this.canvas.offsetWidth / this.canvas.offsetHeight,
+                perspective: {
+                    yfov: (FOV * Math.PI) / 180
+                }
+            },
+            'perspective'
+        );
         this.ioc.register('canvas', canvas);
         this.ioc.register('scene', Scene);
         this.ioc.register('light', Light, [], {

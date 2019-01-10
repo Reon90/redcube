@@ -21,7 +21,9 @@ export class UniformBuffer {
         if (length === 9) {
             return new Float32Array([v[0], v[1], v[2], 0, v[3], v[4], v[5], 0, v[6], v[7], v[8], 0]);
         }
-
+        if (length === 12) {
+            return new Float32Array([v[0], v[1], v[2], 0, v[3], v[4], v[5], 0, v[6], v[7], v[8], 0, v[9], v[10], v[11], 0]);
+        }
         if (length === 6) {
             return new Float32Array([v[0], v[1], v[2], 0, v[3], v[4], v[5], 0]);
         }

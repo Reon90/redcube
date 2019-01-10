@@ -1,6 +1,6 @@
 import { Scene, Mesh, Camera, Bone } from './objects/index';
 import { Vector, Vector3, Vector4, Frustum } from './matrix';
-import { getAnimationComponent, interpolation, walk, getAttributeIndex } from './utils';
+import { getAnimationComponent, interpolation, walk } from './utils';
 import { Parse } from './parse';
 import { PostProcessing } from './postprocessing';
 import { Particles } from './particles';
@@ -236,18 +236,7 @@ export class Renderer {
                     }
                 }
 
-                gl.bindVertexArray(mesh.geometry.VAO);
-
-                for (const k in geometry) {
-                    const VBO = gl.createBuffer();
-                    gl.bindBuffer(gl.ARRAY_BUFFER, VBO);
-                    gl.bufferData(gl.ARRAY_BUFFER, geometry[k], gl.STATIC_DRAW);
-                    const index = getAttributeIndex(k);
-                    gl.enableVertexAttribArray(index[0]);
-                    gl.vertexAttribPointer(index[0], index[1], index[2], false, 0, 0);
-                }
-
-                gl.bindVertexArray(null);
+                mesh.geometry.update(gl, geometry);
             }
         } else if (v.type === 'translation') {
             const out = new Vector3();

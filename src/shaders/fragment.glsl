@@ -234,6 +234,11 @@ void main() {
         baseColor.rgb *= vColor.rgb;
     }
 
+    #ifdef NOLIGHT
+        color = vec4(baseColor, alpha);
+        return;
+    #endif
+
     #ifdef OCCLUSIONMAP
         float ao = texture(occlusionTexture, outUV).r;
     #else
@@ -330,14 +335,15 @@ void main() {
 
         color = vec4(shadow * (emissive + ambient + Lo), alpha);
     #else
-        vec3 ambient = ambientStrength * lightColor;
+        vec3 lightDir = normalize(lightPos[0] - outPosition);
+        vec3 ambient = ambientStrength * lightColor[0];
 
         float diff = max(dot(n, lightDir), 0.0);
-        vec3 diffuse = diff * lightColor;
+        vec3 diffuse = diff * lightColor[0];
 
         vec3 reflectDir = reflect(-lightDir, n);
         float spec = pow(max(dot(viewDir, reflectDir), 0.0), specularPower);
-        vec3 specular = specularStrength * spec * lightColor;
+        vec3 specular = specularStrength * spec * lightColor[0];
 
         color = vec4(baseColor.rgb * (ambient + diffuse + specular) * shadow, alpha);
     #endif

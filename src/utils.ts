@@ -193,6 +193,14 @@ function getCount(type) {
     return arr;
 }
 
+export const ArrayBufferMap = new Map();
+ArrayBufferMap.set(Int8Array, 'BYTE');
+ArrayBufferMap.set(Uint8Array, 'UNSIGNED_BYTE');
+ArrayBufferMap.set(Int16Array, 'SHORT');
+ArrayBufferMap.set(Uint16Array, 'UNSIGNED_SHORT');
+ArrayBufferMap.set(Uint32Array, 'UNSIGNED_INT');
+ArrayBufferMap.set(Float32Array, 'FLOAT');
+
 export function buildArray(arrayBuffer, type, offset, length, stride?, count?) {
     const l = length;
     const c = length / count;
@@ -204,27 +212,21 @@ export function buildArray(arrayBuffer, type, offset, length, stride?, count?) {
     switch (glEnum[type]) {
         case 'BYTE':
             arr = new Int8Array(arrayBuffer, offset, length);
-            arr.type = 'BYTE';
             break;
         case 'UNSIGNED_BYTE':
             arr = new Uint8Array(arrayBuffer, offset, length);
-            arr.type = 'UNSIGNED_BYTE';
             break;
         case 'SHORT':
             arr = new Int16Array(arrayBuffer, offset, length);
-            arr.type = 'SHORT';
             break;
         case 'UNSIGNED_SHORT':
             arr = new Uint16Array(arrayBuffer, offset, length);
-            arr.type = 'UNSIGNED_SHORT';
             break;
         case 'UNSIGNED_INT':
             arr = new Uint32Array(arrayBuffer, offset, length);
-            arr.type = 'UNSIGNED_INT';
             break;
         case 'FLOAT':
             arr = new Float32Array(arrayBuffer, offset, length);
-            arr.type = 'FLOAT';
             break;
     }
     if (stride && stride !== getCount(type) * c) {
@@ -236,8 +238,6 @@ export function buildArray(arrayBuffer, type, offset, length, stride?, count?) {
             stridedArr[i + 2] = arr[j + 2];
             j = j + c * (stride / getCount(type) / c);
         }
-        // @ts-ignore
-        stridedArr.type = arr.type;
         return stridedArr;
     }
     return arr;
@@ -336,37 +336,6 @@ export function calculateProjection(cam) {
 
 export function calculateOffset(a = 0, b = 0) {
     return a + b;
-}
-
-export function getAttributeIndex(name) {
-    let index;
-    switch (name) {
-        case 'POSITION':
-            index = [0, 3, gl.FLOAT];
-            break;
-        case 'NORMAL':
-            index = [1, 3, gl.FLOAT];
-            break;
-        case 'TEXCOORD_0':
-            index = [2, 2, gl.FLOAT];
-            break;
-        case 'JOINTS_0':
-            index = [3, 4, gl.UNSIGNED_SHORT];
-            break;
-        case 'WEIGHTS_0':
-            index = [4, 4, gl.FLOAT];
-            break;
-        case 'TANGENT':
-            index = [5, 4, gl.FLOAT];
-            break;
-        case 'COLOR_0':
-            index = [6, 4, gl.FLOAT];
-            break;
-        case 'TEXCOORD_1':
-            index = [7, 2, gl.FLOAT];
-            break;
-    }
-    return index;
 }
 
 export function calculateNormals(index, vertex) {

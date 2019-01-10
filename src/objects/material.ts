@@ -144,6 +144,10 @@ export class Material extends M {
             defines.push({ name: 'DOUBLESIDED' });
         }
         defines.push({ name: 'LIGHTNUMBER', value: lights.length });
+
+        if (material.extensions && material.extensions.KHR_materials_unlit) {
+            defines.push({ name: 'NOLIGHT' });
+        }
     }
 
     createUniforms(gl, program) {
@@ -204,7 +208,7 @@ export class Material extends M {
             materialUniformBuffer.add('specularFactor', this.pbrMetallicRoughness.specularFactor || [0, 0, 0]);
             materialUniformBuffer.add('emissiveFactor', this.emissiveFactor || [0, 0, 0]);
             materialUniformBuffer.add('glossinessFactor', this.pbrMetallicRoughness.glossinessFactor || 0.5);
-            materialUniformBuffer.add('metallicFactor', this.pbrMetallicRoughness.metallicFactor || 0.5);
+            materialUniformBuffer.add('metallicFactor', this.pbrMetallicRoughness.metallicFactor || 0.0);
             materialUniformBuffer.add('roughnessFactor', this.pbrMetallicRoughness.roughnessFactor || 0.5);
             materialUniformBuffer.done();
 

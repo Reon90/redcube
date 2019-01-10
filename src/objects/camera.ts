@@ -8,6 +8,7 @@ interface CameraProps {
     aspect: number;
     perspective: CameraPerspective;
     orthographic: CameraPerspective;
+    type: string;
 }
 interface CameraPerspective {
     yfov: number;
@@ -59,10 +60,15 @@ export class Camera extends Object3D {
         const coordsMoveWorld = canvasToWorld(coordsMove, this.projection, width, height);
         const p0 = new Vector3([...coordsStartWorld, 0]);
         const p1 = new Vector3([...coordsMoveWorld, 0]);
-        const pan = this.modelSize * 100;
-        const delta = p1.subtract(p0).scale(pan);
-
-        this.matrixWorld.translate(delta.elements[0], delta.elements[1], 0);
+        if (this.props.type === 'orthographic') {
+            const pan = this.modelSize * 2;
+            const delta = p0.subtract(p1).scale(pan);
+            this.matrixWorld.translate(delta.elements[0], delta.elements[1], 0);
+        } else {
+            const pan = this.modelSize * 100;
+            const delta = p1.subtract(p0).scale(pan);
+            this.matrixWorld.translate(delta.elements[0], delta.elements[1], 0);
+        }
         this.setMatrixWorld(this.matrixWorld.elements);
     }
 
@@ -71,16 +77,17 @@ export class Camera extends Object3D {
         const coordsMoveWorld = canvasToWorld(coordsMove, this.projection, width, height);
         const p0 = new Vector3(sceneToArcBall(coordsStartWorld));
         const p1 = new Vector3(sceneToArcBall(coordsMoveWorld));
-        const angle = (Vector3.angle(p1, p0) * 30) / this.props.aspect;
+        const v = this.props.type === 'orthographic' ? 10 : 30;
+        const angle = (Vector3.angle(p1, p0) * v) / this.props.aspect;
         if (angle < 1e-6 || isNaN(angle)) {
             return;
         }
 
         const camStart = new Vector3(p0.elements).applyMatrix4(this.matrixWorld);
         const camEnd = new Vector3(p1.elements).applyMatrix4(this.matrixWorld);
-        const camVector = Vector3.cross(camEnd, camStart).normalize();
+        const camVector = this.props.type === 'orthographic' ? Vector3.cross(camStart, camEnd) : Vector3.cross(camEnd, camStart);
         const camMatrix = new Matrix4();
-        camMatrix.makeRotationAxis(camVector, angle);
+        camMatrix.makeRotationAxis(camVector.normalize(), angle);
         camMatrix.multiply(this.matrixWorld);
 
         this.setMatrixWorld(camMatrix.elements);

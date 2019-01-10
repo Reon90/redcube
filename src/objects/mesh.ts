@@ -2,6 +2,7 @@ import { Matrix4, Vector3 } from '../matrix';
 import { Object3D } from './object3d';
 import { Geometry } from './geometry';
 import { Material } from './material';
+import { ArrayBufferMap } from '../utils';
 
 export class Mesh extends Object3D {
     geometry: Geometry;
@@ -128,8 +129,7 @@ export class Mesh extends Object3D {
             gl.drawElements(
                 this.mode,
                 this.geometry.indicesBuffer.length,
-                // @ts-ignore
-                gl[this.geometry.indicesBuffer.type],
+                gl[ArrayBufferMap.get(this.geometry.indicesBuffer.constructor)],
                 0
             );
         } else {

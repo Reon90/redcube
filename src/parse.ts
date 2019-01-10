@@ -252,8 +252,12 @@ export class Parse {
         });
         const z = Math.hypot(...biggestMesh.matrixWorld.getScaling().elements);
         const pos = Math.hypot(...biggestMesh.getPosition());
-        this.camera.modelSize =
-            biggestMesh.geometry.boundingSphere.radius * z + pos + Math.hypot(...biggestMesh.geometry.boundingSphere.center.elements) * z;
+        this.cameras.forEach(c => {
+            c.modelSize =
+                biggestMesh.geometry.boundingSphere.radius * z +
+                pos +
+                Math.hypot(...biggestMesh.geometry.boundingSphere.center.elements) * z;
+        });
 
         this.resize();
     }
@@ -280,6 +284,10 @@ export class Parse {
                 this.buildNode(this.scene, n);
             }
         });
+
+        if (this.cameras.length === 0) {
+            this.cameras.push(this.camera);
+        }
 
         this.calculateFov();
 

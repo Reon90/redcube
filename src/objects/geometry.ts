@@ -1,6 +1,6 @@
 import { Vector3, Matrix4 } from '../matrix';
 import { UniformBuffer } from './uniform';
-import { buildArray, getDataType, calculateOffset, getAttributeIndex, calculateBinormals, getGlEnum, calculateNormals } from '../utils';
+import { buildArray, getDataType, calculateOffset, calculateBinormals, getGlEnum, calculateNormals, ArrayBufferMap } from '../utils';
 import { decoderModule, decodeDracoData, getArray } from '../decoder';
 
 interface Attributes {
@@ -17,6 +17,17 @@ interface BoundingSphere {
     center: Vector3;
     radius: number;
 }
+
+const GeometryEnum = {
+    POSITION: [0, 3],
+    NORMAL: [1, 3],
+    TEXCOORD_0: [2, 2],
+    JOINTS_0: [3, 4],
+    WEIGHTS_0: [4, 4],
+    TANGENT: [5, 4],
+    COLOR_0: [6, 4],
+    TEXCOORD_1: [7, 2]
+};
 
 export class Geometry {
     UBO: WebGLBuffer;
@@ -226,22 +237,25 @@ export class Geometry {
                 vertexBuffers.NORMAL,
                 vertexBuffers.TEXCOORD_0
             );
+            vertexAccessor.set('TANGENT', { componentType: gl.FLOAT });
         }
 
         if (!vertexBuffers.NORMAL && indicesBuffer) {
             vertexBuffers.NORMAL = calculateNormals(indicesBuffer, vertexBuffers.POSITION);
+            vertexAccessor.set('NORMAL', { componentType: gl.FLOAT });
         }
 
         const VAO = gl.createVertexArray();
         gl.bindVertexArray(VAO);
 
         for (const k in vertexBuffers) {
+            const accessor = vertexAccessor.get(k);
             const VBO = gl.createBuffer();
             gl.bindBuffer(gl.ARRAY_BUFFER, VBO);
             gl.bufferData(gl.ARRAY_BUFFER, vertexBuffers[k], gl.STATIC_DRAW);
-            const index = getAttributeIndex(k);
+            const index = GeometryEnum[k];
             gl.enableVertexAttribArray(index[0]);
-            gl.vertexAttribPointer(index[0], index[1], index[2], false, 0, 0);
+            gl.vertexAttribPointer(index[0], index[1], accessor.componentType, false, 0, 0);
         }
         if (indicesBuffer) {
             const VBO = gl.createBuffer();
@@ -299,5 +313,20 @@ export class Geometry {
         this.UBO = UBO;
         this.uniformBuffer = uniformBuffer;
         gl.bindBuffer(gl.UNIFORM_BUFFER, null);
+    }
+
+    update(gl, geometry) {
+        gl.bindVertexArray(this.VAO);
+
+        for (const k in geometry) {
+            const VBO = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, VBO);
+            gl.bufferData(gl.ARRAY_BUFFER, geometry[k], gl.STATIC_DRAW);
+            const index = GeometryEnum[k];
+            gl.enableVertexAttribArray(index[0]);
+            gl.vertexAttribPointer(index[0], index[1], gl[ArrayBufferMap.get(this.attributes[k].constructor)], false, 0, 0);
+        }
+
+        gl.bindVertexArray(null);
     }
 }
