@@ -10,6 +10,7 @@ interface Attributes {
     JOINTS_0: Float32Array;
     WEIGHTS_0: Float32Array;
     TANGENT: Float32Array;
+    COLOR_0: Float32Array;
 }
 interface BoundingSphere {
     min: Vector3;

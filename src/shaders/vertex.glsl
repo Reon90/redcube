@@ -46,7 +46,11 @@ void main() {
         mat4 skin = mat4(1.0);
     #endif
 
-    vColor = inColor;
+    #ifdef COLOR_255
+        vColor = inColor / 255.0;
+    #else
+        vColor = inColor;
+    #endif
     outUV = inUV;
     outUV2 = inUV2;
     #ifdef TANGENT

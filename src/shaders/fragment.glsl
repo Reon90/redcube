@@ -258,8 +258,9 @@ void main() {
         #endif
     #else
         #ifdef METALROUGHNESSMAP
-            roughness = texture(metallicRoughnessTexture, outUV).g;
-            metallic = texture(metallicRoughnessTexture, outUV).b;
+            vec4 metallicRoughness = texture(metallicRoughnessTexture, outUV);
+            roughness *= metallicRoughness.g;
+            metallic *= metallicRoughness.b;
         #endif
     #endif
 

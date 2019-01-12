@@ -150,12 +150,16 @@ export class Parse {
         if (primitive.attributes.TANGENT || material.hasNormal()) {
             defines.push({ name: 'TANGENT' });
         }
-        const program = this.createProgram(defines);
-        material.createUniforms(gl, program);
-        material.updateUniforms(gl, program, this.camera, this.lights);
 
         const mesh = skin !== undefined ? new SkinnedMesh(name, parent) : new Mesh(name, parent);
         const geometry = new Geometry(gl, this.json, this.arrayBuffer, weights, primitive, material.hasNormal());
+        if (geometry.attributes.COLOR_0 && geometry.attributes.COLOR_0.constructor !== Float32Array) {
+            defines.push({ name: 'COLOR_255' });
+        }
+
+        const program = this.createProgram(defines);
+        material.createUniforms(gl, program);
+        material.updateUniforms(gl, program, this.camera, this.lights);
 
         mesh.setProgram(program);
         mesh.setMode(primitive.mode);

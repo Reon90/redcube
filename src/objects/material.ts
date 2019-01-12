@@ -208,8 +208,8 @@ export class Material extends M {
             materialUniformBuffer.add('specularFactor', this.pbrMetallicRoughness.specularFactor || [0, 0, 0]);
             materialUniformBuffer.add('emissiveFactor', this.emissiveFactor || [0, 0, 0]);
             materialUniformBuffer.add('glossinessFactor', this.pbrMetallicRoughness.glossinessFactor || 0.5);
-            materialUniformBuffer.add('metallicFactor', this.pbrMetallicRoughness.metallicFactor || 0.0);
-            materialUniformBuffer.add('roughnessFactor', this.pbrMetallicRoughness.roughnessFactor || 0.5);
+            materialUniformBuffer.add('metallicFactor', this.pbrMetallicRoughness.metallicFactor || 1);
+            materialUniformBuffer.add('roughnessFactor', this.pbrMetallicRoughness.roughnessFactor || 1);
             materialUniformBuffer.done();
 
             const mIndex = gl.getUniformBlockIndex(program, 'Material');
