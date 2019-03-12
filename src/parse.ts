@@ -386,7 +386,7 @@ export class Parse {
                 gl.uniformBlockBinding(mesh.program, uIndex, 2);
                 const UBO = gl.createBuffer();
                 gl.bindBuffer(gl.UNIFORM_BUFFER, UBO);
-                gl.bufferData(gl.UNIFORM_BUFFER, matrices, gl.DYNAMIC_DRAW);
+                gl.bufferData(gl.UNIFORM_BUFFER, matrices, gl.STREAM_DRAW);
                 mesh.geometry.SKIN = UBO;
                 gl.bindBuffer(gl.UNIFORM_BUFFER, null);
             }
@@ -396,16 +396,16 @@ export class Parse {
                 materialUniformBuffer.add('lightPos', this.light.getPosition());
                 materialUniformBuffer.add('viewPos', this._camera.getPosition());
                 materialUniformBuffer.add('textureMatrix', (mesh.material.matrix && mesh.material.matrix.elements) || new Matrix3().elements);
-                materialUniformBuffer.add('isOutline', new Float32Array([0, 0, 0, 0]));
                 materialUniformBuffer.done();
 
                 const mIndex = gl.getUniformBlockIndex(mesh.program, 'Material');
                 gl.uniformBlockBinding(mesh.program, mIndex, 1);
                 const mUBO = gl.createBuffer();
                 gl.bindBuffer(gl.UNIFORM_BUFFER, mUBO);
-                gl.bufferData(gl.UNIFORM_BUFFER, materialUniformBuffer.store, gl.STATIC_DRAW);
+                gl.bufferData(gl.UNIFORM_BUFFER, materialUniformBuffer.store, gl.STREAM_DRAW);
                 mesh.material.UBO = mUBO;
                 mesh.material.uniformBuffer = materialUniformBuffer;
+                gl.bindBuffer(gl.UNIFORM_BUFFER, null);
 
                 const normalMatrix = new Matrix4(mesh.matrixWorld);
                 normalMatrix.invert().transpose();
@@ -423,7 +423,7 @@ export class Parse {
                 gl.uniformBlockBinding(mesh.program, uIndex, 0);
                 const UBO = gl.createBuffer();
                 gl.bindBuffer(gl.UNIFORM_BUFFER, UBO);
-                gl.bufferData(gl.UNIFORM_BUFFER, uniformBuffer.store, gl.DYNAMIC_DRAW);
+                gl.bufferData(gl.UNIFORM_BUFFER, uniformBuffer.store, gl.STREAM_DRAW);
                 mesh.geometry.UBO = UBO;
                 mesh.geometry.uniformBuffer = uniformBuffer;
                 gl.bindBuffer(gl.UNIFORM_BUFFER, null);

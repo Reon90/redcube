@@ -2,6 +2,7 @@ import { Matrix4, Vector3 } from '../matrix';
 import { Material } from '../GLTF';
 import { Object3D } from './object3d';
 import { UniformBuffer } from './uniform';
+import { glEnum } from '../utils';
 
 interface MeshMaterial extends Material {
     blend: string;
@@ -100,8 +101,10 @@ export class Mesh extends Object3D {
         };
     }
 
-    draw(gl, {camera, light, preDepthTexture, fakeDepth, needUpdateView, needUpdateProjection, irradiancemap, prefilterMap, brdfLUT, isOutline}, isShadow, isLight) {
-        gl.useProgram(this.program);
+    draw(gl, {camera, light, preDepthTexture, fakeDepth, needUpdateView, needUpdateProjection, irradiancemap, prefilterMap, brdfLUT, isOutline}, isShadow, isLight, p) {
+        p = p || this.program;
+        gl.flush();
+        gl.useProgram(p);
 
         gl.bindVertexArray(this.geometry.VAO);
         gl.bindBufferBase(gl.UNIFORM_BUFFER, 0, this.geometry.UBO);
@@ -142,49 +145,52 @@ export class Mesh extends Object3D {
                 this.material.uniformBuffer.update(gl, 'lightPos', light.getPosition());
                 this.material.uniformBuffer.update(gl, 'viewPos', camera.getPosition());
             }
-            this.material.uniformBuffer.update(gl, 'isOutline', new Float32Array(isOutline ? [1,1,1,1] : [0, 0, 0, 0]));
         }
 
-        gl.uniform1i( gl.getUniformLocation(this.program, 'prefilterMap'), prefilterMap.index);
-        gl.uniform1i( gl.getUniformLocation(this.program, 'brdfLUT'), brdfLUT.index);
-        gl.uniform1i( gl.getUniformLocation(this.program, 'irradianceMap'), irradiancemap.index);
-        gl.uniform1i( gl.getUniformLocation(this.program, 'depthTexture'), isShadow ? fakeDepth.index : preDepthTexture.index);
+        
+
+        gl.uniform1f( gl.getUniformLocation(p, 'isOutline'), 1);
+        
+        gl.uniform1i( gl.getUniformLocation(p, 'prefilterMap'), prefilterMap.index);
+        gl.uniform1i( gl.getUniformLocation(p, 'brdfLUT'), brdfLUT.index);
+        gl.uniform1i( gl.getUniformLocation(p, 'irradianceMap'), irradiancemap.index);
+        gl.uniform1i( gl.getUniformLocation(p, 'depthTexture'), isShadow ? fakeDepth.index : preDepthTexture.index);
         let index = 31;
-        if (this.material.pbrMetallicRoughness.baseColorTexture) {
-            gl.activeTexture(gl[`TEXTURE${index}`]);
-            gl.bindTexture(gl.TEXTURE_2D, this.material.pbrMetallicRoughness.baseColorTexture);
-            gl.bindSampler(index, this.material.pbrMetallicRoughness.baseColorTexture.sampler);
-            gl.uniform1i(this.material.uniforms.baseColorTexture, index);
-            index--;
-        }
-        if (this.material.pbrMetallicRoughness.metallicRoughnessTexture) {
-            gl.activeTexture(gl[`TEXTURE${index}`]);
-            gl.bindTexture(gl.TEXTURE_2D, this.material.pbrMetallicRoughness.metallicRoughnessTexture);
-            gl.bindSampler(index, this.material.pbrMetallicRoughness.metallicRoughnessTexture.sampler);
-            gl.uniform1i(this.material.uniforms.metallicRoughnessTexture, index);
-            index--;
-        }
-        if (this.material.normalTexture) {
-            gl.activeTexture(gl[`TEXTURE${index}`]);
-            gl.bindTexture(gl.TEXTURE_2D, this.material.normalTexture);
-            gl.bindSampler(index, this.material.normalTexture.sampler);
-            gl.uniform1i(this.material.uniforms.normalTexture, index);
-            index--;
-        }
-        if (this.material.occlusionTexture) {
-            gl.activeTexture(gl[`TEXTURE${index}`]);
-            gl.bindTexture(gl.TEXTURE_2D, this.material.occlusionTexture);
-            gl.bindSampler(index, this.material.occlusionTexture.sampler);
-            gl.uniform1i(this.material.uniforms.occlusionTexture, index);
-            index--;
-        }
-        if (this.material.emissiveTexture) {
-            gl.activeTexture(gl[`TEXTURE${index}`]);
-            gl.bindTexture(gl.TEXTURE_2D, this.material.emissiveTexture);
-            gl.bindSampler(index, this.material.emissiveTexture.sampler);
-            gl.uniform1i(this.material.uniforms.emissiveTexture, index);
-            index--;
-        }
+        // if (this.material.pbrMetallicRoughness.baseColorTexture) {
+        //     gl.activeTexture(gl[`TEXTURE${index}`]);
+        //     gl.bindTexture(gl.TEXTURE_2D, this.material.pbrMetallicRoughness.baseColorTexture);
+        //     gl.bindSampler(index, this.material.pbrMetallicRoughness.baseColorTexture.sampler);
+        //     gl.uniform1i(this.material.uniforms.baseColorTexture, index);
+        //     index--;
+        // }
+        // if (this.material.pbrMetallicRoughness.metallicRoughnessTexture) {
+        //     gl.activeTexture(gl[`TEXTURE${index}`]);
+        //     gl.bindTexture(gl.TEXTURE_2D, this.material.pbrMetallicRoughness.metallicRoughnessTexture);
+        //     gl.bindSampler(index, this.material.pbrMetallicRoughness.metallicRoughnessTexture.sampler);
+        //     gl.uniform1i(this.material.uniforms.metallicRoughnessTexture, index);
+        //     index--;
+        // }
+        // if (this.material.normalTexture) {
+        //     gl.activeTexture(gl[`TEXTURE${index}`]);
+        //     gl.bindTexture(gl.TEXTURE_2D, this.material.normalTexture);
+        //     gl.bindSampler(index, this.material.normalTexture.sampler);
+        //     gl.uniform1i(this.material.uniforms.normalTexture, index);
+        //     index--;
+        // }
+        // if (this.material.occlusionTexture) {
+        //     gl.activeTexture(gl[`TEXTURE${index}`]);
+        //     gl.bindTexture(gl.TEXTURE_2D, this.material.occlusionTexture);
+        //     gl.bindSampler(index, this.material.occlusionTexture.sampler);
+        //     gl.uniform1i(this.material.uniforms.occlusionTexture, index);
+        //     index--;
+        // }
+        // if (this.material.emissiveTexture) {
+        //     gl.activeTexture(gl[`TEXTURE${index}`]);
+        //     gl.bindTexture(gl.TEXTURE_2D, this.material.emissiveTexture);
+        //     gl.bindSampler(index, this.material.emissiveTexture.sampler);
+        //     gl.uniform1i(this.material.uniforms.emissiveTexture, index);
+        //     index--;
+        // }
         if (this.material.doubleSided) {
             gl.disable(gl.CULL_FACE);
         }
@@ -196,9 +202,19 @@ export class Mesh extends Object3D {
             gl.drawArrays(this.mode, 0, this.geometry.attributes.POSITION.length / 3);
         }
 
+        gl.uniform1f( gl.getUniformLocation(p, 'isOutline'), 0.5);
+
+        if (this.geometry.indicesBuffer) {
+            // @ts-ignore
+            gl.drawElements(this.mode, this.geometry.indicesBuffer.length, gl[this.geometry.indicesBuffer.type], 0);
+        } else {
+            gl.drawArrays(this.mode, 0, this.geometry.attributes.POSITION.length / 3);
+        }
+
         if (this.material.doubleSided) {
             gl.enable(gl.CULL_FACE);
         }
+
     }
 
     calculateBounding() {

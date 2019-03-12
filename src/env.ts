@@ -105,20 +105,22 @@ export class Env {
         in vec3 outUV;
         layout (location = 0) out vec4 color;
 
-        uniform samplerCube environmentMap;
+        uniform float a;
         
         void main() {
-            vec3 c = textureLod(environmentMap, outUV, 0.0).rgb;
+            //vec3 c = textureLod(environmentMap, outUV, 0.0).rgb;
             
-            color = vec4(c, 1.0);
+            color = vec4(vec3(a), 1.0);
         }
         `, program);
         gl.linkProgram(program);
         gl.useProgram(program);
         gl.bindVertexArray(this.VAO);
         gl.uniformMatrix4fv(gl.getUniformLocation(program, 'projection'), false, m.elements);
-        gl.uniform1i(gl.getUniformLocation(program, 'environmentMap'), this.map.index);
+        gl.uniform1f(gl.getUniformLocation(program, 'a'), 1);
         gl.uniformMatrix4fv(gl.getUniformLocation(program, 'view'), false, this._camera.matrixWorldInvert.elements);
+        gl.drawArrays(gl.TRIANGLES, 0, 36);
+        gl.uniform1f(gl.getUniformLocation(program, 'a'),0.5);
         gl.drawArrays(gl.TRIANGLES, 0, 36);
     }
 

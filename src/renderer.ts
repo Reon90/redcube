@@ -1,6 +1,6 @@
 import { Scene, Mesh, Camera, Bone } from './objects/index';
-import { Vector2, Vector3, Vector4, Frustum } from './matrix';
-import { getAnimationComponent, interpolation, walk, getAttributeIndex } from './utils';
+import { Vector2, Vector3, Vector4, Frustum, Matrix4 } from './matrix';
+import { getAnimationComponent, interpolation, walk, getAttributeIndex, createProgram } from './utils';
 import { Parse } from './parse';
 import { PostProcessing } from './postprocessing';
 import { Particles } from './particles';
@@ -8,6 +8,9 @@ import { FPS } from './fps';
 import { Light as PPLight } from './postprocessors/light';
 import { Shadow } from './postprocessors/shadow';
 import { Env } from './env';
+
+import vertexShader from './shaders/vertex.glsl';
+import fragmentShader from './shaders/fragment.glsl';
 
 let gl;
 
@@ -28,6 +31,9 @@ export class Renderer {
         this.reflow = true;
         this.fps = new FPS;
         this.getState = getState;
+
+        this.i= 0;
+        this.x = createProgram(vertexShader, fragmentShader);
     }
 
     setEnv(env) {
@@ -180,7 +186,7 @@ export class Renderer {
                 this.PP.bindPostPass();
             }
 
-            gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+            gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENCIL_BUFFER_BIT);
 
             //this.env.draw();
 
@@ -203,9 +209,12 @@ export class Renderer {
     }
 
     renderScene(isShadow, isLight) {
+        this.i++;
         gl.enable(gl.STENCIL_TEST);
         gl.enable(gl.DEPTH_TEST);
         gl.enable(gl.CULL_FACE);
+        gl.depthFunc(gl.LESS);
+        gl.stencilFunc(gl.NOTEQUAL, 1, 0xFF);
         gl.stencilOp(gl.KEEP, gl.KEEP, gl.REPLACE);
         gl.stencilMask(0x00);
 
@@ -219,24 +228,31 @@ export class Renderer {
 
         this.scene.opaqueChildren.forEach((mesh, i) => {
             if (mesh.visible) {
-                if (i == 0) {
-                    gl.stencilFunc(gl.ALWAYS, 1, 0xFF); // каждый фрагмент обновит трафаретный буфер
-                    gl.stencilMask(0xFF); // включить запись в трафаретный буфер
-                }
+                // if (i == 0) {
+                //     gl.stencilFunc(gl.ALWAYS, 1, 0xFF); // каждый фрагмент обновит трафаретный буфер
+                //     gl.stencilMask(0xFF); // включить запись в трафаретный буфер
+                // }
                 mesh.draw(gl, this.getState(), isShadow, isLight);
-                if (i == 0) {
-                    gl.stencilFunc(gl.NOTEQUAL, 1, 0xFF);
-                    gl.stencilMask(0x00); 
-                    gl.disable(gl.DEPTH_TEST);
-                    mesh.matrix.scale(new Vector3([1.1, 1.1, 1.1]));
-                    mesh.updateMatrix();
-                    mesh.reflow = true;
+                 //mesh.draw(gl, {...this.getState(), isOutline: true}, isShadow, isLight, this.x);
+                //mesh.draw(gl, {...this.getState(), isOutline: true}, isShadow, isLight, this.x);
+                // if (i == 0) {
+                //     gl.stencilFunc(gl.NOTEQUAL, 1, 0xFF);
+                //     gl.stencilMask(0x00); 
+                //     gl.disable(gl.DEPTH_TEST);
+                //     const temp = new Matrix4(mesh.matrix);
+                //     mesh.matrix.scale(new Vector3([1.5, 1.5, 1.5]));
+                //     mesh.updateMatrix();
+                //     mesh.reflow = true;
 
-                    mesh.draw(gl, {...this.getState(), isOutline: true}, isShadow, isLight);
-                    gl.stencilMask(0xFF);
-                    gl.enable(gl.DEPTH_TEST);
-                    gl.disable(gl.STENCIL_TEST);
-                }
+                //     mesh.draw(gl, {...this.getState(), isOutline: true}, isShadow, isLight, this.x);
+
+                //     mesh.matrix = temp;
+                //     mesh.updateMatrix();
+                //     mesh.reflow = true;
+                //     // gl.stencilMask(0xFF);
+                //     // gl.enable(gl.DEPTH_TEST);
+                //     // gl.disable(gl.STENCIL_TEST);
+                // }
             }
         });
         if (this.scene.transparentChildren.length) {

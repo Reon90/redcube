@@ -157,7 +157,7 @@ class RedCube {
     }
 
     glInit() {
-        gl = this.canvas.getContext('webgl2', { antialias: this.processors.length === 0 });
+        gl = this.canvas.getContext('webgl2', { stencil: true, antialias: this.processors.length === 0 });
         this.gl = gl;
 
         if (!gl) {
