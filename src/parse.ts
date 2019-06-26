@@ -1,7 +1,8 @@
 import { buildArray, getDataType, walk, getAnimationComponent, calculateProjection, createProgram, calculateOffset } from './utils';
 import { Mesh, SkinnedMesh, Bone, Camera, Object3D, Scene, Light, UniformBuffer, Material } from './objects/index';
-import { Matrix4, Frustum } from './matrix';
+import { Matrix4 } from './matrix';
 import { GlTf } from '../GLTF';
+import { fetch, fetchBinary, fetchImage } from './fetch';
 
 import vertexShader from './shaders/vertex.glsl';
 import fragmentShader from './shaders/fragment.glsl';
@@ -112,7 +113,7 @@ export class Parse {
                         }
                         return buffer;
                     } else {
-                        return fetch(`${this.host}${url}`).then(res => res.arrayBuffer());
+                        return fetchBinary(`${this.host}${url}`)/*.then(res => res.arrayBuffer())*/;
                     }
                 } else {
                     return Promise.resolve(url);
@@ -157,11 +158,6 @@ export class Parse {
             defines.push({ name: 'COLOR_255' });
         }
 
-        const program = this.createProgram(defines);
-        material.createUniforms(gl, program);
-        material.updateUniforms(gl, program, this.camera, this.lights);
-
-        mesh.setProgram(program);
         mesh.setMode(primitive.mode);
         mesh.setMaterial(material);
         mesh.setGeometry(geometry);
@@ -220,7 +216,6 @@ export class Parse {
         } else if (el.matrix) {
             child.setMatrix(el.matrix);
         }
-
         child.updateMatrix();
 
         child.id = el.name;
@@ -289,17 +284,8 @@ export class Parse {
             }
         });
 
-        if (this.cameras.length === 0) {
-            this.cameras.push(this.camera);
-        }
-
-        this.calculateFov();
-
-        const planes = Frustum(this.camera.getViewProjMatrix());
-
         walk(this.scene, mesh => {
             if (mesh instanceof Mesh) {
-                mesh.geometry.updateUniforms(gl, mesh.program, mesh.matrixWorld, this.camera, this.light);
 
                 if (mesh.material.alpha) {
                     this.scene.transparentChildren.push(mesh);
@@ -307,7 +293,6 @@ export class Parse {
                     this.scene.opaqueChildren.push(mesh);
                 }
                 this.scene.meshes.push(mesh);
-                mesh.visible = mesh.isVisible(planes);
 
                 if (mesh instanceof SkinnedMesh) {
                     for (const join of this.skins[mesh.skin].jointNames) {
@@ -456,22 +441,19 @@ export class Parse {
                 });
         } else {
             return fetch(this.url)
-                .then(res => res.json())
-                .then(j => {
-                    for (const key in j.buffers) {
-                        this.scene.bin.push(j.buffers[key].uri);
+                // .then(res => res.json())
+                .then(json => {
+                    for (const key in json.buffers) {
+                        this.scene.bin.push(json.buffers[key].uri);
                     }
-                    this.json = j;
+                    this.json = json;
 
                     return true;
                 });
         }
     }
 
-    initTextures() {
-        if (!this.json.textures) {
-            return true;
-        }
+    createTextures(scene) {
         const samplers = this.json.samplers || [{}];
         this.samplers = samplers.map(s => {
             const sampler = gl.createSampler();
@@ -482,6 +464,34 @@ export class Parse {
             return sampler;
         });
 
+        this.scene.meshes.forEach((mesh) => {
+            const textureTypes = ['emissiveTexture', 'occlusionTexture', 'baseColorTexture', 'metallicRoughnessTexture'];
+            
+            
+            const t = mesh.material['normalTexture'];
+            if (t) {
+                const sampler = this.samplers[t.sampler !== undefined ? t.sampler : 0];
+
+                mesh.material['normalTexture'] = this.handleTextureLoaded(sampler, t.image, t.name);
+            }
+
+            for (let i=0; i < textureTypes.length; i++) {
+                const textureType = textureTypes[i];
+                const t = mesh.material.pbrMetallicRoughness[textureType] || mesh.material[textureType];
+                if (!t) {
+                    continue;
+                }
+                const sampler = this.samplers[t.sampler !== undefined ? t.sampler : 0];
+
+                mesh.material.pbrMetallicRoughness[textureType] = this.handleTextureLoaded(sampler, t.image, t.name);
+            }
+        });
+    }
+
+    initTextures() {
+        if (!this.json.textures) {
+            return true;
+        }
         const texturesMap: texturesMap = {};
         this.json.textures.forEach(t => {
             const name = String(t.sampler) + String(t.source);
@@ -490,27 +500,10 @@ export class Parse {
             t.name = name;
         });
         const promiseArr = Object.values(texturesMap).map(t => {
-            return new Promise((resolve, reject) => {
-                const sampler = this.samplers[t.sampler !== undefined ? t.sampler : 0];
-                const source = this.json.images[t.source];
-                const image = new Image();
-                image.onload = () => {
-                    resolve(this.handleTextureLoaded(sampler, image, t.name));
-                };
-                image.onerror = err => {
-                    reject(err);
-                };
-                image.crossOrigin = 'anonymous';
-                if (source.bufferView !== undefined) {
-                    const bufferView = this.json.bufferViews[source.bufferView];
-                    const buffer = new Uint8Array(this.arrayBuffer[bufferView.buffer], bufferView.byteOffset, bufferView.byteLength);
-                    const blob = new Blob([buffer], { type: source.mimeType });
-                    image.src = URL.createObjectURL(blob);
-                } else if (/base64/.test(source.uri)) {
-                    image.src = source.uri;
-                } else {
-                    image.src = `${this.host}${source.uri}`;
-                }
+            const source = this.json.images[t.source];
+            return fetchImage({
+                url: `${this.host}${source.uri}`,
+                name: t.name,
             });
         });
 

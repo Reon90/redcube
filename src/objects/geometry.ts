@@ -246,24 +246,7 @@ export class Geometry {
             vertexAccessor.set('NORMAL', { componentType: gl.FLOAT });
         }
 
-        const VAO = gl.createVertexArray();
-        gl.bindVertexArray(VAO);
-
-        for (const k in vertexBuffers) {
-            const accessor = vertexAccessor.get(k);
-            const VBO = gl.createBuffer();
-            gl.bindBuffer(gl.ARRAY_BUFFER, VBO);
-            gl.bufferData(gl.ARRAY_BUFFER, vertexBuffers[k], gl.STATIC_DRAW);
-            const index = GeometryEnum[k];
-            gl.enableVertexAttribArray(index[0]);
-            gl.vertexAttribPointer(index[0], index[1], accessor.componentType, false, 0, 0);
-        }
-        if (indicesBuffer) {
-            const VBO = gl.createBuffer();
-            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, VBO);
-            gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indicesBuffer, gl.STATIC_DRAW);
-        }
-        this.VAO = VAO;
+        this.vertexAccessor = vertexAccessor;
         this.attributes = vertexBuffers;
         this.indicesBuffer = indicesBuffer;
         const { min, max } = boundingBox;
@@ -272,6 +255,28 @@ export class Geometry {
 
         this.calculateBounding();
 
+        
+    }
+
+    createGeometryForWebGl(gl) {
+        const VAO = gl.createVertexArray();
+        gl.bindVertexArray(VAO);
+
+        for (const k in this.attributes) {
+            const accessor = this.vertexAccessor.get(k);
+            const VBO = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, VBO);
+            gl.bufferData(gl.ARRAY_BUFFER, this.attributes[k], gl.STATIC_DRAW);
+            const index = GeometryEnum[k];
+            gl.enableVertexAttribArray(index[0]);
+            gl.vertexAttribPointer(index[0], index[1], accessor.componentType, false, 0, 0);
+        }
+        if (this.indicesBuffer) {
+            const VBO = gl.createBuffer();
+            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, VBO);
+            gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, this.indicesBuffer, gl.STATIC_DRAW);
+        }
+        this.VAO = VAO;
         gl.bindVertexArray(null);
     }
 
