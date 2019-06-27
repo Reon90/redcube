@@ -2686,12 +2686,6 @@ class Parse {
                     this.scene.opaqueChildren.push(mesh);
                 }
                 this.scene.meshes.push(mesh);
-                if (mesh instanceof index_1.SkinnedMesh) {
-                    for (const join of this.skins[mesh.skin].jointNames) {
-                        utils_1.walk(this.scene, this.buildBones.bind(this, join, this.skins[mesh.skin]));
-                    }
-                    mesh.setSkin(gl, this.skins[mesh.skin]);
-                }
             }
         });
         this.scene.opaqueChildren.sort((a, b) => a.distance - b.distance);
@@ -2781,16 +2775,10 @@ class Parse {
             this.skins.push(v);
         }
     }
-    buildBones(join, v, node) {
-        if (node.name === join) {
-            v.bones.push(node);
-        }
-    }
     getJson() {
         if (/glb/.test(this.url)) {
-            return fetch_1.fetch(this.url)
-                .then(res => res.arrayBuffer())
-                .then(b => {
+            return fetch_1.fetchBinary(this.url)
+                .then((b) => {
                 const decoder = new TextDecoder('utf-8');
                 const [jsonLength] = new Uint32Array(b, 12, 1);
                 const jsonBuffer = new Uint8Array(b, 20, jsonLength);
@@ -2804,7 +2792,7 @@ class Parse {
         else {
             return fetch_1.fetch(this.url)
                 // .then(res => res.json())
-                .then(json => {
+                .then((json) => {
                 for (const key in json.buffers) {
                     this.scene.bin.push(json.buffers[key].uri);
                 }
@@ -2813,7 +2801,7 @@ class Parse {
             });
         }
     }
-    createTextures(scene) {
+    createTextures() {
         const samplers = this.json.samplers || [{}];
         this.samplers = samplers.map(s => {
             const sampler = gl.createSampler();
@@ -2824,15 +2812,20 @@ class Parse {
             return sampler;
         });
         this.scene.meshes.forEach((mesh) => {
-            const textureTypes = ['emissiveTexture', 'occlusionTexture', 'baseColorTexture', 'metallicRoughnessTexture'];
-            const t = mesh.material['normalTexture'];
-            if (t) {
+            const textureTypes = ['baseColorTexture', 'metallicRoughnessTexture'];
+            const textureTypes2 = ['emissiveTexture', 'normalTexture', 'occlusionTexture'];
+            for (let i = 0; i < textureTypes2.length; i++) {
+                const textureType = textureTypes2[i];
+                const t = mesh.material[textureType];
+                if (!t) {
+                    continue;
+                }
                 const sampler = this.samplers[t.sampler !== undefined ? t.sampler : 0];
-                mesh.material['normalTexture'] = this.handleTextureLoaded(sampler, t.image, t.name);
+                mesh.material[textureType] = this.handleTextureLoaded(sampler, t.image, t.name);
             }
             for (let i = 0; i < textureTypes.length; i++) {
                 const textureType = textureTypes[i];
-                const t = mesh.material.pbrMetallicRoughness[textureType] || mesh.material[textureType];
+                const t = mesh.material.pbrMetallicRoughness[textureType];
                 if (!t) {
                     continue;
                 }
@@ -2905,10 +2898,9 @@ class RedCube {
         this.url = url;
     }
     async init(cb) {
-        debugger;
         const scene = new index_1.Scene();
         try {
-            this.parse = new parse_1.Parse(this.url, []);
+            this.parse = new parse_1.Parse(this.url, [], () => { });
             this.parse.setScene(scene);
             await this.parse.getJson();
             await this.parse.getBuffer();
