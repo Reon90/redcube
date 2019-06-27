@@ -18,6 +18,9 @@ interface BoundingSphere {
     center: Vector3;
     radius: number;
 }
+interface Attr {
+    componentType: string;
+}
 
 const GeometryEnum = {
     POSITION: [0, 3],
@@ -41,6 +44,7 @@ export class Geometry {
     uniforms: object;
     SKIN: WebGLBuffer;
     boundingSphere: BoundingSphere;
+    vertexAccessor: Map<string, Attr>;
 
     constructor(gl, json, arrayBuffer, weights, primitive, hasNormal) {
         this.boundingSphere = {

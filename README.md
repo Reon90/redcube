@@ -12,6 +12,8 @@ npm install redcube.js
 ## Features
 
 Support all glTF features and Khronos extensions ([Samples](https://github.com/KhronosGroup/glTF-Sample-Models/tree/master/2.0))
+Browser support
+Node.js support
 
 ## How to convert 3D model to gltf
 

@@ -1,4 +1,4 @@
-import { Matrix3, Vector3 } from '../matrix';
+import { Matrix3, Vector3, Matrix4 } from '../matrix';
 import { UniformBuffer } from './uniform';
 import { Material as M } from '../../GLTF';
 import { textureEnum } from '../utils';
@@ -33,6 +33,17 @@ export class Material extends M {
     alpha: boolean;
     UBO: WebGLBuffer;
     doubleSided: boolean;
+    defines: Array<string>
+    matrix: Matrix3;
+    uniformBuffer: UniformBuffer;
+    lightUBO1: WebGLBuffer;
+    lightUniformBuffer1: UniformBuffer;
+    lightUBO2: WebGLBuffer;
+    lightUniformBuffer2: UniformBuffer;
+    lightUBO3: WebGLBuffer;
+    lightUniformBuffer3: UniformBuffer;
+    lightUBO4: WebGLBuffer;
+    lightUniformBuffer4: UniformBuffer;
 
     constructor(m = defaultMaterial, textures, defines, lights) {
         super();

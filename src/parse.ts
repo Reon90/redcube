@@ -293,13 +293,6 @@ export class Parse {
                     this.scene.opaqueChildren.push(mesh);
                 }
                 this.scene.meshes.push(mesh);
-
-                if (mesh instanceof SkinnedMesh) {
-                    for (const join of this.skins[mesh.skin].jointNames) {
-                        walk(this.scene, this.buildBones.bind(this, join, this.skins[mesh.skin]));
-                    }
-                    mesh.setSkin(gl, this.skins[mesh.skin]);
-                }
             }
         });
 
@@ -417,12 +410,6 @@ export class Parse {
         }
     }
 
-    buildBones(join, v, node) {
-        if (node.name === join) {
-            v.bones.push(node);
-        }
-    }
-
     getJson() {
         if (/glb/.test(this.url)) {
             return fetch(this.url)
@@ -453,7 +440,7 @@ export class Parse {
         }
     }
 
-    createTextures(scene) {
+    createTextures() {
         const samplers = this.json.samplers || [{}];
         this.samplers = samplers.map(s => {
             const sampler = gl.createSampler();
@@ -465,19 +452,23 @@ export class Parse {
         });
 
         this.scene.meshes.forEach((mesh) => {
-            const textureTypes = ['emissiveTexture', 'occlusionTexture', 'baseColorTexture', 'metallicRoughnessTexture'];
-            
-            
-            const t = mesh.material['normalTexture'];
-            if (t) {
+            const textureTypes = ['baseColorTexture', 'metallicRoughnessTexture'];
+            const textureTypes2 = ['emissiveTexture', 'normalTexture', 'occlusionTexture'];
+
+            for (let i=0; i < textureTypes2.length; i++) {
+                const textureType = textureTypes2[i];
+                const t = mesh.material[textureType];
+                if (!t) {
+                    continue;
+                }
                 const sampler = this.samplers[t.sampler !== undefined ? t.sampler : 0];
 
-                mesh.material['normalTexture'] = this.handleTextureLoaded(sampler, t.image, t.name);
+                mesh.material[textureType] = this.handleTextureLoaded(sampler, t.image, t.name);
             }
 
             for (let i=0; i < textureTypes.length; i++) {
                 const textureType = textureTypes[i];
-                const t = mesh.material.pbrMetallicRoughness[textureType] || mesh.material[textureType];
+                const t = mesh.material.pbrMetallicRoughness[textureType];
                 if (!t) {
                     continue;
                 }

@@ -14,7 +14,7 @@ import { Light as PPLight } from './postprocessors/light';
 const FOV = 15; // degrees
 
 class RedCube {
-
+    url: string;
     parse: Parse;
 
     constructor(url) {
@@ -28,7 +28,7 @@ class RedCube {
     async init(cb) {
         const scene = new Scene();
         try {
-        this.parse = new Parse(this.url, []);
+        this.parse = new Parse(this.url, [], () => {});
 
         this.parse.setScene(scene);
 
