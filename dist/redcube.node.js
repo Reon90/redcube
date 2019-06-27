@@ -337,7 +337,7 @@ function fetchBinary(url) {
                     throw err;
                 }
                 else {
-                    resolve(data);
+                    resolve(new Uint8Array(data).buffer);
                 }
             });
         });
@@ -379,7 +379,7 @@ function fetchImage({ url, name }) {
                 else {
                     resolve({
                         name,
-                        image: data,
+                        image: new Uint8Array(data).buffer,
                     });
                 }
             });
@@ -1941,13 +1941,13 @@ class Material extends GLTF_1.Material {
             baseColorFactor: material.pbrMetallicRoughness.baseColorFactor,
             roughnessFactor: material.pbrMetallicRoughness.roughnessFactor,
             metallicFactor: material.pbrMetallicRoughness.metallicFactor,
-            emissiveFactor: material.pbrMetallicRoughness.emissiveFactor,
             specularFactor: material.pbrMetallicRoughness.specularFactor,
             glossinessFactor: material.pbrMetallicRoughness.glossinessFactor
         };
         this.alpha = material.alphaMode === 'BLEND';
         this.blend = material.blend;
         this.doubleSided = material.doubleSided;
+        this.emissiveFactor = material.emissiveFactor;
         if (material.pbrMetallicRoughness.metallicRoughnessTexture) {
             this.pbrMetallicRoughness.metallicRoughnessTexture = textures[material.pbrMetallicRoughness.metallicRoughnessTexture.index];
             defines.push({ name: 'METALROUGHNESSMAP' });

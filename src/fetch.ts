@@ -26,7 +26,7 @@ export function fetchBinary(url) {
         if (err) {
           throw err;
         } else {
-          resolve( data );
+          resolve( new Uint8Array(data).buffer );
         }
       });
     });
@@ -67,7 +67,7 @@ export function fetchImage({url, name}) {
         } else {
           resolve( {
             name,
-            image: data,
+            image: new Uint8Array(data).buffer,
           });
         }
       });
