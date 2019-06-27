@@ -2,6 +2,7 @@
 
 import { Container } from './container';
 import { Renderer } from './renderer';
+import { Frustum } from './matrix';
 import { Scene, Camera, Light } from './objects/index';
 import { Events } from './events';
 import { Env } from './env';
@@ -116,6 +117,31 @@ class RedCube {
         await this.parse.initTextures();
         this.parse.buildSkin();
         this.parse.buildMesh();
+
+
+        this.parse.createTextures();
+
+        if (this.parse.cameras.length === 0) {
+            this.parse.cameras.push(this.camera);
+        }
+
+        this.parse.calculateFov();
+        const planes = Frustum(this.camera.getViewProjMatrix());
+
+
+        this.scene.meshes.forEach((mesh) => {
+            mesh.geometry.createGeometryForWebGl(gl);
+
+            const program = this.parse.createProgram(mesh.defines);
+            mesh.material.createUniforms(gl, program);
+            mesh.material.updateUniforms(gl, program, this.camera, this.parse.lights);
+
+            mesh.setProgram(program);
+
+            mesh.geometry.updateUniforms(gl, mesh.program, mesh.matrixWorld, this.camera, this.light);
+            mesh.visible = mesh.isVisible(planes);
+        });
+
         this.resize(null);
         this.parse.buildAnimation();
         await this.env.createEnvironmentBuffer();

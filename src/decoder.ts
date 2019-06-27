@@ -1,4 +1,5 @@
-import draco3d from 'draco3d';
+// import draco3d from 'draco3d';
+const draco3d = require('draco3d');
 
 export const decoderModule = draco3d.createDecoderModule({});
 

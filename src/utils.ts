@@ -1,9 +1,10 @@
 import { Matrix2, Matrix3, Matrix4, Vector2, Vector3, Vector4 } from './matrix';
-
+import glEnum from './glEnum';
 // @ts-ignore
-export const currentPath = document.currentScript.src.substring(0, document.currentScript.src.lastIndexOf('/'));
+export const currentPath = './';//document.currentScript.src.substring(0, document.currentScript.src.lastIndexOf('/'));
 
-const glEnum = {};
+
+//const glEnum = {};
 let gl;
 let screenTextureCount = 32;
 export const clearColor = [0, 0, 0, 1];
@@ -26,12 +27,12 @@ export const textureEnum = {
 
 export function setGl(_gl) {
     gl = _gl;
-    for (const k in gl) {
-        const v = gl[k];
-        if (typeof v === 'number') {
-            glEnum[v] = k;
-        }
-    }
+    // for (const k in gl) {
+    //     const v = gl[k];
+    //     if (typeof v === 'number') {
+    //         glEnum[v] = k;
+    //     }
+    // }
 }
 
 export function isMatrix(type) {
