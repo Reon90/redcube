@@ -412,9 +412,8 @@ export class Parse {
 
     getJson() {
         if (/glb/.test(this.url)) {
-            return fetch(this.url)
-                .then(res => res.arrayBuffer())
-                .then(b => {
+            return fetchBinary(this.url)
+                .then((b: ArrayBuffer) => {
                     const decoder = new TextDecoder('utf-8');
                     const [jsonLength] = new Uint32Array(b, 12, 1);
                     const jsonBuffer = new Uint8Array(b, 20, jsonLength);
@@ -429,7 +428,7 @@ export class Parse {
         } else {
             return fetch(this.url)
                 // .then(res => res.json())
-                .then(json => {
+                .then((json: GlTf) => {
                     for (const key in json.buffers) {
                         this.scene.bin.push(json.buffers[key].uri);
                     }
