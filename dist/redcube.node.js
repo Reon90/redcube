@@ -1728,11 +1728,11 @@ class Geometry {
         }
         if (hasNormal && primitive.attributes.TANGENT === undefined) {
             vertexBuffers.TANGENT = utils_1.calculateBinormals(indicesBuffer, vertexBuffers.POSITION, vertexBuffers.NORMAL, vertexBuffers.TEXCOORD_0);
-            vertexAccessor.set('TANGENT', { componentType: gl.FLOAT });
+            vertexAccessor.set('TANGENT', { componentType: 5126 });
         }
         if (!vertexBuffers.NORMAL && indicesBuffer) {
             vertexBuffers.NORMAL = utils_1.calculateNormals(indicesBuffer, vertexBuffers.POSITION);
-            vertexAccessor.set('NORMAL', { componentType: gl.FLOAT });
+            vertexAccessor.set('NORMAL', { componentType: 5126 });
         }
         this.vertexAccessor = vertexAccessor;
         this.attributes = vertexBuffers;
@@ -2889,7 +2889,7 @@ exports.Parse = Parse;
 Object.defineProperty(exports, "__esModule", { value: true });
 const index_1 = __webpack_require__(/*! ./objects/index */ "./src/objects/index.ts");
 const parse_1 = __webpack_require__(/*! ./parse */ "./src/parse.ts");
-const FOV = 15; // degrees
+const FOV = 45; // degrees
 class RedCube {
     constructor(url) {
         if (!url) {
@@ -2908,11 +2908,34 @@ class RedCube {
             this.parse.buildSkin();
             this.parse.buildMesh();
             this.parse.buildAnimation();
+            if (this.parse.cameras.length === 0) {
+                this.camera = new index_1.Camera({
+                    type: 'perspective',
+                    isInitial: true,
+                    zoom: 1,
+                    aspect: 1,
+                    perspective: {
+                        yfov: (FOV * Math.PI) / 180
+                    }
+                }, 'perspective');
+                this.parse.cameras.push(this.camera);
+            }
+            this.parse.calculateFov();
+            this.resize();
         }
         catch (e) {
             console.log(e);
         }
+        scene.tracks = this.parse.tracks;
+        scene.cameras = this.parse.cameras;
         cb(scene);
+    }
+    resize() {
+        const z = 5 * this.camera.modelSize;
+        if (this.camera.props.isInitial) {
+            this.camera.setZ(z);
+        }
+        this.camera.updateNF();
     }
 }
 exports.RedCube = RedCube;

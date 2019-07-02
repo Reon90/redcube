@@ -242,12 +242,12 @@ export class Geometry {
                 vertexBuffers.NORMAL,
                 vertexBuffers.TEXCOORD_0
             );
-            vertexAccessor.set('TANGENT', { componentType: gl.FLOAT });
+            vertexAccessor.set('TANGENT', { componentType: 5126 });
         }
 
         if (!vertexBuffers.NORMAL && indicesBuffer) {
             vertexBuffers.NORMAL = calculateNormals(indicesBuffer, vertexBuffers.POSITION);
-            vertexAccessor.set('NORMAL', { componentType: gl.FLOAT });
+            vertexAccessor.set('NORMAL', { componentType: 5126 });
         }
 
         this.vertexAccessor = vertexAccessor;

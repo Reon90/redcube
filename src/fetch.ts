@@ -66,6 +66,7 @@ export function fetchImage({url, name}) {
           throw err;
         } else {
           resolve( {
+            url,
             name,
             image: new Uint8Array(data).buffer,
           });

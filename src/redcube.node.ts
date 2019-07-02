@@ -11,11 +11,12 @@ import { PostProcessing } from './postprocessing';
 import { Particles } from './particles';
 import { Light as PPLight } from './postprocessors/light';
 
-const FOV = 15; // degrees
+const FOV = 45; // degrees
 
 class RedCube {
     url: string;
     parse: Parse;
+    camera: Camera;
 
     constructor(url) {
         if (!url) {
@@ -38,13 +39,42 @@ class RedCube {
         this.parse.buildSkin();
         this.parse.buildMesh();
         this.parse.buildAnimation();
+
+        if (this.parse.cameras.length === 0) {
+            this.camera = new Camera(
+                {
+                    type: 'perspective',
+                    isInitial: true,
+                    zoom: 1,
+                    aspect: 1,
+                    perspective: {
+                        yfov: (FOV * Math.PI) / 180
+                    }
+                },
+                'perspective'
+            );
+            this.parse.cameras.push(this.camera);
+        }
+        this.parse.calculateFov();
+        this.resize();
         } catch(e) {
             console.log(e);
         }
 
+        scene.tracks = this.parse.tracks;
+        scene.cameras = this.parse.cameras;
+
         cb(scene);
     }
 
+    resize() {
+        const z = 5 * this.camera.modelSize;
+
+        if (this.camera.props.isInitial) {
+            this.camera.setZ(z);
+        }
+        this.camera.updateNF();
+    }
 }
 
 export { RedCube };

@@ -11,7 +11,7 @@ import { Geometry } from './objects/geometry';
 let gl;
 const BASE64_MARKER = ';base64,';
 
-interface Track {
+export interface Track {
     keys: Array<Key>;
     stoped: boolean;
     type: string;
