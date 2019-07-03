@@ -378,6 +378,7 @@ function fetchImage({ url, name }) {
                 }
                 else {
                     resolve({
+                        url,
                         name,
                         image: new Uint8Array(data).buffer,
                     });
@@ -1726,7 +1727,7 @@ class Geometry {
                 }
             }
         }
-        if (hasNormal && primitive.attributes.TANGENT === undefined) {
+        if (primitive.attributes.TANGENT === undefined) {
             vertexBuffers.TANGENT = utils_1.calculateBinormals(indicesBuffer, vertexBuffers.POSITION, vertexBuffers.NORMAL, vertexBuffers.TEXCOORD_0);
             vertexAccessor.set('TANGENT', { componentType: 5126 });
         }

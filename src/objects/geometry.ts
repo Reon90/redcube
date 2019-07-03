@@ -235,7 +235,7 @@ export class Geometry {
             }
         }
 
-        if (hasNormal && primitive.attributes.TANGENT === undefined) {
+        if (primitive.attributes.TANGENT === undefined) {
             vertexBuffers.TANGENT = calculateBinormals(
                 indicesBuffer,
                 vertexBuffers.POSITION,
