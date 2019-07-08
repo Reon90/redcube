@@ -84,6 +84,7 @@ export class Material extends M {
         this.blend = material.blend;
         this.doubleSided = material.doubleSided;
         this.emissiveFactor = material.emissiveFactor;
+        this.extras = material.extras;
 
         if (material.pbrMetallicRoughness.metallicRoughnessTexture) {
             this.pbrMetallicRoughness.metallicRoughnessTexture = textures[material.pbrMetallicRoughness.metallicRoughnessTexture.index];
