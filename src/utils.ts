@@ -339,6 +339,46 @@ export function calculateOffset(a = 0, b = 0) {
     return a + b;
 }
 
+export function calculateUVs(vertex, normal) {
+    const UVS = new Float32Array(vertex.length/3 * 2);
+
+    const Min = new Vector2([Infinity, Infinity]);
+    const Max = new Vector2([-Infinity, -Infinity]);
+
+    for (let i = 0; i < vertex.length/3; ++i) {
+        const coords = [];
+        const norm = [];
+        for (let c = 0; c < 3; ++c) {
+            coords.push(vertex[3 * i + c]);
+            norm.push(normal[3 * i + c]);
+        }
+
+        const N = new Vector3(norm);
+        const components = ['x', 'y', 'z'].sort((a, b) => {
+            return Math.abs(N[a]) - Math.abs(N[b])
+        });
+
+        const pos = new Vector3(coords);
+        const u = pos[components[0]];
+        const v = pos[components[1]];
+        UVS[i * 2] = u;
+        UVS[i * 2 + 1] = v;
+        Max.x = Math.max(Max.x, u);
+        Max.y = Math.max(Max.y, v);
+        Min.x = Math.min(Min.x, u);
+        Min.y = Math.min(Min.y, v);
+    }
+
+    const diff = new Vector2(Max.elements).subtract(Min);
+    for (let i = 0; i < vertex.length/3; ++i) {
+        const ix = i * 2;
+        UVS[ix] = (UVS[ix] - Min.x) / diff.x;
+        UVS[ix + 1] = (UVS[ix + 1] - Min.y) / diff.y;
+    }
+
+    return UVS;
+}
+
 export function calculateNormals(index, vertex) {
     const normal = new Float32Array((vertex.length / 3) * 3);
     for (let i = 0; i < index.length; i += 3) {

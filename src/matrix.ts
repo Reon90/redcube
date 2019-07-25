@@ -805,6 +805,25 @@ class Vector {
 class Vector3 {
     elements: Float32Array;
 
+    get x() {
+        return this.elements[0];
+    }
+    get y() {
+        return this.elements[1];
+    }
+    get z() {
+        return this.elements[2];
+    }
+    set x(v) {
+        this.elements[0] = v;
+    }
+    set y(v) {
+        this.elements[1] = v;
+    }
+    set z(v) {
+        this.elements[2] = v;
+    }
+
     constructor(opt_src?: Array<number> | Float32Array) {
         const v = new Float32Array(3);
         if (opt_src && typeof opt_src === 'object') {
@@ -813,6 +832,11 @@ class Vector3 {
             v[2] = opt_src[2];
         }
         this.elements = v;
+    }
+
+    projectOnVector( vector ) {
+        const scalar = Vector3.dot( vector, this ) / vector.lengthSq();
+        return new Vector3( vector ).scale( scalar );
     }
 
     applyQuaternion({ elements }) {
@@ -1173,7 +1197,20 @@ class Vector4 {
 class Vector2 {
     elements: Float32Array;
 
-    constructor(opt_src?: Array<number>) {
+    get x() {
+        return this.elements[0];
+    }
+    get y() {
+        return this.elements[1];
+    }
+    set x(v) {
+        this.elements[0] = v;
+    }
+    set y(v) {
+        this.elements[1] = v;
+    }
+
+    constructor(opt_src?: Array<number> | Float32Array) {
         const v = new Float32Array(2);
         if (opt_src && typeof opt_src === 'object') {
             v[0] = opt_src[0];

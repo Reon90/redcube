@@ -1103,6 +1103,24 @@ exports.Vector = Vector;
  * @param opt_src source vector(option)
  */
 class Vector3 {
+    get x() {
+        return this.elements[0];
+    }
+    get y() {
+        return this.elements[1];
+    }
+    get z() {
+        return this.elements[2];
+    }
+    set x(v) {
+        this.elements[0] = v;
+    }
+    set y(v) {
+        this.elements[1] = v;
+    }
+    set z(v) {
+        this.elements[2] = v;
+    }
     constructor(opt_src) {
         const v = new Float32Array(3);
         if (opt_src && typeof opt_src === 'object') {
@@ -1111,6 +1129,10 @@ class Vector3 {
             v[2] = opt_src[2];
         }
         this.elements = v;
+    }
+    projectOnVector(vector) {
+        const scalar = Vector3.dot(vector, this) / vector.lengthSq();
+        return new Vector3(vector).scale(scalar);
     }
     applyQuaternion({ elements }) {
         const x = this.elements[0];
@@ -1416,6 +1438,18 @@ class Vector4 {
 }
 exports.Vector4 = Vector4;
 class Vector2 {
+    get x() {
+        return this.elements[0];
+    }
+    get y() {
+        return this.elements[1];
+    }
+    set x(v) {
+        this.elements[0] = v;
+    }
+    set y(v) {
+        this.elements[1] = v;
+    }
     constructor(opt_src) {
         const v = new Float32Array(2);
         if (opt_src && typeof opt_src === 'object') {
@@ -1727,13 +1761,17 @@ class Geometry {
                 }
             }
         }
+        if (vertexBuffers.NORMAL === undefined && indicesBuffer) {
+            vertexBuffers.NORMAL = utils_1.calculateNormals(indicesBuffer, vertexBuffers.POSITION);
+            vertexAccessor.set('NORMAL', { componentType: 5126 });
+        }
+        if (vertexBuffers.TEXCOORD_0 === undefined) {
+            vertexBuffers.TEXCOORD_0 = utils_1.calculateUVs(vertexBuffers.POSITION, vertexBuffers.NORMAL);
+            vertexAccessor.set('TEXCOORD_0', { componentType: 5126 });
+        }
         if (primitive.attributes.TANGENT === undefined) {
             vertexBuffers.TANGENT = utils_1.calculateBinormals(indicesBuffer, vertexBuffers.POSITION, vertexBuffers.NORMAL, vertexBuffers.TEXCOORD_0);
             vertexAccessor.set('TANGENT', { componentType: 5126 });
-        }
-        if (!vertexBuffers.NORMAL && indicesBuffer) {
-            vertexBuffers.NORMAL = utils_1.calculateNormals(indicesBuffer, vertexBuffers.POSITION);
-            vertexAccessor.set('NORMAL', { componentType: 5126 });
         }
         this.vertexAccessor = vertexAccessor;
         this.attributes = vertexBuffers;
@@ -3299,6 +3337,40 @@ function calculateOffset(a = 0, b = 0) {
     return a + b;
 }
 exports.calculateOffset = calculateOffset;
+function calculateUVs(vertex, normal) {
+    const UVS = new Float32Array(vertex.length / 3 * 2);
+    const Min = new matrix_1.Vector2([Infinity, Infinity]);
+    const Max = new matrix_1.Vector2([-Infinity, -Infinity]);
+    for (let i = 0; i < vertex.length / 3; ++i) {
+        const coords = [];
+        const norm = [];
+        for (let c = 0; c < 3; ++c) {
+            coords.push(vertex[3 * i + c]);
+            norm.push(normal[3 * i + c]);
+        }
+        const N = new matrix_1.Vector3(norm);
+        const components = ['x', 'y', 'z'].sort((a, b) => {
+            return Math.abs(N[a]) - Math.abs(N[b]);
+        });
+        const pos = new matrix_1.Vector3(coords);
+        const u = pos[components[0]];
+        const v = pos[components[1]];
+        UVS[i * 2] = u;
+        UVS[i * 2 + 1] = v;
+        Max.x = Math.max(Max.x, u);
+        Max.y = Math.max(Max.y, v);
+        Min.x = Math.min(Min.x, u);
+        Min.y = Math.min(Min.y, v);
+    }
+    const diff = new matrix_1.Vector2(Max.elements).subtract(Min);
+    for (let i = 0; i < vertex.length / 3; ++i) {
+        const ix = i * 2;
+        UVS[ix] = (UVS[ix] - Min.x) / diff.x;
+        UVS[ix + 1] = (UVS[ix + 1] - Min.y) / diff.y;
+    }
+    return UVS;
+}
+exports.calculateUVs = calculateUVs;
 function calculateNormals(index, vertex) {
     const normal = new Float32Array((vertex.length / 3) * 3);
     for (let i = 0; i < index.length; i += 3) {

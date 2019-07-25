@@ -1,6 +1,6 @@
 import { Vector3, Matrix4 } from '../matrix';
 import { UniformBuffer } from './uniform';
-import { buildArray, getDataType, calculateOffset, calculateBinormals, getGlEnum, calculateNormals, ArrayBufferMap } from '../utils';
+import { buildArray, getDataType, calculateOffset, calculateBinormals, getGlEnum, calculateNormals, calculateUVs, ArrayBufferMap } from '../utils';
 import { decoderModule, decodeDracoData, getArray } from '../decoder';
 
 interface Attributes {
@@ -235,6 +235,16 @@ export class Geometry {
             }
         }
 
+        if (vertexBuffers.NORMAL === undefined && indicesBuffer) {
+            vertexBuffers.NORMAL = calculateNormals(indicesBuffer, vertexBuffers.POSITION);
+            vertexAccessor.set('NORMAL', { componentType: 5126 });
+        }
+
+        if (vertexBuffers.TEXCOORD_0 === undefined) {
+            vertexBuffers.TEXCOORD_0 = calculateUVs(vertexBuffers.POSITION, vertexBuffers.NORMAL);
+            vertexAccessor.set('TEXCOORD_0', { componentType: 5126 });
+        }
+
         if (primitive.attributes.TANGENT === undefined) {
             vertexBuffers.TANGENT = calculateBinormals(
                 indicesBuffer,
@@ -243,11 +253,6 @@ export class Geometry {
                 vertexBuffers.TEXCOORD_0
             );
             vertexAccessor.set('TANGENT', { componentType: 5126 });
-        }
-
-        if (!vertexBuffers.NORMAL && indicesBuffer) {
-            vertexBuffers.NORMAL = calculateNormals(indicesBuffer, vertexBuffers.POSITION);
-            vertexAccessor.set('NORMAL', { componentType: 5126 });
         }
 
         this.vertexAccessor = vertexAccessor;
