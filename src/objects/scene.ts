@@ -2,6 +2,7 @@ import { Matrix4 } from '../matrix';
 import { Object3D } from './object3d';
 import { Mesh } from './mesh';
 import { Camera } from './camera';
+import { Light } from './Light';
 import { Track } from '../parse';
 
 export class Scene {
@@ -14,6 +15,7 @@ export class Scene {
     meshes: Array<Mesh>;
     tracks: Array<Track>;
     cameras: Array<Camera>;
+    lights: Array<Light>;
 
     constructor() {
         this.opaqueChildren = [];

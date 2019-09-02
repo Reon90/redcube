@@ -55,6 +55,7 @@ class RedCube {
             );
             this.parse.cameras.push(this.camera);
         }
+        this.camera = this.parse.camera;
         this.parse.calculateFov();
         this.resize();
         } catch(e) {
@@ -63,6 +64,7 @@ class RedCube {
 
         scene.tracks = this.parse.tracks;
         scene.cameras = this.parse.cameras;
+        scene.lights = this.parse.lights;
 
         cb(scene);
     }

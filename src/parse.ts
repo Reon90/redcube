@@ -175,19 +175,25 @@ export class Parse {
         let child;
 
         if (el.camera !== undefined) {
-            // @ts-ignore
-            Parse.__update(
-                'camera',
-                Object.assign(
-                    {
-                        zoom: 1,
-                        aspect: this.canvas.offsetWidth / this.canvas.offsetHeight
-                    },
-                    this.json.cameras[el.camera]
-                ),
-                name,
-                parent
+            const camera = Object.assign(
+                {
+                    zoom: 1,
+                    aspect: this.canvas ? (this.canvas.offsetWidth / this.canvas.offsetHeight) : 1
+                },
+                this.json.cameras[el.camera]
             );
+            // @ts-ignore
+            if (Parse.__update) {
+                // @ts-ignore
+                Parse.__update(
+                    'camera',
+                    camera,
+                    name,
+                    parent
+                );
+            } else {
+                this.camera = new Camera(camera, name, parent);
+            }
 
             child = this.camera;
             const proj = calculateProjection(child.props);
@@ -199,7 +205,12 @@ export class Parse {
             light.isInitial = false;
 
             // @ts-ignore
-            Parse.__update('light', light, name, parent);
+            if (Parse.__update) {
+                // @ts-ignore
+                Parse.__update('light', light, name, parent);
+            } else {
+                this.light = new Light(light, name, parent);
+            }
 
             child = this.light;
             this.lights.push(child);
@@ -268,7 +279,7 @@ export class Parse {
             }
         });
 
-        if (this.lights.length === 0) {
+        if (this.lights.length === 0 && this.light) {
             this.lights.push(this.light);
         }
 
