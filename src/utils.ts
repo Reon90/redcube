@@ -380,7 +380,7 @@ export function calculateUVs(vertex, normal) {
 }
 
 export function calculateNormals(index, vertex) {
-    const normal = new Float32Array((vertex.length / 3) * 3);
+    const ns = new Float32Array((vertex.length / 3) * 3);
     for (let i = 0; i < index.length; i += 3) {
         const faceIndexes = [index[i], index[i + 1], index[i + 2]];
         const faceVertices = faceIndexes.map(ix => vectorFromArray(vertex, ix));
@@ -390,12 +390,15 @@ export function calculateNormals(index, vertex) {
 
         const n = Vector3.cross(dv1.normalize(), dv2.normalize());
         const [x, y, z] = n.elements;
-        normal[i] = x;
-        normal[i + 1] = y;
-        normal[i + 2] = z;
+
+        for (var j = 0; j < 3; j++) {
+            ns[3 * index[i + j] + 0] = ns[3 * index[i + j] + 0] + x;
+            ns[3 * index[i + j] + 1] = ns[3 * index[i + j] + 1] + y;
+            ns[3 * index[i + j] + 2] = ns[3 * index[i + j] + 2] + z;
+        }
     }
 
-    return normal;
+    return ns;
 
     function vectorFromArray(array, index, elements = 3) {
         index = index * elements;
