@@ -13,7 +13,7 @@ import { setGl, clearColor, walk } from './utils';
 import { Light as PPLight } from './postprocessors/light';
 
 let gl;
-const FOV = 15; // degrees
+const FOV = 60; // degrees
 
 class RedCube {
     gl: WebGLRenderingContext;
@@ -176,7 +176,7 @@ class RedCube {
             this.renderer.needUpdateProjection = true;
         }
         if (type === 'rotate') {
-            this.camera.rotate(coordsStart, coordsMove, this.canvas.offsetWidth, this.canvas.offsetHeight);
+            this.camera.rotate(coordsStart, coordsMove);
             this.renderer.needUpdateView = true;
         }
         if (type === 'pan') {
@@ -196,7 +196,7 @@ class RedCube {
         this.canvas.width = this.canvas.offsetWidth * devicePixelRatio;
         this.canvas.height = this.canvas.offsetHeight * devicePixelRatio;
         gl.viewport(0, 0, this.canvas.offsetWidth * devicePixelRatio, this.canvas.offsetHeight * devicePixelRatio);
-        const z = (5000 / this.canvas.width) * this.camera.modelSize * devicePixelRatio;
+        const z = (1000 / this.canvas.width) * this.camera.modelSize * devicePixelRatio;
 
         if (this.camera.props.isInitial) {
             this.camera.setZ(z);

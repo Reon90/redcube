@@ -263,6 +263,7 @@ export class Parse {
         const z = Math.hypot(...biggestMesh.matrixWorld.getScaling().elements);
         const pos = Math.hypot(...biggestMesh.getPosition());
         this.cameras.forEach(c => {
+            c.scaleFactor = z;
             c.modelSize =
                 biggestMesh.geometry.boundingSphere.radius * z +
                 pos +

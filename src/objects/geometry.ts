@@ -245,7 +245,7 @@ export class Geometry {
             vertexAccessor.set('TEXCOORD_0', { componentType: 5126 });
         }
 
-        if (primitive.attributes.TANGENT === undefined) {
+        if (primitive.attributes.TANGENT === undefined && indicesBuffer) {
             vertexBuffers.TANGENT = calculateBinormals(
                 indicesBuffer,
                 vertexBuffers.POSITION,
