@@ -6,7 +6,10 @@
     <title>Document</title>
     <style type="text/css">
         body {
+            background: #000;
             margin: 0;
+            color: #fff;
+            font-family: Helvetica, Arial;
         }
         canvas {
             width: 100%;
@@ -51,6 +54,9 @@
                 select.value = name;
                 selector.appendChild(select);
                 ['bloom', 'ssao', 'shadow', 'light'].forEach(name => {
+                    const label = document.createElement('label');
+                    label.style.padding = '0 0 0 10px';
+                    label.innerHTML = name;
                     const checkbox = document.createElement('input');
                     checkbox.type = 'checkbox';
                     checkbox.title = name;
@@ -63,8 +69,12 @@
                         }
                         window.location.reload();
                     };
-                    selector.appendChild(checkbox);
+                    label.prepend(checkbox);
+                    selector.appendChild(label);
                 });
+                const span = document.createElement('span');
+                span.style.padding = '0 10px';
+                span.innerHTML = 'light position';
                 const slider = document.createElement('input');
                 slider.oninput = () => {
                     renderer.light.update(Number(slider.value));
@@ -76,7 +86,8 @@
                 slider.max = `${Math.PI*2}`;
                 slider.step = '0.1';
                 slider.title = 'light';
-                selector.appendChild(slider);
+                span.prepend(slider);
+                selector.appendChild(span);
                 slider.value = 0;
 
                 const envname = localStorage.getItem('env') || 'env4';

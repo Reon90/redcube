@@ -14,6 +14,11 @@ uniform sampler2D cameraTexture;
 uniform mat4 proj;
 uniform mat4 light;
 uniform mat4 view;
+uniform vec3 viewPos;
+uniform vec3 lightPos;
+
+in vec3 outPositionView;
+in vec3 outPositionLight;
 
 const int samples = 80;
 
@@ -34,5 +39,7 @@ void main() {
         d += add*stp;
 	}
 
-    color = min((1.0 - d), 0.2);
+    vec3 viewDir = normalize(viewPos - outPositionView);
+    vec3 L = normalize(lightPos - outPositionLight);
+    color = min((1.0 - d), (1.0 - dot(L, viewDir)) * 0.2);
 }

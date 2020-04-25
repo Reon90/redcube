@@ -6,7 +6,7 @@ export const currentPath = './';//document.currentScript.src.substring(0, docume
 
 //const glEnum = {};
 let gl;
-let screenTextureCount = 32;
+let screenTextureCount = 31;
 export const clearColor = [0, 0, 0, 1];
 
 export function getTextureIndex() {

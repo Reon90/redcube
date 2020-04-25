@@ -5,6 +5,7 @@ import lightShader from '../shaders/light.glsl';
 import lightVertShader from '../shaders/light-vert.glsl';
 import { Matrix4 } from '../matrix';
 import { calculateProjection } from './../utils';
+import { quadVertex } from '../vertex';
 
 let gl;
 
@@ -45,9 +46,12 @@ export class Light extends PostProcessor {
         gl.uniformMatrix4fv(gl.getUniformLocation(this.program, 'Iproj'), false, new Matrix4().setInverseOf(proj).elements);
         gl.uniformMatrix4fv(gl.getUniformLocation(this.program, 'proj'), false, proj.elements);
         gl.uniformMatrix4fv(gl.getUniformLocation(this.program, 'Iview'), false, this.camera.matrixWorld.elements);
+        gl.uniformMatrix4fv(gl.getUniformLocation(this.program, 'view'), false, this.camera.matrixWorldInvert.elements);
         gl.uniformMatrix4fv(gl.getUniformLocation(this.program, 'light'), false, this.light.matrixWorldInvert.elements);
         gl.uniform1i(gl.getUniformLocation(this.program, 'lightTexture'), PP.preDepthTexture.index);
         gl.uniform1i(gl.getUniformLocation(this.program, 'cameraTexture'), PP.depthTexture.index);
+        gl.uniform3fv(gl.getUniformLocation(this.program, 'viewPos'), this.camera.getPosition());
+        gl.uniform3fv(gl.getUniformLocation(this.program, 'lightPos'), this.light.getPosition());
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
@@ -61,12 +65,11 @@ export class Light extends PostProcessor {
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.texture, 0);
         this.program = createProgram(lightVertShader, lightShader);
 
-        const verts = [1.0, 1.0, -1.0, 1.0, -1.0, -1.0, -1.0, -1.0, 1.0, -1.0, 1.0, 1.0];
         this.quadVAO = gl.createVertexArray();
         gl.bindVertexArray(this.quadVAO);
         const quadVBO = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, quadVBO);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(verts), gl.STATIC_DRAW);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(quadVertex), gl.STATIC_DRAW);
         gl.enableVertexAttribArray(0);
         gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
         gl.bindVertexArray(null);

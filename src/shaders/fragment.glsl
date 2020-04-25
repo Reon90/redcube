@@ -285,7 +285,8 @@ void main() {
 
     float shadow = 1.0;
     #ifdef SHADOWMAP
-        float shadowBias = max(0.05 * (1.0 - dot(n, lightDir)), 0.005);
+        vec3 l = normalize(lightPos[0] - outPosition);
+        float shadowBias = max(0.05 * (1.0 - dot(n, l)), 0.005);
         shadow = 1.0 - ShadowCalculation(outPositionView, shadowBias);
     #endif
 

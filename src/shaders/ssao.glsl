@@ -5,8 +5,6 @@ in vec2 uv;
 out float color;
 
 const int kernelSize = 32;
-const float radius = 1.0;
-const float bias = 0.0;
 const float power = 5.0;
 
 uniform sampler2D normBuff;
@@ -19,6 +17,7 @@ uniform mat4 projI;
 uniform mat4 view;
 uniform float zFar;
 uniform float zNear;
+uniform float bias;
 
 vec3 getPositionFromDepth(float depth) {
 	vec4 clipSpaceLocation = vec4(0.0);
@@ -36,6 +35,7 @@ void main() {
 		discard;
 	}
 
+	float radius = bias * 2.0;
 	vec3 pos = getPositionFromDepth(depth);
 	vec3 normal = normalize(vec3(view * texture(normBuff, uv)));
 	vec3 rvec = normalize(texture(noice, uv * noiseScale).xyz);

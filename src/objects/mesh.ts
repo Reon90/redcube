@@ -33,7 +33,7 @@ export class Mesh extends Object3D {
         this.material = material;
     }
 
-    draw(gl, { lights, camera, light, needUpdateView, needUpdateProjection }) {
+    draw(gl, { lights, camera, light, needUpdateView, needUpdateProjection, preDepthTexture, isprepender, fakeDepth }) {
         gl.useProgram(this.program);
 
         gl.bindVertexArray(this.geometry.VAO);
@@ -54,7 +54,7 @@ export class Mesh extends Object3D {
         if (needUpdateProjection) {
             this.geometry.uniformBuffer.update(gl, 'projection', camera.projection.elements);
         }
-        //this.geometry.uniformBuffer.update(gl, 'isShadow', isLight ? 1 : 0);
+        this.geometry.uniformBuffer.update(gl, 'isShadow', isprepender ? 1 : 0);
 
         if (this instanceof SkinnedMesh) {
             gl.bindBufferBase(gl.UNIFORM_BUFFER, 2, this.geometry.SKIN);
@@ -91,10 +91,10 @@ export class Mesh extends Object3D {
             gl.bindBufferBase(gl.UNIFORM_BUFFER, 6, this.material.lightUBO4);
         }
 
-        // gl.uniform1i(
-        //     this.material.uniforms.depthTexture,
-        //     isShadow ? fakeDepth.index : preDepthTexture.index
-        // );
+        gl.uniform1i(
+            this.material.uniforms.depthTexture,
+            (preDepthTexture && !isprepender) ? preDepthTexture.index : fakeDepth.index
+        );
 
         if (this.material.pbrMetallicRoughness.baseColorTexture) {
             gl.activeTexture(gl[`TEXTURE${0}`]);

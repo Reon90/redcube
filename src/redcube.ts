@@ -21,6 +21,7 @@ class RedCube {
     events: Events;
     processors: Array<String>;
     ioc: Container;
+    isprepender: boolean;
 
     constructor(url, canvas, processors = [], envUrl = 'env', mode = 'pbr') {
         if (!url || !canvas) {
@@ -163,8 +164,10 @@ class RedCube {
         }
     }
 
-    renderScene() {
+    renderScene(isprepender) {
+        this.isprepender = isprepender;
         this.renderer.renderScene();
+        this.isprepender = false;
     }
 
     redraw(type, coordsStart, coordsMove) {
@@ -238,6 +241,7 @@ class RedCube {
 
     getState() {
         return {
+            isprepender: this.isprepender,
             lights: this.parse.lights,
             camera: this.camera,
             light: this.light,
