@@ -205,11 +205,15 @@ ArrayBufferMap.set(Uint16Array, 'UNSIGNED_SHORT');
 ArrayBufferMap.set(Uint32Array, 'UNSIGNED_INT');
 ArrayBufferMap.set(Float32Array, 'FLOAT');
 
-export function buildArray(arrayBuffer, type, offset, length, stride?, count?) {
+export function buildArray(arrayBuffer, type, offset, length, stride?, count?, byteLength?) {
     const l = length;
     const c = length / count;
     if (stride && stride !== getCount(type) * c) {
-        length = (stride * count) / getCount(type) - offset / getCount(type);
+        if (stride > 8) {
+            length = (stride * count) / getCount(type) - offset / getCount(type);
+        } else {
+            length = byteLength;
+        }
     }
 
     let arr;
@@ -234,7 +238,7 @@ export function buildArray(arrayBuffer, type, offset, length, stride?, count?) {
             break;
     }
     if (stride && stride !== getCount(type) * c) {
-        const stridedArr = new Float32Array(l);
+        const stridedArr = new arr.constructor(l);
         let j = 0;
         for (let i = 0; i < stridedArr.length; i = i + c) {
             stridedArr[i] = arr[j];

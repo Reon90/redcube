@@ -356,7 +356,7 @@ void main() {
         vec3 ambientClearcoat = vec3(0.0);
         vec3 clearcoatFresnel = vec3(1.0);
         #ifdef IBL
-            ambient = IBLAmbient(specularMap, baseColor, metallic, n, roughness, viewDir, ao);
+            ambient = max(vec3(0.03) * baseColor, IBLAmbient(specularMap, baseColor, metallic, n, roughness, viewDir, ao));
             ambientClearcoat = IBLAmbient(specularMap, vec3(0.0), 0.0, clearcoatNormal, clearcoatRoughness, viewDir, ao) * clearcoatBlendFactor;
             float NdotV = saturate(dot(clearcoatNormal, viewDir));
             clearcoatFresnel = (1.0 - clearcoatBlendFactor * fresnelSchlick(NdotV, vec3(0.04)));

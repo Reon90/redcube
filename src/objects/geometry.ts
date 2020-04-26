@@ -162,7 +162,8 @@ export class Geometry {
                     calculateOffset(bufferView.byteOffset, accessor.byteOffset),
                     getDataType(accessor.type) * accessor.count,
                     bufferView.byteStride,
-                    accessor.count
+                    accessor.count,
+                    bufferView.byteLength
                 );
 
                 if (primitive.targets && k in primitive.targets[0]) {
