@@ -1,6 +1,6 @@
 import { Vector3, Matrix4 } from '../matrix';
 import { UniformBuffer } from './uniform';
-import { buildArray, getDataType, calculateOffset, calculateBinormals, getGlEnum, calculateNormals, calculateUVs, ArrayBufferMap } from '../utils';
+import { buildArray, buildArrayWithStride, getDataType, calculateOffset, calculateBinormals, getGlEnum, calculateNormals, calculateUVs, ArrayBufferMap } from '../utils';
 import { decoderModule, decodeDracoData, getArray } from '../decoder';
 
 interface Attributes {
@@ -156,14 +156,10 @@ export class Geometry {
             for (const k of vertexAccessor.keys()) {
                 const accessor = vertexAccessor.get(k);
                 const bufferView = json.bufferViews[accessor.bufferView];
-                vertexBuffers[k] = buildArray(
+                vertexBuffers[k] = buildArrayWithStride(
                     arrayBuffer[bufferView.buffer],
-                    accessor.componentType,
-                    calculateOffset(bufferView.byteOffset, accessor.byteOffset),
-                    getDataType(accessor.type) * accessor.count,
-                    bufferView.byteStride,
-                    accessor.count,
-                    bufferView.byteLength
+                    accessor,
+                    bufferView
                 );
 
                 if (primitive.targets && k in primitive.targets[0]) {

@@ -205,17 +205,52 @@ ArrayBufferMap.set(Uint16Array, 'UNSIGNED_SHORT');
 ArrayBufferMap.set(Uint32Array, 'UNSIGNED_INT');
 ArrayBufferMap.set(Float32Array, 'FLOAT');
 
-export function buildArray(arrayBuffer, type, offset, length, stride?, count?, byteLength?) {
-    const l = length;
-    const c = length / count;
-    if (stride && stride !== getCount(type) * c) {
-        if (stride > 8) {
-            length = (stride * count) / getCount(type) - offset / getCount(type);
-        } else {
-            length = byteLength;
-        }
-    }
+export function buildArrayWithStride(arrayBuffer, accessor, bufferView) {
+    const sizeofComponent = getCount(accessor.componentType);
+    const typeofComponent = getDataType(accessor.type);
+    const offset = (bufferView.byteOffset || 0) + (accessor.byteOffset || 0);
+    const stride = bufferView.byteStride;
+    const lengthByStride = (stride * accessor.count) / sizeofComponent;
+    const requiredLength = accessor.count * typeofComponent;
+    const length = lengthByStride || requiredLength;
 
+    let arr;
+    switch (glEnum[accessor.componentType]) {
+        case 'BYTE':
+            arr = new Int8Array(arrayBuffer, offset, length);
+            break;
+        case 'UNSIGNED_BYTE':
+            arr = new Uint8Array(arrayBuffer, offset, length);
+            break;
+        case 'SHORT':
+            arr = new Int16Array(arrayBuffer, offset, length);
+            break;
+        case 'UNSIGNED_SHORT':
+            arr = new Uint16Array(arrayBuffer, offset, length);
+            break;
+        case 'UNSIGNED_INT':
+            arr = new Uint32Array(arrayBuffer, offset, length);
+            break;
+        case 'FLOAT':
+            arr = new Float32Array(arrayBuffer, offset, length);
+            break;
+    }
+    if (length !== requiredLength) { // buffer is too big need to stride it
+        const stridedArr = new arr.constructor(requiredLength);
+        let j = 0;
+        for (let i = 0; i < stridedArr.length; i += typeofComponent) {
+            for (let k = 0; k < typeofComponent; k++) {
+                stridedArr[i + k] = arr[j + k];
+            }
+            j += stride / sizeofComponent;
+        }
+        return stridedArr;
+    } else {
+        return arr;
+    }
+}
+
+export function buildArray(arrayBuffer, type, offset, length) {
     let arr;
     switch (glEnum[type]) {
         case 'BYTE':
@@ -236,17 +271,6 @@ export function buildArray(arrayBuffer, type, offset, length, stride?, count?, b
         case 'FLOAT':
             arr = new Float32Array(arrayBuffer, offset, length);
             break;
-    }
-    if (stride && stride !== getCount(type) * c) {
-        const stridedArr = new arr.constructor(l);
-        let j = 0;
-        for (let i = 0; i < stridedArr.length; i = i + c) {
-            stridedArr[i] = arr[j];
-            stridedArr[i + 1] = arr[j + 1];
-            stridedArr[i + 2] = arr[j + 2];
-            j = j + c * (stride / getCount(type) / c);
-        }
-        return stridedArr;
     }
     return arr;
 }
