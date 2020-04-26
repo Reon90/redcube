@@ -14,6 +14,9 @@ interface Uniforms {
     metallicRoughnessTexture: WebGLUniformLocation;
     normalTexture: WebGLUniformLocation;
     occlusionTexture: WebGLUniformLocation;
+    clearcoatTexture: WebGLUniformLocation;
+    clearcoatRoughnessTexture: WebGLUniformLocation;
+    clearcoatNormalTexture: WebGLUniformLocation;
     emissiveTexture: WebGLUniformLocation;
     prefilterMap: WebGLUniformLocation;
     brdfLUT: WebGLUniformLocation;
@@ -61,12 +64,32 @@ export class Material extends M {
             material.pbrMetallicRoughness.glossinessFactor = SG.glossinessFactor;
             defines.push({ name: 'SPECULARGLOSSINESSMAP' });
         }
+        if (material.extensions && material.extensions.KHR_materials_clearcoat) {
+            const cl = material.extensions.KHR_materials_clearcoat;
+            this.clearcoatFactor = cl.clearcoatFactor;
+            this.clearcoatRoughnessFactor = cl.clearcoatRoughnessFactor;
+            if (cl.clearcoatTexture) {
+                this.clearcoatTexture = textures[cl.clearcoatTexture.index];
+                defines.push({ name: 'CLEARCOATMAP' });
+            }
+            if (cl.clearcoatNormalTexture) {
+                this.clearcoatNormalTexture = textures[cl.clearcoatNormalTexture.index];
+                defines.push({ name: 'CLEARCOATNORMALMAP' });
+            }
+            if (cl.clearcoatRoughnessTexture) {
+                this.clearcoatRoughnessTexture = textures[cl.clearcoatRoughnessTexture.index];
+                defines.push({ name: 'CLEARCOATROUGHMAP' });
+            }
+        }
 
         this.uniforms = {
             baseColorTexture: null,
             metallicRoughnessTexture: null,
             normalTexture: null,
             occlusionTexture: null,
+            clearcoatTexture: null,
+            clearcoatRoughnessTexture: null,
+            clearcoatNormalTexture: null,
             emissiveTexture: null,
             prefilterMap: null,
             brdfLUT: null,
@@ -185,6 +208,18 @@ export class Material extends M {
             this.uniforms.emissiveTexture = gl.getUniformLocation(program, 'emissiveTexture');
             gl.uniform1i(this.uniforms.emissiveTexture, textureEnum.emissiveTexture);
         }
+        if (this.clearcoatTexture) {
+            this.uniforms.clearcoatTexture = gl.getUniformLocation(program, 'clearcoatTexture');
+            gl.uniform1i(this.uniforms.clearcoatTexture, textureEnum.clearcoatTexture);
+        }
+        if (this.clearcoatRoughnessTexture) {
+            this.uniforms.clearcoatRoughnessTexture = gl.getUniformLocation(program, 'clearcoatRoughnessTexture');
+            gl.uniform1i(this.uniforms.clearcoatRoughnessTexture, textureEnum.clearcoatRoughnessTexture);
+        }
+        if (this.clearcoatNormalTexture) {
+            this.uniforms.clearcoatNormalTexture = gl.getUniformLocation(program, 'clearcoatNormalTexture');
+            gl.uniform1i(this.uniforms.clearcoatNormalTexture, textureEnum.clearcoatNormalTexture);
+        }
 
         this.uniforms.prefilterMap = gl.getUniformLocation(program, 'prefilterMap');
         this.uniforms.brdfLUT = gl.getUniformLocation(program, 'brdfLUT');
@@ -222,6 +257,8 @@ export class Material extends M {
             materialUniformBuffer.add('glossinessFactor', this.pbrMetallicRoughness.glossinessFactor || 0.5);
             materialUniformBuffer.add('metallicFactor', this.pbrMetallicRoughness.metallicFactor || 1);
             materialUniformBuffer.add('roughnessFactor', this.pbrMetallicRoughness.roughnessFactor || 1);
+            materialUniformBuffer.add('clearcoatFactor', this.clearcoatFactor || 0);
+            materialUniformBuffer.add('clearcoatRoughnessFactor', this.clearcoatRoughnessFactor || 0);
             materialUniformBuffer.done();
 
             const mIndex = gl.getUniformBlockIndex(program, 'Material');
@@ -287,6 +324,6 @@ export class Material extends M {
     }
 
     hasNormal() {
-        return Boolean(this.normalTexture);
+        return Boolean(this.normalTexture) || Boolean(this.clearcoatNormalTexture);
     }
 }

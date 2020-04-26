@@ -26,6 +26,8 @@ uniform Material {
     vec4 glossinessFactor;
     vec4 metallicFactor;
     vec4 roughnessFactor;
+    vec4 clearcoatFactor;
+    vec4 clearcoatRoughnessFactor;
 };
 uniform LightColor {
     vec3 lightColor[LIGHTNUMBER];
@@ -44,6 +46,9 @@ uniform sampler2D metallicRoughnessTexture;
 uniform sampler2D normalTexture;
 uniform sampler2D emissiveTexture;
 uniform sampler2D occlusionTexture;
+uniform sampler2D clearcoatTexture;
+uniform sampler2D clearcoatRoughnessTexture;
+uniform sampler2D clearcoatNormalTexture;
 
 uniform samplerCube prefilterMap;
 uniform sampler2D brdfLUT;  
@@ -247,6 +252,15 @@ void main() {
 
     float roughness = roughnessFactor.x;
     float metallic = metallicFactor.x;
+    float clearcoatRoughness = clearcoatRoughnessFactor.x;
+    float clearcoat = clearcoatFactor.x;
+    float clearcoatBlendFactor = clearcoat;
+    #ifdef CLEARCOATMAP
+        clearcoatBlendFactor = texture(clearcoatTexture, outUV).r * clearcoat;
+    #endif
+    #ifdef CLEARCOATROUGHMAP
+        clearcoatRoughness = texture(clearcoatRoughnessTexture, outUV).g * clearcoatRoughness;
+    #endif
     vec3 specularMap = vec3(0);
     #ifdef SPECULARGLOSSINESSMAP
         #ifdef METALROUGHNESSMAP
@@ -275,11 +289,23 @@ void main() {
         vec3 n = outNormal;
     #endif
 
+    #ifdef TANGENT
+    #ifdef CLEARCOATNORMALMAP
+        vec3 clearcoatNormal = texture(clearcoatNormalTexture, outUV).rgb;
+        clearcoatNormal = normalize(outTBN * (2.0 * clearcoatNormal - 1.0));
+    #else
+        vec3 clearcoatNormal = outTBN[2].xyz;
+    #endif
+    #else
+        vec3 clearcoatNormal = outNormal;
+    #endif
+
     vec3 viewDir = normalize(viewPos - outPosition);
 
     #ifdef DOUBLESIDED
     if (dot(n, viewDir) < 0.0) {
         n = -n;
+        clearcoatNormal = -clearcoatNormal;
     }
     #endif
 
@@ -315,17 +341,25 @@ void main() {
             }
 
             vec3 specular = CookTorranceSpecular(specularMap, baseColor, metallic, n, H, roughness, viewDir, lightDir);
+            vec3 f_clearcoat = CookTorranceSpecular(specularMap, vec3(0.0), 0.0, clearcoatNormal, H, clearcoatRoughness, viewDir, lightDir);
+            float NdotV = saturate(dot(clearcoatNormal, viewDir));
+            vec3 clearcoatFresnel = 1.0 - clearcoatBlendFactor * fresnelSchlick(NdotV, vec3(0.04));
             vec3 diffuse = ImprovedOrenNayarDiffuse(baseColor, metallic, n, H, roughness, viewDir, lightDir);
             #ifdef SPECULARGLOSSINESSMAP
                 diffuse = baseColor * (1.0 - max(max(specularMap.r, specularMap.g), specularMap.b));
             #endif
 
-            Lo += (diffuse + specular * NdotL) * radiance;
+            Lo += (diffuse + specular * NdotL) * radiance * clearcoatFresnel + f_clearcoat * clearcoatBlendFactor;
         }
 
         vec3 ambient = vec3(0.0);
+        vec3 ambientClearcoat = vec3(0.0);
+        vec3 clearcoatFresnel = vec3(1.0);
         #ifdef IBL
             ambient = IBLAmbient(specularMap, baseColor, metallic, n, roughness, viewDir, ao);
+            ambientClearcoat = IBLAmbient(specularMap, vec3(0.0), 0.0, clearcoatNormal, clearcoatRoughness, viewDir, ao) * clearcoatBlendFactor;
+            float NdotV = saturate(dot(clearcoatNormal, viewDir));
+            clearcoatFresnel = (1.0 - clearcoatBlendFactor * fresnelSchlick(NdotV, vec3(0.04)));
         #else
             ambient = vec3(0.03) * baseColor * ao;
         #endif
@@ -335,7 +369,7 @@ void main() {
             emissive = srgbToLinear(texture(emissiveTexture, getUV(EMISSIVEMAP)));
         #endif
 
-        color = vec4(shadow * (emissive + ambient + Lo), alpha);
+        color = vec4(shadow * ((emissive + ambient + Lo) * clearcoatFresnel + ambientClearcoat), alpha);
     #else
         vec3 lightDir = normalize(lightPos[0] - outPosition);
         vec3 ambient = ambientStrength * lightColor[0];

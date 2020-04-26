@@ -46,7 +46,7 @@ export class Geometry {
     boundingSphere: BoundingSphere;
     vertexAccessor: Map<string, Attr>;
 
-    constructor(gl, json, arrayBuffer, weights, primitive, hasNormal) {
+    constructor(json, arrayBuffer, weights, primitive) {
         this.boundingSphere = {
             center: new Vector3(),
             radius: null,

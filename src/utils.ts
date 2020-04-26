@@ -22,7 +22,10 @@ export const textureEnum = {
     emissiveTexture: 4,
     irradianceTexture: 5,
     prefilterTexture: 6,
-    brdfLUTTexture: 7
+    brdfLUTTexture: 7,
+    clearcoatTexture: 8,
+    clearcoatRoughnessTexture: 9,
+    clearcoatNormalTexture: 10
 };
 
 export function setGl(_gl) {

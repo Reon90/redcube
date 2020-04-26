@@ -153,7 +153,7 @@ export class Parse {
         }
 
         const mesh = skin !== undefined ? new SkinnedMesh(name, parent) : new Mesh(name, parent);
-        const geometry = new Geometry(gl, this.json, this.arrayBuffer, weights, primitive, material.hasNormal());
+        const geometry = new Geometry(this.json, this.arrayBuffer, weights, primitive);
         if (geometry.attributes.COLOR_0 && geometry.attributes.COLOR_0.constructor !== Float32Array) {
             defines.push({ name: 'COLOR_255' });
         }
@@ -464,7 +464,7 @@ export class Parse {
 
         this.scene.meshes.forEach((mesh) => {
             const textureTypes = ['baseColorTexture', 'metallicRoughnessTexture'];
-            const textureTypes2 = ['emissiveTexture', 'normalTexture', 'occlusionTexture'];
+            const textureTypes2 = ['emissiveTexture', 'normalTexture', 'occlusionTexture', 'clearcoatTexture', 'clearcoatRoughnessTexture', 'clearcoatNormalTexture'];
 
             for (let i=0; i < textureTypes2.length; i++) {
                 const textureType = textureTypes2[i];

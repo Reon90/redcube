@@ -63,7 +63,7 @@ class RedCube {
         this.ioc.register('scene', Scene);
         this.ioc.register('light', Light, [], {
             type: 'directional',
-            intensity: 1,
+            intensity: 10,
             color: [1, 1, 1],
             isInitial: true,
             spot: {}

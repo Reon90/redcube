@@ -121,6 +121,21 @@ export class Mesh extends Object3D {
             gl.bindTexture(gl.TEXTURE_2D, this.material.emissiveTexture);
             gl.bindSampler(4, this.material.emissiveTexture.sampler);
         }
+        if (this.material.clearcoatTexture) {
+            gl.activeTexture(gl[`TEXTURE${8}`]);
+            gl.bindTexture(gl.TEXTURE_2D, this.material.clearcoatTexture);
+            gl.bindSampler(8, this.material.clearcoatTexture.sampler);
+        }
+        if (this.material.clearcoatRoughnessTexture) {
+            gl.activeTexture(gl[`TEXTURE${9}`]);
+            gl.bindTexture(gl.TEXTURE_2D, this.material.clearcoatRoughnessTexture);
+            gl.bindSampler(8, this.material.clearcoatRoughnessTexture.sampler);
+        }
+        if (this.material.clearcoatNormalTexture) {
+            gl.activeTexture(gl[`TEXTURE${10}`]);
+            gl.bindTexture(gl.TEXTURE_2D, this.material.clearcoatNormalTexture);
+            gl.bindSampler(8, this.material.clearcoatNormalTexture.sampler);
+        }
         if (this.material.doubleSided) {
             gl.disable(gl.CULL_FACE);
         }
