@@ -115,7 +115,7 @@ export class Camera extends Object3D {
             cameraProps.znear = Math.max(cameraZ - this.modelSize/Math.min(this.scaleFactor, 1), 0.001);
             cameraProps.zfar = cameraZ + this.modelSize/this.scaleFactor;
         } else {
-            cameraProps.znear = 1;
+            cameraProps.znear = 0.1;
             cameraProps.zfar = 10000;
         }
         this.setProjection(calculateProjection(this.props));

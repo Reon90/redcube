@@ -13,7 +13,7 @@ export class Scene {
     transparentChildren: Array<Mesh>;
     opaqueChildren: Array<Mesh>;
     meshes: Array<Mesh>;
-    tracks: Array<Track>;
+    tracks: Array<Track[]>;
     cameras: Array<Camera>;
     lights: Array<Light>;
 

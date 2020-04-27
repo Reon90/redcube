@@ -134,6 +134,17 @@
                 );
                 renderer.init(() => {
                     if (renderer.parse.cameras.length) {
+                        const animations = document.createElement('select');
+                        renderer.parse.tracks.forEach((it, i) => {
+                            const option = document.createElement('option');
+                            option.innerHTML = `animation${i}`;
+                            option.value = i;
+                            animations.appendChild(option);
+                        });
+                        animations.onchange = () => {
+                            renderer.renderer.currentTrack = animations.value;
+                        }
+
                         const select = document.createElement('select');
                         select.onchange = () => {
                             renderer.ioc._updateDep('camera', renderer.parse.cameras.find((it) => { 
@@ -148,6 +159,7 @@
                         });
                         select.value =  renderer.parse.cameras[ renderer.parse.cameras.length - 1].name;
                         selector.appendChild(select);
+                        selector.appendChild(animations);
                     }
                 });
             });

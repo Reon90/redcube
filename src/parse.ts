@@ -41,7 +41,7 @@ interface Define {
 }
 
 export class Parse {
-    tracks: Array<Track>;
+    tracks: Array<Track[]>;
     duration: number;
     url: string;
     host: string;
@@ -317,6 +317,7 @@ export class Parse {
             return true;
         }
         for (const animation of this.json.animations) {
+            const tracks = [];
             for (const channel of animation.channels) {
                 const sampler = animation.samplers[channel.sampler];
 
@@ -373,7 +374,7 @@ export class Parse {
                         this.duration = Math.max(keys[keys.length - 1].time, this.duration);
 
                         if (meshes.length) {
-                            this.tracks.push({
+                            tracks.push({
                                 stoped: false,
                                 meshes: meshes,
                                 type: target.path,
@@ -385,6 +386,7 @@ export class Parse {
                     }
                 }
             }
+            this.tracks.push(tracks);
         }
     }
 

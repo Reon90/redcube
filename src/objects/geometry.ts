@@ -126,24 +126,6 @@ export class Geometry {
             decoderModule.destroy(decoder);
             decoderModule.destroy(decodedGeometry);
         } else {
-            if (primitive.targets) {
-                for (const target of primitive.targets) {
-                    const vertexAcc = <Attributes>{};
-                    for (const a in target) {
-                        vertexAcc[a] = json.accessors[target[a]];
-                        const accessor = vertexAcc[a];
-                        const bufferView = json.bufferViews[accessor.bufferView];
-                        vertexAcc[a] = buildArray(
-                            arrayBuffer[bufferView.buffer],
-                            accessor.componentType,
-                            calculateOffset(bufferView.byteOffset, accessor.byteOffset),
-                            getDataType(accessor.type) * accessor.count
-                        );
-                    }
-                    this.targets.push(vertexAcc);
-                }
-            }
-
             if (indicesAccessor) {
                 const bufferView = json.bufferViews[indicesAccessor.bufferView];
                 indicesBuffer = buildArray(
@@ -161,8 +143,27 @@ export class Geometry {
                     accessor,
                     bufferView
                 );
+            }
+        }
 
-                if (primitive.targets && k in primitive.targets[0]) {
+        if (primitive.targets) {
+            for (const target of primitive.targets) {
+                const vertexAcc = <Attributes>{};
+                for (const a in target) {
+                    vertexAcc[a] = json.accessors[target[a]];
+                    const accessor = vertexAcc[a];
+                    const bufferView = json.bufferViews[accessor.bufferView];
+                    vertexAcc[a] = buildArray(
+                        arrayBuffer[bufferView.buffer],
+                        accessor.componentType,
+                        calculateOffset(bufferView.byteOffset, accessor.byteOffset),
+                        getDataType(accessor.type) * accessor.count
+                    );
+                }
+                this.targets.push(vertexAcc);
+            }
+            for (const k of vertexAccessor.keys()) {
+                if (this.targets[0][k]) {
                     let offset = 0;
                     const geometry = vertexBuffers[k];
                     vertexBuffers[k] = new Float32Array(geometry.length);

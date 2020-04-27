@@ -23,11 +23,13 @@ export class Renderer {
     needUpdateProjection: boolean;
     needUpdateView: boolean;
     env: Env;
+    currentTrack: number;
 
     constructor(getState) {
         this.reflow = true;
         this.fps = new FPS();
         this.getState = getState;
+        this.currentTrack = 0;
     }
 
     setEnv(env) {
@@ -251,10 +253,13 @@ export class Renderer {
     }
 
     animate(sec) {
+        if (!this.parse.tracks.length) {
+            return;
+        }
         const increment = Math.floor(sec / this.parse.duration);
         sec -= increment * this.parse.duration;
 
-        for (const v of this.parse.tracks) {
+        for (const v of this.parse.tracks[this.currentTrack]) {
             let result;
             switch (v.interpolation) {
                 case 'LINEAR':
@@ -265,6 +270,9 @@ export class Renderer {
                     break;
                 case 'STEP':
                     result = this.step(sec, v);
+                    break;
+                default:
+                    result = this.interpolation(sec, v);
                     break;
             }
 
