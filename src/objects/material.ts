@@ -36,7 +36,7 @@ export class Material extends M {
     alpha: boolean;
     UBO: WebGLBuffer;
     doubleSided: boolean;
-    defines: Array<string>
+    defines: Array<{name: string}>
     matrix: Matrix3;
     uniformBuffer: UniformBuffer;
     lightUBO1: WebGLBuffer;
@@ -183,6 +183,10 @@ export class Material extends M {
         if (material.extensions && material.extensions.KHR_materials_unlit) {
             defines.push({ name: 'NOLIGHT' });
         }
+    }
+
+    setHarmonics(sphericalHarmonics) {
+        this.sphericalHarmonics = sphericalHarmonics;
     }
 
     createUniforms(gl, program) {

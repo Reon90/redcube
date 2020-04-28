@@ -140,6 +140,9 @@ export class Parse {
 
     buildPrim(parent, name, skin, weights, primitive) {
         const m = this.json.materials && this.json.materials[primitive.material];
+        if (this.json.extensions && this.json.extensions.EXT_lights_image_based) {
+            this.defines.push({ name: 'SPHERICAL_HARMONICS' });
+        }
         const defines = [...this.defines];
         const material = new Material(m, this.textures, defines, this.lights);
         if (skin !== undefined) {
@@ -531,5 +534,27 @@ export class Parse {
         gl.generateMipmap(gl.TEXTURE_2D);
 
         return t;
+    }
+
+    async getEnv() {
+        if (this.json.extensions && this.json.extensions.EXT_lights_image_based) {
+            const env = this.json.extensions.EXT_lights_image_based.lights[0];
+            env.specularImages = env.specularImages.map(cube => {
+                return cube.map(img => {
+                    const accessor = this.json.images[img];
+                    const bufferView = this.json.bufferViews[accessor.bufferView];
+                    const { buffer, byteLength, byteOffset } = bufferView;
+                    const view = new Uint8Array(this.arrayBuffer[buffer], byteOffset, byteLength);
+                    const blob = new Blob( [ view ], { type: accessor.mimeType } );
+                    const imageUrl = window.URL.createObjectURL( blob );
+                    const imageEl = new Image;
+                    imageEl.src = imageUrl;
+
+                    return imageEl;
+                });
+            });
+            await new Promise(r => setTimeout(r, 200));
+            return env;
+        }
     }
 }

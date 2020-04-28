@@ -4,18 +4,22 @@
 
 A javascript library for rendering webgl. RedCube is a minimalistic viewer used [Khronos glTF 2.0 format](https://github.com/KhronosGroup/glTF/tree/master/specification/2.0).
 
-## Install
-```
-npm install redcube.js
-```
-
 ## Features
 
-Support all glTF features and Khronos extensions ([Samples](https://github.com/KhronosGroup/glTF-Sample-Models/tree/master/2.0))
+([Features checking page](https://github.com/cx20/gltf-test))
 
-Browser support
+&bull; Fully support glTF main spec
 
-Node.js support
+&bull; Ratified Khronos Extensions
+
+&bull; EXT_lights_image_based
+
+&bull; KHR_mesh_quantization
+
+&bull; KHR_materials_clearcoat
+
+## Platforms
+Browser, Node.js
 
 ## How to convert 3D model to gltf
 
@@ -32,4 +36,9 @@ const renderer = new RedCube('./box.gltf', canvas);
 renderer.init(() => {
     console.log('loaded');
 });
+```
+
+## Install
+```
+npm install redcube.js
 ```

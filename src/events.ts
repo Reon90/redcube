@@ -9,7 +9,7 @@ class Events {
     constructor(canvas, redraw) {
         this.redraw = redraw;
         this.zoomValue = 0;
-        document.addEventListener('wheel', this);
+        document.addEventListener('wheel', this, { passive: false });
         canvas.addEventListener('mousedown', this);
         canvas.addEventListener('mousemove', this);
         canvas.addEventListener('mouseup', this);

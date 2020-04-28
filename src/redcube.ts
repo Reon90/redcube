@@ -129,6 +129,8 @@ class RedCube {
         this.parse.calculateFov();
         const planes = Frustum(this.camera.getViewProjMatrix());
 
+        const envData = await this.parse.getEnv();
+        await this.env.createEnvironmentBuffer(envData);
 
         this.scene.meshes.forEach((mesh) => {
             mesh.geometry.createGeometryForWebGl(gl);
@@ -136,6 +138,7 @@ class RedCube {
             const program = this.parse.createProgram(mesh.defines);
             mesh.material.createUniforms(gl, program);
             mesh.material.updateUniforms(gl, program, this.camera, this.parse.lights);
+            mesh.material.setHarmonics(this.env.updateUniform(gl, program));
 
             mesh.setProgram(program);
 
@@ -152,7 +155,6 @@ class RedCube {
 
         this.resize(null);
         this.parse.buildAnimation();
-        await this.env.createEnvironmentBuffer();
         this.draw();
 
         cb();

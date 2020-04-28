@@ -41,6 +41,19 @@ uniform LightIntensity {
 uniform LightPos {
     vec3 lightPos[LIGHTNUMBER];
 };
+uniform SphericalHarmonics {
+    mat4 rotationMatrix;
+    vec3 vSphericalL00;
+    vec3 vSphericalL1_1;
+    vec3 vSphericalL10;
+    vec3 vSphericalL11;
+    vec3 vSphericalL2_2;
+    vec3 vSphericalL2_1;
+    vec3 vSphericalL20;
+    vec3 vSphericalL21;
+    vec3 vSphericalL22;
+};
+
 uniform sampler2D baseColorTexture;
 uniform sampler2D metallicRoughnessTexture;
 uniform sampler2D normalTexture;
@@ -130,8 +143,19 @@ vec3 fresnelSchlick(float cosTheta, vec3 F0) {
 }
 vec3 fresnelSchlickRoughness(float cosTheta, vec3 F0, float roughness) {
     return F0 + (max(vec3(1.0 - roughness), F0) - F0) * pow(1.0 - cosTheta, 5.0);
-} 
+}
 
+vec3 computeEnvironmentIrradiance(vec3 normal) {
+    return vSphericalL00
+        + vSphericalL1_1 * (normal.y)
+        + vSphericalL10 * (normal.z)
+        + vSphericalL11 * (normal.x)
+        + vSphericalL2_2 * (normal.y * normal.x)
+        + vSphericalL2_1 * (normal.y * normal.z)
+        + vSphericalL20 * ((3.0 * normal.z * normal.z) - 1.0)
+        + vSphericalL21 * (normal.z * normal.x)
+        + vSphericalL22 * (normal.x * normal.x - (normal.y * normal.y));
+}
 vec3 IBLAmbient(vec3 specularMap, vec3 baseColor, float metallic, vec3 n, float roughness, vec3 viewDir, float ao) {
     vec3 F0 = vec3(0.04);
     F0 = mix(F0, baseColor, metallic);
@@ -145,13 +169,20 @@ vec3 IBLAmbient(vec3 specularMap, vec3 baseColor, float metallic, vec3 n, float 
     vec3 kD = vec3(1.0) - F;
     kD *= 1.0 - metallic;
 
-    vec3 R = reflect(-viewDir, n);   
     const float MAX_REFLECTION_LOD = 4.0;
-    vec3 prefilteredColor = textureLod(prefilterMap, R,  roughness * MAX_REFLECTION_LOD).rgb;
+    #ifdef SPHERICAL_HARMONICS
+    vec3 R = reflect(viewDir, n);
+    vec4 rotatedR = rotationMatrix * vec4(R, 0.0);
+    vec3 prefilteredColor = srgbToLinear(textureLod(prefilterMap, rotatedR.xyz, roughness * MAX_REFLECTION_LOD));
+    vec3 irradianceVector = vec3(rotationMatrix * vec4(n, 0)).xyz;
+    vec3 irradiance = computeEnvironmentIrradiance(irradianceVector).rgb;
+    #else
+    vec3 R = reflect(-viewDir, n);
+    vec3 prefilteredColor = textureLod(prefilterMap, R, roughness * MAX_REFLECTION_LOD).rgb;
+    vec3 irradiance = texture(irradianceMap, n).rgb;
+    #endif
     vec2 envBRDF  = texture(brdfLUT, vec2(max(dot(n, viewDir), 0.0), roughness)).rg;
     vec3 specular = prefilteredColor * (F * envBRDF.x + envBRDF.y);
-
-    vec3 irradiance = texture(irradianceMap, n).rgb;
     vec3 diffuse = baseColor * irradiance;
 
     return (kD * diffuse + specular) * ao;

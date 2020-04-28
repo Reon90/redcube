@@ -1,5 +1,5 @@
 import { compileShader, createProgram, createTexture, calculateProjection, textureEnum, currentPath } from './utils';
-import { Matrix4, Vector3 } from './matrix';
+import { Matrix4, Vector3, Vector4 } from './matrix';
 import { Camera } from './objects/index';
 import parseHDR from 'parse-hdr';
 
@@ -10,6 +10,8 @@ import cubeMipmap from './shaders/cube-mipmap.frag';
 import bdrf from './shaders/bdrf.frag';
 import quad from './shaders/quad.glsl';
 import { cubeVertex, quadVertex } from './vertex';
+import { SphericalHarmonics, SphericalPolynomial } from './SH';
+import { UniformBuffer } from './objects/uniform';
 
 let gl;
 
@@ -18,6 +20,10 @@ interface Texture extends WebGLTexture {
 }
 interface FrameBuffer extends WebGLFramebuffer {
     size: number;
+}
+
+interface IBLData {
+    specularImages: Array<Array<HTMLImageElement>>;
 }
 
 export class Env {
@@ -43,6 +49,8 @@ export class Env {
     url: string;
     sampler: WebGLTexture;
     samplerCube: WebGLTexture;
+    envData: IBLData;
+    uniformBuffer: UniformBuffer;
 
     originalCubeTexture: Texture;
     brdfLUTTexture: Texture;
@@ -206,7 +214,7 @@ export class Env {
         });
         m.multiply(calculateProjection(cam));
 
-        {
+        if (!this.envData) {
             gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
             gl.useProgram(this.cubeprogram);
             gl.bindVertexArray(this.VAO);
@@ -241,7 +249,7 @@ export class Env {
             gl.bindFramebuffer(gl.FRAMEBUFFER, null);
         }
 
-        {
+        if (!this.envData) {
             gl.bindFramebuffer(gl.FRAMEBUFFER, this.irradiancebuffer);
             gl.useProgram(this.irradianceprogram);
             gl.bindVertexArray(this.VAO);
@@ -260,7 +268,7 @@ export class Env {
             gl.bindFramebuffer(gl.FRAMEBUFFER, null);
         }
 
-        {
+        if (!this.envData) {
             gl.bindFramebuffer(gl.FRAMEBUFFER, this.prefilterbuffer);
             gl.useProgram(this.mipmapcubeprogram);
             gl.bindVertexArray(this.VAO);
@@ -310,7 +318,43 @@ export class Env {
         gl.viewport(0, 0, this.width, this.height);
     }
 
-    createEnvironmentBuffer() {
+    updateUniform(gl, program) {
+        if (this.uniformBuffer) {
+            const mIndex = gl.getUniformBlockIndex(program, 'SphericalHarmonics');
+            gl.uniformBlockBinding(program, mIndex, 7);
+            const mUBO = gl.createBuffer();
+            gl.bindBuffer(gl.UNIFORM_BUFFER, mUBO);
+            gl.bufferData(gl.UNIFORM_BUFFER, this.uniformBuffer.store, gl.STATIC_DRAW);
+            return mUBO;
+        }
+    }
+
+    createEnvironmentBuffer(envData) {
+        this.envData = envData;
+
+        if (envData) {
+            const matrix = new Matrix4();
+            matrix.makeRotationFromQuaternion(new Vector4(envData.rotation).elements);
+            const sphericalHarmonics = SphericalHarmonics.FromArray(envData.irradianceCoefficients);
+            sphericalHarmonics.scaleInPlace(envData.intensity);
+            sphericalHarmonics.convertIrradianceToLambertianRadiance();
+            const sphericalPolynomial = SphericalPolynomial.FromHarmonics(sphericalHarmonics);
+            const preScaledHarmonics = sphericalPolynomial.preScaledHarmonics;
+            const uniformBuffer = new UniformBuffer();
+            uniformBuffer.add("rotationMatrix", matrix.elements);
+            uniformBuffer.add("vSphericalL00", preScaledHarmonics.l00.elements);
+            uniformBuffer.add("vSphericalL1_1", preScaledHarmonics.l1_1.elements);
+            uniformBuffer.add("vSphericalL10", preScaledHarmonics.l10.elements);
+            uniformBuffer.add("vSphericalL11", preScaledHarmonics.l11.elements);
+            uniformBuffer.add("vSphericalL2_2", preScaledHarmonics.l2_2.elements);
+            uniformBuffer.add("vSphericalL2_1", preScaledHarmonics.l2_1.elements);
+            uniformBuffer.add("vSphericalL20", preScaledHarmonics.l20.elements);
+            uniformBuffer.add("vSphericalL21", preScaledHarmonics.l21.elements);
+            uniformBuffer.add("vSphericalL22", preScaledHarmonics.l22.elements);
+            uniformBuffer.done();
+            this.uniformBuffer = uniformBuffer;
+        }
+
         {
             const sampler = gl.createSampler();
             gl.samplerParameteri(sampler, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
@@ -375,9 +419,18 @@ export class Env {
             gl.bindFramebuffer(gl.FRAMEBUFFER, captureFBO);
 
             const texture = createTexture(gl.TEXTURE_CUBE_MAP, textureEnum.prefilterTexture);
-            for (let i = 0; i < 6; i++) {
-                gl.texImage2D(gl.TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, gl.RGBA16F, size, size, 0, gl.RGBA, gl.FLOAT, null);
-                gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_CUBE_MAP_POSITIVE_X + i, texture, i);
+            if (this.envData) {
+                const x = [gl.TEXTURE_CUBE_MAP_POSITIVE_X, gl.TEXTURE_CUBE_MAP_NEGATIVE_X, gl.TEXTURE_CUBE_MAP_NEGATIVE_Y, gl.TEXTURE_CUBE_MAP_POSITIVE_Y, gl.TEXTURE_CUBE_MAP_POSITIVE_Z, gl.TEXTURE_CUBE_MAP_NEGATIVE_Z];
+                for (let j = 0; j < this.envData.specularImages.length; j++) {
+                    for (let i = 0; i < 6; i++) {
+                        gl.texImage2D(x[i], j, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, this.envData.specularImages[j][i]);
+                    }
+                }
+            } else {
+                for (let i = 0; i < 6; i++) {
+                    gl.texImage2D(gl.TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, gl.RGBA16F, size, size, 0, gl.RGBA, gl.FLOAT, null);
+                    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_CUBE_MAP_POSITIVE_X + i, texture, i);
+                }
             }
             gl.bindSampler(texture.index, this.samplerCube);
             gl.generateMipmap(gl.TEXTURE_CUBE_MAP);

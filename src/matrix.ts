@@ -892,6 +892,12 @@ class Vector3 {
         this.elements[2] = v;
     }
 
+    static FromArrayToRef(array: ArrayLike<number>, offset: number, result: Vector3): void {
+        result.x = array[offset];
+        result.y = array[offset + 1];
+        result.z = array[offset + 2];
+    }
+
     constructor(opt_src?: Array<number> | Float32Array) {
         const v = new Float32Array(3);
         if (opt_src && typeof opt_src === 'object') {
@@ -990,6 +996,16 @@ class Vector3 {
         a[1] = a[1] * b;
         a[2] = a[2] * b;
         return this;
+    }
+
+    public scale2(scale: number): Vector3 {
+        return new Vector3([this.x * scale, this.y * scale, this.z * scale]);
+    }
+    public subtract2(otherVector: Vector3): Vector3 {
+        return new Vector3([this.x - otherVector.x, this.y - otherVector.y, this.z - otherVector.z]);
+    }
+    public add2(otherVector: Vector3): Vector3 {
+        return new Vector3([this.x + otherVector.x, this.y + otherVector.y, this.z + otherVector.z]);
     }
 
     distanceToSquared(x, y, z) {
@@ -1258,6 +1274,13 @@ class Vector4 {
         out[1] = y * ratioA + out[1] * ratioB;
         out[2] = z * ratioA + out[2] * ratioB;
 
+        return this;
+    }
+
+    inverse() {
+        this.elements[0] = -this.elements[0];
+        this.elements[1] = -this.elements[1];
+        this.elements[2] = -this.elements[2]
         return this;
     }
 }

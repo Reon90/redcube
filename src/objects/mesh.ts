@@ -91,6 +91,10 @@ export class Mesh extends Object3D {
             gl.bindBufferBase(gl.UNIFORM_BUFFER, 6, this.material.lightUBO4);
         }
 
+        if (this.material.sphericalHarmonics) {
+            gl.bindBufferBase(gl.UNIFORM_BUFFER, 7, this.material.sphericalHarmonics);
+        }
+
         gl.uniform1i(
             this.material.uniforms.depthTexture,
             (preDepthTexture && !isprepender) ? preDepthTexture.index : fakeDepth.index
