@@ -28,6 +28,9 @@ uniform Material {
     vec4 roughnessFactor;
     vec4 clearcoatFactor;
     vec4 clearcoatRoughnessFactor;
+    vec4 sheenColorFactor;
+    vec4 sheenFactor;
+    vec4 sheenRoughnessFactor;
 };
 uniform LightColor {
     vec3 lightColor[LIGHTNUMBER];
@@ -61,6 +64,7 @@ uniform sampler2D emissiveTexture;
 uniform sampler2D occlusionTexture;
 uniform sampler2D clearcoatTexture;
 uniform sampler2D clearcoatRoughnessTexture;
+uniform sampler2D sheenTexture;
 uniform sampler2D clearcoatNormalTexture;
 
 uniform samplerCube prefilterMap;
@@ -245,6 +249,21 @@ vec3 ImprovedOrenNayarDiffuse(vec3 baseColor, float metallic, vec3 N, vec3 H, fl
 	return (diffuseColor * max(0.0, dotNL)) * (A + vec3(B * s / t) / PI);
 }
 
+float sheenDistribution(float sheenRoughness, vec3 N, vec3 H) {
+    float NdotH = max(dot(N, H), 0.0);
+    float alphaG = max(sheenRoughness * sheenRoughness, 0.01);
+    float invR = 1.0 / alphaG;
+    float cos2h = NdotH * NdotH;
+    float sin2h = 1.0 - cos2h;
+    return (2.0 + invR) * pow(sin2h, invR * 0.5) / (2.0 * PI);
+}
+
+float sheenVisibility(vec3 N, vec3 V, vec3 L) {
+    float NdotL = max(dot(N, L), 0.0);
+    float NdotV = max(dot(N, V), 0.0);
+    return 1.0 / (4.0 * (NdotL + NdotV - NdotL * NdotV));
+}
+
 void main() {
     #ifdef BASECOLORTEXTURE
         vec2 uv = outUV;
@@ -286,11 +305,19 @@ void main() {
     float clearcoatRoughness = clearcoatRoughnessFactor.x;
     float clearcoat = clearcoatFactor.x;
     float clearcoatBlendFactor = clearcoat;
+    float sheen = sheenFactor.x;
+    vec3 sheenColor = sheenColorFactor.xyz;
+    float sheenRoughness = sheenRoughnessFactor.x;
     #ifdef CLEARCOATMAP
         clearcoatBlendFactor = texture(clearcoatTexture, outUV).r * clearcoat;
     #endif
     #ifdef CLEARCOATROUGHMAP
         clearcoatRoughness = texture(clearcoatRoughnessTexture, outUV).g * clearcoatRoughness;
+    #endif
+    #ifdef SHEENMAP
+        vec4 sheenTextureV = texture(sheenTexture, outUV);
+        sheenColor = sheenTextureV.rgb * sheenColor;
+        sheen = sheenTextureV.a * sheen;
     #endif
     vec3 specularMap = vec3(0);
     #ifdef SPECULARGLOSSINESSMAP
@@ -379,8 +406,9 @@ void main() {
             #ifdef SPECULARGLOSSINESSMAP
                 diffuse = baseColor * (1.0 - max(max(specularMap.r, specularMap.g), specularMap.b));
             #endif
+            vec3 f_sheen = sheenColor * sheen * sheenDistribution(sheenRoughness, n, H) * sheenVisibility(n, viewDir, lightDir);
 
-            Lo += (diffuse + specular * NdotL) * radiance * clearcoatFresnel + f_clearcoat * clearcoatBlendFactor;
+            Lo += (diffuse + specular * NdotL) * radiance * clearcoatFresnel + f_clearcoat * clearcoatBlendFactor + f_sheen;
         }
 
         vec3 ambient = vec3(0.0);
