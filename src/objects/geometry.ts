@@ -238,7 +238,7 @@ export class Geometry {
             vertexAccessor.set('NORMAL', { componentType: 5126 });
         }
 
-        if (vertexBuffers.TEXCOORD_0 === undefined) {
+        if (vertexBuffers.TEXCOORD_0 === undefined && indicesBuffer) {
             vertexBuffers.TEXCOORD_0 = calculateUVs(vertexBuffers.POSITION, vertexBuffers.NORMAL);
             vertexAccessor.set('TEXCOORD_0', { componentType: 5126 });
         }
@@ -259,10 +259,6 @@ export class Geometry {
         const { min, max } = boundingBox;
         this.boundingSphere.min = new Vector3(min);
         this.boundingSphere.max = new Vector3(max);
-
-        this.calculateBounding();
-
-        
     }
 
     createGeometryForWebGl(gl) {
@@ -287,7 +283,10 @@ export class Geometry {
         gl.bindVertexArray(null);
     }
 
-    calculateBounding() {
+    calculateBounding(matrix) {
+        this.boundingSphere.min.applyMatrix4(matrix);
+        this.boundingSphere.max.applyMatrix4(matrix);
+
         const vertices = this.attributes.POSITION;
         let maxRadiusSq = 0;
 

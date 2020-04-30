@@ -1104,6 +1104,49 @@ class Vector3 {
         b = b.elements;
         return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
     }
+
+    length() {
+		return Math.sqrt( this.x * this.x + this.y * this.y + this.z * this.z );
+	}
+
+    min(v) {
+        this.x = Math.min( this.x, v.x );
+		this.y = Math.min( this.y, v.y );
+        this.z = Math.min( this.z, v.z );
+        
+        return this;
+    }
+
+    max(v) {
+		this.x = Math.max( this.x, v.x );
+		this.y = Math.max( this.y, v.y );
+		this.z = Math.max( this.z, v.z );
+
+		return this;
+    }
+    subVectors(a, b) {
+		this.x = a.x - b.x;
+		this.y = a.y - b.y;
+		this.z = a.z - b.z;
+
+		return this;
+	}
+}
+
+class Box {
+    min = new Vector3([Infinity, Infinity, Infinity]);
+    max = new Vector3([-Infinity, -Infinity, -Infinity]);
+
+    expand(box) {
+        this.min.min( box.min );
+		this.max.max( box.max );
+    }
+
+    getSize() {
+        const size = new Vector3;
+        size.subVectors(this.max, this.min);
+        return size.length();
+    }
 }
 
 /**
@@ -1359,4 +1402,4 @@ function Frustum(m) {
     return planes;
 }
 
-export { Matrix2, Matrix3, Matrix4, Vector, Vector2, Vector3, Vector4, Frustum };
+export { Matrix2, Matrix3, Matrix4, Vector, Vector2, Vector3, Vector4, Frustum, Box };

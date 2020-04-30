@@ -56,7 +56,7 @@ class RedCube {
             this.parse.cameras.push(this.camera);
         }
         this.camera = this.parse.camera;
-        this.parse.calculateFov();
+        this.parse.calculateFov(this.camera.props.isInitial);
         this.resize();
         } catch(e) {
             console.log(e);

@@ -126,7 +126,7 @@ class RedCube {
             this.parse.cameras.push(this.camera);
         }
 
-        this.parse.calculateFov();
+        this.parse.calculateFov(this.parse.cameras[0].props.isInitial);
         const planes = Frustum(this.camera.getViewProjMatrix());
 
         const envData = await this.parse.getEnv();
@@ -175,7 +175,7 @@ class RedCube {
     redraw(type, coordsStart, coordsMove) {
         if (type === 'zoom') {
             this.camera.zoom(coordsStart);
-            this.renderer.needUpdateProjection = true;
+            this.renderer.needUpdateView = true;
         }
         if (type === 'rotate') {
             this.camera.rotate(coordsStart, coordsMove);
@@ -198,7 +198,7 @@ class RedCube {
         this.canvas.width = this.canvas.offsetWidth * devicePixelRatio;
         this.canvas.height = this.canvas.offsetHeight * devicePixelRatio;
         gl.viewport(0, 0, this.canvas.offsetWidth * devicePixelRatio, this.canvas.offsetHeight * devicePixelRatio);
-        const z = (1000 / this.canvas.width) * this.camera.modelSize * devicePixelRatio;
+        const z = this.camera.modelSize;
 
         if (this.camera.props.isInitial) {
             this.camera.setZ(z);

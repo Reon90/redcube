@@ -28,12 +28,12 @@ export class Camera extends Object3D {
     matrixWorldInvert: Matrix4;
     projection: Matrix4;
     modelSize: number;
-    scaleFactor: number;
     modelXSize: number;
     modelYSize: number;
     yaw: number;
     pitch: number;
     matrixInitial: Matrix4;
+    z: number;
 
     constructor(props, name?, parent?) {
         super(name, parent);
@@ -44,6 +44,7 @@ export class Camera extends Object3D {
 
         this.yaw = 0;
         this.pitch = -Math.PI;
+        this.z = 1;
     }
 
     setProjection(matrix) {
@@ -103,21 +104,22 @@ export class Camera extends Object3D {
     }
 
     zoom(value) {
-        this.props.zoom = value; //Math.max(Math.min(coordsStart, 3 / this.camera.props.aspect), 0.5);
-        this.updateNF();
-        this.setProjection(calculateProjection(this.props));
+        const v = value > this.z ? -value : value;
+        this.setZ(this.matrixWorld.elements[14] + v);
+        this.setMatrixWorld(this.matrixWorld.elements);
+        this.z = value;
     }
 
     updateNF() {
-        const cameraZ = Math.abs(this.matrixWorldInvert.elements[14]);
-        const cameraProps = this.props.perspective || this.props.orthographic;
-        if (cameraZ > this.modelSize) {
-            cameraProps.znear = Math.max(cameraZ - this.modelSize/Math.min(this.scaleFactor, 1), 0.001);
-            cameraProps.zfar = cameraZ + this.modelSize/this.scaleFactor;
-        } else {
-            cameraProps.znear = 0.1;
-            cameraProps.zfar = 10000;
+        if (this.props.isInitial) {
+            const scale = Math.min(...this.matrixWorld.getScaling().elements);
+            const modelSize = this.modelSize / scale;
+            const cameraZ = Math.abs(this.matrixWorldInvert.elements[14]);
+            const cameraProps = this.props.perspective || this.props.orthographic;
+            cameraProps.znear = Math.max(cameraZ - modelSize, 0.001);
+            cameraProps.zfar = cameraZ + modelSize;
         }
+
         this.setProjection(calculateProjection(this.props));
     }
 }

@@ -193,6 +193,10 @@ export class Mesh extends Object3D {
 
         return visible;
     }
+
+    calculateBounding() {
+        this.geometry.calculateBounding(this.matrixWorld);
+    }
 }
 
 export class SkinnedMesh extends Mesh {

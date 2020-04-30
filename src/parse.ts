@@ -1,6 +1,6 @@
 import { buildArray, getDataType, walk, getAnimationComponent, calculateProjection, createProgram, calculateOffset } from './utils';
 import { Mesh, SkinnedMesh, Bone, Camera, Object3D, Scene, Light, UniformBuffer, Material } from './objects/index';
-import { Matrix4 } from './matrix';
+import { Matrix4, Box, Vector3 } from './matrix';
 import { GlTf } from '../GLTF';
 import { fetch, fetchBinary, fetchImage } from './fetch';
 
@@ -169,6 +169,7 @@ export class Parse {
             mesh.skin = skin;
         }
         mesh.updateMatrix();
+        mesh.calculateBounding();
 
         return mesh;
     }
@@ -249,28 +250,33 @@ export class Parse {
         }
     }
 
-    calculateFov() {
-        let biggestMesh;
+    calculateFov(isInitial) {
+        const box = new Box();
         walk(this.scene, node => {
             if (node instanceof Mesh) {
-                if (!biggestMesh) {
-                    biggestMesh = node;
-                }
-                const candidateZ = Math.hypot(...node.matrixWorld.getScaling().elements);
-                const z = Math.hypot(...biggestMesh.matrixWorld.getScaling().elements);
-                if (node.geometry.boundingSphere.radius * candidateZ > biggestMesh.geometry.boundingSphere.radius * z) {
-                    biggestMesh = node;
-                }
+                box.expand(node.geometry.boundingSphere);
             }
         });
-        const z = Math.hypot(...biggestMesh.matrixWorld.getScaling().elements);
-        const pos = Math.hypot(...biggestMesh.getPosition());
+        const size = box.getSize();
+
+        if (isInitial) {
+            const center = new Vector3()
+            .add(box.min)
+            .add(box.max)
+            .scale(0.5);
+            const matrix = new Matrix4;
+            matrix.translate(center.x, center.y, center.z);
+            matrix.invert();
+            this.scene.matrixWorld.multiply(matrix);
+            walk(this.scene, node => {
+                if (node instanceof Object3D) {
+                    node.updateMatrix();
+                }
+            });
+        }
+
         this.cameras.forEach(c => {
-            c.scaleFactor = z;
-            c.modelSize =
-                biggestMesh.geometry.boundingSphere.radius * z +
-                pos +
-                Math.hypot(...biggestMesh.geometry.boundingSphere.center.elements) * z;
+            c.modelSize = size;
         });
 
         this.resize();
