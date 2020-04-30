@@ -161,6 +161,9 @@ export class Particles {
     }
 
     draw(time) {
+        gl.enable(gl.BLEND);
+        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
         const destinationIdx = (this.currentSourceIdx + 1) % 2;
         gl.useProgram(this.program);
         gl.bindVertexArray(this.VAO[this.currentSourceIdx]);
@@ -187,10 +190,12 @@ export class Particles {
 
         gl.useProgram(this.program2);
         gl.bindVertexArray(this.VAO[destinationIdx]);
+        gl.uniform1f(gl.getUniformLocation(this.program2, 'u_time'), time + 5000);
         gl.uniformMatrix4fv(gl.getUniformLocation(this.program2, 'MVPMatrix'), false, m.elements);
         gl.uniform1i(gl.getUniformLocation(this.program2, 'light'), this.getLight());
         gl.drawArraysInstanced(gl.POINTS, 0, 1, amount);
 
+        gl.disable(gl.BLEND);
         this.currentSourceIdx = (this.currentSourceIdx + 1) % 2;
     }
 }

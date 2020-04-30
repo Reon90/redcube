@@ -176,6 +176,7 @@ class RedCube {
         if (type === 'zoom') {
             this.camera.zoom(coordsStart);
             this.renderer.needUpdateView = true;
+            this.renderer.needUpdateProjection = true;
         }
         if (type === 'rotate') {
             this.camera.rotate(coordsStart, coordsMove);

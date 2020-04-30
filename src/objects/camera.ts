@@ -105,9 +105,10 @@ export class Camera extends Object3D {
 
     zoom(value) {
         const v = value > this.z ? -value : value;
-        this.setZ(this.matrixWorld.elements[14] + v);
+        this.setZ(this.matrixWorld.elements[14] + v * this.modelSize / 100);
         this.setMatrixWorld(this.matrixWorld.elements);
         this.z = value;
+        this.updateNF();
     }
 
     updateNF() {
@@ -116,7 +117,7 @@ export class Camera extends Object3D {
             const modelSize = this.modelSize / scale;
             const cameraZ = Math.abs(this.matrixWorldInvert.elements[14]);
             const cameraProps = this.props.perspective || this.props.orthographic;
-            cameraProps.znear = Math.max(cameraZ - modelSize, 0.001);
+            cameraProps.znear = Math.max(cameraZ - modelSize, modelSize * 0.5);
             cameraProps.zfar = cameraZ + modelSize;
         }
 

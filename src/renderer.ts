@@ -321,6 +321,7 @@ export class Renderer {
             this.clean();
 
             if (this.PP.postprocessors.some(p => p instanceof PPLight)) {
+                gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, null);
                 this.Particles.draw(time);
                 this.reflow = true;
             }
