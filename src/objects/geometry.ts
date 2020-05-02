@@ -153,11 +153,10 @@ export class Geometry {
                     vertexAcc[a] = json.accessors[target[a]];
                     const accessor = vertexAcc[a];
                     const bufferView = json.bufferViews[accessor.bufferView];
-                    vertexAcc[a] = buildArray(
+                    vertexAcc[a] = buildArrayWithStride(
                         arrayBuffer[bufferView.buffer],
-                        accessor.componentType,
-                        calculateOffset(bufferView.byteOffset, accessor.byteOffset),
-                        getDataType(accessor.type) * accessor.count
+                        accessor,
+                        bufferView
                     );
                 }
                 this.targets.push(vertexAcc);
@@ -166,7 +165,7 @@ export class Geometry {
                 if (this.targets[0][k]) {
                     let offset = 0;
                     const geometry = vertexBuffers[k];
-                    vertexBuffers[k] = new Float32Array(geometry.length);
+                    vertexBuffers[k] = new geometry.constructor(geometry.length);
                     for (let i = 0; i < vertexBuffers[k].length; i++) {
                         if (k === 'TANGENT' && (i + 1) % 4 === 0) {
                             offset++;

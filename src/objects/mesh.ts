@@ -100,15 +100,15 @@ export class Mesh extends Object3D {
             (preDepthTexture && !isprepender) ? preDepthTexture.index : fakeDepth.index
         );
 
-        if (this.material.pbrMetallicRoughness.baseColorTexture) {
+        if (this.material.baseColorTexture) {
             gl.activeTexture(gl[`TEXTURE${0}`]);
-            gl.bindTexture(gl.TEXTURE_2D, this.material.pbrMetallicRoughness.baseColorTexture);
-            gl.bindSampler(0, this.material.pbrMetallicRoughness.baseColorTexture.sampler);
+            gl.bindTexture(gl.TEXTURE_2D, this.material.baseColorTexture);
+            gl.bindSampler(0, this.material.baseColorTexture.sampler);
         }
-        if (this.material.pbrMetallicRoughness.metallicRoughnessTexture) {
+        if (this.material.metallicRoughnessTexture) {
             gl.activeTexture(gl[`TEXTURE${1}`]);
-            gl.bindTexture(gl.TEXTURE_2D, this.material.pbrMetallicRoughness.metallicRoughnessTexture);
-            gl.bindSampler(1, this.material.pbrMetallicRoughness.metallicRoughnessTexture.sampler);
+            gl.bindTexture(gl.TEXTURE_2D, this.material.metallicRoughnessTexture);
+            gl.bindSampler(1, this.material.metallicRoughnessTexture.sampler);
         }
         if (this.material.normalTexture) {
             gl.activeTexture(gl[`TEXTURE${2}`]);

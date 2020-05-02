@@ -1,4 +1,4 @@
-import { buildArray, getDataType, walk, getAnimationComponent, calculateProjection, createProgram, calculateOffset } from './utils';
+import { buildArray, getDataType, walk, getAnimationComponent, calculateProjection, createProgram, calculateOffset, normalize } from './utils';
 import { Mesh, SkinnedMesh, Bone, Camera, Object3D, Scene, Light, UniformBuffer, Material } from './objects/index';
 import { Matrix4, Box, Vector3 } from './matrix';
 import { GlTf } from '../GLTF';
@@ -376,7 +376,7 @@ export class Parse {
 
                         keys.push({
                             time: firstT,
-                            value: firstV
+                            value: normalize(firstV)
                         });
                     }
                     if (keys.length >= 2) {
@@ -474,11 +474,10 @@ export class Parse {
         });
 
         this.scene.meshes.forEach((mesh) => {
-            const textureTypes = ['baseColorTexture', 'metallicRoughnessTexture'];
-            const textureTypes2 = ['emissiveTexture', 'normalTexture', 'occlusionTexture', 'clearcoatTexture', 'clearcoatRoughnessTexture', 'clearcoatNormalTexture', 'sheenTexture'];
+            const textureTypes = ['baseColorTexture', 'metallicRoughnessTexture', 'emissiveTexture', 'normalTexture', 'occlusionTexture', 'clearcoatTexture', 'clearcoatRoughnessTexture', 'clearcoatNormalTexture', 'sheenTexture'];
 
-            for (let i=0; i < textureTypes2.length; i++) {
-                const textureType = textureTypes2[i];
+            for (let i=0; i < textureTypes.length; i++) {
+                const textureType = textureTypes[i];
                 const t = mesh.material[textureType];
                 if (!t) {
                     continue;
@@ -486,17 +485,6 @@ export class Parse {
                 const sampler = this.samplers[t.sampler !== undefined ? t.sampler : 0];
 
                 mesh.material[textureType] = this.handleTextureLoaded(sampler, t.image, t.name);
-            }
-
-            for (let i=0; i < textureTypes.length; i++) {
-                const textureType = textureTypes[i];
-                const t = mesh.material.pbrMetallicRoughness[textureType];
-                if (!t) {
-                    continue;
-                }
-                const sampler = this.samplers[t.sampler !== undefined ? t.sampler : 0];
-
-                mesh.material.pbrMetallicRoughness[textureType] = this.handleTextureLoaded(sampler, t.image, t.name);
             }
         });
     }

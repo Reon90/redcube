@@ -4,9 +4,7 @@ import { Material as M } from '../../GLTF';
 import { textureEnum } from '../utils';
 
 const defaultMaterial = {
-    pbrMetallicRoughness: {
-        baseColorFactor: [1, 0, 0, 1]
-    }
+    baseColorFactor: [1, 0, 0, 1]
 } as M;
 
 interface Uniforms {
@@ -109,21 +107,22 @@ export class Material extends M {
             irradianceMap: null,
             depthTexture: null
         };
-        this.pbrMetallicRoughness = {
-            baseColorFactor: material.pbrMetallicRoughness.baseColorFactor,
-            roughnessFactor: material.pbrMetallicRoughness.roughnessFactor,
-            metallicFactor: material.pbrMetallicRoughness.metallicFactor,
-            specularFactor: material.pbrMetallicRoughness.specularFactor,
-            glossinessFactor: material.pbrMetallicRoughness.glossinessFactor
-        };
+        const pbrMetallicRoughness = material.pbrMetallicRoughness;
+        if (pbrMetallicRoughness) {
+            this.baseColorFactor = pbrMetallicRoughness.baseColorFactor;
+            this.roughnessFactor = pbrMetallicRoughness.roughnessFactor;
+            this.metallicFactor = pbrMetallicRoughness.metallicFactor;
+            this.specularFactor = pbrMetallicRoughness.specularFactor;
+            this.glossinessFactor = pbrMetallicRoughness.glossinessFactor;
+        }
         this.alpha = material.alphaMode === 'BLEND';
         this.blend = material.blend;
         this.doubleSided = material.doubleSided;
         this.emissiveFactor = material.emissiveFactor;
         this.extras = material.extras;
 
-        if (material.pbrMetallicRoughness.metallicRoughnessTexture) {
-            this.pbrMetallicRoughness.metallicRoughnessTexture = textures[material.pbrMetallicRoughness.metallicRoughnessTexture.index];
+        if (pbrMetallicRoughness && pbrMetallicRoughness.metallicRoughnessTexture) {
+            this.metallicRoughnessTexture = textures[pbrMetallicRoughness.metallicRoughnessTexture.index];
             defines.push({ name: 'METALROUGHNESSMAP' });
         }
         if (material.normalTexture) {
@@ -134,9 +133,9 @@ export class Material extends M {
             this.occlusionTexture = textures[material.occlusionTexture.index];
             defines.push({ name: 'OCCLUSIONMAP' });
         }
-        if (material.pbrMetallicRoughness.baseColorTexture) {
-            const { extensions } = material.pbrMetallicRoughness.baseColorTexture;
-            this.pbrMetallicRoughness.baseColorTexture = textures[material.pbrMetallicRoughness.baseColorTexture.index];
+        if (pbrMetallicRoughness && pbrMetallicRoughness.baseColorTexture) {
+            const { extensions } = pbrMetallicRoughness.baseColorTexture;
+            this.baseColorTexture = textures[pbrMetallicRoughness.baseColorTexture.index];
             defines.push({ name: 'BASECOLORTEXTURE' });
 
             if (extensions) {
@@ -205,11 +204,11 @@ export class Material extends M {
     createUniforms(gl, program) {
         gl.useProgram(program);
 
-        if (this.pbrMetallicRoughness.baseColorTexture) {
+        if (this.baseColorTexture) {
             this.uniforms.baseColorTexture = gl.getUniformLocation(program, 'baseColorTexture');
             gl.uniform1i(this.uniforms.baseColorTexture, textureEnum.baseColorTexture);
         }
-        if (this.pbrMetallicRoughness.metallicRoughnessTexture) {
+        if (this.metallicRoughnessTexture) {
             this.uniforms.metallicRoughnessTexture = gl.getUniformLocation(program, 'metallicRoughnessTexture');
             gl.uniform1i(this.uniforms.metallicRoughnessTexture, textureEnum.metallicRoughnessTexture);
         }
@@ -270,14 +269,14 @@ export class Material extends M {
 
         {
             const materialUniformBuffer = new UniformBuffer();
-            materialUniformBuffer.add('baseColorFactor', this.pbrMetallicRoughness.baseColorFactor || [0.8, 0.8, 0.8, 1.0]);
+            materialUniformBuffer.add('baseColorFactor', this.baseColorFactor || [0.8, 0.8, 0.8, 1.0]);
             materialUniformBuffer.add('viewPos', camera.getPosition());
             materialUniformBuffer.add('textureMatrix', (this.matrix && this.matrix.elements) || new Matrix3().elements);
-            materialUniformBuffer.add('specularFactor', this.pbrMetallicRoughness.specularFactor || [0, 0, 0]);
+            materialUniformBuffer.add('specularFactor', this.specularFactor || [0, 0, 0]);
             materialUniformBuffer.add('emissiveFactor', this.emissiveFactor || [0, 0, 0]);
-            materialUniformBuffer.add('glossinessFactor', this.pbrMetallicRoughness.glossinessFactor || 0.5);
-            materialUniformBuffer.add('metallicFactor', this.pbrMetallicRoughness.metallicFactor || 1);
-            materialUniformBuffer.add('roughnessFactor', this.pbrMetallicRoughness.roughnessFactor || 1);
+            materialUniformBuffer.add('glossinessFactor', this.glossinessFactor || 0.5);
+            materialUniformBuffer.add('metallicFactor', this.metallicFactor || 1);
+            materialUniformBuffer.add('roughnessFactor', this.roughnessFactor || 1);
             materialUniformBuffer.add('clearcoatFactor', this.clearcoatFactor || 0);
             materialUniformBuffer.add('clearcoatRoughnessFactor', this.clearcoatRoughnessFactor || 0);
             materialUniformBuffer.add('sheenColorFactor', this.sheenColorFactor || 0);

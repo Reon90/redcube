@@ -507,3 +507,30 @@ export function measureGPU() {
 export function getGlEnum(name) {
     return glEnum[name];
 }
+
+export function normalize(array) {
+    let fn;
+    switch (true) {
+        case array instanceof Uint8Array:
+            fn = c => c / 255;
+            break;
+        case array instanceof Int8Array:
+            fn = c => Math.max(c / 127.0, -1.0);
+            break;
+        case array instanceof Uint16Array:
+            fn = c => c / 65535;
+            break;
+        case array instanceof Int16Array:
+            fn = c => Math.max(c / 32767.0, -1.0);
+            break;
+    }
+    if (fn) {
+        const normalizedArray = new Float32Array(array.length);
+        for (let i = 0; i < array.length; i++) {
+            normalizedArray[i] = fn(array[i]);
+        }
+        return normalizedArray;
+    } else {
+        return array;
+    }
+}
