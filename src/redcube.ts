@@ -117,7 +117,7 @@ class RedCube {
         await this.parse.getBuffer();
         await this.parse.initTextures();
         this.parse.buildSkin();
-        this.parse.buildMesh();
+        await this.parse.buildMesh();
 
 
         this.parse.createTextures();

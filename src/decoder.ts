@@ -1,7 +1,15 @@
 // import draco3d from 'draco3d';
 const draco3d = require('draco3d');
 
-export const decoderModule = draco3d.createDecoderModule({});
+export let decoderModule;
+export const DecoderModule = new Promise(resolve => {
+    const dracoDecoderType = {
+        onModuleLoaded() {
+            resolve();
+        }
+    }
+    decoderModule = draco3d.createDecoderModule(dracoDecoderType);
+});
 
 export function decodeDracoData(rawBuffer, decoder, offset, length) {
     const buffer = new decoderModule.DecoderBuffer();

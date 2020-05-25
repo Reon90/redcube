@@ -37,7 +37,7 @@ class RedCube {
         await this.parse.getBuffer();
         await this.parse.initTextures();
         this.parse.buildSkin();
-        this.parse.buildMesh();
+        await this.parse.buildMesh();
         this.parse.buildAnimation();
 
         if (this.parse.cameras.length === 0) {
@@ -55,7 +55,7 @@ class RedCube {
             );
             this.parse.cameras.push(this.camera);
         }
-        this.camera = this.parse.camera;
+        this.camera = this.parse.cameras[0];
         this.parse.calculateFov(this.camera.props.isInitial);
         this.resize();
         } catch(e) {
@@ -70,7 +70,7 @@ class RedCube {
     }
 
     resize() {
-        const z = 5 * this.camera.modelSize;
+        const z = this.camera.modelSize;
 
         if (this.camera.props.isInitial) {
             this.camera.setZ(z);

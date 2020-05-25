@@ -7,7 +7,9 @@ module.exports = {
     entry: path.join(__dirname, `/src/${libraryName}.ts`),
     output: {
         filename: `${libraryName}.js`,
+        chunkFilename: '[name].js',
         path: path.join(__dirname, '/dist'),
+        publicPath: 'dist/',
         library: libraryName,
         libraryTarget: 'umd',
         umdNamedDefine: true
@@ -18,7 +20,7 @@ module.exports = {
     devServer: {
         publicPath: '/dist/'
     },
-    devtool: "source-map",
+    devtool: process.env.NODE_ENV === 'development' && "source-map",
     resolve: {extensions: ['.ts', '.js']},
     module: {
         rules: [ 

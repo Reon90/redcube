@@ -40,6 +40,13 @@ interface Define {
     value?: number;
 }
 
+interface Draco {
+    decoderModule: Function;
+    decodeDracoData: Function;
+    getArray: Function;
+    DecoderModule: Promise<unknown>;
+}
+
 export class Parse {
     tracks: Array<Track[]>;
     duration: number;
@@ -61,6 +68,7 @@ export class Parse {
     resize: Function;
     json: GlTf;
     defines: Array<Define>;
+    draco?: Draco;
 
     constructor(url, defines, resize) {
         this.url = url;
@@ -156,7 +164,7 @@ export class Parse {
         }
 
         const mesh = skin !== undefined ? new SkinnedMesh(name, parent) : new Mesh(name, parent);
-        const geometry = new Geometry(this.json, this.arrayBuffer, weights, primitive);
+        const geometry = new Geometry(this.json, this.arrayBuffer, weights, this.draco, primitive);
         if (geometry.attributes.COLOR_0 && geometry.attributes.COLOR_0.constructor !== Float32Array) {
             defines.push({ name: 'COLOR_255' });
         }
@@ -282,7 +290,11 @@ export class Parse {
         this.resize();
     }
 
-    buildMesh() {
+    async buildMesh() {
+        if (this.json.extensionsUsed && this.json.extensionsUsed.includes('KHR_draco_mesh_compression')) {
+            this.draco = await import('./decoder');
+            await this.draco.DecoderModule;
+        }
         this.json.scenes[this.json.scene !== undefined ? this.json.scene : 0].nodes.forEach(n => {
             if (this.json.nodes[n].extensions) {
                 this.buildNode(this.scene, n);

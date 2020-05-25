@@ -1,7 +1,6 @@
 import { Vector3, Matrix4 } from '../matrix';
 import { UniformBuffer } from './uniform';
 import { buildArray, buildArrayWithStride, getDataType, calculateOffset, calculateBinormals, getGlEnum, calculateNormals, calculateUVs, ArrayBufferMap } from '../utils';
-import { decoderModule, decodeDracoData, getArray } from '../decoder';
 
 interface Attributes {
     POSITION: Float32Array;
@@ -46,7 +45,7 @@ export class Geometry {
     boundingSphere: BoundingSphere;
     vertexAccessor: Map<string, Attr>;
 
-    constructor(json, arrayBuffer, weights, primitive) {
+    constructor(json, arrayBuffer, weights, draco, primitive) {
         this.boundingSphere = {
             center: new Vector3(),
             radius: null,
@@ -78,6 +77,7 @@ export class Geometry {
 
         const compresedMesh = primitive.extensions && primitive.extensions.KHR_draco_mesh_compression;
         if (compresedMesh) {
+            const { decoderModule, decodeDracoData, getArray } = draco;
             const bufferView = json.bufferViews[compresedMesh.bufferView];
             const decoder = new decoderModule.Decoder();
             const decodedGeometry = decodeDracoData(arrayBuffer[bufferView.buffer], decoder, bufferView.byteOffset, bufferView.byteLength);

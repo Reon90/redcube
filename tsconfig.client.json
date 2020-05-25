@@ -2,7 +2,7 @@
   "compilerOptions": {
       "outDir": "./dist",
       "allowJs": true,
-      "module": "es2015",
+      "module": "es2020",
       "target": "esnext",
       "moduleResolution": "node"
   },
