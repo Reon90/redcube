@@ -29,13 +29,13 @@ class RedCube {
         }
 
         this.canvas = canvas;
-        this.processors = processors;
+        this.processors = ['refraction', ...processors];
 
         const defines = [];
-        if (processors.length === 0) {
+        if (this.processors.length === 0) {
             defines.push({ name: 'TONE' });
         }
-        if (processors.some(p => p === 'shadow')) {
+        if (this.processors.some(p => p === 'shadow')) {
             defines.push({ name: 'SHADOWMAP' });
         }
         if (mode === 'pbr') {
@@ -68,7 +68,7 @@ class RedCube {
             isInitial: true,
             spot: {}
         });
-        this.ioc.register('pp', PostProcessing, ['light', 'camera', 'canvas', 'gl'], processors, this.renderScene.bind(this));
+        this.ioc.register('pp', PostProcessing, ['light', 'camera', 'canvas', 'gl'], this.processors, this.renderScene.bind(this));
         this.ioc.register('parser', Parse, ['scene', 'light', 'camera', 'canvas', 'gl'], url, defines, this.resize.bind(this));
         this.ioc.register('particles', Particles, ['camera', 'gl'], () => {
             const l = this.PP.postprocessors.find(p => p instanceof PPLight) as PPLight;

@@ -31,6 +31,7 @@ uniform Material {
     vec4 sheenColorFactor;
     vec4 sheenFactor;
     vec4 sheenRoughnessFactor;
+    vec4 transmissionFactor;
 };
 uniform LightColor {
     vec3 lightColor[LIGHTNUMBER];
@@ -249,6 +250,17 @@ vec3 ImprovedOrenNayarDiffuse(vec3 baseColor, float metallic, vec3 N, vec3 H, fl
 	return (diffuseColor * max(0.0, dotNL)) * (A + vec3(B * s / t) / PI);
 }
 
+vec3 calcTransmission(vec3 baseColor, float metallic, vec3 N, vec3 H, float roughness, vec3 V, vec3 L) {
+    vec3 F0 = vec3(0.04);
+    F0 = mix(F0, baseColor, metallic);
+    vec3 F = fresnelSchlick(max(dot(H, V), 0.0), F0);
+
+    float DT = DistributionGGX(N, H, roughness);
+    float GT = GeometrySmith(N, V, L, roughness);  
+
+    return (1.0 - F) * transmissionFactor.x * baseColor * DT * GT / (4.0 * abs(dot(N, L)) * abs(dot(N, V)));
+}
+
 float sheenDistribution(float sheenRoughness, vec3 N, vec3 H) {
     float NdotH = max(dot(N, H), 0.0);
     float alphaG = max(sheenRoughness * sheenRoughness, 0.01);
@@ -408,7 +420,9 @@ void main() {
             #endif
             vec3 f_sheen = sheenColor * sheen * sheenDistribution(sheenRoughness, n, H) * sheenVisibility(n, viewDir, lightDir);
 
-            Lo += (diffuse + specular * NdotL) * radiance * clearcoatFresnel + f_clearcoat * clearcoatBlendFactor + f_sheen;
+            vec3 transmission = calcTransmission(baseColor, metallic, n, H, roughness, viewDir, lightDir);
+
+            Lo += (diffuse + specular * NdotL + transmission) * radiance * clearcoatFresnel + f_clearcoat * clearcoatBlendFactor + f_sheen;
         }
 
         vec3 ambient = vec3(0.0);

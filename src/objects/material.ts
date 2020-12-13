@@ -92,6 +92,15 @@ export class Material extends M {
             }
         }
 
+        if (material.extensions && material.extensions.KHR_materials_transmission) {
+            const { transmissionFactor, transmissionTexture } = material.extensions.KHR_materials_transmission;
+            this.transmissionFactor = transmissionFactor;
+            if (transmissionTexture) {
+                this.transmissionTexture = textures[transmissionTexture.index];
+                defines.push({ name: 'TRANSMISSIONMAP' });
+            }
+        }
+
         this.uniforms = {
             baseColorTexture: null,
             metallicRoughnessTexture: null,
@@ -282,6 +291,7 @@ export class Material extends M {
             materialUniformBuffer.add('sheenColorFactor', this.sheenColorFactor || 0);
             materialUniformBuffer.add('sheenFactor', this.sheenFactor || 0);
             materialUniformBuffer.add('sheenRoughnessFactor', this.sheenRoughnessFactor || 0);
+            materialUniformBuffer.add('transmissionFactor', this.transmissionFactor || 0);
             materialUniformBuffer.done();
 
             const mIndex = gl.getUniformBlockIndex(program, 'Material');

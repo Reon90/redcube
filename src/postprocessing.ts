@@ -4,6 +4,7 @@ import { Renderer } from './renderer';
 import { SSAO } from './postprocessors/ssao';
 import { Bloom } from './postprocessors/bloom';
 import { Shadow } from './postprocessors/shadow';
+import { Refraction } from './postprocessors/refraction';
 import { Light } from './postprocessors/light';
 import { PostProcessor } from './postprocessors/base';
 
@@ -17,7 +18,8 @@ const processorsMap = {
     bloom: Bloom,
     ssao: SSAO,
     shadow: Shadow,
-    light: Light
+    light: Light,
+    refraction: Refraction
 };
 
 interface Texture extends WebGLTexture {
