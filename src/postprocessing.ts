@@ -47,11 +47,6 @@ export class PostProcessing {
     constructor(processors, renderScene) {
         this.renderScene = renderScene;
         this.postprocessors = processors.map(name => new processorsMap[name]());
-        this.MSAA = 4;
-    }
-
-    setRenderer(renderer) {
-        this.renderer = renderer;
     }
 
     setCamera(camera) {
@@ -70,6 +65,7 @@ export class PostProcessing {
     setGl(g) {
         if (g) {
             gl = g;
+            this.MSAA = gl.getParameter(gl.MAX_SAMPLES);
             this.postprocessors.forEach(postProcessor => {
                 postProcessor.setGL(gl);
             });

@@ -159,9 +159,9 @@ export class Parse {
                 value: this.skins[skin].jointNames.length
             });
         }
-        if (primitive.attributes.TANGENT || material.hasNormal()) {
+        //if (primitive.attributes.TANGENT || material.hasNormal()) {
             defines.push({ name: 'TANGENT' });
-        }
+        //}
 
         const mesh = skin !== undefined ? new SkinnedMesh(name, parent) : new Mesh(name, parent);
         const geometry = new Geometry(this.json, this.arrayBuffer, weights, this.draco, primitive);
@@ -486,7 +486,7 @@ export class Parse {
         });
 
         this.scene.meshes.forEach((mesh) => {
-            const textureTypes = ['baseColorTexture', 'metallicRoughnessTexture', 'emissiveTexture', 'normalTexture', 'occlusionTexture', 'clearcoatTexture', 'clearcoatRoughnessTexture', 'clearcoatNormalTexture', 'sheenTexture'];
+            const textureTypes = ['baseColorTexture', 'metallicRoughnessTexture', 'emissiveTexture', 'normalTexture', 'occlusionTexture', 'clearcoatTexture', 'clearcoatRoughnessTexture', 'clearcoatNormalTexture', 'sheenTexture', 'transmissionTexture'];
 
             for (let i=0; i < textureTypes.length; i++) {
                 const textureType = textureTypes[i];

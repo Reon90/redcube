@@ -15,12 +15,14 @@ interface Uniforms {
     clearcoatTexture: WebGLUniformLocation;
     clearcoatRoughnessTexture: WebGLUniformLocation;
     sheenTexture: WebGLUniformLocation;
+    transmissionTexture: WebGLUniformLocation;
     clearcoatNormalTexture: WebGLUniformLocation;
     emissiveTexture: WebGLUniformLocation;
     prefilterMap: WebGLUniformLocation;
     brdfLUT: WebGLUniformLocation;
     irradianceMap: WebGLUniformLocation;
     depthTexture: WebGLUniformLocation;
+    colorTexture: WebGLUniformLocation;
 }
 
 const lightEnum = {
@@ -52,6 +54,7 @@ export class Material extends M {
 
         const material = Object.assign({}, m);
         this.defines = defines;
+        this.name = material.name;
 
         if (!material.pbrMetallicRoughness && material.extensions && material.extensions.KHR_materials_pbrSpecularGlossiness) {
             material.pbrMetallicRoughness = {};
@@ -114,7 +117,9 @@ export class Material extends M {
             prefilterMap: null,
             brdfLUT: null,
             irradianceMap: null,
-            depthTexture: null
+            depthTexture: null,
+            transmissionTexture: null,
+            colorTexture: null
         };
         const pbrMetallicRoughness = material.pbrMetallicRoughness;
         if (pbrMetallicRoughness) {
@@ -190,7 +195,7 @@ export class Material extends M {
         if (material.alphaMode === 'MASK') {
             defines.push({
                 name: 'ALPHATEST',
-                value: material.alphaCutoff || 0.5
+                value: material.alphaCutoff ?? 0.5
             });
         } else if (material.alphaMode === 'BLEND') {
             defines.push({ name: 'ALPHATEST', value: 0.01 });
@@ -249,11 +254,16 @@ export class Material extends M {
             this.uniforms.sheenTexture = gl.getUniformLocation(program, 'sheenTexture');
             gl.uniform1i(this.uniforms.sheenTexture, textureEnum.sheenTexture);
         }
+        if (this.transmissionTexture) {
+            this.uniforms.transmissionTexture = gl.getUniformLocation(program, 'transmissionTexture');
+            gl.uniform1i(this.uniforms.transmissionTexture, textureEnum.transmissionTexture);
+        }
 
         this.uniforms.prefilterMap = gl.getUniformLocation(program, 'prefilterMap');
         this.uniforms.brdfLUT = gl.getUniformLocation(program, 'brdfLUT');
         this.uniforms.irradianceMap = gl.getUniformLocation(program, 'irradianceMap');
         this.uniforms.depthTexture = gl.getUniformLocation(program, 'depthTexture');
+        this.uniforms.colorTexture = gl.getUniformLocation(program, 'colorTexture');
 
         gl.uniform1i(this.uniforms.prefilterMap, textureEnum.prefilterTexture);
         gl.uniform1i(this.uniforms.brdfLUT, textureEnum.brdfLUTTexture);
@@ -273,25 +283,25 @@ export class Material extends M {
             );
             lightPos.set(light.getPosition(), i * 3);
             lightColor.set(light.color.elements, i * 3);
-            lightProps.set([light.intensity, light.spot.innerConeAngle || 0, light.spot.outerConeAngle || 0, lightEnum[light.type]], i * 4);
+            lightProps.set([light.intensity, light.spot.innerConeAngle ?? 0, light.spot.outerConeAngle ?? 0, lightEnum[light.type]], i * 4);
         });
 
         {
             const materialUniformBuffer = new UniformBuffer();
-            materialUniformBuffer.add('baseColorFactor', this.baseColorFactor || [0.8, 0.8, 0.8, 1.0]);
+            materialUniformBuffer.add('baseColorFactor', this.baseColorFactor ?? [0.8, 0.8, 0.8, 1.0]);
             materialUniformBuffer.add('viewPos', camera.getPosition());
             materialUniformBuffer.add('textureMatrix', (this.matrix && this.matrix.elements) || new Matrix3().elements);
-            materialUniformBuffer.add('specularFactor', this.specularFactor || [0, 0, 0]);
-            materialUniformBuffer.add('emissiveFactor', this.emissiveFactor || [0, 0, 0]);
-            materialUniformBuffer.add('glossinessFactor', this.glossinessFactor || 0.5);
-            materialUniformBuffer.add('metallicFactor', this.metallicFactor || 1);
-            materialUniformBuffer.add('roughnessFactor', this.roughnessFactor || 1);
-            materialUniformBuffer.add('clearcoatFactor', this.clearcoatFactor || 0);
-            materialUniformBuffer.add('clearcoatRoughnessFactor', this.clearcoatRoughnessFactor || 0);
-            materialUniformBuffer.add('sheenColorFactor', this.sheenColorFactor || 0);
-            materialUniformBuffer.add('sheenFactor', this.sheenFactor || 0);
-            materialUniformBuffer.add('sheenRoughnessFactor', this.sheenRoughnessFactor || 0);
-            materialUniformBuffer.add('transmissionFactor', this.transmissionFactor || 0);
+            materialUniformBuffer.add('specularFactor', this.specularFactor ?? [0, 0, 0]);
+            materialUniformBuffer.add('emissiveFactor', this.emissiveFactor ?? [0, 0, 0]);
+            materialUniformBuffer.add('glossinessFactor', this.glossinessFactor ?? 0.5);
+            materialUniformBuffer.add('metallicFactor', this.metallicFactor ?? 1);
+            materialUniformBuffer.add('roughnessFactor', this.roughnessFactor ?? 1);
+            materialUniformBuffer.add('clearcoatFactor', this.clearcoatFactor ?? 0);
+            materialUniformBuffer.add('clearcoatRoughnessFactor', this.clearcoatRoughnessFactor ?? 0);
+            materialUniformBuffer.add('sheenColorFactor', this.sheenColorFactor ?? 0);
+            materialUniformBuffer.add('sheenFactor', this.sheenFactor ?? 0);
+            materialUniformBuffer.add('sheenRoughnessFactor', this.sheenRoughnessFactor ?? 0);
+            materialUniformBuffer.add('transmissionFactor', this.transmissionFactor ?? 0);
             materialUniformBuffer.done();
 
             const mIndex = gl.getUniformBlockIndex(program, 'Material');

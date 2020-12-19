@@ -33,6 +33,14 @@ uniform Material {
     vec4 sheenRoughnessFactor;
     vec4 transmissionFactor;
 };
+uniform Matrices {
+    mat4 model;
+    mat4 normalMatrix;
+    mat4 view;
+    mat4 projection;
+    mat4 light;
+    vec4 isShadow;
+};
 uniform LightColor {
     vec3 lightColor[LIGHTNUMBER];
 };
@@ -66,12 +74,14 @@ uniform sampler2D occlusionTexture;
 uniform sampler2D clearcoatTexture;
 uniform sampler2D clearcoatRoughnessTexture;
 uniform sampler2D sheenTexture;
+uniform sampler2D transmissionTexture;
 uniform sampler2D clearcoatNormalTexture;
 
 uniform samplerCube prefilterMap;
 uniform sampler2D brdfLUT;  
 uniform samplerCube irradianceMap;
 uniform sampler2D depthTexture;
+uniform sampler2D colorTexture;
 
 const float RECIPROCAL_PI = 0.31830988618;
 const float PI = 3.14159265359;
@@ -174,7 +184,7 @@ vec3 IBLAmbient(vec3 specularMap, vec3 baseColor, float metallic, vec3 n, float 
     vec3 kD = vec3(1.0) - F;
     kD *= 1.0 - metallic;
 
-    const float MAX_REFLECTION_LOD = 4.0;
+    const float MAX_REFLECTION_LOD = 3.0;
     #ifdef SPHERICAL_HARMONICS
     vec3 R = reflect(viewDir, n);
     vec4 rotatedR = rotationMatrix * vec4(R, 0.0);
@@ -250,15 +260,55 @@ vec3 ImprovedOrenNayarDiffuse(vec3 baseColor, float metallic, vec3 N, vec3 H, fl
 	return (diffuseColor * max(0.0, dotNL)) * (A + vec3(B * s / t) / PI);
 }
 
-vec3 calcTransmission(vec3 baseColor, float metallic, vec3 N, vec3 H, float roughness, vec3 V, vec3 L) {
-    vec3 F0 = vec3(0.04);
-    F0 = mix(F0, baseColor, metallic);
-    vec3 F = fresnelSchlick(max(dot(H, V), 0.0), F0);
+float fresnelDielectric(float cosThetaI, float ni, float nt) {
+  cosThetaI = clamp(cosThetaI, -1.0, 1.0);
+
+  // Swap index of refraction if this is coming from inside the surface
+  if (cosThetaI < 0.0) {
+    float temp = ni;
+    ni = nt;
+    nt = temp;
+
+    cosThetaI = -cosThetaI;
+  }
+
+  float sinThetaI = sqrt(max(0.0, 1.0 - cosThetaI * cosThetaI));
+  float sinThetaT = ni / nt * sinThetaI;
+
+  // Check for total internal reflection
+  if (sinThetaT >= 1.0) {
+    return 1.0;
+  }
+
+  float cosThetaT = sqrt(max(0.0, 1.0 - sinThetaT * sinThetaT));
+
+  float rParallel = ((nt * cosThetaI) - (ni * cosThetaT)) /
+                    ((nt * cosThetaI) + (ni * cosThetaT));
+  float rPerpendicuar = ((ni * cosThetaI) - (nt * cosThetaT)) /
+                        ((ni * cosThetaI) + (nt * cosThetaT));
+  return (rParallel * rParallel + rPerpendicuar * rPerpendicuar) / 2.0;
+}
+
+vec3 calcTransmission(vec3 c, float metallic, vec3 N, vec3 H, float roughness, vec3 V, vec3 L, float transmission) {
+    float absDotNL = abs(dot(N, L));
+    float absDotNV = abs(dot(N, V));
+    float dotHL = dot(H, L);
+    float dotHV = dot(H, V);
+    float absDotHL = abs(dotHL);
+    float absDotHV = abs(dotHV);
+    float F = fresnelDielectric(dotHV, 1.0, 1.0);
 
     float DT = DistributionGGX(N, H, roughness);
     float GT = GeometrySmith(N, V, L, roughness);  
 
-    return (1.0 - F) * transmissionFactor.x * baseColor * DT * GT / (4.0 * abs(dot(N, L)) * abs(dot(N, V)));
+    vec3 refractV = outPosition + refract(-V, N, 1.0);
+    vec4 refractS = projection * view * vec4(refractV, 1.0);
+    refractS.xy = refractS.xy / refractS.w;
+    refractS.xy = refractS.xy * 0.5 + 0.5;
+    vec3 baseColor = texture(colorTexture, refractS.xy).xyz;
+
+    float coef = (absDotHL * absDotHV) / (absDotNL * absDotNV);
+    return (1.0 - F) * transmission * baseColor * DT * GT * coef;
 }
 
 float sheenDistribution(float sheenRoughness, vec3 N, vec3 H) {
@@ -309,7 +359,7 @@ void main() {
     #ifdef OCCLUSIONMAP
         float ao = texture(occlusionTexture, outUV).r;
     #else
-        float ao = 0.2;
+        float ao = 2.0;
     #endif
 
     float roughness = roughnessFactor.x;
@@ -320,6 +370,7 @@ void main() {
     float sheen = sheenFactor.x;
     vec3 sheenColor = sheenColorFactor.xyz;
     float sheenRoughness = sheenRoughnessFactor.x;
+    float transmission = transmissionFactor.x;
     #ifdef CLEARCOATMAP
         clearcoatBlendFactor = texture(clearcoatTexture, outUV).r * clearcoat;
     #endif
@@ -330,6 +381,10 @@ void main() {
         vec4 sheenTextureV = texture(sheenTexture, outUV);
         sheenColor = sheenTextureV.rgb * sheenColor;
         sheen = sheenTextureV.a * sheen;
+    #endif
+    #ifdef TRANSMISSIONMAP
+        float transmissionTextureV = texture(transmissionTexture, outUV).r;
+        transmission = transmissionTextureV * transmission;
     #endif
     vec3 specularMap = vec3(0);
     #ifdef SPECULARGLOSSINESSMAP
@@ -420,16 +475,17 @@ void main() {
             #endif
             vec3 f_sheen = sheenColor * sheen * sheenDistribution(sheenRoughness, n, H) * sheenVisibility(n, viewDir, lightDir);
 
-            vec3 transmission = calcTransmission(baseColor, metallic, n, H, roughness, viewDir, lightDir);
+            vec3 f_transmission = calcTransmission(baseColor, metallic, n, H, roughness, viewDir, lightDir, transmission);
+            diffuse *= (1.0 - transmission);
 
-            Lo += (diffuse + specular * NdotL + transmission) * radiance * clearcoatFresnel + f_clearcoat * clearcoatBlendFactor + f_sheen;
+            Lo += (diffuse + specular * NdotL) * radiance * clearcoatFresnel + f_clearcoat * clearcoatBlendFactor + f_sheen + f_transmission;
         }
 
         vec3 ambient = vec3(0.0);
         vec3 ambientClearcoat = vec3(0.0);
         vec3 clearcoatFresnel = vec3(1.0);
         #ifdef IBL
-            ambient = max(vec3(0.03) * baseColor, IBLAmbient(specularMap, baseColor, metallic, n, roughness, viewDir, ao));
+            ambient = IBLAmbient(specularMap, baseColor, metallic, n, roughness, viewDir, ao);
             ambientClearcoat = IBLAmbient(specularMap, vec3(0.0), 0.0, clearcoatNormal, clearcoatRoughness, viewDir, ao) * clearcoatBlendFactor;
             float NdotV = saturate(dot(clearcoatNormal, viewDir));
             clearcoatFresnel = (1.0 - clearcoatBlendFactor * fresnelSchlick(NdotV, vec3(0.04)));

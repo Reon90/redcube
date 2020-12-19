@@ -33,7 +33,11 @@ export class Mesh extends Object3D {
         this.material = material;
     }
 
-    draw(gl, { lights, camera, light, needUpdateView, needUpdateProjection, preDepthTexture, isprepender, fakeDepth }) {
+    draw(gl, { lights, camera, light, needUpdateView, needUpdateProjection, preDepthTexture, colorTexture, renderState, fakeDepth }) {
+        const {isprepender, isprerefraction}= renderState;
+        if (this.material.transmissionFactor && isprerefraction) {
+            return;
+        }
         gl.useProgram(this.program);
 
         gl.bindVertexArray(this.geometry.VAO);
@@ -99,6 +103,10 @@ export class Mesh extends Object3D {
             this.material.uniforms.depthTexture,
             (preDepthTexture && !isprepender) ? preDepthTexture.index : fakeDepth.index
         );
+        gl.uniform1i(
+            this.material.uniforms.colorTexture,
+            (!isprerefraction) ? colorTexture.index : fakeDepth.index
+        );
 
         if (this.material.baseColorTexture) {
             gl.activeTexture(gl[`TEXTURE${0}`]);
@@ -133,17 +141,22 @@ export class Mesh extends Object3D {
         if (this.material.clearcoatRoughnessTexture) {
             gl.activeTexture(gl[`TEXTURE${9}`]);
             gl.bindTexture(gl.TEXTURE_2D, this.material.clearcoatRoughnessTexture);
-            gl.bindSampler(8, this.material.clearcoatRoughnessTexture.sampler);
+            gl.bindSampler(9, this.material.clearcoatRoughnessTexture.sampler);
         }
         if (this.material.sheenTexture) {
             gl.activeTexture(gl[`TEXTURE${11}`]);
             gl.bindTexture(gl.TEXTURE_2D, this.material.sheenTexture);
-            gl.bindSampler(8, this.material.sheenTexture.sampler);
+            gl.bindSampler(11, this.material.sheenTexture.sampler);
         }
         if (this.material.clearcoatNormalTexture) {
             gl.activeTexture(gl[`TEXTURE${10}`]);
             gl.bindTexture(gl.TEXTURE_2D, this.material.clearcoatNormalTexture);
-            gl.bindSampler(8, this.material.clearcoatNormalTexture.sampler);
+            gl.bindSampler(10, this.material.clearcoatNormalTexture.sampler);
+        }
+        if (this.material.transmissionTexture) {
+            gl.activeTexture(gl[`TEXTURE${12}`]);
+            gl.bindTexture(gl.TEXTURE_2D, this.material.transmissionTexture);
+            gl.bindSampler(12, this.material.transmissionTexture.sampler);
         }
         if (this.material.doubleSided) {
             gl.disable(gl.CULL_FACE);

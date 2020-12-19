@@ -14,14 +14,18 @@ module.exports = {
         libraryTarget: 'umd',
         umdNamedDefine: true
     },
-    node: {
-        fs: 'empty'
-    },
     devServer: {
-        publicPath: '/dist/'
+        publicPath: '/dist/',
+        injectClient: false
     },
     devtool: process.env.NODE_ENV === 'development' && "source-map",
-    resolve: {extensions: ['.ts', '.js']},
+    resolve: {
+        extensions: ['.ts', '.js'],
+        fallback: {
+            fs: false,
+            path: false
+        }
+    },
     module: {
         rules: [ 
             { 
