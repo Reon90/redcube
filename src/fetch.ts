@@ -33,10 +33,10 @@ export function fetchBinary(url) {
   }
 }
 
-export function fetchImage({url, name}) {
+export function fetchImage(s, {bufferView, mimeType, uri}, {url, name}) {
   if (typeof window !== "undefined") {
     return new Promise((resolve, reject) => {
-                
+
       const image = new Image();
       image.onload = () => {
           resolve({
@@ -48,16 +48,16 @@ export function fetchImage({url, name}) {
           reject(err);
       };
       image.crossOrigin = 'anonymous';
-      // if (source.bufferView !== undefined) {
-      //     const bufferView = this.json.bufferViews[source.bufferView];
-      //     const buffer = new Uint8Array(this.arrayBuffer[bufferView.buffer], bufferView.byteOffset, bufferView.byteLength);
-      //     const blob = new Blob([buffer], { type: source.mimeType });
-      //     image.src = URL.createObjectURL(blob);
-      // } else if (/base64/.test(source.uri)) {
-      //     image.src = url.uri;
-      // } else {
+      if (bufferView !== undefined) {
+          const view = s.json.bufferViews[bufferView];
+          const buffer = new Uint8Array(s.arrayBuffer[view.buffer], view.byteOffset, view.byteLength);
+          const blob = new Blob([buffer], { type: mimeType });
+          image.src = URL.createObjectURL(blob);
+      } else if (/base64/.test(uri)) {
+          image.src = url.uri;
+      } else {
           image.src = url;
-      // }
+      }
     }); 
   } else {
     return new Promise((resolve) => {

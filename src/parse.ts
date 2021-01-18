@@ -169,6 +169,12 @@ export class Parse {
             defines.push({ name: 'COLOR_255' });
         }
 
+        if (primitive.extensions && primitive.extensions.KHR_materials_variants) {
+            const variants = primitive.extensions.KHR_materials_variants.mappings.map(m => {
+                return { ...m, m: new Material(this.json.materials[m.material], this.textures, [...defines], this.lights)};
+            });
+            mesh.setVariants(variants);
+        }
         mesh.setMode(primitive.mode);
         mesh.setMaterial(material);
         mesh.setGeometry(geometry);
@@ -294,6 +300,9 @@ export class Parse {
         if (this.json.extensionsUsed && this.json.extensionsUsed.includes('KHR_draco_mesh_compression')) {
             this.draco = await import('./decoder');
             await this.draco.DecoderModule;
+        }
+        if (this.json.extensions && this.json.extensions.KHR_materials_variants) {
+            this.scene.variants = this.json.extensions.KHR_materials_variants.variants;
         }
         this.json.scenes[this.json.scene !== undefined ? this.json.scene : 0].nodes.forEach(n => {
             if (this.json.nodes[n].extensions) {
@@ -486,17 +495,20 @@ export class Parse {
         });
 
         this.scene.meshes.forEach((mesh) => {
+            const materials = [mesh.material, ...mesh.variants.map(m => m.m)];
             const textureTypes = ['baseColorTexture', 'metallicRoughnessTexture', 'emissiveTexture', 'normalTexture', 'occlusionTexture', 'clearcoatTexture', 'clearcoatRoughnessTexture', 'clearcoatNormalTexture', 'sheenTexture'];
 
             for (let i=0; i < textureTypes.length; i++) {
+                for (const material of materials) {
                 const textureType = textureTypes[i];
-                const t = mesh.material[textureType];
+                const t = material[textureType];
                 if (!t) {
                     continue;
                 }
                 const sampler = this.samplers[t.sampler !== undefined ? t.sampler : 0];
 
-                mesh.material[textureType] = this.handleTextureLoaded(sampler, t.image, t.name);
+                material[textureType] = this.handleTextureLoaded(sampler, t.image, t.name);
+                }
             }
         });
     }
@@ -514,7 +526,8 @@ export class Parse {
         });
         const promiseArr = Object.values(texturesMap).map(t => {
             const source = this.json.images[t.source];
-            return fetchImage({
+            // @ts-ignore
+            return fetchImage(this, source, {
                 url: `${this.host}${source.uri}`,
                 name: t.name,
             });

@@ -16,6 +16,7 @@ export class Scene {
     tracks: Array<Track[]>;
     cameras: Array<Camera>;
     lights: Array<Light>;
+    variants: {name: string}[];
 
     constructor() {
         this.opaqueChildren = [];

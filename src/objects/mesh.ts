@@ -12,6 +12,7 @@ export class Mesh extends Object3D {
     mode: number;
     distance: number;
     visible: boolean;
+    variants: {m: Material, variants: number[]}[];
 
     constructor(name, parent) {
         super(name, parent);
@@ -175,6 +176,10 @@ export class Mesh extends Object3D {
 
     setMode(value = 4) {
         this.mode = value;
+    }
+
+    setVariants(variants) {
+        this.variants = variants;
     }
 
     isVisible(planes) {
