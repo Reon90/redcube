@@ -262,6 +262,7 @@ class RedCube {
             needUpdateView: this.renderer.needUpdateView,
             needUpdateProjection: this.renderer.needUpdateProjection,
             irradiancemap: this.env.irradiancemap,
+            Sheen_E: this.env.Sheen_E,
             prefilterMap: this.env.prefilterMap,
             brdfLUT: this.env.brdfLUTTexture
         };

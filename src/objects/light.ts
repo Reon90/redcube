@@ -33,6 +33,7 @@ export class Light extends Object3D {
     }
 
     setZ(z) {
+        this.matrix.elements[13] = z;
         this.matrix.elements[14] = z;
         this.setMatrixWorld(this.matrix.elements);
     }

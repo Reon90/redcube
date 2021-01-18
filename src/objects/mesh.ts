@@ -20,6 +20,7 @@ export class Mesh extends Object3D {
         this.program = null;
         this.defines = null;
         this.mode = 4;
+        this.variants = [];
     }
 
     setDefines(defines) {
@@ -136,10 +137,15 @@ export class Mesh extends Object3D {
             gl.bindTexture(gl.TEXTURE_2D, this.material.clearcoatRoughnessTexture);
             gl.bindSampler(8, this.material.clearcoatRoughnessTexture.sampler);
         }
-        if (this.material.sheenTexture) {
+        if (this.material.sheenColorTexture) {
             gl.activeTexture(gl[`TEXTURE${11}`]);
-            gl.bindTexture(gl.TEXTURE_2D, this.material.sheenTexture);
-            gl.bindSampler(8, this.material.sheenTexture.sampler);
+            gl.bindTexture(gl.TEXTURE_2D, this.material.sheenColorTexture);
+            gl.bindSampler(8, this.material.sheenColorTexture.sampler);
+        }
+        if (this.material.sheenRoughnessTexture) {
+            gl.activeTexture(gl[`TEXTURE${12}`]);
+            gl.bindTexture(gl.TEXTURE_2D, this.material.sheenRoughnessTexture);
+            gl.bindSampler(8, this.material.sheenRoughnessTexture.sampler);
         }
         if (this.material.clearcoatNormalTexture) {
             gl.activeTexture(gl[`TEXTURE${10}`]);

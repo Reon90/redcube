@@ -26,7 +26,9 @@ export const textureEnum = {
     clearcoatTexture: 8,
     clearcoatRoughnessTexture: 9,
     clearcoatNormalTexture: 10,
-    sheenTexture: 11
+    sheenColorTexture: 11,
+    sheenRoughnessTexture: 12,
+    Sheen_E: 13
 };
 
 export function setGl(_gl) {

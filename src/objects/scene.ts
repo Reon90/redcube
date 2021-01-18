@@ -26,5 +26,6 @@ export class Scene {
         this.bin = [];
         this.matrixWorld = new Matrix4();
         this.matrix = new Matrix4();
+        this.variants = [];
     }
 }

@@ -4,7 +4,7 @@ precision highp float;
 #define IBL 1
 
 in vec4 vColor;
-in vec2 outUV;
+in vec2 outUV0;
 in vec2 outUV2;
 in vec3 outPosition;
 in vec4 outPositionView;
@@ -29,7 +29,6 @@ uniform Material {
     vec4 clearcoatFactor;
     vec4 clearcoatRoughnessFactor;
     vec4 sheenColorFactor;
-    vec4 sheenFactor;
     vec4 sheenRoughnessFactor;
 };
 uniform LightColor {
@@ -64,13 +63,15 @@ uniform sampler2D emissiveTexture;
 uniform sampler2D occlusionTexture;
 uniform sampler2D clearcoatTexture;
 uniform sampler2D clearcoatRoughnessTexture;
-uniform sampler2D sheenTexture;
+uniform sampler2D sheenColorTexture;
+uniform sampler2D sheenRoughnessTexture;
 uniform sampler2D clearcoatNormalTexture;
 
 uniform samplerCube prefilterMap;
 uniform sampler2D brdfLUT;  
 uniform samplerCube irradianceMap;
 uniform sampler2D depthTexture;
+uniform sampler2D Sheen_E;
 
 const float RECIPROCAL_PI = 0.31830988618;
 const float PI = 3.14159265359;
@@ -82,7 +83,7 @@ const float gamma = 2.2;
 
 vec2 getUV(int index) {
     if (index == 1) {
-        return outUV;
+        return outUV0;
     } else {
         return outUV2;
     }
@@ -257,19 +258,41 @@ float sheenDistribution(float sheenRoughness, vec3 N, vec3 H) {
     float sin2h = 1.0 - cos2h;
     return (2.0 + invR) * pow(sin2h, invR * 0.5) / (2.0 * PI);
 }
-
-float sheenVisibility(vec3 N, vec3 V, vec3 L) {
+float l(float x, float alphaG) {
+    float oneMinusAlphaSq = (1.0 - alphaG) * (1.0 - alphaG);
+    float a = mix(21.5473, 25.3245, oneMinusAlphaSq);
+    float b = mix(3.82987, 3.32435, oneMinusAlphaSq);
+    float c = mix(0.19823, 0.16801, oneMinusAlphaSq);
+    float d = mix(-1.97760, -1.27393, oneMinusAlphaSq);
+    float e = mix(-4.32054, -4.85967, oneMinusAlphaSq);
+    return a / (1.0 + b * pow(x, c)) + d * x + e;
+}
+float lambdaSheen(float cosTheta, float alphaG) {
+    return abs(cosTheta) < 0.5 ? exp(l(cosTheta, alphaG)) : exp(2.0 * l(0.5, alphaG) - l(1.0 - cosTheta, alphaG));
+}
+float sheenVisibility(vec3 N, vec3 V, vec3 L, float sheenRoughness) {
+    float alphaG = sheenRoughness * sheenRoughness;
     float NdotL = max(dot(N, L), 0.0);
     float NdotV = max(dot(N, V), 0.0);
-    return 1.0 / (4.0 * (NdotL + NdotV - NdotL * NdotV));
+    float v = 1.0 / ((1.0 + lambdaSheen(NdotV, alphaG) + lambdaSheen(NdotL, alphaG)) * (4.0 * NdotV * NdotL));
+    if (isnan(v) || isinf(v)) {
+        v = 0.0;
+    }
+    return v;
+}
+float E(float x, float y) {
+    return texture(Sheen_E, vec2(x,y)).r;
 }
 
+float max3(vec3 v) { return max(max(v.x, v.y), v.z); }
+
 void main() {
+    vec2 outUV = outUV0;
+    #ifdef TEXTURE_TRANSFORM
+        outUV = ( textureMatrix * vec3(outUV.xy, 1.0) ).xy;
+    #endif
     #ifdef BASECOLORTEXTURE
         vec2 uv = outUV;
-        #ifdef TEXTURE_TRANSFORM
-            uv = ( textureMatrix * vec3(uv.xy, 1.0) ).xy;
-        #endif
         vec3 baseColor = srgbToLinear(texture(baseColorTexture, uv)) * baseColorFactor.rgb;
         float alpha = min(texture(baseColorTexture, uv).a, baseColorFactor.a);
     #else
@@ -305,7 +328,6 @@ void main() {
     float clearcoatRoughness = clearcoatRoughnessFactor.x;
     float clearcoat = clearcoatFactor.x;
     float clearcoatBlendFactor = clearcoat;
-    float sheen = sheenFactor.x;
     vec3 sheenColor = sheenColorFactor.xyz;
     float sheenRoughness = sheenRoughnessFactor.x;
     #ifdef CLEARCOATMAP
@@ -315,9 +337,10 @@ void main() {
         clearcoatRoughness = texture(clearcoatRoughnessTexture, outUV).g * clearcoatRoughness;
     #endif
     #ifdef SHEENMAP
-        vec4 sheenTextureV = texture(sheenTexture, outUV);
-        sheenColor = sheenTextureV.rgb * sheenColor;
-        sheen = sheenTextureV.a * sheen;
+        vec4 sheenRoughnessTextureV = texture(sheenRoughnessTexture, outUV);
+        vec3 sheenColorTextureV = srgbToLinear(texture(sheenColorTexture, outUV));
+        sheenColor = sheenColorTextureV * sheenColor;
+        sheenRoughness = sheenRoughnessTextureV.a * sheenRoughness;
     #endif
     vec3 specularMap = vec3(0);
     #ifdef SPECULARGLOSSINESSMAP
@@ -406,9 +429,10 @@ void main() {
             #ifdef SPECULARGLOSSINESSMAP
                 diffuse = baseColor * (1.0 - max(max(specularMap.r, specularMap.g), specularMap.b));
             #endif
-            vec3 f_sheen = sheenColor * sheen * sheenDistribution(sheenRoughness, n, H) * sheenVisibility(n, viewDir, lightDir);
+            vec3 f_sheen = sheenColor * sheenDistribution(sheenRoughness, n, H) * sheenVisibility(n, viewDir, lightDir, sheenRoughness);
+            float sheenAlbedoScaling = min(1.0 - max3(sheenColor) * E(max(dot(viewDir, n), 0.0), sheenRoughness), 1.0 - max3(sheenColor) * E(max(dot(lightDir, n), 0.0), sheenRoughness));
 
-            Lo += (diffuse + specular * NdotL) * radiance * clearcoatFresnel + f_clearcoat * clearcoatBlendFactor + f_sheen;
+            Lo += sheenAlbedoScaling * (diffuse + specular * NdotL) * radiance * clearcoatFresnel + f_clearcoat * clearcoatBlendFactor + f_sheen;
         }
 
         vec3 ambient = vec3(0.0);

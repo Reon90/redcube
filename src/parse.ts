@@ -496,7 +496,7 @@ export class Parse {
 
         this.scene.meshes.forEach((mesh) => {
             const materials = [mesh.material, ...mesh.variants.map(m => m.m)];
-            const textureTypes = ['baseColorTexture', 'metallicRoughnessTexture', 'emissiveTexture', 'normalTexture', 'occlusionTexture', 'clearcoatTexture', 'clearcoatRoughnessTexture', 'clearcoatNormalTexture', 'sheenTexture'];
+            const textureTypes = ['baseColorTexture', 'metallicRoughnessTexture', 'emissiveTexture', 'normalTexture', 'occlusionTexture', 'clearcoatTexture', 'clearcoatRoughnessTexture', 'clearcoatNormalTexture', 'sheenColorTexture', 'sheenRoughnessTexture'];
 
             for (let i=0; i < textureTypes.length; i++) {
                 for (const material of materials) {
