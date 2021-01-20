@@ -148,33 +148,10 @@ export class Material extends M {
             if (extensions) {
                 const ex = extensions.KHR_texture_transform;
                 if (ex) {
-                    const translation = ex.offset && new Matrix3().set([1, 0, 0, 0, 1, 0, ex.offset[0], ex.offset[1], 1]);
-                    const rotation =
-                        ex.rotation &&
-                        new Matrix3().set([
-                            -Math.sin(ex.rotation),
-                            Math.cos(ex.rotation),
-                            0,
-                            Math.cos(ex.rotation),
-                            Math.sin(ex.rotation),
-                            0,
-                            0,
-                            0,
-                            1
-                        ]);
-                    const scale = ex.scale && new Matrix3().set([ex.scale[0], 0, 0, 0, ex.scale[1], 0, 0, 0, 1]);
-
-                    const matrix = new Matrix3();
-                    if (scale) {
-                        matrix.multiply(scale);
-                    }
-                    if (rotation) {
-                        matrix.multiply(rotation);
-                    }
-                    if (translation) {
-                        matrix.multiply(translation);
-                    }
-                    this.matrix = matrix;
+                    const offset = ex.offset || [0, 0];
+                    const scale = ex.scale || [0, 0];
+                    const rotation = ex.rotation || 0;
+                    this.matrix = new Matrix3().set([...offset, 0, ...scale, 0, rotation, 0, 0]);
                     defines.push({ name: 'TEXTURE_TRANSFORM' });
                 }
             }

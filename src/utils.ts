@@ -211,11 +211,14 @@ ArrayBufferMap.set(Float32Array, 'FLOAT');
 export function buildArrayWithStride(arrayBuffer, accessor, bufferView) {
     const sizeofComponent = getCount(accessor.componentType);
     const typeofComponent = getDataType(accessor.type);
-    const offset = (bufferView.byteOffset || 0) + (accessor.byteOffset || 0);
+    let offset = (bufferView.byteOffset || 0) + (accessor.byteOffset || 0);
     const stride = bufferView.byteStride;
     const lengthByStride = (stride * accessor.count) / sizeofComponent;
     const requiredLength = accessor.count * typeofComponent;
     const length = lengthByStride || requiredLength;
+    if (arrayBuffer.byteLength < length * sizeofComponent + offset) {
+        offset -= accessor.byteOffset;
+    }
 
     let arr;
     switch (glEnum[accessor.componentType]) {

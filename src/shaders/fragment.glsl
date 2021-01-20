@@ -289,7 +289,16 @@ float max3(vec3 v) { return max(max(v.x, v.y), v.z); }
 void main() {
     vec2 outUV = outUV0;
     #ifdef TEXTURE_TRANSFORM
-        outUV = ( textureMatrix * vec3(outUV.xy, 1.0) ).xy;
+        mat3 translation = mat3(1, 0, 0, 0, 1, 0, textureMatrix[0].x, textureMatrix[0].y, 1);
+        mat3 rotation = mat3(
+            cos(textureMatrix[2].x), sin(textureMatrix[2].x), 0,
+            -sin(textureMatrix[2].x), cos(textureMatrix[2].x), 0,
+            0, 0, 1
+        );
+        mat3 scale = mat3(textureMatrix[1].x, 0, 0, 0, textureMatrix[1].y, 0, 0, 0, 1);
+
+        mat3 matrix = translation * rotation * scale;
+        outUV = ( matrix * vec3(outUV.xy, 1.0) ).xy;
     #endif
     #ifdef BASECOLORTEXTURE
         vec2 uv = outUV;
