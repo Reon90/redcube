@@ -110,6 +110,9 @@ float ShadowCalculation(vec4 fragPosLightSpace, float bias) {
 vec3 srgbToLinear(vec4 srgbIn) {
     return pow(srgbIn.rgb, vec3(2.2));
 }
+vec3 srgbToLinear(vec3 srgbIn) {
+    return pow(srgbIn, vec3(2.2));
+}
 
 float DistributionGGX(vec3 N, vec3 H, float roughness) {
     float a = roughness*roughness;
@@ -178,7 +181,8 @@ vec3 IBLAmbient(vec3 specularMap, vec3 baseColor, float metallic, vec3 n, float 
     #ifdef SPHERICAL_HARMONICS
     vec3 R = reflect(viewDir, n);
     vec4 rotatedR = rotationMatrix * vec4(R, 0.0);
-    vec3 prefilteredColor = srgbToLinear(textureLod(prefilterMap, rotatedR.xyz, roughness * MAX_REFLECTION_LOD));
+    vec4 prefilterColor = textureLod(prefilterMap, rotatedR.xyz, roughness * MAX_REFLECTION_LOD);
+    vec3 prefilteredColor = srgbToLinear(prefilterColor.rgb) / prefilterColor.a;
     vec3 irradianceVector = vec3(rotationMatrix * vec4(n, 0)).xyz;
     vec3 irradiance = computeEnvironmentIrradiance(irradianceVector).rgb;
     #else
@@ -520,8 +524,23 @@ void main() {
     #endif
 
     #ifdef TONE
-        color.rgb = color.rgb / (color.rgb + vec3(1.0));
-        color.rgb = pow(color.rgb, vec3(1.0 / gamma));
+        const float A = 0.15;
+        const float B = 0.50;
+        const float C = 0.10;
+        const float D = 0.20;
+        const float E = 0.02;
+        const float F = 0.30;
+        const float W = 11.2;
+        color.rgb *= 4.0;
+
+        const float ExposureBias = 2.0;
+        vec3 x = ExposureBias * color.rgb;
+
+        vec3 curr = ((x * (A * x + C * B) + D * E) / (x * (A * x + B) + D * F)) - E / F;
+
+        x = vec3(W, W, W);
+        vec3 whiteScale = 1.0 / (((x * (A * x + C * B) + D * E) / (x * (A * x + B) + D * F)) - E / F);
+        color.rgb = curr * whiteScale;
     #endif
 
     normalColor = n;
