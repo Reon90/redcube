@@ -70,16 +70,37 @@ export class Material extends M {
             this.clearcoatFactor = cl.clearcoatFactor;
             this.clearcoatRoughnessFactor = cl.clearcoatRoughnessFactor;
             if (cl.clearcoatTexture) {
+                const { extensions, texCoord } = cl.clearcoatTexture;
                 this.clearcoatTexture = textures[cl.clearcoatTexture.index];
-                defines.push({ name: 'CLEARCOATMAP' });
+                defines.push({ name: 'CLEARCOATMAP', value: texCoord ? 2 : 1 });
+                if (extensions) {
+                    const ex = extensions.KHR_texture_transform;
+                    if (ex) {
+                        this.buildTrans(ex, defines);
+                    }
+                }
             }
             if (cl.clearcoatNormalTexture) {
+                const { extensions, texCoord } = cl.clearcoatNormalTexture;
                 this.clearcoatNormalTexture = textures[cl.clearcoatNormalTexture.index];
-                defines.push({ name: 'CLEARCOATNORMALMAP' });
+                defines.push({ name: 'CLEARCOATNORMALMAP', value: texCoord ? 2 : 1 });
+                if (extensions) {
+                    const ex = extensions.KHR_texture_transform;
+                    if (ex) {
+                        this.buildTrans(ex, defines);
+                    }
+                }
             }
             if (cl.clearcoatRoughnessTexture) {
+                const { extensions, texCoord } = cl.clearcoatRoughnessTexture;
                 this.clearcoatRoughnessTexture = textures[cl.clearcoatRoughnessTexture.index];
-                defines.push({ name: 'CLEARCOATROUGHMAP' });
+                defines.push({ name: 'CLEARCOATROUGHMAP', value: texCoord ? 2 : 1 });
+                if (extensions) {
+                    const ex = extensions.KHR_texture_transform;
+                    if (ex) {
+                        this.buildTrans(ex, defines);
+                    }
+                }
             }
         }
 
@@ -129,37 +150,59 @@ export class Material extends M {
         this.extras = material.extras;
 
         if (pbrMetallicRoughness && pbrMetallicRoughness.metallicRoughnessTexture) {
+            const { extensions, texCoord } = pbrMetallicRoughness.metallicRoughnessTexture;
             this.metallicRoughnessTexture = textures[pbrMetallicRoughness.metallicRoughnessTexture.index];
-            defines.push({ name: 'METALROUGHNESSMAP' });
-        }
-        if (material.normalTexture) {
-            this.normalTexture = textures[material.normalTexture.index];
-            defines.push({ name: 'NORMALMAP' });
-        }
-        if (material.occlusionTexture) {
-            this.occlusionTexture = textures[material.occlusionTexture.index];
-            defines.push({ name: 'OCCLUSIONMAP' });
-        }
-        if (pbrMetallicRoughness && pbrMetallicRoughness.baseColorTexture) {
-            const { extensions } = pbrMetallicRoughness.baseColorTexture;
-            this.baseColorTexture = textures[pbrMetallicRoughness.baseColorTexture.index];
-            defines.push({ name: 'BASECOLORTEXTURE' });
-
+            defines.push({ name: 'METALROUGHNESSMAP', value: texCoord ? 2 : 1 });
             if (extensions) {
                 const ex = extensions.KHR_texture_transform;
                 if (ex) {
-                    const offset = ex.offset || [0, 0];
-                    const scale = ex.scale || [0, 0];
-                    const rotation = ex.rotation || 0;
-                    this.matrix = new Matrix3().set([...offset, 0, ...scale, 0, rotation, 0, 0]);
-                    defines.push({ name: 'TEXTURE_TRANSFORM' });
+                    this.buildTrans(ex, defines);
+                }
+            }
+        }
+        if (material.normalTexture) {
+            const { extensions, texCoord } = material.normalTexture;
+            this.normalTexture = textures[material.normalTexture.index];
+            defines.push({ name: 'NORMALMAP', value: texCoord ? 2 : 1 });
+            if (extensions) {
+                const ex = extensions.KHR_texture_transform;
+                if (ex) {
+                    this.buildTrans(ex, defines);
+                }
+            }
+        }
+        if (material.occlusionTexture) {
+            const { extensions, texCoord } = material.occlusionTexture;
+            this.occlusionTexture = textures[material.occlusionTexture.index];
+            defines.push({ name: 'OCCLUSIONMAP', value: texCoord ? 2 : 1 });
+            if (extensions) {
+                const ex = extensions.KHR_texture_transform;
+                if (ex) {
+                    this.buildTrans(ex, defines);
+                }
+            }
+        }
+        if (pbrMetallicRoughness && pbrMetallicRoughness.baseColorTexture) {
+            const { extensions, texCoord } = pbrMetallicRoughness.baseColorTexture;
+            this.baseColorTexture = textures[pbrMetallicRoughness.baseColorTexture.index];
+            defines.push({ name: 'BASECOLORTEXTURE', value: texCoord ? 2 : 1 });
+            if (extensions) {
+                const ex = extensions.KHR_texture_transform;
+                if (ex) {
+                    this.buildTrans(ex, defines);
                 }
             }
         }
         if (material.emissiveTexture) {
-            const { texCoord } = material.emissiveTexture;
+            const { extensions, texCoord } = material.emissiveTexture;
             this.emissiveTexture = textures[material.emissiveTexture.index];
             defines.push({ name: 'EMISSIVEMAP', value: texCoord ? 2 : 1 });
+            if (extensions) {
+                const ex = extensions.KHR_texture_transform;
+                if (ex) {
+                    this.buildTrans(ex, defines);
+                }
+            }
         }
 
         if (material.alphaMode === 'MASK') {
@@ -179,6 +222,14 @@ export class Material extends M {
         if (material.extensions && material.extensions.KHR_materials_unlit) {
             defines.push({ name: 'NOLIGHT' });
         }
+    }
+
+    buildTrans(ex, defines) {
+        const offset = ex.offset || [0, 0];
+        const scale = ex.scale || [1, 1];
+        const rotation = ex.rotation || 0;
+        this.matrix = new Matrix3().set([...offset, 0, ...scale, 0, rotation, 0, 0]);
+        defines.push({ name: 'TEXTURE_TRANSFORM' });
     }
 
     setHarmonics(sphericalHarmonics) {

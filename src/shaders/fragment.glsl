@@ -161,7 +161,7 @@ vec3 computeEnvironmentIrradiance(vec3 normal) {
         + vSphericalL21 * (normal.z * normal.x)
         + vSphericalL22 * (normal.x * normal.x - (normal.y * normal.y));
 }
-vec3 IBLAmbient(vec3 specularMap, vec3 baseColor, float metallic, vec3 n, float roughness, vec3 viewDir, float ao) {
+vec3 IBLAmbient(vec3 specularMap, vec3 baseColor, float metallic, vec3 n, float roughness, vec3 viewDir) {
     vec3 F0 = vec3(0.04);
     F0 = mix(F0, baseColor, metallic);
 
@@ -190,7 +190,7 @@ vec3 IBLAmbient(vec3 specularMap, vec3 baseColor, float metallic, vec3 n, float 
     vec3 specular = prefilteredColor * (F * envBRDF.x + envBRDF.y);
     vec3 diffuse = baseColor * irradiance;
 
-    return (kD * diffuse + specular) * ao;
+    return kD * diffuse + specular;
 }
 
 vec3 CookTorranceSpecular(vec3 specularMap, vec3 baseColor, float metallic, vec3 n, vec3 H, float roughness, vec3 viewDir, vec3 lightDir) {
@@ -286,24 +286,32 @@ float E(float x, float y) {
 
 float max3(vec3 v) { return max(max(v.x, v.y), v.z); }
 
-void main() {
-    vec2 outUV = outUV0;
-    #ifdef TEXTURE_TRANSFORM
-        mat3 translation = mat3(1, 0, 0, 0, 1, 0, textureMatrix[0].x, textureMatrix[0].y, 1);
-        mat3 rotation = mat3(
-            cos(textureMatrix[2].x), sin(textureMatrix[2].x), 0,
-            -sin(textureMatrix[2].x), cos(textureMatrix[2].x), 0,
+vec2 applyTransform(vec2 uv) {
+    mat3 translation = mat3(1, 0, 0, 0, 1, 0, textureMatrix[0].x, textureMatrix[0].y, 1);
+    mat3 rotation = mat3(1, 0, 0, 0, 1, 0, 0, 0, 1);
+    if (textureMatrix[2].x != 0.0) {
+        rotation = mat3(
+            cos(-textureMatrix[2].x), sin(-textureMatrix[2].x), 0,
+            -sin(-textureMatrix[2].x), cos(-textureMatrix[2].x), 0,
             0, 0, 1
         );
-        mat3 scale = mat3(textureMatrix[1].x, 0, 0, 0, textureMatrix[1].y, 0, 0, 0, 1);
+    }
+    mat3 scale = mat3(textureMatrix[1].x, 0, 0, 0, textureMatrix[1].y, 0, 0, 0, 1);
 
-        mat3 matrix = translation * rotation * scale;
-        outUV = ( matrix * vec3(outUV.xy, 1.0) ).xy;
-    #endif
+    mat3 matrix = translation * rotation * scale;
+    vec2 outUV = ( matrix * vec3(uv, 1.0) ).xy;
+    return outUV;
+}
+
+void main() {
+    vec2 outUV = outUV0;
     #ifdef BASECOLORTEXTURE
-        vec2 uv = outUV;
-        vec3 baseColor = srgbToLinear(texture(baseColorTexture, uv)) * baseColorFactor.rgb;
-        float alpha = min(texture(baseColorTexture, uv).a, baseColorFactor.a);
+        outUV = getUV(BASECOLORTEXTURE);
+        #ifdef TEXTURE_TRANSFORM
+            outUV = applyTransform(outUV);
+        #endif
+        vec3 baseColor = srgbToLinear(texture(baseColorTexture, outUV)) * baseColorFactor.rgb;
+        float alpha = min(texture(baseColorTexture, outUV).a, baseColorFactor.a);
     #else
         vec3 baseColor = baseColorFactor.rgb;
         float alpha = baseColorFactor.a;
@@ -326,10 +334,13 @@ void main() {
         return;
     #endif
 
+    float ao = 1.0;
     #ifdef OCCLUSIONMAP
-        float ao = texture(occlusionTexture, outUV).r;
-    #else
-        float ao = 0.2;
+        outUV = getUV(OCCLUSIONMAP);
+        #ifdef TEXTURE_TRANSFORM
+            outUV = applyTransform(outUV);
+        #endif
+        ao = texture(occlusionTexture, outUV).r;
     #endif
 
     float roughness = roughnessFactor.x;
@@ -340,12 +351,24 @@ void main() {
     vec3 sheenColor = sheenColorFactor.xyz;
     float sheenRoughness = sheenRoughnessFactor.x;
     #ifdef CLEARCOATMAP
+        outUV = getUV(CLEARCOATMAP);
+        #ifdef TEXTURE_TRANSFORM
+            outUV = applyTransform(outUV);
+        #endif
         clearcoatBlendFactor = texture(clearcoatTexture, outUV).r * clearcoat;
     #endif
     #ifdef CLEARCOATROUGHMAP
+        outUV = getUV(CLEARCOATROUGHMAP);
+        #ifdef TEXTURE_TRANSFORM
+            outUV = applyTransform(outUV);
+        #endif
         clearcoatRoughness = texture(clearcoatRoughnessTexture, outUV).g * clearcoatRoughness;
     #endif
     #ifdef SHEENMAP
+        outUV = getUV(SHEENMAP);
+        #ifdef TEXTURE_TRANSFORM
+            outUV = applyTransform(outUV);
+        #endif
         vec4 sheenRoughnessTextureV = texture(sheenRoughnessTexture, outUV);
         vec3 sheenColorTextureV = srgbToLinear(texture(sheenColorTexture, outUV));
         sheenColor = sheenColorTextureV * sheenColor;
@@ -354,6 +377,10 @@ void main() {
     vec3 specularMap = vec3(0);
     #ifdef SPECULARGLOSSINESSMAP
         #ifdef METALROUGHNESSMAP
+            outUV = getUV(METALROUGHNESSMAP);
+            #ifdef TEXTURE_TRANSFORM
+                outUV = applyTransform(outUV);
+            #endif
             roughness = 1.0 - texture(metallicRoughnessTexture, outUV).a;
             specularMap = srgbToLinear(texture(metallicRoughnessTexture, outUV));
         #else
@@ -362,6 +389,10 @@ void main() {
         #endif
     #else
         #ifdef METALROUGHNESSMAP
+            outUV = getUV(METALROUGHNESSMAP);
+            #ifdef TEXTURE_TRANSFORM
+                outUV = applyTransform(outUV);
+            #endif
             vec4 metallicRoughness = texture(metallicRoughnessTexture, outUV);
             roughness *= metallicRoughness.g;
             metallic *= metallicRoughness.b;
@@ -370,6 +401,10 @@ void main() {
 
     #ifdef TANGENT
         #ifdef NORMALMAP
+            outUV = getUV(NORMALMAP);
+            #ifdef TEXTURE_TRANSFORM
+                outUV = applyTransform(outUV);
+            #endif
             vec3 n = texture(normalTexture, outUV).rgb;
             n = normalize(outTBN * (2.0 * n - 1.0));
         #else
@@ -381,6 +416,10 @@ void main() {
 
     #ifdef TANGENT
     #ifdef CLEARCOATNORMALMAP
+        outUV = getUV(CLEARCOATNORMALMAP);
+        #ifdef TEXTURE_TRANSFORM
+            outUV = applyTransform(outUV);
+        #endif
         vec3 clearcoatNormal = texture(clearcoatNormalTexture, outUV).rgb;
         clearcoatNormal = normalize(outTBN * (2.0 * clearcoatNormal - 1.0));
     #else
@@ -448,20 +487,24 @@ void main() {
         vec3 ambientClearcoat = vec3(0.0);
         vec3 clearcoatFresnel = vec3(1.0);
         #ifdef IBL
-            ambient = max(vec3(0.03) * baseColor, IBLAmbient(specularMap, baseColor, metallic, n, roughness, viewDir, ao));
-            ambientClearcoat = IBLAmbient(specularMap, vec3(0.0), 0.0, clearcoatNormal, clearcoatRoughness, viewDir, ao) * clearcoatBlendFactor;
+            ambient = max(vec3(0.03) * baseColor, IBLAmbient(specularMap, baseColor, metallic, n, roughness, viewDir));
+            ambientClearcoat = IBLAmbient(specularMap, vec3(0.0), 0.0, clearcoatNormal, clearcoatRoughness, viewDir) * clearcoatBlendFactor;
             float NdotV = saturate(dot(clearcoatNormal, viewDir));
             clearcoatFresnel = (1.0 - clearcoatBlendFactor * fresnelSchlick(NdotV, vec3(0.04)));
         #else
-            ambient = vec3(0.03) * baseColor * ao;
+            ambient = vec3(0.03) * baseColor * 0.2;
         #endif
 
         vec3 emissive = emissiveFactor;
         #ifdef EMISSIVEMAP
-            emissive = srgbToLinear(texture(emissiveTexture, getUV(EMISSIVEMAP)));
+            outUV = getUV(EMISSIVEMAP);
+            #ifdef TEXTURE_TRANSFORM
+                outUV = applyTransform(outUV);
+            #endif
+            emissive = srgbToLinear(texture(emissiveTexture, outUV));
         #endif
 
-        color = vec4(shadow * ((emissive + ambient + Lo) * clearcoatFresnel + ambientClearcoat), alpha);
+        color = vec4(ao * shadow * ((emissive + ambient + Lo) * clearcoatFresnel + ambientClearcoat), alpha);
     #else
         vec3 lightDir = normalize(lightPos[0] - outPosition);
         vec3 ambient = ambientStrength * lightColor[0];

@@ -81,12 +81,13 @@ export function fetchBinary(url) {
   }
 }
 
-export function fetchImage(s, {bufferView, mimeType, uri}, {url, name}) {
+export function fetchImage(s, {bufferView, mimeType, uri}, {url, name}, sampler) {
   if (typeof window !== "undefined") {
     return new Promise((resolve, reject) => {
       if (mimeType === 'image/ktx2') {
         window.fetch(url).then(r => r.arrayBuffer()).then(b => {
           resolve({
+            sampler,
             mimeType,
             name,
             image: loadKTX(b)
@@ -96,6 +97,7 @@ export function fetchImage(s, {bufferView, mimeType, uri}, {url, name}) {
       const image = new Image();
       image.onload = () => {
           resolve({
+              sampler,
               name,
               image
           });
@@ -123,6 +125,7 @@ export function fetchImage(s, {bufferView, mimeType, uri}, {url, name}) {
           throw err;
         } else {
           resolve( {
+            sampler,
             url,
             name,
             image: new Uint8Array(data).buffer,

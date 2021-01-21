@@ -608,7 +608,7 @@ export class Parse {
             return fetchImage(this, source, {
                 url: `${this.host}${source.uri}`,
                 name: t.name,
-            });
+            }, t.sampler);
         });
 
         return Promise.all(promiseArr).then((textures: Texture[]) => {
