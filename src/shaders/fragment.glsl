@@ -91,6 +91,42 @@ const float specularStrength = 2.5;
 const float specularPower = 32.0;
 const float gamma = 2.2;
 
+
+float RadicalInverse_VdC(uint bits) {
+    bits = (bits << 16u) | (bits >> 16u);
+    bits = ((bits & 0x55555555u) << 1u) | ((bits & 0xAAAAAAAAu) >> 1u);
+    bits = ((bits & 0x33333333u) << 2u) | ((bits & 0xCCCCCCCCu) >> 2u);
+    bits = ((bits & 0x0F0F0F0Fu) << 4u) | ((bits & 0xF0F0F0F0u) >> 4u);
+    bits = ((bits & 0x00FF00FFu) << 8u) | ((bits & 0xFF00FF00u) >> 8u);
+    return float(bits) * 2.3283064365386963e-10; // / 0x100000000
+}
+// ----------------------------------------------------------------------------
+vec2 Hammersley(uint i, uint N) {
+    return vec2(RadicalInverse_VdC(0u), RadicalInverse_VdC(1u));
+}  
+vec3 ImportanceSampleGGX(vec2 Xi, vec3 N, float roughness) {
+    float a = roughness*roughness;
+	
+    float phi = 2.0 * PI * Xi.x;
+    float cosTheta = sqrt((1.0 - Xi.y) / (1.0 + (a*a - 1.0) * Xi.y));
+    float sinTheta = sqrt(1.0 - cosTheta*cosTheta);
+	
+    // from spherical coordinates to cartesian coordinates
+    vec3 H;
+    H.x = cos(phi) * sinTheta;
+    H.y = sin(phi) * sinTheta;
+    H.z = cosTheta;
+	
+    // from tangent-space vector to world-space sample vector
+    vec3 up        = abs(N.z) < 0.999 ? vec3(0.0, 0.0, 1.0) : vec3(1.0, 0.0, 0.0);
+    vec3 tangent   = normalize(cross(up, N));
+    vec3 bitangent = cross(N, tangent);
+	
+    vec3 sampleVec = tangent * H.x + bitangent * H.y + N * H.z;
+    return normalize(sampleVec);
+}
+
+
 vec2 getUV(int index) {
     if (index == 1) {
         return outUV;
@@ -289,6 +325,20 @@ float fresnelDielectric(float cosThetaI, float ni, float nt) {
   return (rParallel * rParallel + rPerpendicuar * rPerpendicuar) / 2.0;
 }
 
+bool Transmit(vec3 wm, vec3 wi, float n, out vec3 wo) {
+  float c = dot(wi, wm);
+  if (c < 0.0) {
+    c = -c;
+    wm = -wm;
+  }
+
+  float root = 1.0f - n * n * (1.0f - c * c);
+  if (root <= 0.0)
+    return false;
+
+  wo = (n * c - sqrt(root)) * wm - n * wi;
+  return true;
+}
 vec3 calcTransmission(vec3 c, float metallic, vec3 N, vec3 H, float roughness, vec3 V, vec3 L, float transmission) {
     float absDotNL = abs(dot(N, L));
     float absDotNV = abs(dot(N, V));
@@ -301,14 +351,17 @@ vec3 calcTransmission(vec3 c, float metallic, vec3 N, vec3 H, float roughness, v
     float DT = DistributionGGX(N, H, roughness);
     float GT = GeometrySmith(N, V, L, roughness);  
 
-    vec3 refractV = outPosition + refract(-V, N, 1.0);
-    vec4 refractS = projection * view * vec4(refractV, 1.0);
+    vec2 Xi = Hammersley(1u, 2u);
+    vec3 VH  = ImportanceSampleGGX(Xi, -V, roughness);
+    vec3 RV;
+    Transmit(VH, -V, 1.0, RV);
+    vec4 refractS = projection * view * vec4(outPosition + refract(-V, VH, 1.0), 1.0);
     refractS.xy = refractS.xy / refractS.w;
     refractS.xy = refractS.xy * 0.5 + 0.5;
     vec3 baseColor = texture(colorTexture, refractS.xy).xyz;
 
     float coef = (absDotHL * absDotHV) / (absDotNL * absDotNV);
-    return (1.0 - F) * transmission * baseColor * DT * GT * coef;
+    return transmission * baseColor;
 }
 
 float sheenDistribution(float sheenRoughness, vec3 N, vec3 H) {
