@@ -415,6 +415,36 @@ export function calculateUVs(vertex, normal) {
     return UVS;
 }
 
+export function calculateNormals2(vertex) {
+    const ns = new Float32Array(vertex.length);
+
+    for (let i = 0; i < vertex.length; i += 9) {
+        const faceVertices = [
+            new Vector3([vertex[i], vertex[i+1], vertex[i+2]]),
+            new Vector3([vertex[i+3], vertex[i+4], vertex[i+5]]),
+            new Vector3([vertex[i+6], vertex[i+7], vertex[i+8]])
+        ];
+        const dv1 = faceVertices[1].subtract(faceVertices[0]);
+        const dv2 = faceVertices[2].subtract(faceVertices[0]);
+
+        const n = Vector3.cross(dv1.normalize(), dv2.normalize());
+        const [x, y, z] = n.elements;
+        ns[i] = x;
+        ns[i+1] = y;
+        ns[i+2] = z;
+
+        ns[i+3] = x;
+        ns[i+4] = y;
+        ns[i+5] = z;
+
+        ns[i+6] = x;
+        ns[i+7] = y;
+        ns[i+8] = z;
+    }
+
+    return ns;
+}
+
 export function calculateNormals(index, vertex) {
     const ns = new Float32Array((vertex.length / 3) * 3);
     for (let i = 0; i < index.length; i += 3) {

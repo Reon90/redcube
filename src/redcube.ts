@@ -107,7 +107,7 @@ class RedCube {
 
     setVariant(variant) {
         this.scene.meshes.forEach((mesh) => {
-            if (variant && mesh.variants) {
+            if (variant && mesh.variants.length) {
                 mesh.material = mesh.variants.find(v => v.variants.includes(Number(variant))).m;
             }
         });
