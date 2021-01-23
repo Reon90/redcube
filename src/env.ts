@@ -12,6 +12,8 @@ import quad from './shaders/quad.glsl';
 import { cubeVertex, quadVertex } from './vertex';
 import { SphericalHarmonics, SphericalPolynomial } from './SH';
 import { UniformBuffer } from './objects/uniform';
+//@ts-ignore
+import Sheen_E from '../src/images/Sheen_E.hdr';
 
 let gl;
 
@@ -513,7 +515,7 @@ export class Env {
 
                 return true;
             });
-        await fetch(`${currentPath}/../src/images/Sheen_E.hdr`)
+        await fetch(Sheen_E)
             .then(res => res.arrayBuffer())
             .then(buffer => {
                 const { data, shape } = parseHDR(buffer);

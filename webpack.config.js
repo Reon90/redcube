@@ -36,7 +36,11 @@ module.exports = {
             {
                 test: /\.(glsl|vert|frag)$/,
                 use: 'raw-loader'
-            }, 
+            },
+            {
+                test: /\.hdr/,
+                type: 'asset/resource'
+            },
             {
                 test: /\.(jpeg|jpg|png|gif)$/,
                 use: 'url-loader'
