@@ -18,13 +18,19 @@ export class Refraction extends PostProcessor {
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
         PP.renderScene({isprerefraction: true});
+
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+        gl.activeTexture(gl[`TEXTURE${this.texture.index}`]);
+        gl.bindTexture(gl.TEXTURE_2D, this.texture);
+        gl.generateMipmap(gl.TEXTURE_2D);
     }
 
     buildScreenBuffer(pp) {
         this.framebuffer = gl.createFramebuffer();
-        gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
         this.texture = pp.createDefaultTexture();
+        gl.generateMipmap(gl.TEXTURE_2D);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.texture, 0);
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
         return { name: 'REFRACTION' };

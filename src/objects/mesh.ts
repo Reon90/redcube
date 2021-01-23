@@ -107,6 +107,7 @@ export class Mesh extends Object3D {
             this.material.uniforms.colorTexture,
             (!isprerefraction) ? colorTexture.index : fakeDepth.index
         );
+        gl.uniform1i(gl.getUniformLocation(this.program, 'isTone'), isprerefraction ? 0 : 1);
 
         if (this.material.baseColorTexture) {
             gl.activeTexture(gl[`TEXTURE${0}`]);

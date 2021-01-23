@@ -82,6 +82,7 @@ uniform sampler2D brdfLUT;
 uniform samplerCube irradianceMap;
 uniform sampler2D depthTexture;
 uniform sampler2D colorTexture;
+uniform int isTone;
 
 const float RECIPROCAL_PI = 0.31830988618;
 const float PI = 3.14159265359;
@@ -90,41 +91,6 @@ const float ambientStrength = 0.1;
 const float specularStrength = 2.5;
 const float specularPower = 32.0;
 const float gamma = 2.2;
-
-
-float RadicalInverse_VdC(uint bits) {
-    bits = (bits << 16u) | (bits >> 16u);
-    bits = ((bits & 0x55555555u) << 1u) | ((bits & 0xAAAAAAAAu) >> 1u);
-    bits = ((bits & 0x33333333u) << 2u) | ((bits & 0xCCCCCCCCu) >> 2u);
-    bits = ((bits & 0x0F0F0F0Fu) << 4u) | ((bits & 0xF0F0F0F0u) >> 4u);
-    bits = ((bits & 0x00FF00FFu) << 8u) | ((bits & 0xFF00FF00u) >> 8u);
-    return float(bits) * 2.3283064365386963e-10; // / 0x100000000
-}
-// ----------------------------------------------------------------------------
-vec2 Hammersley(uint i, uint N) {
-    return vec2(RadicalInverse_VdC(0u), RadicalInverse_VdC(1u));
-}  
-vec3 ImportanceSampleGGX(vec2 Xi, vec3 N, float roughness) {
-    float a = roughness*roughness;
-	
-    float phi = 2.0 * PI * Xi.x;
-    float cosTheta = sqrt((1.0 - Xi.y) / (1.0 + (a*a - 1.0) * Xi.y));
-    float sinTheta = sqrt(1.0 - cosTheta*cosTheta);
-	
-    // from spherical coordinates to cartesian coordinates
-    vec3 H;
-    H.x = cos(phi) * sinTheta;
-    H.y = sin(phi) * sinTheta;
-    H.z = cosTheta;
-	
-    // from tangent-space vector to world-space sample vector
-    vec3 up        = abs(N.z) < 0.999 ? vec3(0.0, 0.0, 1.0) : vec3(1.0, 0.0, 0.0);
-    vec3 tangent   = normalize(cross(up, N));
-    vec3 bitangent = cross(N, tangent);
-	
-    vec3 sampleVec = tangent * H.x + bitangent * H.y + N * H.z;
-    return normalize(sampleVec);
-}
 
 
 vec2 getUV(int index) {
@@ -192,8 +158,8 @@ float GeometrySmith(vec3 N, vec3 V, vec3 L, float roughness) {
 vec3 fresnelSchlick(float cosTheta, vec3 F0) {
     return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
 }
-vec3 fresnelSchlickRoughness(float cosTheta, vec3 F0, float roughness) {
-    return F0 + (max(vec3(1.0 - roughness), F0) - F0) * pow(1.0 - cosTheta, 5.0);
+float fresnelSchlickRoughness(float cosTheta, float F0, float roughness) {
+    return F0 + (max(1.0 - roughness, F0) - F0) * pow(1.0 - cosTheta, 5.0);
 }
 
 vec3 computeEnvironmentIrradiance(vec3 normal) {
@@ -208,14 +174,13 @@ vec3 computeEnvironmentIrradiance(vec3 normal) {
         + vSphericalL22 * (normal.x * normal.x - (normal.y * normal.y));
 }
 vec3 IBLAmbient(vec3 specularMap, vec3 baseColor, float metallic, vec3 n, float roughness, vec3 viewDir, float ao) {
-    vec3 F0 = vec3(0.04);
-    F0 = mix(F0, baseColor, metallic);
+    float F0 = mix(0.05, 1.0, metallic);
 
     #ifdef SPECULARGLOSSINESSMAP
         F0 = specularMap;
     #endif
 
-    vec3 F = fresnelSchlickRoughness(max(dot(n, viewDir), 0.0), F0, roughness);
+    float F = fresnelSchlickRoughness(max(dot(n, viewDir), 0.0), F0, roughness);
 
     vec3 kD = vec3(1.0) - F;
     kD *= 1.0 - metallic;
@@ -234,9 +199,20 @@ vec3 IBLAmbient(vec3 specularMap, vec3 baseColor, float metallic, vec3 n, float 
     #endif
     vec2 envBRDF  = texture(brdfLUT, vec2(max(dot(n, viewDir), 0.0), roughness)).rg;
     vec3 specular = prefilteredColor * (F * envBRDF.x + envBRDF.y);
-    vec3 diffuse = baseColor * irradiance;
 
-    return (kD * diffuse + specular) * ao;
+    #ifdef TRANSMISSION
+    return specular;
+    #else
+    return (kD * irradiance + specular) * baseColor;
+    #endif
+}
+
+float specEnv(vec3 N, vec3 V, float metallic, float roughness) {
+    float F0 = mix(0.05, 1.0, metallic);
+
+    float F = fresnelSchlickRoughness(max(dot(N, V), 0.0), F0, roughness);
+    vec2 envBRDF  = texture(brdfLUT, vec2(max(dot(N, V), 0.0), roughness)).rg;
+    return (F * envBRDF.x + envBRDF.y);
 }
 
 vec3 CookTorranceSpecular(vec3 specularMap, vec3 baseColor, float metallic, vec3 n, vec3 H, float roughness, vec3 viewDir, vec3 lightDir) {
@@ -339,29 +315,14 @@ bool Transmit(vec3 wm, vec3 wi, float n, out vec3 wo) {
   wo = (n * c - sqrt(root)) * wm - n * wi;
   return true;
 }
-vec3 calcTransmission(vec3 c, float metallic, vec3 N, vec3 H, float roughness, vec3 V, vec3 L, float transmission) {
-    float absDotNL = abs(dot(N, L));
-    float absDotNV = abs(dot(N, V));
-    float dotHL = dot(H, L);
-    float dotHV = dot(H, V);
-    float absDotHL = abs(dotHL);
-    float absDotHV = abs(dotHV);
-    float F = fresnelDielectric(dotHV, 1.0, 1.0);
-
-    float DT = DistributionGGX(N, H, roughness);
-    float GT = GeometrySmith(N, V, L, roughness);  
-
-    vec2 Xi = Hammersley(1u, 2u);
-    vec3 VH  = ImportanceSampleGGX(Xi, -V, roughness);
-    vec3 RV;
-    Transmit(VH, -V, 1.0, RV);
-    vec4 refractS = projection * view * vec4(outPosition + refract(-V, VH, 1.0), 1.0);
+vec3 calcTransmission(vec3 color, float metallic, vec3 N, vec3 H, float roughness, vec3 V, vec3 L, float transmission) {
+    vec4 refractS = projection * view * vec4(outPosition + refract(-V, N, 1.0), 1.0);
     refractS.xy = refractS.xy / refractS.w;
     refractS.xy = refractS.xy * 0.5 + 0.5;
-    vec3 baseColor = texture(colorTexture, refractS.xy).xyz;
+    const float MAX_REFLECTION_LOD = 10.0;
+    vec3 baseColor = textureLod(colorTexture, refractS.xy, roughness * MAX_REFLECTION_LOD).xyz;
 
-    float coef = (absDotHL * absDotHV) / (absDotNL * absDotNV);
-    return transmission * baseColor;
+    return transmission * baseColor * color;
 }
 
 float sheenDistribution(float sheenRoughness, vec3 N, vec3 H) {
@@ -496,6 +457,7 @@ void main() {
 
     #ifdef USE_PBR
         vec3 Lo = vec3(0.0);
+        vec3 f_transmission = vec3(0.0);
         for (int i = 0; i < LIGHTNUMBER; ++i) {
             vec3 lightDir = normalize(lightPos[i] - outPosition);
             float NdotL = max(dot(n, lightDir), 0.0);
@@ -528,10 +490,10 @@ void main() {
             #endif
             vec3 f_sheen = sheenColor * sheen * sheenDistribution(sheenRoughness, n, H) * sheenVisibility(n, viewDir, lightDir);
 
-            vec3 f_transmission = calcTransmission(baseColor, metallic, n, H, roughness, viewDir, lightDir, transmission);
+            f_transmission += calcTransmission(baseColor, metallic, n, H, roughness, viewDir, lightDir, transmission);
             diffuse *= (1.0 - transmission);
 
-            Lo += (diffuse + specular * NdotL) * radiance * clearcoatFresnel + f_clearcoat * clearcoatBlendFactor + f_sheen + f_transmission;
+            Lo += (diffuse + specular * NdotL) * radiance * clearcoatFresnel + f_clearcoat * clearcoatBlendFactor + f_sheen;
         }
 
         vec3 ambient = vec3(0.0);
@@ -551,7 +513,11 @@ void main() {
             emissive = srgbToLinear(texture(emissiveTexture, getUV(EMISSIVEMAP)));
         #endif
 
+        #ifdef TRANSMISSION
+        color = vec4(ambient + Lo + f_transmission * (1.0 - specEnv(n, viewDir, metallic, roughness)), alpha);
+        #else
         color = vec4(shadow * ((emissive + ambient + Lo) * clearcoatFresnel + ambientClearcoat), alpha);
+        #endif
     #else
         vec3 lightDir = normalize(lightPos[0] - outPosition);
         vec3 ambient = ambientStrength * lightColor[0];
@@ -566,10 +532,10 @@ void main() {
         color = vec4(baseColor.rgb * (ambient + diffuse + specular) * shadow, alpha);
     #endif
 
-    #ifdef TONE
+    if (isTone == 1) {
         color.rgb = color.rgb / (color.rgb + vec3(1.0));
         color.rgb = pow(color.rgb, vec3(1.0 / gamma));
-    #endif
+    }
 
     normalColor = n;
 }

@@ -11,6 +11,7 @@ import { PostProcessing } from './postprocessing';
 import { Particles } from './particles';
 import { setGl, clearColor, walk } from './utils';
 import { Light as PPLight } from './postprocessors/light';
+import { Refraction } from './postprocessors/refraction';
 
 let gl;
 const FOV = 60; // degrees
@@ -29,7 +30,7 @@ class RedCube {
         }
 
         this.canvas = canvas;
-        this.processors = ['refraction', ...processors];
+        this.processors = processors;
 
         const defines = [];
         if (this.processors.length === 0) {
@@ -63,7 +64,7 @@ class RedCube {
         this.ioc.register('scene', Scene);
         this.ioc.register('light', Light, [], {
             type: 'directional',
-            intensity: 10,
+            intensity: 1,
             color: [1, 1, 1],
             isInitial: true,
             spot: {}
@@ -108,12 +109,6 @@ class RedCube {
     async init(cb) {
         await this.parse.getJson();
         this.glInit();
-        if (this.PP.postprocessors.some(p => p instanceof PPLight)) {
-            this.Particles.build();
-        }
-        if (this.PP.postprocessors.length > 0) {
-            this.PP.buildScreenBuffer();
-        }
         await this.parse.getBuffer();
         await this.parse.initTextures();
         this.parse.buildSkin();
@@ -132,6 +127,7 @@ class RedCube {
         const envData = await this.parse.getEnv();
         await this.env.createEnvironmentBuffer(envData);
 
+        const hasTransmission = this.parse.json.extensionsUsed && this.parse.json.extensionsUsed.includes('KHR_materials_transmission');
         this.scene.meshes.forEach((mesh) => {
             mesh.geometry.createGeometryForWebGl(gl);
 
@@ -152,6 +148,16 @@ class RedCube {
                 mesh.setSkin(gl, this.parse.skins[mesh.skin]);
             }
         });
+        if (hasTransmission) {
+            this.PP.add('refraction');
+        }
+
+        if (this.PP.postprocessors.some(p => p instanceof PPLight)) {
+            this.Particles.build();
+        }
+        if (this.PP.postprocessors.length > 0) {
+            this.PP.buildScreenBuffer();
+        }
 
         this.resize(null);
         this.parse.buildAnimation();
@@ -243,6 +249,7 @@ class RedCube {
     }
 
     getState() {
+        const refraction = this.PP.postprocessors.find(p => p instanceof Refraction);
         return {
             renderState: this.renderState,
             lights: this.parse.lights,
@@ -250,7 +257,7 @@ class RedCube {
             light: this.light,
             preDepthTexture: this.PP.preDepthTexture,
             // @ts-ignore
-            colorTexture: this.PP.postprocessors[0].texture,
+            colorTexture: refraction ? refraction.texture : this.PP.fakeDepth,
             fakeDepth: this.PP.fakeDepth,
             needUpdateView: this.renderer.needUpdateView,
             needUpdateProjection: this.renderer.needUpdateProjection,

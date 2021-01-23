@@ -49,6 +49,12 @@ export class PostProcessing {
         this.postprocessors = processors.map(name => new processorsMap[name]());
     }
 
+    add(name) {
+        const p = new processorsMap[name]();
+        p.setGL(gl);
+        this.postprocessors.push(p);
+    }
+
     setCamera(camera) {
         this.camera = camera;
         this.postprocessors.forEach(postProcessor => {
@@ -145,8 +151,8 @@ export class PostProcessing {
 
     createDefaultTexture(scale = 1) {
         const texture = createTexture();
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, this.width / scale, this.height / scale, 0, gl.RGBA, gl.FLOAT, null);
         return texture;
     }

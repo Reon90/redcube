@@ -309,7 +309,7 @@ export class Renderer {
             if (this.PP.postprocessors.length > 0) {
                 this.PP.bindPrePass();
                 this.PP.preProcessing();
-                this.PP.bindPostPass();
+                //this.PP.bindPostPass();
             }
 
             gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -325,9 +325,9 @@ export class Renderer {
                 this.reflow = true;
             }
 
-            if (this.PP.postprocessors.length > 0) {
-                this.PP.postProcessing();
-            }
+            // if (this.PP.postprocessors.length > 0) {
+            //     this.PP.postProcessing();
+            // }
         }
 
         this.fps.tick(time);

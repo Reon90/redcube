@@ -102,6 +102,7 @@ export class Material extends M {
                 this.transmissionTexture = textures[transmissionTexture.index];
                 defines.push({ name: 'TRANSMISSIONMAP' });
             }
+            defines.push({ name: 'TRANSMISSION' });
         }
 
         this.uniforms = {
