@@ -12,6 +12,7 @@ export class Mesh extends Object3D {
     mode: number;
     distance: number;
     visible: boolean;
+    variants: {m: Material, variants: number[]}[];
 
     constructor(name, parent) {
         super(name, parent);
@@ -19,6 +20,7 @@ export class Mesh extends Object3D {
         this.program = null;
         this.defines = null;
         this.mode = 4;
+        this.variants = [];
     }
 
     setDefines(defines) {
@@ -144,10 +146,15 @@ export class Mesh extends Object3D {
             gl.bindTexture(gl.TEXTURE_2D, this.material.clearcoatRoughnessTexture);
             gl.bindSampler(9, this.material.clearcoatRoughnessTexture.sampler);
         }
-        if (this.material.sheenTexture) {
+        if (this.material.sheenColorTexture) {
             gl.activeTexture(gl[`TEXTURE${11}`]);
-            gl.bindTexture(gl.TEXTURE_2D, this.material.sheenTexture);
-            gl.bindSampler(11, this.material.sheenTexture.sampler);
+            gl.bindTexture(gl.TEXTURE_2D, this.material.sheenColorTexture);
+            gl.bindSampler(8, this.material.sheenColorTexture.sampler);
+        }
+        if (this.material.sheenRoughnessTexture) {
+            gl.activeTexture(gl[`TEXTURE${12}`]);
+            gl.bindTexture(gl.TEXTURE_2D, this.material.sheenRoughnessTexture);
+            gl.bindSampler(8, this.material.sheenRoughnessTexture.sampler);
         }
         if (this.material.clearcoatNormalTexture) {
             gl.activeTexture(gl[`TEXTURE${10}`]);
@@ -155,7 +162,7 @@ export class Mesh extends Object3D {
             gl.bindSampler(10, this.material.clearcoatNormalTexture.sampler);
         }
         if (this.material.transmissionTexture) {
-            gl.activeTexture(gl[`TEXTURE${12}`]);
+            gl.activeTexture(gl[`TEXTURE${14}`]);
             gl.bindTexture(gl.TEXTURE_2D, this.material.transmissionTexture);
             gl.bindSampler(12, this.material.transmissionTexture.sampler);
         }
@@ -189,6 +196,10 @@ export class Mesh extends Object3D {
 
     setMode(value = 4) {
         this.mode = value;
+    }
+
+    setVariants(variants) {
+        this.variants = variants;
     }
 
     isVisible(planes) {

@@ -8,6 +8,60 @@ import vertexShader from './shaders/vertex.glsl';
 import fragmentShader from './shaders/fragment.glsl';
 import { Geometry } from './objects/geometry';
 
+declare global {
+    interface Constructable<T> {
+        new(...args: any) : T;
+    }
+    interface KtxTexture {
+        needsTranscoding: boolean;
+        transcodeBasis(target: TranscodeTarget, flags: number): number;
+        glUpload(): { texture: WebGLTexture };
+    }
+    interface TranscodeTarget {
+        ETC1_RGB,
+        BC1_RGB,
+        BC4_R,
+        BC5_RG,
+        BC3_RGBA,
+        BC1_OR_3,
+        PVRTC1_4_RGB,
+        PVRTC1_4_RGBA,
+        BC7_M6_RGB,
+        BC7_M5_RGBA,
+        ETC2_RGBA,
+        ASTC_4x4_RGBA,
+        RGBA32,
+        RGB565,
+        BGR565,
+        RGBA4444,
+        PVRTC2_4_RGB,
+        PVRTC2_4_RGBA,
+        ETC,
+        EAC_R11,
+        EAC_RG11
+    }
+    interface Window {
+        LIBKTX: {
+            ktxTexture: Constructable<KtxTexture>;
+            TranscodeTarget: TranscodeTarget;
+            transcoderConfig: {
+                astcSupported: boolean; 
+                dxtSupported: boolean; 
+                pvrtcSupported: boolean;
+                etc1Supported: boolean;
+                etc2Supported: boolean; 
+            };
+            GL: {
+                makeContextCurrent: Function;
+                registerContext: Function;
+            };
+            ErrorCode: {
+                SUCCESS: number;
+            };
+        }
+    }
+}
+
 let gl;
 const BASE64_MARKER = ';base64,';
 
@@ -169,6 +223,12 @@ export class Parse {
             defines.push({ name: 'COLOR_255' });
         }
 
+        if (primitive.extensions && primitive.extensions.KHR_materials_variants) {
+            const variants = primitive.extensions.KHR_materials_variants.mappings.map(m => {
+                return { ...m, m: new Material(this.json.materials[m.material], this.textures, [...defines], this.lights)};
+            });
+            mesh.setVariants(variants);
+        }
         mesh.setMode(primitive.mode);
         mesh.setMaterial(material);
         mesh.setGeometry(geometry);
@@ -294,6 +354,9 @@ export class Parse {
         if (this.json.extensionsUsed && this.json.extensionsUsed.includes('KHR_draco_mesh_compression')) {
             this.draco = await import('./decoder');
             await this.draco.DecoderModule;
+        }
+        if (this.json.extensions && this.json.extensions.KHR_materials_variants) {
+            this.scene.variants = this.json.extensions.KHR_materials_variants.variants;
         }
         this.json.scenes[this.json.scene !== undefined ? this.json.scene : 0].nodes.forEach(n => {
             if (this.json.nodes[n].extensions) {
@@ -486,38 +549,66 @@ export class Parse {
         });
 
         this.scene.meshes.forEach((mesh) => {
-            const textureTypes = ['baseColorTexture', 'metallicRoughnessTexture', 'emissiveTexture', 'normalTexture', 'occlusionTexture', 'clearcoatTexture', 'clearcoatRoughnessTexture', 'clearcoatNormalTexture', 'sheenTexture', 'transmissionTexture'];
+            const materials = [mesh.material, ...mesh.variants.map(m => m.m)];
+            const textureTypes = ['baseColorTexture', 'metallicRoughnessTexture', 'emissiveTexture', 'normalTexture', 'occlusionTexture', 'clearcoatTexture', 'clearcoatRoughnessTexture', 'clearcoatNormalTexture', 'sheenColorTexture', 'sheenRoughnessTexture', 'transmissionTexture'];
 
             for (let i=0; i < textureTypes.length; i++) {
+                for (const material of materials) {
                 const textureType = textureTypes[i];
-                const t = mesh.material[textureType];
+                const t = material[textureType];
                 if (!t) {
                     continue;
                 }
                 const sampler = this.samplers[t.sampler !== undefined ? t.sampler : 0];
 
-                mesh.material[textureType] = this.handleTextureLoaded(sampler, t.image, t.name);
+                material[textureType] = this.handleTextureLoaded(sampler, t);
+                }
             }
         });
     }
 
-    initTextures() {
+    async initTextures() {
         if (!this.json.textures) {
             return true;
         }
         const texturesMap: texturesMap = {};
+        let hasBasisu = false;
         this.json.textures.forEach(t => {
-            const name = String(t.sampler) + String(t.source);
+            if (t.extensions && t.extensions.KHR_texture_basisu) {
+                hasBasisu = true;
+            }
+            const source = t.extensions && t.extensions.KHR_texture_basisu ? t.extensions.KHR_texture_basisu.source : t.source;
+            const name = String(t.sampler) + String(source);
             texturesMap[name] = t;
             texturesMap[name].name = name;
             t.name = name;
         });
+        if (hasBasisu) {
+            const m = await import('../libktx');
+            // @ts-ignore
+            m.default({preinitializedWebGLContext: gl}).then(module => {
+                const transcoderConfig = {
+                    astcSupported: gl.getExtension( 'WEBGL_compressed_texture_astc' ),
+                    etc1Supported: gl.getExtension( 'WEBGL_compressed_texture_etc1' ),
+                    etc2Supported: gl.getExtension( 'WEBGL_compressed_texture_etc' ),
+                    dxtSupported: gl.getExtension( 'WEBGL_compressed_texture_s3tc' ),
+                    bptcSupported: gl.getExtension( 'EXT_texture_compression_bptc' ),
+                    pvrtcSupported: gl.getExtension( 'WEBGL_compressed_texture_pvrtc' ) || gl.getExtension( 'WEBKIT_WEBGL_compressed_texture_pvrtc' )
+                };
+                window.LIBKTX = module;
+                window.LIBKTX.transcoderConfig = transcoderConfig;
+                window.LIBKTX.GL.makeContextCurrent(window.LIBKTX.GL.registerContext(gl, { majorVersion: 2.0 }));
+            });
+            await new Promise(resolve => setTimeout(resolve, 1000));
+        }
         const promiseArr = Object.values(texturesMap).map(t => {
-            const source = this.json.images[t.source];
-            return fetchImage({
+            const s = t.extensions && t.extensions.KHR_texture_basisu ? t.extensions.KHR_texture_basisu.source : t.source;
+            const source = this.json.images[s];
+            // @ts-ignore
+            return fetchImage(this, source, {
                 url: `${this.host}${source.uri}`,
                 name: t.name,
-            });
+            }, t.sampler);
         });
 
         return Promise.all(promiseArr).then((textures: Texture[]) => {
@@ -528,7 +619,11 @@ export class Parse {
         });
     }
 
-    handleTextureLoaded(sampler, image, name) {
+    handleTextureLoaded(sampler, {image, name, mimeType}) {
+        if (mimeType) {
+            image.sampler = sampler;
+            return image;
+        }
         const t = gl.createTexture();
         t.name = name;
         t.image = image.src.substr(image.src.lastIndexOf('/'));

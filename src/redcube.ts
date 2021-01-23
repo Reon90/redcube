@@ -106,6 +106,15 @@ class RedCube {
         return this.ioc.get('parser');
     }
 
+    setVariant(variant) {
+        this.scene.meshes.forEach((mesh) => {
+            if (variant && mesh.variants.length) {
+                mesh.material = mesh.variants.find(v => v.variants.includes(Number(variant))).m;
+            }
+        });
+        this.renderer.reflow = true;
+    }
+
     async init(cb) {
         await this.parse.getJson();
         this.glInit();
@@ -132,8 +141,8 @@ class RedCube {
             mesh.geometry.createGeometryForWebGl(gl);
 
             const program = this.parse.createProgram(mesh.defines);
-            mesh.material.createUniforms(gl, program);
-            mesh.material.updateUniforms(gl, program, this.camera, this.parse.lights);
+            [mesh.material, ...mesh.variants.map(m => m.m)].forEach(m => m.createUniforms(gl, program));
+            [mesh.material, ...mesh.variants.map(m => m.m)].forEach(m => m.updateUniforms(gl, program, this.camera, this.parse.lights));
             mesh.material.setHarmonics(this.env.updateUniform(gl, program));
 
             mesh.setProgram(program);
@@ -262,6 +271,7 @@ class RedCube {
             needUpdateView: this.renderer.needUpdateView,
             needUpdateProjection: this.renderer.needUpdateProjection,
             irradiancemap: this.env.irradiancemap,
+            Sheen_E: this.env.Sheen_E,
             prefilterMap: this.env.prefilterMap,
             brdfLUT: this.env.brdfLUTTexture
         };

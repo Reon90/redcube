@@ -14,15 +14,17 @@ interface Uniforms {
     occlusionTexture: WebGLUniformLocation;
     clearcoatTexture: WebGLUniformLocation;
     clearcoatRoughnessTexture: WebGLUniformLocation;
-    sheenTexture: WebGLUniformLocation;
-    transmissionTexture: WebGLUniformLocation;
+    sheenRoughnessTexture: WebGLUniformLocation;
+    sheenColorTexture: WebGLUniformLocation;
     clearcoatNormalTexture: WebGLUniformLocation;
+    transmissionTexture: WebGLUniformLocation;
     emissiveTexture: WebGLUniformLocation;
     prefilterMap: WebGLUniformLocation;
     brdfLUT: WebGLUniformLocation;
     irradianceMap: WebGLUniformLocation;
     depthTexture: WebGLUniformLocation;
     colorTexture: WebGLUniformLocation;
+    Sheen_E: WebGLUniformLocation;
 }
 
 const lightEnum = {
@@ -71,26 +73,50 @@ export class Material extends M {
             this.clearcoatFactor = cl.clearcoatFactor;
             this.clearcoatRoughnessFactor = cl.clearcoatRoughnessFactor;
             if (cl.clearcoatTexture) {
+                const { extensions, texCoord } = cl.clearcoatTexture;
                 this.clearcoatTexture = textures[cl.clearcoatTexture.index];
-                defines.push({ name: 'CLEARCOATMAP' });
+                defines.push({ name: 'CLEARCOATMAP', value: texCoord ? 2 : 1 });
+                if (extensions) {
+                    const ex = extensions.KHR_texture_transform;
+                    if (ex) {
+                        this.buildTrans(ex, defines);
+                    }
+                }
             }
             if (cl.clearcoatNormalTexture) {
+                const { extensions, texCoord } = cl.clearcoatNormalTexture;
                 this.clearcoatNormalTexture = textures[cl.clearcoatNormalTexture.index];
-                defines.push({ name: 'CLEARCOATNORMALMAP' });
+                defines.push({ name: 'CLEARCOATNORMALMAP', value: texCoord ? 2 : 1 });
+                if (extensions) {
+                    const ex = extensions.KHR_texture_transform;
+                    if (ex) {
+                        this.buildTrans(ex, defines);
+                    }
+                }
             }
             if (cl.clearcoatRoughnessTexture) {
+                const { extensions, texCoord } = cl.clearcoatRoughnessTexture;
                 this.clearcoatRoughnessTexture = textures[cl.clearcoatRoughnessTexture.index];
-                defines.push({ name: 'CLEARCOATROUGHMAP' });
+                defines.push({ name: 'CLEARCOATROUGHMAP', value: texCoord ? 2 : 1 });
+                if (extensions) {
+                    const ex = extensions.KHR_texture_transform;
+                    if (ex) {
+                        this.buildTrans(ex, defines);
+                    }
+                }
             }
         }
 
         if (material.extensions && material.extensions.KHR_materials_sheen) {
-            const { intensityFactor, colorFactor, sheenRoughnessFactor, colorIntensityTexture } = material.extensions.KHR_materials_sheen;
-            this.sheenFactor = intensityFactor;
-            this.sheenColorFactor = colorFactor;
+            const { sheenColorTexture, sheenColorFactor, sheenRoughnessFactor, sheenRoughnessTexture } = material.extensions.KHR_materials_sheen;
+            this.sheenColorFactor = sheenColorFactor;
             this.sheenRoughnessFactor = sheenRoughnessFactor;
-            if (colorIntensityTexture) {
-                this.sheenTexture = textures[colorIntensityTexture.index];
+            if (sheenColorTexture) {
+                this.sheenColorTexture = textures[sheenColorTexture.index];
+                defines.push({ name: 'SHEENMAP' });
+            }
+            if (sheenRoughnessTexture) {
+                this.sheenRoughnessTexture = textures[sheenRoughnessTexture.index];
                 defines.push({ name: 'SHEENMAP' });
             }
         }
@@ -112,15 +138,17 @@ export class Material extends M {
             occlusionTexture: null,
             clearcoatTexture: null,
             clearcoatRoughnessTexture: null,
-            sheenTexture: null,
+            sheenRoughnessTexture: null,
+            sheenColorTexture: null,
             clearcoatNormalTexture: null,
             emissiveTexture: null,
             prefilterMap: null,
             brdfLUT: null,
             irradianceMap: null,
-            depthTexture: null,
             transmissionTexture: null,
-            colorTexture: null
+            colorTexture: null,
+            Sheen_E: null,
+            depthTexture: null
         };
         const pbrMetallicRoughness = material.pbrMetallicRoughness;
         if (pbrMetallicRoughness) {
@@ -137,60 +165,59 @@ export class Material extends M {
         this.extras = material.extras;
 
         if (pbrMetallicRoughness && pbrMetallicRoughness.metallicRoughnessTexture) {
+            const { extensions, texCoord } = pbrMetallicRoughness.metallicRoughnessTexture;
             this.metallicRoughnessTexture = textures[pbrMetallicRoughness.metallicRoughnessTexture.index];
-            defines.push({ name: 'METALROUGHNESSMAP' });
-        }
-        if (material.normalTexture) {
-            this.normalTexture = textures[material.normalTexture.index];
-            defines.push({ name: 'NORMALMAP' });
-        }
-        if (material.occlusionTexture) {
-            this.occlusionTexture = textures[material.occlusionTexture.index];
-            defines.push({ name: 'OCCLUSIONMAP' });
-        }
-        if (pbrMetallicRoughness && pbrMetallicRoughness.baseColorTexture) {
-            const { extensions } = pbrMetallicRoughness.baseColorTexture;
-            this.baseColorTexture = textures[pbrMetallicRoughness.baseColorTexture.index];
-            defines.push({ name: 'BASECOLORTEXTURE' });
-
+            defines.push({ name: 'METALROUGHNESSMAP', value: texCoord ? 2 : 1 });
             if (extensions) {
                 const ex = extensions.KHR_texture_transform;
                 if (ex) {
-                    const translation = ex.offset && new Matrix3().set([1, 0, 0, 0, 1, 0, ex.offset[0], ex.offset[1], 1]);
-                    const rotation =
-                        ex.rotation &&
-                        new Matrix3().set([
-                            -Math.sin(ex.rotation),
-                            Math.cos(ex.rotation),
-                            0,
-                            Math.cos(ex.rotation),
-                            Math.sin(ex.rotation),
-                            0,
-                            0,
-                            0,
-                            1
-                        ]);
-                    const scale = ex.scale && new Matrix3().set([ex.scale[0], 0, 0, 0, ex.scale[1], 0, 0, 0, 1]);
-
-                    const matrix = new Matrix3();
-                    if (scale) {
-                        matrix.multiply(scale);
-                    }
-                    if (rotation) {
-                        matrix.multiply(rotation);
-                    }
-                    if (translation) {
-                        matrix.multiply(translation);
-                    }
-                    this.matrix = matrix;
-                    defines.push({ name: 'TEXTURE_TRANSFORM' });
+                    this.buildTrans(ex, defines);
+                }
+            }
+        }
+        if (material.normalTexture) {
+            const { extensions, texCoord } = material.normalTexture;
+            this.normalTexture = textures[material.normalTexture.index];
+            defines.push({ name: 'NORMALMAP', value: texCoord ? 2 : 1 });
+            if (extensions) {
+                const ex = extensions.KHR_texture_transform;
+                if (ex) {
+                    this.buildTrans(ex, defines);
+                }
+            }
+        }
+        if (material.occlusionTexture) {
+            const { extensions, texCoord } = material.occlusionTexture;
+            this.occlusionTexture = textures[material.occlusionTexture.index];
+            defines.push({ name: 'OCCLUSIONMAP', value: texCoord ? 2 : 1 });
+            if (extensions) {
+                const ex = extensions.KHR_texture_transform;
+                if (ex) {
+                    this.buildTrans(ex, defines);
+                }
+            }
+        }
+        if (pbrMetallicRoughness && pbrMetallicRoughness.baseColorTexture) {
+            const { extensions, texCoord } = pbrMetallicRoughness.baseColorTexture;
+            this.baseColorTexture = textures[pbrMetallicRoughness.baseColorTexture.index];
+            defines.push({ name: 'BASECOLORTEXTURE', value: texCoord ? 2 : 1 });
+            if (extensions) {
+                const ex = extensions.KHR_texture_transform;
+                if (ex) {
+                    this.buildTrans(ex, defines);
                 }
             }
         }
         if (material.emissiveTexture) {
-            const { texCoord } = material.emissiveTexture;
+            const { extensions, texCoord } = material.emissiveTexture;
             this.emissiveTexture = textures[material.emissiveTexture.index];
             defines.push({ name: 'EMISSIVEMAP', value: texCoord ? 2 : 1 });
+            if (extensions) {
+                const ex = extensions.KHR_texture_transform;
+                if (ex) {
+                    this.buildTrans(ex, defines);
+                }
+            }
         }
 
         if (material.alphaMode === 'MASK') {
@@ -210,6 +237,14 @@ export class Material extends M {
         if (material.extensions && material.extensions.KHR_materials_unlit) {
             defines.push({ name: 'NOLIGHT' });
         }
+    }
+
+    buildTrans(ex, defines) {
+        const offset = ex.offset || [0, 0];
+        const scale = ex.scale || [1, 1];
+        const rotation = ex.rotation || 0;
+        this.matrix = new Matrix3().set([...offset, 0, ...scale, 0, rotation, 0, 0]);
+        defines.push({ name: 'TEXTURE_TRANSFORM' });
     }
 
     setHarmonics(sphericalHarmonics) {
@@ -251,9 +286,13 @@ export class Material extends M {
             this.uniforms.clearcoatNormalTexture = gl.getUniformLocation(program, 'clearcoatNormalTexture');
             gl.uniform1i(this.uniforms.clearcoatNormalTexture, textureEnum.clearcoatNormalTexture);
         }
-        if (this.sheenTexture) {
-            this.uniforms.sheenTexture = gl.getUniformLocation(program, 'sheenTexture');
-            gl.uniform1i(this.uniforms.sheenTexture, textureEnum.sheenTexture);
+        if (this.sheenRoughnessTexture) {
+            this.uniforms.sheenRoughnessTexture = gl.getUniformLocation(program, 'sheenRoughnessTexture');
+            gl.uniform1i(this.uniforms.sheenRoughnessTexture, textureEnum.sheenRoughnessTexture);
+        }
+        if (this.sheenColorTexture) {
+            this.uniforms.sheenColorTexture = gl.getUniformLocation(program, 'sheenColorTexture');
+            gl.uniform1i(this.uniforms.sheenColorTexture, textureEnum.sheenColorTexture);
         }
         if (this.transmissionTexture) {
             this.uniforms.transmissionTexture = gl.getUniformLocation(program, 'transmissionTexture');
@@ -265,10 +304,12 @@ export class Material extends M {
         this.uniforms.irradianceMap = gl.getUniformLocation(program, 'irradianceMap');
         this.uniforms.depthTexture = gl.getUniformLocation(program, 'depthTexture');
         this.uniforms.colorTexture = gl.getUniformLocation(program, 'colorTexture');
+        this.uniforms.Sheen_E = gl.getUniformLocation(program, 'Sheen_E');
 
         gl.uniform1i(this.uniforms.prefilterMap, textureEnum.prefilterTexture);
         gl.uniform1i(this.uniforms.brdfLUT, textureEnum.brdfLUTTexture);
         gl.uniform1i(this.uniforms.irradianceMap, textureEnum.irradianceTexture);
+        gl.uniform1i(this.uniforms.Sheen_E, textureEnum.Sheen_E);
     }
 
     updateUniforms(gl, program, camera, lights) {
@@ -300,7 +341,6 @@ export class Material extends M {
             materialUniformBuffer.add('clearcoatFactor', this.clearcoatFactor ?? 0);
             materialUniformBuffer.add('clearcoatRoughnessFactor', this.clearcoatRoughnessFactor ?? 0);
             materialUniformBuffer.add('sheenColorFactor', this.sheenColorFactor ?? 0);
-            materialUniformBuffer.add('sheenFactor', this.sheenFactor ?? 0);
             materialUniformBuffer.add('sheenRoughnessFactor', this.sheenRoughnessFactor ?? 0);
             materialUniformBuffer.add('transmissionFactor', this.transmissionFactor ?? 0);
             materialUniformBuffer.done();

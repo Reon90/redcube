@@ -23,7 +23,8 @@ module.exports = {
         extensions: ['.ts', '.js'],
         fallback: {
             fs: false,
-            path: false
+            path: false,
+            crypto: false
         }
     },
     module: {

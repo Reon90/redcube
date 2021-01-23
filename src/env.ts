@@ -57,6 +57,7 @@ export class Env {
     original2DTexture: Texture;
     irradiancemap: Texture;
     prefilterMap: Texture;
+    Sheen_E: Texture;
 
     constructor(url) {
         this.url = url;
@@ -329,7 +330,7 @@ export class Env {
         }
     }
 
-    createEnvironmentBuffer(envData) {
+    async createEnvironmentBuffer(envData) {
         this.envData = envData;
 
         if (envData) {
@@ -498,7 +499,7 @@ export class Env {
         this.mipmapcubeprogram = createProgram(vertex, cubeMipmap);
         this.bdrfprogram = createProgram(quad, bdrf);
 
-        return fetch(`${currentPath}/../src/images/${this.url}.hdr`)
+        await fetch(`${currentPath}/../src/images/${this.url}.hdr`)
             .then(res => res.arrayBuffer())
             .then(buffer => {
                 const { data, shape } = parseHDR(buffer);
@@ -507,6 +508,20 @@ export class Env {
                 gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
                 gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, shape[0], shape[1], 0, gl.RGBA, gl.FLOAT, data);
                 gl.bindSampler(this.original2DTexture.index, this.sampler);
+
+                this.createEnvironment();
+
+                return true;
+            });
+        await fetch(`${currentPath}/../src/images/Sheen_E.hdr`)
+            .then(res => res.arrayBuffer())
+            .then(buffer => {
+                const { data, shape } = parseHDR(buffer);
+
+                this.Sheen_E = createTexture(gl.TEXTURE_2D, textureEnum.Sheen_E);
+                gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, shape[0], shape[1], 0, gl.RGBA, gl.FLOAT, data);
+                gl.bindSampler(this.Sheen_E.index, this.sampler);
 
                 this.createEnvironment();
 

@@ -1,6 +1,6 @@
 import { Vector3, Matrix4 } from '../matrix';
 import { UniformBuffer } from './uniform';
-import { buildArray, buildArrayWithStride, getDataType, calculateOffset, calculateBinormals, getGlEnum, calculateNormals, calculateUVs, ArrayBufferMap } from '../utils';
+import { buildArray, buildArrayWithStride, getDataType, calculateOffset, calculateBinormals, getGlEnum, calculateNormals, calculateNormals2, calculateUVs, ArrayBufferMap } from '../utils';
 
 interface Attributes {
     POSITION: Float32Array;
@@ -234,6 +234,11 @@ export class Geometry {
 
         if (vertexBuffers.NORMAL === undefined && indicesBuffer) {
             vertexBuffers.NORMAL = calculateNormals(indicesBuffer, vertexBuffers.POSITION);
+            vertexAccessor.set('NORMAL', { componentType: 5126 });
+        }
+
+        if (vertexBuffers.NORMAL === undefined && indicesBuffer === undefined) {
+            vertexBuffers.NORMAL = calculateNormals2(vertexBuffers.POSITION);
             vertexAccessor.set('NORMAL', { componentType: 5126 });
         }
 

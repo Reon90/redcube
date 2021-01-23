@@ -145,6 +145,17 @@
                             renderer.renderer.currentTrack = animations.value;
                         }
 
+                        const variants = document.createElement('select');
+                        renderer.scene.variants.forEach((it,i) => {
+                            const option = document.createElement('option');
+                            option.innerHTML = it.name;
+                            option.value = i;
+                            variants.appendChild(option);
+                        });
+                        variants.onchange = () => {
+                            renderer.setVariant(variants.value);
+                        }
+
                         const select = document.createElement('select');
                         select.onchange = () => {
                             renderer.ioc._updateDep('camera', renderer.parse.cameras.find((it) => { 
@@ -160,6 +171,7 @@
                         select.value =  renderer.parse.cameras[ renderer.parse.cameras.length - 1].name;
                         selector.appendChild(select);
                         selector.appendChild(animations);
+                        selector.appendChild(variants);
                     }
                 });
             });
