@@ -1,6 +1,7 @@
 import { Vector3, Matrix4 } from '../matrix';
 import { UniformBuffer } from './uniform';
 import { buildArray, buildArrayWithStride, getDataType, calculateOffset, calculateBinormals, getGlEnum, calculateNormals, calculateNormals2, calculateUVs, ArrayBufferMap } from '../utils';
+import { decodeDracoData, getArray } from '../decoder';
 
 interface Attributes {
     POSITION: Float32Array;
@@ -77,9 +78,8 @@ export class Geometry {
 
         const compresedMesh = primitive.extensions && primitive.extensions.KHR_draco_mesh_compression;
         if (compresedMesh) {
-            const { decoderModule, decodeDracoData, getArray } = draco;
             const bufferView = json.bufferViews[compresedMesh.bufferView];
-            const decoder = new decoderModule.Decoder();
+            const decoder = new draco.Decoder();
             const decodedGeometry = decodeDracoData(arrayBuffer[bufferView.buffer], decoder, bufferView.byteOffset, bufferView.byteLength);
             const numFaces = decodedGeometry.num_faces();
             const numPoints = decodedGeometry.num_points();
@@ -105,14 +105,14 @@ export class Geometry {
                         arr[i + 3] = dracoArr.GetValue(i + 3);
                     }
                 }
-                decoderModule.destroy(dracoArr);
+                draco.destroy(dracoArr);
                 vertexBuffers[k] = arr;
             }
 
             {
                 indicesBuffer = new Uint32Array(numFaces * 3);
                 indicesBuffer.type = 'UNSIGNED_INT';
-                const ia = new decoderModule.DracoUInt32Array();
+                const ia = new draco.DracoUInt32Array();
                 for (let i = 0; i < numFaces; ++i) {
                     decoder.GetFaceFromMesh(decodedGeometry, i, ia);
                     const index = i * 3;
@@ -120,11 +120,11 @@ export class Geometry {
                     indicesBuffer[index + 1] = ia.GetValue(1);
                     indicesBuffer[index + 2] = ia.GetValue(2);
                 }
-                decoderModule.destroy(ia);
+                draco.destroy(ia);
             }
 
-            decoderModule.destroy(decoder);
-            decoderModule.destroy(decodedGeometry);
+            draco.destroy(decoder);
+            draco.destroy(decodedGeometry);
         } else {
             if (indicesAccessor) {
                 const bufferView = json.bufferViews[indicesAccessor.bufferView];

@@ -3,6 +3,7 @@ import { Mesh, SkinnedMesh, Bone, Camera, Object3D, Scene, Light, UniformBuffer,
 import { Matrix4, Box, Vector3 } from './matrix';
 import { GlTf } from '../GLTF';
 import { fetch, fetchBinary, fetchImage } from './fetch';
+import { DecoderModule } from './decoder';
 
 import vertexShader from './shaders/vertex.glsl';
 import fragmentShader from './shaders/fragment.glsl';
@@ -94,13 +95,6 @@ interface Define {
     value?: number;
 }
 
-interface Draco {
-    decoderModule: Function;
-    decodeDracoData: Function;
-    getArray: Function;
-    DecoderModule: Promise<unknown>;
-}
-
 export class Parse {
     tracks: Array<Track[]>;
     duration: number;
@@ -122,7 +116,7 @@ export class Parse {
     resize: Function;
     json: GlTf;
     defines: Array<Define>;
-    draco?: Draco;
+    draco?: {};
 
     constructor(url, defines, resize) {
         this.url = url;
@@ -352,8 +346,7 @@ export class Parse {
 
     async buildMesh() {
         if (this.json.extensionsUsed && this.json.extensionsUsed.includes('KHR_draco_mesh_compression')) {
-            this.draco = await import('./decoder');
-            await this.draco.DecoderModule;
+            this.draco = await DecoderModule();
         }
         if (this.json.extensions && this.json.extensions.KHR_materials_variants) {
             this.scene.variants = this.json.extensions.KHR_materials_variants.variants;
@@ -584,7 +577,7 @@ export class Parse {
             t.name = name;
         });
         if (hasBasisu) {
-            const m = await import('../libktx');
+            const m = await import(/*webpackChunkName: "libktx"*/ '../libktx');
             // @ts-ignore
             m.default({preinitializedWebGLContext: gl}).then(module => {
                 const transcoderConfig = {

@@ -1,12 +1,12 @@
 {
   "name": "redcube.js",
-  "version": "2.5.1",
+  "version": "2.5.2",
   "description": "A javascript library for rendering webgl.",
   "main": "dist/redcube",
   "scripts": {
     "client": "webpack serve",
     "server": "webpack --config webpack.server.js",
-    "prod": "webpack --mode production",
+    "prod": "rm -rf ./dist && webpack --mode production",
     "lint": "eslint --fix --ext .ts ./src/ || true && prettier --write \"src/**/*.ts\""
   },
   "devDependencies": {
@@ -39,6 +39,7 @@
   },
   "homepage": "https://github.com/Reon90/redcube",
   "dependencies": {
+    "copy-webpack-plugin": "^7.0.0",
     "draco3d": "^1.3.6",
     "parse-hdr": "^1.0.0",
     "source-map-support": "^0.5.12",

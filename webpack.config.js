@@ -1,5 +1,6 @@
 const webpack = require('webpack');
 const path = require('path');
+const CopyPlugin = require("copy-webpack-plugin");
 const libraryName = 'redcube';
 
 module.exports = {
@@ -7,12 +8,13 @@ module.exports = {
     entry: path.join(__dirname, `/src/${libraryName}.ts`),
     output: {
         filename: `${libraryName}.js`,
-        chunkFilename: '[name].js',
+        chunkFilename: 'libs/[name].js',
         path: path.join(__dirname, '/dist'),
         publicPath: 'dist/',
         library: libraryName,
         libraryTarget: 'umd',
-        umdNamedDefine: true
+        umdNamedDefine: true,
+        assetModuleFilename: 'assets/[name][ext]'
     },
     devServer: {
         publicPath: '/dist/',
@@ -27,6 +29,14 @@ module.exports = {
             crypto: false
         }
     },
+    plugins: [
+        new CopyPlugin({
+          patterns: [
+            { from: './libktx.wasm', to: './libs' },
+            { from: './draco_decoder.wasm', to: './libs' }
+          ]
+        })
+    ],
     module: {
         rules: [ 
             { 
