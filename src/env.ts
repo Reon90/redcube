@@ -481,7 +481,6 @@ export class Env {
                 camMatrix.multiply(m);
             }
 
-            camMatrix.multiply(this.camera.matrix);
             return new Matrix4().setInverseOf(camMatrix);
         });
 
