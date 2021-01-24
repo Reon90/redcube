@@ -188,9 +188,6 @@ export class PostProcessing {
             return true;
         }
 
-        const defines = this.postprocessors.map(postProcessor => postProcessor.buildScreenBuffer(this));
-        const defineStr = defines.map(define => `#define ${define.name} ${define.value || 1}` + '\n').join('');
-
         this.VAO = gl.createVertexArray();
         gl.bindVertexArray(this.VAO);
         const VBO = gl.createBuffer();
@@ -238,6 +235,8 @@ export class PostProcessing {
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, this.preDepthTexture, 0);
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
+        const defines = this.postprocessors.map(postProcessor => postProcessor.buildScreenBuffer(this));
+        const defineStr = defines.map(define => `#define ${define.name} ${define.value || 1}` + '\n').join('');
         this.program = createProgram(quadShader.replace(/\n/, `\n${defineStr}`), composerShader.replace(/\n/, `\n${defineStr}`));
     }
 
