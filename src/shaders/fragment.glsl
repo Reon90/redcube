@@ -165,6 +165,9 @@ vec3 fresnelSchlick(float cosTheta, vec3 F0) {
 float fresnelSchlickRoughness(float cosTheta, float F0, float roughness) {
     return F0 + (max(1.0 - roughness, F0) - F0) * pow(1.0 - cosTheta, 5.0);
 }
+vec3 fresnelSchlickRoughness(float cosTheta, vec3 F0, float roughness) {
+    return F0 + (max(vec3(1.0 - roughness), F0) - F0) * pow(1.0 - cosTheta, 5.0);
+}
 
 vec3 computeEnvironmentIrradiance(vec3 normal) {
     return vSphericalL00
@@ -178,13 +181,13 @@ vec3 computeEnvironmentIrradiance(vec3 normal) {
         + vSphericalL22 * (normal.x * normal.x - (normal.y * normal.y));
 }
 vec3 IBLAmbient(vec3 specularMap, vec3 baseColor, float metallic, vec3 n, float roughness, vec3 viewDir) {
-    float F0 = mix(0.05, 1.0, metallic);
+    vec3 F0 = mix(vec3(0.05), baseColor, metallic);
 
     #ifdef SPECULARGLOSSINESSMAP
         F0 = specularMap;
     #endif
 
-    float F = fresnelSchlickRoughness(max(dot(n, viewDir), 0.0), F0, roughness);
+    vec3 F = fresnelSchlickRoughness(max(dot(n, viewDir), 0.0), F0, roughness);
 
     vec3 kD = vec3(1.0) - F;
     kD *= 1.0 - metallic;
@@ -205,10 +208,10 @@ vec3 IBLAmbient(vec3 specularMap, vec3 baseColor, float metallic, vec3 n, float 
     vec2 envBRDF  = texture(brdfLUT, vec2(max(dot(n, viewDir), 0.0), roughness)).rg;
     vec3 specular = prefilteredColor * (F * envBRDF.x + envBRDF.y);
 
-    #ifdef TRANSMISSION
+    #if defined TRANSMISSION || defined CLEARCOAT
     return specular;
     #else
-    return (kD * irradiance + specular) * baseColor;
+    return (kD * irradiance * baseColor + specular);
     #endif
 }
 
@@ -387,7 +390,7 @@ void main() {
     vec2 outUV = outUV0;
     #ifdef BASECOLORTEXTURE
         outUV = getUV(BASECOLORTEXTURE);
-        #ifdef TEXTURE_TRANSFORM
+        #ifdef BASECOLORTEXTURE_TEXTURE_TRANSFORM
             outUV = applyTransform(outUV);
         #endif
         vec3 baseColor = srgbToLinear(texture(baseColorTexture, outUV)) * baseColorFactor.rgb;
@@ -417,7 +420,7 @@ void main() {
     float ao = 2.0;
     #ifdef OCCLUSIONMAP
         outUV = getUV(OCCLUSIONMAP);
-        #ifdef TEXTURE_TRANSFORM
+        #ifdef OCCLUSIONMAP_TEXTURE_TRANSFORM
             outUV = applyTransform(outUV);
         #endif
         ao = texture(occlusionTexture, outUV).r;
@@ -433,21 +436,21 @@ void main() {
     float transmission = transmissionFactor.x;
     #ifdef CLEARCOATMAP
         outUV = getUV(CLEARCOATMAP);
-        #ifdef TEXTURE_TRANSFORM
+        #ifdef CLEARCOATMAP_TEXTURE_TRANSFORM
             outUV = applyTransform(outUV);
         #endif
         clearcoatBlendFactor = texture(clearcoatTexture, outUV).r * clearcoat;
     #endif
     #ifdef CLEARCOATROUGHMAP
         outUV = getUV(CLEARCOATROUGHMAP);
-        #ifdef TEXTURE_TRANSFORM
+        #ifdef CLEARCOATROUGHMAP_TEXTURE_TRANSFORM
             outUV = applyTransform(outUV);
         #endif
         clearcoatRoughness = texture(clearcoatRoughnessTexture, outUV).g * clearcoatRoughness;
     #endif
     #ifdef SHEENMAP
         outUV = getUV(SHEENMAP);
-        #ifdef TEXTURE_TRANSFORM
+        #ifdef SHEENMAP_TEXTURE_TRANSFORM
             outUV = applyTransform(outUV);
         #endif
         vec4 sheenRoughnessTextureV = texture(sheenRoughnessTexture, outUV);
@@ -463,7 +466,7 @@ void main() {
     #ifdef SPECULARGLOSSINESSMAP
         #ifdef METALROUGHNESSMAP
             outUV = getUV(METALROUGHNESSMAP);
-            #ifdef TEXTURE_TRANSFORM
+            #ifdef METALROUGHNESSMAP_TEXTURE_TRANSFORM
                 outUV = applyTransform(outUV);
             #endif
             roughness = 1.0 - texture(metallicRoughnessTexture, outUV).a;
@@ -475,7 +478,7 @@ void main() {
     #else
         #ifdef METALROUGHNESSMAP
             outUV = getUV(METALROUGHNESSMAP);
-            #ifdef TEXTURE_TRANSFORM
+            #ifdef METALROUGHNESSMAP_TEXTURE_TRANSFORM
                 outUV = applyTransform(outUV);
             #endif
             vec4 metallicRoughness = texture(metallicRoughnessTexture, outUV);
@@ -487,7 +490,7 @@ void main() {
     #ifdef TANGENT
         #ifdef NORMALMAP
             outUV = getUV(NORMALMAP);
-            #ifdef TEXTURE_TRANSFORM
+            #ifdef NORMALMAP_TEXTURE_TRANSFORM
                 outUV = applyTransform(outUV);
             #endif
             vec3 n = texture(normalTexture, outUV).rgb;
@@ -502,7 +505,7 @@ void main() {
     #ifdef TANGENT
     #ifdef CLEARCOATNORMALMAP
         outUV = getUV(CLEARCOATNORMALMAP);
-        #ifdef TEXTURE_TRANSFORM
+        #ifdef CLEARCOATNORMALMAP_TEXTURE_TRANSFORM
             outUV = applyTransform(outUV);
         #endif
         vec3 clearcoatNormal = texture(clearcoatNormalTexture, outUV).rgb;
@@ -587,7 +590,7 @@ void main() {
         vec3 emissive = emissiveFactor;
         #ifdef EMISSIVEMAP
             outUV = getUV(EMISSIVEMAP);
-            #ifdef TEXTURE_TRANSFORM
+            #ifdef EMISSIVEMAP_TEXTURE_TRANSFORM
                 outUV = applyTransform(outUV);
             #endif
             emissive = srgbToLinear(texture(emissiveTexture, outUV));
