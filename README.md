@@ -8,20 +8,37 @@ A javascript library for rendering webgl. RedCube is a minimalistic viewer used 
 
 ([Features checking page](https://github.com/cx20/gltf-test))
 
-&bull; Fully support glTF main spec
+&bull; glTF Specification, 2.0
 
-&bull; Ratified Khronos Extensions
+&bull; KHR_draco_mesh_compression
 
-&bull; EXT_lights_image_based
-
-&bull; KHR_mesh_quantization
+&bull; KHR_lights_punctual
 
 &bull; KHR_materials_clearcoat
 
+&bull; KHR_materials_pbrSpecularGlossiness
+
+&bull; KHR_materials_sheen
+
 &bull; KHR_materials_transmission
 
+&bull; KHR_materials_unlit
+
+&bull; KHR_materials_variants
+
+&bull; KHR_mesh_quantization
+
+&bull; KHR_texture_basisu
+
+&bull; KHR_texture_transform
+
+&bull; EXT_lights_image_based
+
 ## Platforms
-Browser, Node.js
+
+&bull; Browsers with WebGL 2.0 support
+
+&bull; Node.js renderless
 
 ## How to convert 3D model to gltf
 
