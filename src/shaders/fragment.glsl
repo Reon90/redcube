@@ -490,7 +490,7 @@ void main() {
         #endif
     #endif
     #ifdef SPECULARMAP
-        specularMap = texture(specularTexture, outUV).rgb;
+        specularMap = texture(specularTexture, outUV).rgb * specularFactor;
     #endif
 
     #ifdef TANGENT

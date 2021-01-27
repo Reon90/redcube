@@ -138,7 +138,8 @@ export class Material extends M {
         }
 
         if (material.extensions && material.extensions.KHR_materials_specular) {
-            const { specularTexture } = material.extensions.KHR_materials_specular;
+            const { specularTexture, specularColorFactor } = material.extensions.KHR_materials_specular;
+            this.specularFactor = specularColorFactor;
             if (specularTexture) {
                 this.specularTexture = textures[specularTexture.index];
                 defines.push({ name: 'SPECULARMAP' });
@@ -170,8 +171,12 @@ export class Material extends M {
             this.baseColorFactor = pbrMetallicRoughness.baseColorFactor;
             this.roughnessFactor = pbrMetallicRoughness.roughnessFactor;
             this.metallicFactor = pbrMetallicRoughness.metallicFactor;
-            this.specularFactor = pbrMetallicRoughness.specularFactor;
-            this.glossinessFactor = pbrMetallicRoughness.glossinessFactor;
+            if (pbrMetallicRoughness.specularFactor) {
+                this.specularFactor = pbrMetallicRoughness.specularFactor;
+            }
+            if (pbrMetallicRoughness.glossinessFactor) {
+                this.glossinessFactor = pbrMetallicRoughness.glossinessFactor;
+            }
         }
         this.alpha = material.alphaMode === 'BLEND';
         this.blend = material.blend;
@@ -354,7 +359,7 @@ export class Material extends M {
             materialUniformBuffer.add('baseColorFactor', this.baseColorFactor ?? [0.8, 0.8, 0.8, 1.0]);
             materialUniformBuffer.add('viewPos', camera.getPosition());
             materialUniformBuffer.add('textureMatrix', (this.matrix && this.matrix.elements) || new Matrix3().elements);
-            materialUniformBuffer.add('specularFactor', this.specularFactor ?? [0, 0, 0]);
+            materialUniformBuffer.add('specularFactor', this.specularFactor ?? [1, 1, 1]);
             materialUniformBuffer.add('emissiveFactor', this.emissiveFactor ?? [0, 0, 0]);
             materialUniformBuffer.add('glossinessFactor', this.glossinessFactor ?? 0.5);
             materialUniformBuffer.add('metallicFactor', this.metallicFactor ?? 1);
