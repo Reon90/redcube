@@ -18,6 +18,7 @@ interface Uniforms {
     sheenColorTexture: WebGLUniformLocation;
     clearcoatNormalTexture: WebGLUniformLocation;
     transmissionTexture: WebGLUniformLocation;
+    specularTexture: WebGLUniformLocation;
     emissiveTexture: WebGLUniformLocation;
     prefilterMap: WebGLUniformLocation;
     brdfLUT: WebGLUniformLocation;
@@ -132,6 +133,18 @@ export class Material extends M {
             defines.push({ name: 'TRANSMISSION' });
         }
 
+        if (material.extensions && material.extensions.KHR_materials_ior) {
+            this.ior = material.extensions.KHR_materials_ior.ior;
+        }
+
+        if (material.extensions && material.extensions.KHR_materials_specular) {
+            const { specularTexture } = material.extensions.KHR_materials_specular;
+            if (specularTexture) {
+                this.specularTexture = textures[specularTexture.index];
+                defines.push({ name: 'SPECULARMAP' });
+            }
+        }
+
         this.uniforms = {
             baseColorTexture: null,
             metallicRoughnessTexture: null,
@@ -147,6 +160,7 @@ export class Material extends M {
             brdfLUT: null,
             irradianceMap: null,
             transmissionTexture: null,
+            specularTexture: null,
             colorTexture: null,
             Sheen_E: null,
             depthTexture: null
@@ -301,6 +315,10 @@ export class Material extends M {
             this.uniforms.transmissionTexture = gl.getUniformLocation(program, 'transmissionTexture');
             gl.uniform1i(this.uniforms.transmissionTexture, textureEnum.transmissionTexture);
         }
+        if (this.specularTexture) {
+            this.uniforms.specularTexture = gl.getUniformLocation(program, 'specularTexture');
+            gl.uniform1i(this.uniforms.specularTexture, textureEnum.specularTexture);
+        }
 
         this.uniforms.prefilterMap = gl.getUniformLocation(program, 'prefilterMap');
         this.uniforms.brdfLUT = gl.getUniformLocation(program, 'brdfLUT');
@@ -346,6 +364,7 @@ export class Material extends M {
             materialUniformBuffer.add('sheenColorFactor', this.sheenColorFactor ?? 0);
             materialUniformBuffer.add('sheenRoughnessFactor', this.sheenRoughnessFactor ?? 0);
             materialUniformBuffer.add('transmissionFactor', this.transmissionFactor ?? 0);
+            materialUniformBuffer.add('ior', this.ior ?? 1);
             materialUniformBuffer.done();
 
             const mIndex = gl.getUniformBlockIndex(program, 'Material');

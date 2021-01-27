@@ -199,6 +199,9 @@ export class Parse {
         if (this.json.extensions && this.json.extensions.EXT_lights_image_based) {
             this.defines.push({ name: 'SPHERICAL_HARMONICS' });
         }
+        if (this.json.extensionsUsed && this.json.extensionsUsed.includes('KHR_texture_basisu')) {
+            this.defines.push({ name: 'BASISU' });
+        }
         const defines = [...this.defines];
         const material = new Material(m, this.textures, defines, this.lights);
         if (skin !== undefined) {
@@ -534,16 +537,16 @@ export class Parse {
         const samplers = this.json.samplers || [{}];
         this.samplers = samplers.map(s => {
             const sampler = gl.createSampler();
-            gl.samplerParameteri(sampler, gl.TEXTURE_MIN_FILTER, s.minFilter || 9986);
-            gl.samplerParameteri(sampler, gl.TEXTURE_MAG_FILTER, s.magFilter || 9729);
-            gl.samplerParameteri(sampler, gl.TEXTURE_WRAP_S, s.wrapS || 10497);
-            gl.samplerParameteri(sampler, gl.TEXTURE_WRAP_T, s.wrapT || 10497);
+            gl.samplerParameteri(sampler, gl.TEXTURE_MIN_FILTER, s.minFilter || gl.NEAREST_MIPMAP_LINEAR);
+            gl.samplerParameteri(sampler, gl.TEXTURE_MAG_FILTER, s.magFilter || gl.LINEAR);
+            gl.samplerParameteri(sampler, gl.TEXTURE_WRAP_S, s.wrapS || gl.REPEAT);
+            gl.samplerParameteri(sampler, gl.TEXTURE_WRAP_T, s.wrapT || gl.REPEAT);
             return sampler;
         });
 
         this.scene.meshes.forEach((mesh) => {
             const materials = [mesh.material, ...mesh.variants.map(m => m.m)];
-            const textureTypes = ['baseColorTexture', 'metallicRoughnessTexture', 'emissiveTexture', 'normalTexture', 'occlusionTexture', 'clearcoatTexture', 'clearcoatRoughnessTexture', 'clearcoatNormalTexture', 'sheenColorTexture', 'sheenRoughnessTexture', 'transmissionTexture'];
+            const textureTypes = ['baseColorTexture', 'metallicRoughnessTexture', 'emissiveTexture', 'normalTexture', 'occlusionTexture', 'clearcoatTexture', 'clearcoatRoughnessTexture', 'clearcoatNormalTexture', 'sheenColorTexture', 'sheenRoughnessTexture', 'transmissionTexture', 'specularTexture'];
 
             for (let i=0; i < textureTypes.length; i++) {
                 for (const material of materials) {

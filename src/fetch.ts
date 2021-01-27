@@ -112,7 +112,7 @@ export function fetchImage(s, {bufferView, mimeType, uri}, {url, name}, sampler)
           const blob = new Blob([buffer], { type: mimeType });
           image.src = URL.createObjectURL(blob);
       } else if (/base64/.test(uri)) {
-          image.src = url.uri;
+          image.src = uri;
       } else {
           image.src = url;
       }

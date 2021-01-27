@@ -36,7 +36,7 @@ export class Mesh extends Object3D {
     }
 
     draw(gl, { lights, camera, light, needUpdateView, needUpdateProjection, preDepthTexture, colorTexture, renderState, fakeDepth }) {
-        const {isprepender, isprerefraction}= renderState;
+        const {isprepender, isprerefraction} = renderState;
         if (this.material.transmissionFactor && isprerefraction) {
             return;
         }
@@ -165,6 +165,11 @@ export class Mesh extends Object3D {
             gl.activeTexture(gl[`TEXTURE${14}`]);
             gl.bindTexture(gl.TEXTURE_2D, this.material.transmissionTexture);
             gl.bindSampler(12, this.material.transmissionTexture.sampler);
+        }
+        if (this.material.specularTexture) {
+            gl.activeTexture(gl[`TEXTURE${15}`]);
+            gl.bindTexture(gl.TEXTURE_2D, this.material.specularTexture);
+            gl.bindSampler(12, this.material.specularTexture.sampler);
         }
         if (this.material.doubleSided) {
             gl.disable(gl.CULL_FACE);

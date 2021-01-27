@@ -31,6 +31,7 @@ uniform Material {
     vec4 sheenColorFactor;
     vec4 sheenRoughnessFactor;
     vec4 transmissionFactor;
+    vec4 ior;
 };
 uniform Matrices {
     mat4 model;
@@ -76,6 +77,7 @@ uniform sampler2D transmissionTexture;
 uniform sampler2D sheenColorTexture;
 uniform sampler2D sheenRoughnessTexture;
 uniform sampler2D clearcoatNormalTexture;
+uniform sampler2D specularTexture;
 
 uniform samplerCube prefilterMap;
 uniform sampler2D brdfLUT;  
@@ -121,10 +123,11 @@ float ShadowCalculation(vec4 fragPosLightSpace, float bias) {
 }
 
 vec3 srgbToLinear(vec4 srgbIn) {
+    #ifdef BASISU
+    return srgbIn.rgb;
+    #else
     return pow(srgbIn.rgb, vec3(2.2));
-}
-vec3 srgbToLinear(vec3 srgbIn) {
-    return pow(srgbIn, vec3(2.2));
+    #endif
 }
 
 float DistributionGGX(vec3 N, vec3 H, float roughness) {
@@ -183,7 +186,7 @@ vec3 computeEnvironmentIrradiance(vec3 normal) {
 vec3 IBLAmbient(vec3 specularMap, vec3 baseColor, float metallic, vec3 n, float roughness, vec3 viewDir) {
     vec3 F0 = mix(vec3(0.05), baseColor, metallic);
 
-    #ifdef SPECULARGLOSSINESSMAP
+    #if defined SPECULARGLOSSINESSMAP || defined SPECULARMAP
         F0 = specularMap;
     #endif
 
@@ -197,7 +200,7 @@ vec3 IBLAmbient(vec3 specularMap, vec3 baseColor, float metallic, vec3 n, float 
     vec3 R = reflect(viewDir, n);
     vec4 rotatedR = rotationMatrix * vec4(R, 0.0);
     vec4 prefilterColor = textureLod(prefilterMap, rotatedR.xyz, roughness * MAX_REFLECTION_LOD);
-    vec3 prefilteredColor = srgbToLinear(prefilterColor.rgb) / prefilterColor.a;
+    vec3 prefilteredColor = srgbToLinear(vec4(prefilterColor.rgb, 0.0)) / prefilterColor.a;
     vec3 irradianceVector = vec3(rotationMatrix * vec4(n, 0)).xyz;
     vec3 irradiance = computeEnvironmentIrradiance(irradianceVector).rgb;
     #else
@@ -227,7 +230,7 @@ vec3 CookTorranceSpecular(vec3 specularMap, vec3 baseColor, float metallic, vec3
     vec3 F0 = vec3(0.04); 
     F0 = mix(F0, baseColor, metallic);
 
-    #ifdef SPECULARGLOSSINESSMAP
+    #if defined SPECULARGLOSSINESSMAP || defined SPECULARMAP
         F0 = specularMap;
     #endif
 
@@ -324,7 +327,7 @@ bool Transmit(vec3 wm, vec3 wi, float n, out vec3 wo) {
   return true;
 }
 vec3 calcTransmission(vec3 color, float metallic, vec3 N, vec3 H, float roughness, vec3 V, vec3 L, float transmission) {
-    vec4 refractS = projection * view * vec4(outPosition + refract(-V, N, 1.0), 1.0);
+    vec4 refractS = projection * view * vec4(outPosition + refract(-V, N, ior.x), 1.0);
     refractS.xy = refractS.xy / refractS.w;
     refractS.xy = refractS.xy * 0.5 + 0.5;
     const float MAX_REFLECTION_LOD = 10.0;
@@ -486,6 +489,9 @@ void main() {
             metallic *= metallicRoughness.b;
         #endif
     #endif
+    #ifdef SPECULARMAP
+        specularMap = texture(specularTexture, outUV).rgb;
+    #endif
 
     #ifdef TANGENT
         #ifdef NORMALMAP
@@ -563,7 +569,7 @@ void main() {
             float NdotV = saturate(dot(clearcoatNormal, viewDir));
             vec3 clearcoatFresnel = 1.0 - clearcoatBlendFactor * fresnelSchlick(NdotV, vec3(0.04));
             vec3 diffuse = ImprovedOrenNayarDiffuse(baseColor, metallic, n, H, roughness, viewDir, lightDir);
-            #ifdef SPECULARGLOSSINESSMAP
+            #if defined SPECULARGLOSSINESSMAP || defined SPECULARMAP
                 diffuse = baseColor * (1.0 - max(max(specularMap.r, specularMap.g), specularMap.b));
             #endif
             vec3 f_sheen = sheenColor * sheenDistribution(sheenRoughness, n, H) * sheenVisibility(n, viewDir, lightDir, sheenRoughness);
