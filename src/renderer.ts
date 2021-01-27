@@ -62,7 +62,7 @@ export class Renderer {
     step(sec, v) {
         const val = interpolation(sec, v.keys);
 
-        if (val[0] === -1 || val[1] === -1 || v.stoped) {
+        if ((val[0] === -1 || val[1] === -1) || (val[0] === 0 && val[1] === 0)) {
             return false;
         }
 
@@ -102,7 +102,7 @@ export class Renderer {
     spline(sec, v) {
         const val = interpolation(sec, v.keys);
 
-        if (val[0] === -1 || val[1] === -1 || v.stoped) {
+        if ((val[0] === -1 || val[1] === -1) || (val[0] === 0 && val[1] === 0)) {
             return false;
         }
 
@@ -165,12 +165,9 @@ export class Renderer {
     interpolation(sec, v) {
         const val = interpolation(sec, v.keys);
 
-        if (val[0] === -1 || val[1] === -1 || v.stoped) {
+        if ((val[0] === -1 || val[1] === -1) || (val[0] === 0 && val[1] === 0)) {
             return false;
         }
-        // if (val[0] === v.keys.length - 1) {
-        //     v.stoped = true;
-        // }
 
         const startFrame = v.keys[val[0]];
         const endFrame = v.keys[val[1]];
