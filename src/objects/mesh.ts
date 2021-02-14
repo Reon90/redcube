@@ -35,7 +35,7 @@ export class Mesh extends Object3D {
         this.material = material;
     }
 
-    draw(gl, { lights, camera, light, needUpdateView, needUpdateProjection, preDepthTexture, colorTexture, renderState, fakeDepth }) {
+    draw(gl, { lights, camera, light, needUpdateView, needUpdateProjection, preDepthTexture, colorTexture, renderState, fakeDepth, isIBL, isDefaultLight }) {
         const {isprepender, isprerefraction} = renderState;
         if (this.material.transmissionFactor && isprerefraction) {
             return;
@@ -110,6 +110,8 @@ export class Mesh extends Object3D {
             (!isprerefraction) ? colorTexture.index : fakeDepth.index
         );
         gl.uniform1i(gl.getUniformLocation(this.program, 'isTone'), isprerefraction ? 0 : 1);
+        gl.uniform1i(gl.getUniformLocation(this.program, 'isIBL'), isIBL ? 1 : 0);
+        gl.uniform1i(gl.getUniformLocation(this.program, 'isDefaultLight'), isDefaultLight ? 1 : 0);
 
         if (this.material.baseColorTexture) {
             gl.activeTexture(gl[`TEXTURE${0}`]);

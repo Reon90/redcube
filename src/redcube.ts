@@ -23,6 +23,8 @@ class RedCube {
     processors: Array<String>;
     ioc: Container;
     renderState = {};
+    isIBL = true;
+    isDefaultLight = true;
 
     constructor(url, canvas, processors = [], envUrl = 'env', mode = 'pbr') {
         if (!url || !canvas) {
@@ -254,12 +256,15 @@ class RedCube {
         gl.enable(gl.DEPTH_TEST);
         gl.enable(gl.CULL_FACE);
 
+        this.renderer.reflow = true;
         this.renderer.render();
     }
 
     getState() {
         const refraction = this.PP.postprocessors.find(p => p instanceof Refraction);
         return {
+            isIBL: this.isIBL,
+            isDefaultLight: this.isDefaultLight,
             renderState: this.renderState,
             lights: this.parse.lights,
             camera: this.camera,

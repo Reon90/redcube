@@ -1,8 +1,6 @@
 #version 300 es
 precision highp float;
 
-#define IBL 1
-
 in vec4 vColor;
 in vec2 outUV0;
 in vec2 outUV2;
@@ -85,6 +83,8 @@ uniform samplerCube irradianceMap;
 uniform sampler2D depthTexture;
 uniform sampler2D colorTexture;
 uniform int isTone;
+uniform int isIBL;
+uniform int isDefaultLight;
 uniform sampler2D Sheen_E;
 
 const float RECIPROCAL_PI = 0.31830988618;
@@ -539,6 +539,7 @@ void main() {
     #ifdef USE_PBR
         vec3 Lo = vec3(0.0);
         vec3 f_transmission = vec3(0.0);
+        if (isDefaultLight == 1) {
         for (int i = 0; i < LIGHTNUMBER; ++i) {
             vec3 lightDir = normalize(lightPos[i] - outPosition);
             float NdotL = max(dot(n, lightDir), 0.0);
@@ -577,18 +578,19 @@ void main() {
 
             Lo += sheenAlbedoScaling * (diffuse + specular * NdotL) * radiance * clearcoatFresnel + f_clearcoat * clearcoatBlendFactor + f_sheen;
         }
+        }
 
         vec3 ambient = vec3(0.0);
         vec3 ambientClearcoat = vec3(0.0);
         vec3 clearcoatFresnel = vec3(1.0);
-        #ifdef IBL
+        if (isIBL == 1) {
             ambient = IBLAmbient(specularMap, baseColor, metallic, n, roughness, viewDir);
             ambientClearcoat = IBLAmbient(specularMap, vec3(0.0), 0.0, clearcoatNormal, clearcoatRoughness, viewDir) * clearcoatBlendFactor;
             float NdotV = saturate(dot(clearcoatNormal, viewDir));
             clearcoatFresnel = (1.0 - clearcoatBlendFactor * fresnelSchlick(NdotV, vec3(0.04)));
-        #else
+        } else {
             ambient = vec3(0.03) * baseColor * 0.2;
-        #endif
+        }
 
         vec3 emissive = emissiveFactor;
         #ifdef EMISSIVEMAP
