@@ -274,7 +274,7 @@ vec3 ImprovedOrenNayarDiffuse(vec3 baseColor, float metallic, vec3 N, vec3 H, fl
 	float dotLH = saturate(dot(L, H));
 
 	float s = dotLV - dotNL * dotNV;
-	float t = mix(1.0, max(dotNL, dotNV), step(0.0, s));
+	float t = mix(1.0, max(max(dotNL, dotNV), 0.001), step(0.0, s));
 	float st = s * (1.0 / (t + EPSILON));
 
 	float sigma2 = a;
@@ -360,10 +360,7 @@ float sheenVisibility(vec3 N, vec3 V, vec3 L, float sheenRoughness) {
     float alphaG = sheenRoughness * sheenRoughness;
     float NdotL = max(dot(N, L), 0.0);
     float NdotV = max(dot(N, V), 0.0);
-    float v = 1.0 / ((1.0 + lambdaSheen(NdotV, alphaG) + lambdaSheen(NdotL, alphaG)) * (4.0 * NdotV * NdotL));
-    if (isnan(v) || isinf(v)) {
-        v = 0.0;
-    }
+    float v = 1.0 / (1.0 + lambdaSheen(NdotV, alphaG) + lambdaSheen(NdotL, alphaG));
     return v;
 }
 float E(float x, float y) {

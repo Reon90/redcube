@@ -524,8 +524,6 @@ export class Env {
                 gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, shape[0], shape[1], 0, gl.RGBA, gl.FLOAT, data);
                 gl.bindSampler(this.Sheen_E.index, this.sampler);
 
-                this.createEnvironment();
-
                 return true;
             });
     }

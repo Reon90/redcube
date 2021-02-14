@@ -73,6 +73,7 @@ export interface Track {
     meshes: Array<Mesh>;
     name: string;
     interpolation: string;
+    duration: number;
 }
 interface Key {
     value: number;
@@ -97,7 +98,6 @@ interface Define {
 
 export class Parse {
     tracks: Array<Track[]>;
-    duration: number;
     url: string;
     host: string;
     skins: Array<Skin>;
@@ -122,7 +122,6 @@ export class Parse {
         this.url = url;
         this.host = url.substr(0, url.lastIndexOf('/') + 1);
         this.tracks = [];
-        this.duration = 0;
         this.skins = [];
         this.textures = null;
         this.samplers = null;
@@ -399,6 +398,7 @@ export class Parse {
         for (const animation of this.json.animations) {
             const tracks = [];
             for (const channel of animation.channels) {
+                const duration = 0;
                 const sampler = animation.samplers[channel.sampler];
 
                 if (sampler) {
@@ -451,10 +451,9 @@ export class Parse {
                         });
                     }
                     if (keys.length >= 2) {
-                        this.duration = Math.max(keys[keys.length - 1].time, this.duration);
-
                         if (meshes.length) {
                             tracks.push({
+                                duration: Math.max(keys[keys.length - 1].time, duration),
                                 stoped: false,
                                 meshes: meshes,
                                 type: target.path,

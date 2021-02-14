@@ -1,6 +1,6 @@
 {
   "name": "redcube.js",
-  "version": "2.5.4",
+  "version": "2.5.5",
   "description": "A javascript library for rendering webgl.",
   "main": "dist/redcube",
   "scripts": {
@@ -18,7 +18,7 @@
     "typescript-eslint-parser": "^21.0.2",
     "url-loader": "4.1.1",
     "webpack": "5.11.0",
-    "webpack-cli": "4.3.0",
+    "webpack-cli": "4.5.0",
     "webpack-dev-server": "3.11.0"
   },
   "repository": {

@@ -252,10 +252,13 @@ export class Renderer {
         if (!this.parse.tracks.length) {
             return;
         }
-        const increment = Math.floor(sec / this.parse.duration);
-        sec -= increment * this.parse.duration;
+        const t = this.parse.tracks[this.currentTrack];
+        const duration = Math.max(...this.parse.tracks.map(t => t[0].duration))
+        const increment = Math.floor(sec / duration);
+        sec -= increment * duration;
 
-        for (const v of this.parse.tracks[this.currentTrack]) {
+        for (const track of this.parse.tracks.sort((a, b) => a[0].duration - b[0].duration)) {
+        for (const v of track) {
             let result;
             switch (v.interpolation) {
                 case 'LINEAR':
@@ -294,6 +297,7 @@ export class Renderer {
             }
 
             this.reflow = true;
+        }
         }
     }
 
