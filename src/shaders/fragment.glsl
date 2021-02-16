@@ -171,6 +171,15 @@ float fresnelSchlickRoughness(float cosTheta, float F0, float roughness) {
 vec3 fresnelSchlickRoughness(float cosTheta, vec3 F0, float roughness) {
     return F0 + (max(vec3(1.0 - roughness), F0) - F0) * pow(1.0 - cosTheta, 5.0);
 }
+vec3 calcTransmission(vec3 color, vec3 N, float roughness, vec3 V, float transmission) {
+    vec4 refractS = projection * view * vec4(outPosition + refract(-V, N, ior.x), 1.0);
+    refractS.xy = refractS.xy / refractS.w;
+    refractS.xy = refractS.xy * 0.5 + 0.5;
+    const float MAX_REFLECTION_LOD = 10.0;
+    vec3 baseColor = textureLod(colorTexture, refractS.xy, roughness * MAX_REFLECTION_LOD).xyz;
+
+    return transmission * baseColor * color;
+}
 
 vec3 computeEnvironmentIrradiance(vec3 normal) {
     return vSphericalL00
@@ -281,59 +290,6 @@ vec3 ImprovedOrenNayarDiffuse(vec3 baseColor, float metallic, vec3 N, vec3 H, fl
 	vec3 A = diffuseColor * (0.17 * sigma2 / (sigma2 + 0.13)) + vec3(1.0 - 0.5 * sigma2 / (sigma2 + 0.33));
 	float B = 0.45 * sigma2 / (sigma2 + 0.09);
 	return (diffuseColor * max(0.0, dotNL)) * (A + vec3(B * s / t) / PI);
-}
-
-float fresnelDielectric(float cosThetaI, float ni, float nt) {
-  cosThetaI = clamp(cosThetaI, -1.0, 1.0);
-
-  // Swap index of refraction if this is coming from inside the surface
-  if (cosThetaI < 0.0) {
-    float temp = ni;
-    ni = nt;
-    nt = temp;
-
-    cosThetaI = -cosThetaI;
-  }
-
-  float sinThetaI = sqrt(max(0.0, 1.0 - cosThetaI * cosThetaI));
-  float sinThetaT = ni / nt * sinThetaI;
-
-  // Check for total internal reflection
-  if (sinThetaT >= 1.0) {
-    return 1.0;
-  }
-
-  float cosThetaT = sqrt(max(0.0, 1.0 - sinThetaT * sinThetaT));
-
-  float rParallel = ((nt * cosThetaI) - (ni * cosThetaT)) /
-                    ((nt * cosThetaI) + (ni * cosThetaT));
-  float rPerpendicuar = ((ni * cosThetaI) - (nt * cosThetaT)) /
-                        ((ni * cosThetaI) + (nt * cosThetaT));
-  return (rParallel * rParallel + rPerpendicuar * rPerpendicuar) / 2.0;
-}
-
-bool Transmit(vec3 wm, vec3 wi, float n, out vec3 wo) {
-  float c = dot(wi, wm);
-  if (c < 0.0) {
-    c = -c;
-    wm = -wm;
-  }
-
-  float root = 1.0f - n * n * (1.0f - c * c);
-  if (root <= 0.0)
-    return false;
-
-  wo = (n * c - sqrt(root)) * wm - n * wi;
-  return true;
-}
-vec3 calcTransmission(vec3 color, float metallic, vec3 N, vec3 H, float roughness, vec3 V, vec3 L, float transmission) {
-    vec4 refractS = projection * view * vec4(outPosition + refract(-V, N, ior.x), 1.0);
-    refractS.xy = refractS.xy / refractS.w;
-    refractS.xy = refractS.xy * 0.5 + 0.5;
-    const float MAX_REFLECTION_LOD = 10.0;
-    vec3 baseColor = textureLod(colorTexture, refractS.xy, roughness * MAX_REFLECTION_LOD).xyz;
-
-    return transmission * baseColor * color;
 }
 
 float sheenDistribution(float sheenRoughness, vec3 N, vec3 H) {
@@ -538,7 +494,6 @@ void main() {
 
     #ifdef USE_PBR
         vec3 Lo = vec3(0.0);
-        vec3 f_transmission = vec3(0.0);
         if (isDefaultLight == 1) {
         for (int i = 0; i < LIGHTNUMBER; ++i) {
             vec3 lightDir = normalize(lightPos[i] - outPosition);
@@ -573,9 +528,7 @@ void main() {
             vec3 f_sheen = sheenColor * sheenDistribution(sheenRoughness, n, H) * sheenVisibility(n, viewDir, lightDir, sheenRoughness);
             float sheenAlbedoScaling = min(1.0 - max3(sheenColor) * E(max(dot(viewDir, n), 0.0), sheenRoughness), 1.0 - max3(sheenColor) * E(max(dot(lightDir, n), 0.0), sheenRoughness));
 
-            f_transmission += calcTransmission(baseColor, metallic, n, H, roughness, viewDir, lightDir, transmission);
             diffuse *= (1.0 - transmission);
-
             Lo += sheenAlbedoScaling * (diffuse + specular * NdotL) * radiance * clearcoatFresnel + f_clearcoat * clearcoatBlendFactor + f_sheen;
         }
         }
@@ -583,6 +536,7 @@ void main() {
         vec3 ambient = vec3(0.0);
         vec3 ambientClearcoat = vec3(0.0);
         vec3 clearcoatFresnel = vec3(1.0);
+        vec3 f_transmission = calcTransmission(baseColor, n, roughness, viewDir, transmission);
         if (isIBL == 1) {
             ambient = IBLAmbient(specularMap, baseColor, metallic, n, roughness, viewDir);
             ambientClearcoat = IBLAmbient(specularMap, vec3(0.0), 0.0, clearcoatNormal, clearcoatRoughness, viewDir) * clearcoatBlendFactor;

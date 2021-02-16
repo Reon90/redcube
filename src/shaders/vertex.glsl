@@ -57,6 +57,9 @@ void main() {
         vec3 normalW = normalize(vec3(model * vec4(inNormal.xyz, 0.0)));
         vec3 tangentW = normalize(vec3(model * vec4(inTangent.xyz, 0.0)));
         vec3 bitangentW = cross(normalW, tangentW) * inTangent.w;
+        #ifdef USERIGHTHANDEDSYSTEM
+        bitangentW = -bitangentW;
+        #endif
         outTBN = mat3(tangentW, bitangentW, normalW);
     #else
         outNormal = normalize(mat3(normalMatrix) * mat3(skin) * inNormal);

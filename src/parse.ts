@@ -218,6 +218,9 @@ export class Parse {
         if (geometry.attributes.COLOR_0 && geometry.attributes.COLOR_0.constructor !== Float32Array) {
             defines.push({ name: 'COLOR_255' });
         }
+        if (primitive.attributes.TANGENT === undefined) {
+            defines.push({ name: 'USERIGHTHANDEDSYSTEM' });
+        }
 
         if (primitive.extensions && primitive.extensions.KHR_materials_variants) {
             const variants = primitive.extensions.KHR_materials_variants.mappings.map(m => {
