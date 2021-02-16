@@ -53,25 +53,25 @@
                 });
                 select.value = name;
                 selector.appendChild(select);
-                ['bloom', 'ssao', 'shadow', 'light'].forEach(name => {
-                    const label = document.createElement('label');
-                    label.style.padding = '0 0 0 10px';
-                    label.innerHTML = name;
-                    const checkbox = document.createElement('input');
-                    checkbox.type = 'checkbox';
-                    checkbox.title = name;
-                    checkbox.checked = Boolean(localStorage.getItem(name));
-                    checkbox.onchange = () => {
-                        if (checkbox.checked) {
-                            localStorage.setItem(name, name);
-                        } else {
-                            localStorage.removeItem(name);
-                        }
-                        window.location.reload();
-                    };
-                    label.prepend(checkbox);
-                    selector.appendChild(label);
-                });
+                // ['bloom', 'ssao', 'shadow', 'light'].forEach(name => {
+                //     const label = document.createElement('label');
+                //     label.style.padding = '0 0 0 10px';
+                //     label.innerHTML = name;
+                //     const checkbox = document.createElement('input');
+                //     checkbox.type = 'checkbox';
+                //     checkbox.title = name;
+                //     checkbox.checked = Boolean(localStorage.getItem(name));
+                //     checkbox.onchange = () => {
+                //         if (checkbox.checked) {
+                //             localStorage.setItem(name, name);
+                //         } else {
+                //             localStorage.removeItem(name);
+                //         }
+                //         window.location.reload();
+                //     };
+                //     label.prepend(checkbox);
+                //     selector.appendChild(label);
+                // });
                 const span = document.createElement('span');
                 span.style.padding = '0 10px';
                 span.innerHTML = 'light position';
@@ -128,13 +128,14 @@
                 window.renderer = new redcube.RedCube(
                     'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/' + name + '/glTF/' + name + '.gltf',
                     canvas, 
-                    [localStorage.getItem('ssao'), localStorage.getItem('bloom'), localStorage.getItem('shadow'), localStorage.getItem('light')].filter(name => name),
+                    [],
                     envname,
                     mode
                 );
                 renderer.init(() => {
                     if (renderer.parse.cameras.length) {
                         const animations = document.createElement('select');
+                        animations.innerHTML = '<option hidden>animations</option>';
                         renderer.parse.tracks.forEach((it, i) => {
                             const option = document.createElement('option');
                             option.innerHTML = `animation${i}`;
@@ -146,6 +147,7 @@
                         }
 
                         const variants = document.createElement('select');
+                        variants.innerHTML = '<option hidden>variants</option>';
                         renderer.scene.variants.forEach((it,i) => {
                             const option = document.createElement('option');
                             option.innerHTML = it.name;
@@ -161,6 +163,8 @@
                             renderer.ioc._updateDep('camera', renderer.parse.cameras.find((it) => { 
                                 return Number(select.value) === it.name; 
                             }));
+                            renderer.renderer.needUpdateView = true;
+                            renderer.draw();
                         }
                         renderer.parse.cameras.forEach((it) => {
                             const option = document.createElement('option');
