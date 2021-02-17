@@ -10,7 +10,6 @@ module.exports = {
         filename: `${libraryName}.js`,
         chunkFilename: 'libs/[name].js',
         path: path.join(__dirname, '/dist'),
-        publicPath: 'dist/',
         library: libraryName,
         libraryTarget: 'umd',
         umdNamedDefine: true,

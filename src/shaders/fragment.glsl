@@ -454,7 +454,7 @@ void main() {
                 outUV = applyTransform(outUV);
             #endif
             vec3 n = texture(normalTexture, outUV).rgb;
-            if (normalTextureScale.x > 1.0) {
+            if (normalTextureScale.x > 0.0) {
                 n = normalize((2.0 * n - 1.0) * vec3(normalTextureScale.x, normalTextureScale.x, 1.0));
             } else {
                 n = normalize(outTBN * (2.0 * n - 1.0));

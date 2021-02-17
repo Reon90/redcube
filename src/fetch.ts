@@ -103,7 +103,7 @@ export function fetchImage(s, {bufferView, mimeType, uri}, {url, name}, sampler)
           });
       };
       image.onerror = err => {
-          reject(err);
+          reject(new Error('Can\'t load texture'));
       };
       image.crossOrigin = 'anonymous';
       if (bufferView !== undefined) {

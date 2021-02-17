@@ -1,4 +1,4 @@
-import { compileShader, createProgram, createTexture, calculateProjection, textureEnum, currentPath } from './utils';
+import { compileShader, createProgram, createTexture, calculateProjection, textureEnum } from './utils';
 import { Matrix4, Vector3, Vector4 } from './matrix';
 import { Camera } from './objects/index';
 import parseHDR from 'parse-hdr';
@@ -500,7 +500,7 @@ export class Env {
         this.mipmapcubeprogram = createProgram(vertex, cubeMipmap);
         this.bdrfprogram = createProgram(quad, bdrf);
 
-        await fetch(`${currentPath}/../src/images/${this.url}.hdr`)
+        await fetch(this.url)
             .then(res => res.arrayBuffer())
             .then(buffer => {
                 const { data, shape } = parseHDR(buffer);

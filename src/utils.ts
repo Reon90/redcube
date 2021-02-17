@@ -1,8 +1,5 @@
 import { Matrix2, Matrix3, Matrix4, Vector2, Vector3, Vector4 } from './matrix';
 import glEnum from './glEnum';
-// @ts-ignore
-export const currentPath = './';//document.currentScript.src.substring(0, document.currentScript.src.lastIndexOf('/'));
-
 
 //const glEnum = {};
 let gl;
