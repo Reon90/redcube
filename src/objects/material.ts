@@ -198,6 +198,7 @@ export class Material extends M {
         if (material.normalTexture) {
             const { extensions, texCoord } = material.normalTexture;
             this.normalTexture = textures[material.normalTexture.index];
+            this.normalTextureScale = material.normalTexture.scale;
             defines.push({ name: 'NORMALMAP', value: texCoord ? 2 : 1 });
             if (extensions) {
                 const ex = extensions.KHR_texture_transform;
@@ -370,6 +371,7 @@ export class Material extends M {
             materialUniformBuffer.add('sheenRoughnessFactor', this.sheenRoughnessFactor ?? 0);
             materialUniformBuffer.add('transmissionFactor', this.transmissionFactor ?? 0);
             materialUniformBuffer.add('ior', this.ior ?? 1);
+            materialUniformBuffer.add('normalTextureScale', this.normalTextureScale ?? 1);
             materialUniformBuffer.done();
 
             const mIndex = gl.getUniformBlockIndex(program, 'Material');

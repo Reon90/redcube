@@ -30,6 +30,7 @@ uniform Material {
     vec4 sheenRoughnessFactor;
     vec4 transmissionFactor;
     vec4 ior;
+    vec4 normalTextureScale;
 };
 uniform Matrices {
     mat4 model;
@@ -192,7 +193,7 @@ vec3 computeEnvironmentIrradiance(vec3 normal) {
         + vSphericalL21 * (normal.z * normal.x)
         + vSphericalL22 * (normal.x * normal.x - (normal.y * normal.y));
 }
-vec3 IBLAmbient(vec3 specularMap, vec3 baseColor, float metallic, vec3 n, float roughness, vec3 viewDir) {
+vec3 IBLAmbient(vec3 specularMap, vec3 baseColor, float metallic, vec3 n, float roughness, vec3 viewDir, float transmission) {
     vec3 F0 = mix(vec3(0.05), baseColor, metallic);
 
     #if defined SPECULARGLOSSINESSMAP || defined SPECULARMAP
@@ -220,10 +221,10 @@ vec3 IBLAmbient(vec3 specularMap, vec3 baseColor, float metallic, vec3 n, float 
     vec2 envBRDF  = texture(brdfLUT, vec2(max(dot(n, viewDir), 0.0), roughness)).rg;
     vec3 specular = prefilteredColor * (F * envBRDF.x + envBRDF.y);
 
-    #if defined TRANSMISSION || defined CLEARCOAT
+    #if defined CLEARCOAT
     return specular;
     #else
-    return (kD * irradiance * baseColor + specular);
+    return ((1.0 - transmission) * kD * irradiance * baseColor + specular);
     #endif
 }
 
@@ -453,7 +454,11 @@ void main() {
                 outUV = applyTransform(outUV);
             #endif
             vec3 n = texture(normalTexture, outUV).rgb;
-            n = normalize(outTBN * (2.0 * n - 1.0));
+            if (normalTextureScale.x > 1.0) {
+                n = normalize((2.0 * n - 1.0) * vec3(normalTextureScale.x, normalTextureScale.x, 1.0));
+            } else {
+                n = normalize(outTBN * (2.0 * n - 1.0));
+            }
         #else
             vec3 n = outTBN[2].xyz;
         #endif
@@ -538,8 +543,8 @@ void main() {
         vec3 clearcoatFresnel = vec3(1.0);
         vec3 f_transmission = calcTransmission(baseColor, n, roughness, viewDir, transmission);
         if (isIBL == 1) {
-            ambient = IBLAmbient(specularMap, baseColor, metallic, n, roughness, viewDir);
-            ambientClearcoat = IBLAmbient(specularMap, vec3(0.0), 0.0, clearcoatNormal, clearcoatRoughness, viewDir) * clearcoatBlendFactor;
+            ambient = IBLAmbient(specularMap, baseColor, metallic, n, roughness, viewDir, transmission);
+            ambientClearcoat = IBLAmbient(specularMap, vec3(0.0), 0.0, clearcoatNormal, clearcoatRoughness, viewDir, transmission) * clearcoatBlendFactor;
             float NdotV = saturate(dot(clearcoatNormal, viewDir));
             clearcoatFresnel = (1.0 - clearcoatBlendFactor * fresnelSchlick(NdotV, vec3(0.04)));
         } else {
