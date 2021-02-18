@@ -58,7 +58,8 @@ void main() {
         vec3 tangentW = normalize(vec3(model * vec4(inTangent.xyz, 0.0)));
         vec3 bitangentW = cross(normalW, tangentW) * inTangent.w;
         #ifdef USERIGHTHANDEDSYSTEM
-        bitangentW = -bitangentW;
+        tangentW *= 1.0; // invertX
+        bitangentW *= -1.0; // invertY
         #endif
         outTBN = mat3(tangentW, bitangentW, normalW);
     #else

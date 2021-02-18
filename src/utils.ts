@@ -486,6 +486,7 @@ export function calculateBinormals(index, vertex, normal, uv) {
         const duv2 = faceUVs[2].subtract(faceUVs[0]);
 
         let r = duv1.elements[0] * duv2.elements[1] - duv1.elements[1] * duv2.elements[0];
+        const sign = r > 0 ? 1 : -1;
         r = r !== 0 ? 1.0 / r : 1.0;
         const udir = new Vector3([
             (duv2.elements[1] * dv1.elements[0] - duv1.elements[1] * dv2.elements[0]) * r,
@@ -495,7 +496,7 @@ export function calculateBinormals(index, vertex, normal, uv) {
         udir.normalize();
 
         faceIndexes.forEach(ix => {
-            accumulateVectorInArray(tangent, ix, udir);
+            accumulateVectorInArray(tangent, ix, udir, sign);
         });
     }
 
@@ -511,11 +512,11 @@ export function calculateBinormals(index, vertex, normal, uv) {
         }
     }
 
-    function accumulateVectorInArray(array, index, vector, elements = 4, accumulator = (acc, x) => acc + x) {
+    function accumulateVectorInArray(array, index, vector, sign, elements = 4, accumulator = (acc, x) => acc + x) {
         index = index * elements;
         for (let i = 0; i < elements; ++i) {
             if (i === 3) {
-                array[index + i] = -1;
+                array[index + i] = sign;
             } else {
                 array[index + i] = accumulator(array[index + i], vector.elements[i]);
             }

@@ -371,7 +371,7 @@ export class Material extends M {
             materialUniformBuffer.add('sheenRoughnessFactor', this.sheenRoughnessFactor ?? 0);
             materialUniformBuffer.add('transmissionFactor', this.transmissionFactor ?? 0);
             materialUniformBuffer.add('ior', this.ior ?? 1);
-            materialUniformBuffer.add('normalTextureScale', this.normalTextureScale ?? 0);
+            materialUniformBuffer.add('normalTextureScale', this.normalTextureScale ?? 1);
             materialUniformBuffer.done();
 
             const mIndex = gl.getUniformBlockIndex(program, 'Material');
