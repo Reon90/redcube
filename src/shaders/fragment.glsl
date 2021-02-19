@@ -203,7 +203,9 @@ vec3 IBLAmbient(vec3 specularMap, vec3 baseColor, float metallic, vec3 n, float 
     vec3 F = fresnelSchlickRoughness(max(dot(n, viewDir), 0.0), F0, roughness);
 
     vec3 kD = vec3(1.0) - F;
-    kD *= 1.0 - metallic;
+    #ifndef SPECULARGLOSSINESSMAP
+        kD *= 1.0 - metallic;
+    #endif
 
     const float MAX_REFLECTION_LOD = 3.0;
     #ifdef SPHERICAL_HARMONICS
