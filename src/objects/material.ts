@@ -179,7 +179,6 @@ export class Material extends M {
             }
         }
         this.alpha = material.alphaMode === 'BLEND';
-        this.blend = material.blend;
         this.doubleSided = material.doubleSided;
         this.emissiveFactor = material.emissiveFactor;
         this.extras = material.extras;

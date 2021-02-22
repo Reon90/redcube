@@ -203,7 +203,8 @@ vec3 IBLAmbient(vec3 specularMap, vec3 baseColor, float metallic, vec3 n, float 
     vec3 F = fresnelSchlickRoughness(max(dot(n, viewDir), 0.0), F0, roughness);
 
     vec3 kD = vec3(1.0) - F;
-    #ifndef SPECULARGLOSSINESSMAP
+    #if defined SPECULARGLOSSINESSMAP || defined SPECULARMAP
+    #else
         kD *= 1.0 - metallic;
     #endif
 
@@ -223,11 +224,7 @@ vec3 IBLAmbient(vec3 specularMap, vec3 baseColor, float metallic, vec3 n, float 
     vec2 envBRDF  = texture(brdfLUT, vec2(max(dot(n, viewDir), 0.0), roughness)).rg;
     vec3 specular = prefilteredColor * (F * envBRDF.x + envBRDF.y);
 
-    #if defined CLEARCOAT
-    return specular;
-    #else
     return ((1.0 - transmission) * kD * irradiance * baseColor + specular);
-    #endif
 }
 
 float specEnv(vec3 N, vec3 V, float metallic, float roughness) {
@@ -255,15 +252,21 @@ vec3 CookTorranceSpecular(vec3 specularMap, vec3 baseColor, float metallic, vec3
     return nominator / max(denominator, 0.001);
 }
 
-vec3 LambertDiffuse(vec3 baseColor, float metallic, vec3 n, vec3 H, float roughness, vec3 viewDir, vec3 lightDir) {
+vec3 LambertDiffuse(vec3 specularMap, vec3 baseColor, float metallic, vec3 n, vec3 H, float roughness, vec3 viewDir, vec3 lightDir) {
     float NdotL = max(dot(n, lightDir), 0.0);
     vec3 F0 = vec3(0.04);
     F0 = mix(F0, baseColor, metallic);
+    #if defined SPECULARGLOSSINESSMAP || defined SPECULARMAP
+        F0 = specularMap;
+    #endif
 
     vec3 F = fresnelSchlick(max(dot(H, viewDir), 0.0), F0);    
 
     vec3 kD = vec3(1.0) - F;
-    kD *= 1.0 - metallic;
+    #if defined SPECULARGLOSSINESSMAP || defined SPECULARMAP
+    #else
+        kD *= 1.0 - metallic;
+    #endif
     return baseColor * kD / PI;
 }
 
@@ -272,12 +275,18 @@ float saturate(float a) {
 	if (a < 0.0) return 0.0;
 	return a;
 }
-vec3 ImprovedOrenNayarDiffuse(vec3 baseColor, float metallic, vec3 N, vec3 H, float a, vec3 V, vec3 L) {
+vec3 ImprovedOrenNayarDiffuse(vec3 specularMap, vec3 baseColor, float metallic, vec3 N, vec3 H, float a, vec3 V, vec3 L) {
     vec3 F0 = vec3(0.04);
     F0 = mix(F0, baseColor, metallic);
+    #if defined SPECULARGLOSSINESSMAP || defined SPECULARMAP
+        F0 = specularMap;
+    #endif
     vec3 F = fresnelSchlick(max(dot(H, V), 0.0), F0);
     vec3 kD = vec3(1.0) - F;
-    kD *= 1.0 - metallic;
+    #if defined SPECULARGLOSSINESSMAP || defined SPECULARMAP
+    #else
+        kD *= 1.0 - metallic;
+    #endif
     vec3 diffuseColor = baseColor * kD;
 	// calculate intermediary values
 	float dotNL = saturate(dot(N, L));
@@ -362,6 +371,9 @@ void main() {
     #ifdef ALPHATEST
     if ( alpha < ALPHATEST ) {
         discard;
+    }
+    if ( ALPHATEST > 0.01 ) {
+        alpha = 1.0;
     }
     #else
         alpha = 1.0;
@@ -524,7 +536,7 @@ void main() {
             vec3 f_clearcoat = CookTorranceSpecular(specularMap, vec3(0.0), 0.0, clearcoatNormal, H, clearcoatRoughness, viewDir, lightDir);
             float NdotV = saturate(dot(clearcoatNormal, viewDir));
             vec3 clearcoatFresnel = 1.0 - clearcoatBlendFactor * fresnelSchlick(NdotV, vec3(0.04));
-            vec3 diffuse = ImprovedOrenNayarDiffuse(baseColor, metallic, n, H, roughness, viewDir, lightDir);
+            vec3 diffuse = ImprovedOrenNayarDiffuse(specularMap, baseColor, metallic, n, H, roughness, viewDir, lightDir);
             #if defined SPECULARGLOSSINESSMAP || defined SPECULARMAP
                 diffuse = baseColor * (1.0 - max(max(specularMap.r, specularMap.g), specularMap.b));
             #endif

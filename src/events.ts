@@ -4,11 +4,9 @@ class Events {
     isDrag: boolean;
     x: number;
     y: number;
-    zoomValue: number;
 
     constructor(canvas, redraw) {
         this.redraw = redraw;
-        this.zoomValue = 0;
         document.addEventListener('wheel', this, { passive: false });
         canvas.addEventListener('mousedown', this);
         canvas.addEventListener('mousemove', this);
@@ -82,8 +80,7 @@ class Events {
 
     zoom(e) {
         e.preventDefault();
-        this.zoomValue = Math.min(this.zoomValue + e.deltaY, 1250);
-        this.redraw('zoom', Math.pow(1.001, this.zoomValue));
+        this.redraw('zoom', e.deltaY);
     }
 }
 

@@ -19,7 +19,6 @@ module.exports = {
         publicPath: '/dist/',
         injectClient: false
     },
-    devtool: process.env.NODE_ENV === 'development' && "source-map",
     resolve: {
         extensions: ['.ts', '.js'],
         fallback: {
