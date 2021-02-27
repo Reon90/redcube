@@ -265,6 +265,7 @@ vec3 IBLAmbient(vec3 specularMap, vec3 baseColor, float metallic, vec3 n, float 
     vec3 H = normalize(viewDir + -R);
     vec3 f_sheen = sheenColor * sheenDistribution(sheenRoughness, n, H) * sheenVisibility(n, viewDir, R, sheenRoughness);
     float sheenAlbedoScaling = min(1.0 - max3(sheenColor) * E(max(dot(viewDir, n), 0.0), sheenRoughness), 1.0 - max3(sheenColor) * E(max(dot(-R, n), 0.0), sheenRoughness));
+    f_sheen /= (4.0 * abs(dot(n, -R)) * abs(dot(n, viewDir)));
 
     return sheenAlbedoScaling * ((1.0 - transmission) * kD * irradiance * baseColor + specular) + f_sheen;
 }
@@ -568,6 +569,7 @@ void main() {
                 diffuse = baseColor * (1.0 - max(max(specularMap.r, specularMap.g), specularMap.b));
             #endif
             vec3 f_sheen = sheenColor * sheenDistribution(sheenRoughness, n, H) * sheenVisibility(n, viewDir, lightDir, sheenRoughness);
+            // f_sheen /= (4.0 * abs(dot(n, lightDir)) * abs(dot(n, viewDir)));
             float sheenAlbedoScaling = min(1.0 - max3(sheenColor) * E(max(dot(viewDir, n), 0.0), sheenRoughness), 1.0 - max3(sheenColor) * E(max(dot(lightDir, n), 0.0), sheenRoughness));
 
             diffuse *= (1.0 - transmission);

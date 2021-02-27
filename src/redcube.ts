@@ -172,7 +172,7 @@ class RedCube {
 
         this.resize(null);
         this.parse.buildAnimation();
-        this.draw();
+        this.initialDraw();
 
         cb();
     }
@@ -252,6 +252,9 @@ class RedCube {
     }
 
     draw() {
+        this.renderer.reflow = true;
+    }
+    initialDraw() {
         gl.clearColor(...clearColor);
         gl.enable(gl.DEPTH_TEST);
         gl.enable(gl.CULL_FACE);

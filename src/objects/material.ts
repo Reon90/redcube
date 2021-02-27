@@ -114,12 +114,26 @@ export class Material extends M {
             this.sheenColorFactor = sheenColorFactor;
             this.sheenRoughnessFactor = sheenRoughnessFactor;
             if (sheenColorTexture) {
+                const { extensions, texCoord } = sheenColorTexture;
                 this.sheenColorTexture = textures[sheenColorTexture.index];
-                defines.push({ name: 'SHEENMAP' });
+                defines.push({ name: 'SHEENMAP', value: texCoord ? 2 : 1 });
+                if (extensions) {
+                    const ex = extensions.KHR_texture_transform;
+                    if (ex) {
+                        this.buildTrans(ex, defines, 'SHEENMAP');
+                    }
+                }
             }
             if (sheenRoughnessTexture) {
+                const { extensions, texCoord } = sheenRoughnessTexture;
                 this.sheenRoughnessTexture = textures[sheenRoughnessTexture.index];
-                defines.push({ name: 'SHEENMAP' });
+                defines.push({ name: 'SHEENMAP', value: texCoord ? 2 : 1 });
+                if (extensions) {
+                    const ex = extensions.KHR_texture_transform;
+                    if (ex) {
+                        this.buildTrans(ex, defines, 'SHEENMAP');
+                    }
+                }
             }
         }
 
