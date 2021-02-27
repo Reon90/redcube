@@ -115,6 +115,8 @@ class RedCube {
             }
         });
         this.renderer.reflow = true;
+        this.renderer.needUpdateView = true;
+        this.renderer.needUpdateProjection = true;
     }
 
     async init(cb) {
