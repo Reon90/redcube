@@ -245,16 +245,16 @@ vec3 IBLAmbient(vec3 specularMap, vec3 baseColor, float metallic, vec3 n, float 
         kD *= 1.0 - metallic;
     #endif
 
-    const float MAX_REFLECTION_LOD = 3.0;
     vec3 R;
     #ifdef SPHERICAL_HARMONICS
     R = reflect(viewDir, n);
     vec4 rotatedR = rotationMatrix * vec4(R, 0.0);
-    vec4 prefilterColor = textureLod(prefilterMap, rotatedR.xyz, roughness * MAX_REFLECTION_LOD);
-    vec3 prefilteredColor = srgbToLinear(vec4(prefilterColor.rgb, 0.0)) / prefilterColor.a;
+    vec4 prefilterColor = textureLod(prefilterMap, rotatedR.xyz, roughness * float(SPHERICAL_HARMONICS));
+    vec3 prefilteredColor = srgbToLinear(vec4(prefilterColor.rgb, 0.0)) / pow(prefilterColor.a, 2.2);
     vec3 irradianceVector = vec3(rotationMatrix * vec4(n, 0)).xyz;
     vec3 irradiance = computeEnvironmentIrradiance(irradianceVector).rgb;
     #else
+    const float MAX_REFLECTION_LOD = 3.0;
     R = reflect(-viewDir, n);
     vec3 prefilteredColor = textureLod(prefilterMap, R, roughness * MAX_REFLECTION_LOD).rgb;
     vec3 irradiance = texture(irradianceMap, n).rgb;
