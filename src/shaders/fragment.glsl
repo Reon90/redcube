@@ -264,10 +264,10 @@ vec3 IBLAmbient(vec3 specularMap, vec3 baseColor, float metallic, vec3 n, float 
 
     vec3 H = normalize(viewDir + -R);
     vec3 f_sheen = sheenColor * sheenDistribution(sheenRoughness, n, H) * sheenVisibility(n, viewDir, R, sheenRoughness);
-    float sheenAlbedoScaling = min(1.0 - max3(sheenColor) * E(max(dot(viewDir, n), 0.0), sheenRoughness), 1.0 - max3(sheenColor) * E(max(dot(-R, n), 0.0), sheenRoughness));
-    f_sheen /= (4.0 * abs(dot(n, -R)) * abs(dot(n, viewDir)));
+    // float sheenAlbedoScaling = min(1.0 - max3(sheenColor) * E(max(dot(viewDir, n), 0.0), sheenRoughness), 1.0 - max3(sheenColor) * E(max(dot(-R, n), 0.0), sheenRoughness));
+    f_sheen /= max(1.0, 4.0 * abs(dot(n, -R)) * abs(dot(n, viewDir)));
 
-    return sheenAlbedoScaling * ((1.0 - transmission) * kD * irradiance * baseColor + specular) + f_sheen;
+    return ((1.0 - transmission) * kD * irradiance * baseColor + specular) + f_sheen;
 }
 
 float specEnv(vec3 N, vec3 V, float metallic, float roughness) {
