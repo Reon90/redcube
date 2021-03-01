@@ -344,7 +344,6 @@ export class Env {
             const sphericalPolynomial = SphericalPolynomial.FromHarmonics(sphericalHarmonics);
             const preScaledHarmonics = sphericalPolynomial.preScaledHarmonics;
             const uniformBuffer = new UniformBuffer();
-            uniformBuffer.add("rotationMatrix", matrix.elements);
             uniformBuffer.add("vSphericalL00", preScaledHarmonics.l00.elements);
             uniformBuffer.add("vSphericalL1_1", preScaledHarmonics.l1_1.elements);
             uniformBuffer.add("vSphericalL10", preScaledHarmonics.l10.elements);
@@ -354,6 +353,7 @@ export class Env {
             uniformBuffer.add("vSphericalL20", preScaledHarmonics.l20.elements);
             uniformBuffer.add("vSphericalL21", preScaledHarmonics.l21.elements);
             uniformBuffer.add("vSphericalL22", preScaledHarmonics.l22.elements);
+            uniformBuffer.add("rotationMatrix", matrix.elements);
             uniformBuffer.done();
             this.uniformBuffer = uniformBuffer;
         }
@@ -425,8 +425,11 @@ export class Env {
             if (this.envData) {
                 const x = [gl.TEXTURE_CUBE_MAP_POSITIVE_X, gl.TEXTURE_CUBE_MAP_NEGATIVE_X, gl.TEXTURE_CUBE_MAP_NEGATIVE_Y, gl.TEXTURE_CUBE_MAP_POSITIVE_Y, gl.TEXTURE_CUBE_MAP_POSITIVE_Z, gl.TEXTURE_CUBE_MAP_NEGATIVE_Z];
                 for (let j = 0; j < this.envData.specularImages.length; j++) {
+                    // @ts-ignore
+                    const s = this.envData.specularImageSize * Math.pow(0.5, j);
                     for (let i = 0; i < 6; i++) {
-                        gl.texImage2D(x[i], j, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, this.envData.specularImages[j][i]);
+                        gl.texImage2D(x[i], j, gl.RGBA, s, s, 0, gl.RGBA, gl.UNSIGNED_BYTE, this.envData.specularImages[j][i]);
+                        // gl.texImage2D(x[i], j, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, this.envData.specularImages[j][i]);
                     }
                 }
             } else {

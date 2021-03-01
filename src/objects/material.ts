@@ -158,6 +158,7 @@ export class Material extends M {
                 this.specularTexture = textures[specularTexture.index];
                 defines.push({ name: 'SPECULARMAP' });
             }
+            defines.push({ name: 'SPECULAR' });
         }
 
         this.uniforms = {

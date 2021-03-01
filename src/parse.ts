@@ -196,7 +196,7 @@ export class Parse {
     buildPrim(parent, name, skin, weights, primitive) {
         const m = this.json.materials && this.json.materials[primitive.material];
         if (this.json.extensions && this.json.extensions.EXT_lights_image_based) {
-            this.defines.push({ name: 'SPHERICAL_HARMONICS', value: Math.ceil(Math.log(this.json.extensions.EXT_lights_image_based.lights[0].specularImageSize) * Math.LOG2E) });
+            this.defines.push({ name: 'SPHERICAL_HARMONICS', value: Math.ceil(Math.log(this.json.extensions.EXT_lights_image_based.lights[0].specularImageSize) * Math.LOG2E) + 10 });
         }
         if (this.json.extensionsUsed && this.json.extensionsUsed.includes('KHR_texture_basisu')) {
             this.defines.push({ name: 'BASISU' });

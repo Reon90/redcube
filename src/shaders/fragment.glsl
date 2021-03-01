@@ -53,16 +53,16 @@ uniform LightPos {
     vec3 lightPos[LIGHTNUMBER];
 };
 uniform SphericalHarmonics {
+    vec4 vSphericalL00;
+    vec4 vSphericalL1_1;
+    vec4 vSphericalL10;
+    vec4 vSphericalL11;
+    vec4 vSphericalL2_2;
+    vec4 vSphericalL2_1;
+    vec4 vSphericalL20;
+    vec4 vSphericalL21;
+    vec4 vSphericalL22;
     mat4 rotationMatrix;
-    vec3 vSphericalL00;
-    vec3 vSphericalL1_1;
-    vec3 vSphericalL10;
-    vec3 vSphericalL11;
-    vec3 vSphericalL2_2;
-    vec3 vSphericalL2_1;
-    vec3 vSphericalL20;
-    vec3 vSphericalL21;
-    vec3 vSphericalL22;
 };
 
 uniform sampler2D baseColorTexture;
@@ -183,15 +183,15 @@ vec3 calcTransmission(vec3 color, vec3 N, float roughness, vec3 V, float transmi
 }
 
 vec3 computeEnvironmentIrradiance(vec3 normal) {
-    return vSphericalL00
-        + vSphericalL1_1 * (normal.y)
-        + vSphericalL10 * (normal.z)
-        + vSphericalL11 * (normal.x)
-        + vSphericalL2_2 * (normal.y * normal.x)
-        + vSphericalL2_1 * (normal.y * normal.z)
-        + vSphericalL20 * ((3.0 * normal.z * normal.z) - 1.0)
-        + vSphericalL21 * (normal.z * normal.x)
-        + vSphericalL22 * (normal.x * normal.x - (normal.y * normal.y));
+    return vSphericalL00.xyz
+        + vSphericalL1_1.xyz * (normal.y)
+        + vSphericalL10.xyz * (normal.z)
+        + vSphericalL11.xyz * (normal.x)
+        + vSphericalL2_2.xyz * (normal.y * normal.x)
+        + vSphericalL2_1.xyz * (normal.y * normal.z)
+        + vSphericalL20.xyz * ((3.0 * normal.z * normal.z) - 1.0)
+        + vSphericalL21.xyz * (normal.z * normal.x)
+        + vSphericalL22.xyz * (normal.x * normal.x - (normal.y * normal.y));
 }
 float sheenDistribution(float sheenRoughness, vec3 N, vec3 H) {
     float NdotH = max(dot(N, H), 0.0);
@@ -227,7 +227,7 @@ float max3(vec3 v) { return max(max(v.x, v.y), v.z); }
 vec3 IBLAmbient(vec3 specularMap, vec3 baseColor, float metallic, vec3 n, float roughness, vec3 viewDir, float transmission, vec3 sheenColor, float sheenRoughness, float ior) {
     vec3 F0 = mix(vec3(0.05), baseColor, metallic);
 
-    #if defined SPECULARMAP
+    #if defined SPECULAR
     if (metallic == 0.0) {
         float relativeIOR = (1.0 - ior) / (1.0 + ior);
         F0 = relativeIOR * relativeIOR * specularMap;
@@ -251,10 +251,10 @@ vec3 IBLAmbient(vec3 specularMap, vec3 baseColor, float metallic, vec3 n, float 
     vec4 rotatedR = rotationMatrix * vec4(R, 0.0);
     vec4 prefilterColor = textureLod(prefilterMap, rotatedR.xyz, roughness * float(SPHERICAL_HARMONICS));
     vec3 prefilteredColor = srgbToLinear(vec4(prefilterColor.rgb, 0.0)) / pow(prefilterColor.a, 2.2);
-    vec3 irradianceVector = vec3(rotationMatrix * vec4(n, 0)).xyz;
+    vec3 irradianceVector = vec3(rotationMatrix * vec4(n.x, n.y, n.z * -1.0, 0)).xyz;
     vec3 irradiance = computeEnvironmentIrradiance(irradianceVector).rgb;
     #else
-    const float MAX_REFLECTION_LOD = 3.0;
+    const float MAX_REFLECTION_LOD = 4.0;
     R = reflect(-viewDir, n);
     vec3 prefilteredColor = textureLod(prefilterMap, R, roughness * MAX_REFLECTION_LOD).rgb;
     vec3 irradiance = texture(irradianceMap, n).rgb;
@@ -282,7 +282,7 @@ vec3 CookTorranceSpecular(vec3 specularMap, vec3 baseColor, float metallic, vec3
     vec3 F0 = vec3(0.04); 
     F0 = mix(F0, baseColor, metallic);
 
-    #if defined SPECULARMAP
+    #if defined SPECULAR
     if (metallic == 0.0) {
         float relativeIOR = (1.0 - ior) / (1.0 + ior);
         F0 = relativeIOR * relativeIOR * specularMap;
@@ -305,7 +305,7 @@ vec3 LambertDiffuse(vec3 specularMap, vec3 baseColor, float metallic, vec3 n, ve
     float NdotL = max(dot(n, lightDir), 0.0);
     vec3 F0 = vec3(0.04);
     F0 = mix(F0, baseColor, metallic);
-    #if defined SPECULARMAP
+    #if defined SPECULAR
     if (metallic == 0.0) {
         float relativeIOR = (1.0 - ior) / (1.0 + ior);
         F0 = relativeIOR * relativeIOR * specularMap;
@@ -333,7 +333,7 @@ float saturate(float a) {
 vec3 ImprovedOrenNayarDiffuse(vec3 specularMap, vec3 baseColor, float metallic, vec3 N, vec3 H, float a, vec3 V, vec3 L, float ior) {
     vec3 F0 = vec3(0.04);
     F0 = mix(F0, baseColor, metallic);
-    #if defined SPECULARMAP
+    #if defined SPECULAR
     if (metallic == 0.0) {
         float relativeIOR = (1.0 - ior) / (1.0 + ior);
         F0 = relativeIOR * relativeIOR * specularMap;
@@ -416,7 +416,7 @@ void main() {
         return;
     #endif
 
-    float ao = 2.0;
+    float ao = 1.0;
     #ifdef OCCLUSIONMAP
         outUV = getUV(OCCLUSIONMAP);
         #ifdef OCCLUSIONMAP_TEXTURE_TRANSFORM
@@ -485,8 +485,11 @@ void main() {
             metallic *= metallicRoughness.b;
         #endif
     #endif
-    #ifdef SPECULARMAP
-        specularMap = texture(specularTexture, outUV).rgb * specularFactor;
+    #ifdef SPECULAR
+        specularMap = specularFactor;
+        #ifdef SPECULARMAP
+        specularMap *= texture(specularTexture, outUV).rgb;
+        #endif
     #endif
 
     #ifdef TANGENT
@@ -619,25 +622,15 @@ void main() {
     #endif
 
     if (isTone == 1) {
+        #ifdef SPHERICAL_HARMONICS
+        color.rgb  *= 4.0;
+        vec3 X = max(vec3(0.0, 0.0, 0.0), color.rgb - 0.004);
+        vec3 retColor = (X * (6.2 * X + 0.5)) / (X * (6.2 * X + 1.7) + 0.06);
+        color.rgb = retColor * retColor;
+        #else
         color.rgb = color.rgb / (color.rgb + vec3(1.0));
         color.rgb = pow(color.rgb, vec3(1.0 / gamma));
-        // const float A = 0.15;
-        // const float B = 0.50;
-        // const float C = 0.10;
-        // const float D = 0.20;
-        // const float E = 0.02;
-        // const float F = 0.30;
-        // const float W = 11.2;
-        // color.rgb *= 4.0;
-
-        // const float ExposureBias = 2.0;
-        // vec3 x = ExposureBias * color.rgb;
-
-        // vec3 curr = ((x * (A * x + C * B) + D * E) / (x * (A * x + B) + D * F)) - E / F;
-
-        // x = vec3(W, W, W);
-        // vec3 whiteScale = 1.0 / (((x * (A * x + C * B) + D * E) / (x * (A * x + B) + D * F)) - E / F);
-        // color.rgb = curr * whiteScale;
+        #endif
     }
 
     normalColor = n;
