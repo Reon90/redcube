@@ -224,7 +224,7 @@ float E(float x, float y) {
     return texture(Sheen_E, vec2(x,y)).r;
 }
 float max3(vec3 v) { return max(max(v.x, v.y), v.z); }
-vec3 IBLAmbient(vec3 specularMap, vec3 baseColor, float metallic, vec3 n, float roughness, vec3 viewDir, float transmission, vec3 sheenColor, float sheenRoughness, float ior) {
+vec3 IBLAmbient(vec3 specularMap, vec3 baseColor, float metallic, vec3 n, float roughness, vec3 viewDir, float transmission, vec3 sheenColor, float sheenRoughness, float ior, out vec3 specular) {
     vec3 F0 = mix(vec3(0.05), baseColor, metallic);
 
     #if defined SPECULAR
@@ -248,7 +248,7 @@ vec3 IBLAmbient(vec3 specularMap, vec3 baseColor, float metallic, vec3 n, float 
     vec3 R;
     #ifdef SPHERICAL_HARMONICS
     R = reflect(viewDir, n);
-    vec4 rotatedR = rotationMatrix * vec4(R, 0.0);
+    vec4 rotatedR = rotationMatrix * vec4(R.x * -1.0, R.y, R.z, 0.0);
     vec4 prefilterColor = textureLod(prefilterMap, rotatedR.xyz, roughness * float(SPHERICAL_HARMONICS));
     vec3 prefilteredColor = srgbToLinear(vec4(prefilterColor.rgb, 0.0)) / pow(prefilterColor.a, 2.2);
     vec3 irradianceVector = vec3(rotationMatrix * vec4(n.x, n.y, n.z * -1.0, 0)).xyz;
@@ -260,14 +260,14 @@ vec3 IBLAmbient(vec3 specularMap, vec3 baseColor, float metallic, vec3 n, float 
     vec3 irradiance = texture(irradianceMap, n).rgb;
     #endif
     vec2 envBRDF  = texture(brdfLUT, vec2(max(dot(n, viewDir), 0.0), roughness)).rg;
-    vec3 specular = prefilteredColor * (F * envBRDF.x + envBRDF.y);
+    specular = prefilteredColor * (F * envBRDF.x + envBRDF.y);
 
     vec3 H = normalize(viewDir + -R);
     vec3 f_sheen = sheenColor * sheenDistribution(sheenRoughness, n, H) * sheenVisibility(n, viewDir, R, sheenRoughness);
     // float sheenAlbedoScaling = min(1.0 - max3(sheenColor) * E(max(dot(viewDir, n), 0.0), sheenRoughness), 1.0 - max3(sheenColor) * E(max(dot(-R, n), 0.0), sheenRoughness));
     f_sheen /= max(1.0, 4.0 * abs(dot(n, -R)) * abs(dot(n, viewDir)));
 
-    return ((1.0 - transmission) * kD * irradiance * baseColor + specular) + f_sheen;
+    return ((1.0 - transmission) * kD * irradiance * baseColor) + f_sheen;
 }
 
 float specEnv(vec3 N, vec3 V, float metallic, float roughness) {
@@ -584,9 +584,15 @@ void main() {
         vec3 ambientClearcoat = vec3(0.0);
         vec3 clearcoatFresnel = vec3(1.0);
         vec3 f_transmission = calcTransmission(baseColor, n, roughness, viewDir, transmission);
+        vec3 aSpecular;
+        vec3 cSpecular;
         if (isIBL == 1) {
-            ambient = IBLAmbient(specularMap, baseColor, metallic, n, roughness, viewDir, transmission, sheenColor, sheenRoughness, ior.x);
-            ambientClearcoat = IBLAmbient(specularMap, vec3(0.0), 0.0, clearcoatNormal, clearcoatRoughness, viewDir, transmission, sheenColor, sheenRoughness, ior.x) * clearcoatBlendFactor;
+            ambient = IBLAmbient(specularMap, baseColor, metallic, n, roughness, viewDir, transmission, sheenColor, sheenRoughness, ior.x, aSpecular);
+            ambientClearcoat = IBLAmbient(specularMap, vec3(0.0), 0.0, clearcoatNormal, clearcoatRoughness, viewDir, transmission, sheenColor, sheenRoughness, ior.x, cSpecular) * clearcoatBlendFactor;
+            #ifndef SPHERICAL_HARMONICS
+            ambient += aSpecular;
+            ambientClearcoat += cSpecular * clearcoatBlendFactor;
+            #endif
             float NdotV = saturate(dot(clearcoatNormal, viewDir));
             clearcoatFresnel = (1.0 - clearcoatBlendFactor * fresnelSchlick(NdotV, vec3(0.04)));
         } else {
@@ -632,6 +638,10 @@ void main() {
         color.rgb = pow(color.rgb, vec3(1.0 / gamma));
         #endif
     }
+
+    #ifdef SPHERICAL_HARMONICS
+    color.rgb += aSpecular;
+    #endif
 
     normalColor = n;
 }
