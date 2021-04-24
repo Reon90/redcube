@@ -1,4 +1,4 @@
-export const cubeVertex = [
+export const cubeVertex = new Float32Array([
     -1.0,
     1.0,
     -1.0,
@@ -112,6 +112,10 @@ export const cubeVertex = [
     1.0,
     -1.0,
     1.0
-];
+]);
 
-export const quadVertex = [-1.0, 1.0, -1.0, -1.0, 1.0, 1.0, 1.0, -1.0];
+export const quadVertex = new Float32Array([-1.0, 1.0, -1.0, -1.0, 1.0, 1.0, 1.0, -1.0]);
+export const quadFull = new Float32Array([
+    -1.0, 1.0, -1.0, -1.0, 1.0, -1.0,
+    1.0, -1.0, 1.0, 1.0, -1.0, 1.0
+]);

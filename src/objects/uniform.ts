@@ -7,6 +7,8 @@ export class UniformBuffer {
     tempStore: Store;
     store: Float32Array;
 
+    bufferWebGPU: GPUBuffer;
+
     constructor() {
         this.map = new Map();
         this.tempStore = {};
@@ -49,6 +51,24 @@ export class UniformBuffer {
         const buffer = this.getBuffer(value);
         this.store.set(buffer, offset);
         gl.bufferSubData(gl.UNIFORM_BUFFER, offset * Float32Array.BYTES_PER_ELEMENT, buffer);
+    }
+
+    updateWebGPU(WebGPU, name, value) {
+        const { device } = WebGPU;
+        if (value.length === undefined) {
+            value = new Float32Array([value]);
+        }
+        const offset = this.map.get(name);
+        const buffer = this.getBuffer(value);
+        this.store.set(buffer, offset);
+
+        device.queue.writeBuffer(
+            this.bufferWebGPU,
+            offset * Float32Array.BYTES_PER_ELEMENT,
+            buffer.buffer,
+            buffer.byteOffset,
+            buffer.byteLength
+        );
     }
 
     done() {

@@ -1,4 +1,5 @@
 import * as fs from 'fs';
+import { GlTf } from '../GLTF';
 
 function loadKTX(b) {
   const { ktxTexture, TranscodeTarget, transcoderConfig } = window.LIBKTX;
@@ -48,7 +49,7 @@ function IsValid(data: ArrayBufferView): boolean {
   return false;
 }
 
-export function fetch(url) {
+export function fetchJSON(url): Promise<GlTf> {
   if (typeof window !== "undefined") {
     return window.fetch(url).then(r => r.json());
   } else {
@@ -65,7 +66,7 @@ export function fetch(url) {
 }
 
 
-export function fetchBinary(url) {
+export function fetchBinary(url): Promise<ArrayBuffer> {
   if (typeof window !== "undefined") {
     return window.fetch(url).then(r => r.arrayBuffer());
   } else {
@@ -81,7 +82,7 @@ export function fetchBinary(url) {
   }
 }
 
-export function fetchImage(s, {bufferView, mimeType, uri}, {url, name}, sampler) {
+export function fetchImage(isbitmap, s, {bufferView, mimeType, uri}, {url, name}, sampler): Promise<any> {
   if (typeof window !== "undefined") {
     return new Promise((resolve, reject) => {
       if (mimeType === 'image/ktx2') {
@@ -96,12 +97,23 @@ export function fetchImage(s, {bufferView, mimeType, uri}, {url, name}, sampler)
       } else {
       const image = new Image();
       image.onload = () => {
+        if (isbitmap) {
+        createImageBitmap(image).then(bitmap => {
+          resolve({
+            sampler,
+            name,
+            bitmap
+        });
+        });
+      } else {
           resolve({
               sampler,
               name,
               image
           });
+      }
       };
+      
       image.onerror = err => {
           reject(new Error('Can\'t load texture'));
       };

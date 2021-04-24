@@ -37,7 +37,7 @@ export class Geometry {
     UBO: WebGLBuffer;
     VAO: WebGLBuffer;
     uniformBuffer: UniformBuffer;
-    indicesBuffer: Float32Array;
+    indicesBuffer: Uint32Array;
     attributes: Attributes;
     targets: Array<Attributes>;
     blend: string;
@@ -45,6 +45,10 @@ export class Geometry {
     SKIN: WebGLBuffer;
     boundingSphere: BoundingSphere;
     vertexAccessor: Map<string, Attr>;
+
+    indicesWebGPUBuffer: GPUBuffer;
+    verticesWebGPUBuffer: GPUBuffer;
+    uniformBindGroup1: GPUBindGroupEntry[];
 
     constructor(json, arrayBuffer, weights, draco, primitive) {
         this.boundingSphere = {
@@ -265,6 +269,59 @@ export class Geometry {
         this.boundingSphere.max = new Vector3(max);
     }
 
+    createGeometryForWebGPU(WebGPU: WEBGPU) {
+        const { device } = WebGPU;
+
+        const g = new Float32Array(
+            this.attributes['POSITION'].length +
+            this.attributes['TEXCOORD_0'].length +
+            this.attributes['NORMAL'].length +
+            this.attributes['TANGENT'].length
+        );
+        let k = 0;
+        let l = 0;
+        let m = 0;
+        for (let i = 0; i < g.length; i+=12) {
+            g[i] = this.attributes['POSITION'][k];
+            g[i+1] = this.attributes['POSITION'][k+1];
+            g[i+2] = this.attributes['POSITION'][k+2];
+            g[i+3] = this.attributes['TEXCOORD_0'][l];
+            g[i+4] = this.attributes['TEXCOORD_0'][l+1];
+            g[i+5] = this.attributes['NORMAL'][k];
+            g[i+6] = this.attributes['NORMAL'][k+1];
+            g[i+7] = this.attributes['NORMAL'][k+2];
+            g[i+8] = this.attributes['TANGENT'][m];
+            g[i+9] = this.attributes['TANGENT'][m+1];
+            g[i+10] = this.attributes['TANGENT'][m+2];
+            g[i+11] = this.attributes['TANGENT'][m+3];
+            k+=3;
+            l+=2;
+            m+=4;
+        }
+        
+
+        const verticesBuffer = device.createBuffer({
+            size: g.byteLength,
+            usage: GPUBufferUsage.VERTEX,
+            mappedAtCreation: true,
+        });
+        new Float32Array(verticesBuffer.getMappedRange()).set(g);
+        verticesBuffer.unmap();
+        this.verticesWebGPUBuffer = verticesBuffer;
+
+        if (this.indicesBuffer) {
+            this.indicesBuffer = new Uint32Array(this.indicesBuffer); // HACK webgpu needs int32 indices
+            const indicesBuffer = device.createBuffer({
+                size: this.indicesBuffer.byteLength,
+                usage: GPUBufferUsage.INDEX,
+                mappedAtCreation: true,
+            });
+            new Uint32Array(indicesBuffer.getMappedRange()).set(this.indicesBuffer);
+            indicesBuffer.unmap();
+            this.indicesWebGPUBuffer = indicesBuffer;
+        }
+    }
+
     createGeometryForWebGl(gl) {
         const VAO = gl.createVertexArray();
         gl.bindVertexArray(VAO);
@@ -308,7 +365,7 @@ export class Geometry {
         this.boundingSphere.radius = Math.sqrt(maxRadiusSq);
     }
 
-    updateUniforms(gl, program, matrixWorld, camera, light) {
+    createUniforms(matrixWorld, camera, light) {
         const normalMatrix = new Matrix4(matrixWorld);
         normalMatrix.invert().transpose();
 
@@ -321,13 +378,48 @@ export class Geometry {
         uniformBuffer.add('isShadow', 0);
         uniformBuffer.done();
 
+        this.uniformBuffer = uniformBuffer;
+    }
+
+    updateUniformsWebGPU(WebGPU: WEBGPU) {
+        const matrixSize = this.uniformBuffer.store.byteLength;
+        const offset = 256; // uniformBindGroup offset must be 256-byte aligned
+        const uniformBufferSize = offset + matrixSize;
+
+        const { device } = WebGPU;
+        const uniformBuffer = device.createBuffer({
+            size: uniformBufferSize,
+            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+        });
+        this.uniformBuffer.bufferWebGPU = uniformBuffer;
+
+        const uniformBindGroup1 = [{
+                binding: 0,
+                resource: {
+                  buffer: uniformBuffer,
+                  offset: 0,
+                  size: matrixSize,
+                },
+              }];
+
+          device.queue.writeBuffer(
+            uniformBuffer,
+            0,
+            this.uniformBuffer.store.buffer,
+            this.uniformBuffer.store.byteOffset,
+            this.uniformBuffer.store.byteLength
+          );
+
+          this.uniformBindGroup1 = uniformBindGroup1;
+    }
+
+    updateUniformsWebGl(gl, program) {
         const uIndex = gl.getUniformBlockIndex(program, 'Matrices');
         gl.uniformBlockBinding(program, uIndex, 0);
         const UBO = gl.createBuffer();
         gl.bindBuffer(gl.UNIFORM_BUFFER, UBO);
-        gl.bufferData(gl.UNIFORM_BUFFER, uniformBuffer.store, gl.DYNAMIC_DRAW);
+        gl.bufferData(gl.UNIFORM_BUFFER, this.uniformBuffer.store, gl.DYNAMIC_DRAW);
         this.UBO = UBO;
-        this.uniformBuffer = uniformBuffer;
         gl.bindBuffer(gl.UNIFORM_BUFFER, null);
     }
 

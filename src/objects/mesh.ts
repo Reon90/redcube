@@ -14,6 +14,9 @@ export class Mesh extends Object3D {
     visible: boolean;
     variants: {m: Material, variants: number[]}[];
 
+    uniformBindGroup1: GPUBindGroup;
+    pipeline: GPURenderPipeline;
+
     constructor(name, parent) {
         super(name, parent);
 
@@ -33,6 +36,33 @@ export class Mesh extends Object3D {
 
     setMaterial(material) {
         this.material = material;
+    }
+
+    drawWebGPU(WebGPU, passEncoder, { needUpdateView, needUpdateProjection, camera, light }) {
+        if (this.reflow) {
+            // matrixWorld changed
+            const normalMatrix = new Matrix4(this.matrixWorld);
+            normalMatrix.invert().transpose();
+
+            this.geometry.uniformBuffer.updateWebGPU(WebGPU, 'model', this.matrixWorld.elements);
+            this.geometry.uniformBuffer.updateWebGPU(WebGPU, 'normalMatrix', normalMatrix.elements);
+        }
+        if (needUpdateView) {
+            this.geometry.uniformBuffer.updateWebGPU(WebGPU, 'view', camera.matrixWorldInvert.elements);
+            this.geometry.uniformBuffer.updateWebGPU(WebGPU, 'light', light.matrixWorldInvert.elements);
+        }
+        if (needUpdateProjection) {
+            this.geometry.uniformBuffer.updateWebGPU(WebGPU, 'projection', camera.projection.elements);
+        }
+
+        passEncoder.setBindGroup(0, this.uniformBindGroup1);
+        passEncoder.setVertexBuffer(0, this.geometry.verticesWebGPUBuffer );
+        if (this.geometry.indicesBuffer) {
+            passEncoder.setIndexBuffer(this.geometry.indicesWebGPUBuffer, 'uint32');
+            passEncoder.drawIndexed(this.geometry.indicesBuffer.length);
+        } else {
+            passEncoder.draw(this.geometry.attributes.POSITION.length / 3, 1, 0, 0);
+        }   
     }
 
     draw(gl, { lights, camera, light, needUpdateView, needUpdateProjection, preDepthTexture, colorTexture, renderState, fakeDepth, isIBL, isDefaultLight }) {
@@ -84,10 +114,10 @@ export class Mesh extends Object3D {
                     lightPos.set(light.getPosition(), i * 3);
                 });
 
-                this.material.uniformBuffer.update(gl, 'viewPos', camera.getPosition());
+                this.material.materialUniformBuffer.update(gl, 'viewPos', camera.getPosition());
 
                 gl.bindBufferBase(gl.UNIFORM_BUFFER, 4, this.material.lightUBO2);
-                this.material.lightUniformBuffer2.update(gl, 'lightPos', lightPos);
+                this.material.lightPosBuffer.update(gl, 'lightPos', lightPos);
             }
         }
         if (this.material.lightUBO1) {

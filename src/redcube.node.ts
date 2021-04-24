@@ -35,7 +35,7 @@ class RedCube {
 
         await this.parse.getJson();
         await this.parse.getBuffer();
-        await this.parse.initTextures();
+        await this.parse.initTextures(false);
         this.parse.buildSkin();
         await this.parse.buildMesh();
         this.parse.buildAnimation();

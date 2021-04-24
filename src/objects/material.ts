@@ -52,6 +52,8 @@ export class Material extends M {
     lightUBO4: WebGLBuffer;
     lightUniformBuffer4: UniformBuffer;
 
+    uniformBindGroup1: GPUBindGroupEntry[];
+
     constructor(m = defaultMaterial, textures, defines, lights) {
         super();
 
@@ -288,7 +290,7 @@ export class Material extends M {
         this.sphericalHarmonics = sphericalHarmonics;
     }
 
-    createUniforms(gl, program) {
+    updateUniformsWebgl(gl, program) {
         gl.useProgram(program);
 
         if (this.baseColorTexture) {
@@ -351,9 +353,50 @@ export class Material extends M {
         gl.uniform1i(this.uniforms.brdfLUT, textureEnum.brdfLUTTexture);
         gl.uniform1i(this.uniforms.irradianceMap, textureEnum.irradianceTexture);
         gl.uniform1i(this.uniforms.Sheen_E, textureEnum.Sheen_E);
+
+        {
+            const mIndex = gl.getUniformBlockIndex(program, 'Material');
+            gl.uniformBlockBinding(program, mIndex, 1);
+            const mUBO = gl.createBuffer();
+            gl.bindBuffer(gl.UNIFORM_BUFFER, mUBO);
+            gl.bufferData(gl.UNIFORM_BUFFER, this.materialUniformBuffer.store, gl.STATIC_DRAW);
+            this.UBO = mUBO;
+        }
+        {
+            const mIndex = gl.getUniformBlockIndex(program, 'LightColor');
+            gl.uniformBlockBinding(program, mIndex, 3);
+            const mUBO = gl.createBuffer();
+            gl.bindBuffer(gl.UNIFORM_BUFFER, mUBO);
+            gl.bufferData(gl.UNIFORM_BUFFER, this.lightColorBuffer.store, gl.STATIC_DRAW);
+            this.lightUBO1 = mUBO;
+        }
+        {
+            const mIndex = gl.getUniformBlockIndex(program, 'LightPos');
+            gl.uniformBlockBinding(program, mIndex, 4);
+            const mUBO = gl.createBuffer();
+            gl.bindBuffer(gl.UNIFORM_BUFFER, mUBO);
+            gl.bufferData(gl.UNIFORM_BUFFER, this.lightPosBuffer.store, gl.STATIC_DRAW);
+            this.lightUBO2 = mUBO;
+        }
+        {
+            const mIndex = gl.getUniformBlockIndex(program, 'Spotdir');
+            gl.uniformBlockBinding(program, mIndex, 5);
+            const mUBO = gl.createBuffer();
+            gl.bindBuffer(gl.UNIFORM_BUFFER, mUBO);
+            gl.bufferData(gl.UNIFORM_BUFFER, this.spotdirBuffer.store, gl.STATIC_DRAW);
+            this.lightUBO3 = mUBO;
+        }
+        {
+            const mIndex = gl.getUniformBlockIndex(program, 'LightIntensity');
+            gl.uniformBlockBinding(program, mIndex, 6);
+            const mUBO = gl.createBuffer();
+            gl.bindBuffer(gl.UNIFORM_BUFFER, mUBO);
+            gl.bufferData(gl.UNIFORM_BUFFER, this.lightIntensityBuffer.store, gl.STATIC_DRAW);
+            this.lightUBO4 = mUBO;
+        }
     }
 
-    updateUniforms(gl, program, camera, lights) {
+    createUniforms(camera, lights) {
         const spotDirs = new Float32Array(lights.length * 3);
         const lightPos = new Float32Array(lights.length * 3);
         const lightColor = new Float32Array(lights.length * 3);
@@ -387,67 +430,196 @@ export class Material extends M {
             materialUniformBuffer.add('ior', this.ior ?? 1);
             materialUniformBuffer.add('normalTextureScale', this.normalTextureScale ?? 1);
             materialUniformBuffer.done();
-
-            const mIndex = gl.getUniformBlockIndex(program, 'Material');
-            gl.uniformBlockBinding(program, mIndex, 1);
-            const mUBO = gl.createBuffer();
-            gl.bindBuffer(gl.UNIFORM_BUFFER, mUBO);
-            gl.bufferData(gl.UNIFORM_BUFFER, materialUniformBuffer.store, gl.STATIC_DRAW);
-            this.UBO = mUBO;
-            this.uniformBuffer = materialUniformBuffer;
+            this.materialUniformBuffer = materialUniformBuffer;
         }
         {
             const materialUniformBuffer = new UniformBuffer();
             materialUniformBuffer.add('lightColor', lightColor);
             materialUniformBuffer.done();
-
-            const mIndex = gl.getUniformBlockIndex(program, 'LightColor');
-            gl.uniformBlockBinding(program, mIndex, 3);
-            const mUBO = gl.createBuffer();
-            gl.bindBuffer(gl.UNIFORM_BUFFER, mUBO);
-            gl.bufferData(gl.UNIFORM_BUFFER, materialUniformBuffer.store, gl.STATIC_DRAW);
-            this.lightUBO1 = mUBO;
-            this.lightUniformBuffer1 = materialUniformBuffer;
+            this.lightColorBuffer = materialUniformBuffer;
         }
         {
             const materialUniformBuffer = new UniformBuffer();
             materialUniformBuffer.add('lightPos', lightPos);
             materialUniformBuffer.done();
-
-            const mIndex = gl.getUniformBlockIndex(program, 'LightPos');
-            gl.uniformBlockBinding(program, mIndex, 4);
-            const mUBO = gl.createBuffer();
-            gl.bindBuffer(gl.UNIFORM_BUFFER, mUBO);
-            gl.bufferData(gl.UNIFORM_BUFFER, materialUniformBuffer.store, gl.STATIC_DRAW);
-            this.lightUBO2 = mUBO;
-            this.lightUniformBuffer2 = materialUniformBuffer;
+            this.lightPosBuffer = materialUniformBuffer;
         }
         {
             const materialUniformBuffer = new UniformBuffer();
             materialUniformBuffer.add('spotdir', spotDirs);
             materialUniformBuffer.done();
-
-            const mIndex = gl.getUniformBlockIndex(program, 'Spotdir');
-            gl.uniformBlockBinding(program, mIndex, 5);
-            const mUBO = gl.createBuffer();
-            gl.bindBuffer(gl.UNIFORM_BUFFER, mUBO);
-            gl.bufferData(gl.UNIFORM_BUFFER, materialUniformBuffer.store, gl.STATIC_DRAW);
-            this.lightUBO3 = mUBO;
-            this.lightUniformBuffer3 = materialUniformBuffer;
+            this.spotdirBuffer = materialUniformBuffer;
         }
         {
             const materialUniformBuffer = new UniformBuffer();
             materialUniformBuffer.add('lightIntensity', lightProps);
             materialUniformBuffer.done();
-
-            const mIndex = gl.getUniformBlockIndex(program, 'LightIntensity');
-            gl.uniformBlockBinding(program, mIndex, 6);
-            const mUBO = gl.createBuffer();
-            gl.bindBuffer(gl.UNIFORM_BUFFER, mUBO);
-            gl.bufferData(gl.UNIFORM_BUFFER, materialUniformBuffer.store, gl.STATIC_DRAW);
-            this.lightUBO4 = mUBO;
-            this.lightUniformBuffer4 = materialUniformBuffer;
+            this.lightIntensityBuffer = materialUniformBuffer;
         }
+    }
+
+    updateUniformsWebGPU(WebGPU: WEBGPU) {
+        const { device } = WebGPU;
+        const uniformBuffer = device.createBuffer({
+            size: 256 + this.materialUniformBuffer.store.byteLength,
+            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+        });
+        const uniformBuffer2 = device.createBuffer({
+            size: 256 + this.lightColorBuffer.store.byteLength,
+            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+        });
+        const uniformBuffer3 = device.createBuffer({
+            size: 256 + this.lightPosBuffer.store.byteLength,
+            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+        });
+        const uniformBuffer4 = device.createBuffer({
+            size: 256 + this.spotdirBuffer.store.byteLength,
+            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+        });
+        const uniformBuffer5 = device.createBuffer({
+            size: 256 + this.lightIntensityBuffer.store.byteLength,
+            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+        });
+        const sampler = device.createSampler({
+            magFilter: 'linear',
+            minFilter: 'linear',
+            addressModeU: 'repeat',
+            addressModeV: 'repeat',
+            addressModeW: 'repeat'
+          });
+
+        const uniformBindGroup1 = [
+              {
+                binding: 1,
+                resource: {
+                  buffer: uniformBuffer,
+                  offset: 0,
+                  size: this.materialUniformBuffer.store.byteLength,
+                },
+              },
+              {
+                binding: 2,
+                resource: sampler,
+              },
+              {
+                binding: 3,
+                resource: this.baseColorTexture?.createView(),
+              },
+              {
+                binding: 4,
+                resource: this.metallicRoughnessTexture?.createView(),
+              },
+              {
+                binding: 5,
+                resource: this.normalTexture?.createView(),
+              },
+              {
+                binding: 6,
+                resource: this.emissiveTexture?.createView(),
+              },
+              {
+                binding: 7,
+                resource: this.occlusionTexture?.createView(),
+              },
+              {
+                binding: 8,
+                resource: this.clearcoatTexture?.createView(),
+              },
+              {
+                binding: 9,
+                resource: this.clearcoatRoughnessTexture?.createView(),
+              },
+              {
+                binding: 10,
+                resource: this.transmissionTexture?.createView(),
+              },
+              {
+                binding: 11,
+                resource: this.sheenColorTexture?.createView(),
+              },
+              {
+                binding: 12,
+                resource: this.sheenRoughnessTexture?.createView(),
+              },
+              {
+                binding: 13,
+                resource: this.clearcoatNormalTexture?.createView(),
+              },
+              {
+                binding: 14,
+                resource: this.specularTexture?.createView(),
+              },
+              {
+                binding: 15,
+                resource: {
+                  buffer: uniformBuffer2,
+                  offset: 0,
+                  size: this.lightColorBuffer.store.byteLength,
+                },
+              },
+              {
+                binding: 16,
+                resource: {
+                  buffer: uniformBuffer3,
+                  offset: 0,
+                  size: this.lightPosBuffer.store.byteLength,
+                },
+              },
+              {
+                binding: 17,
+                resource: {
+                  buffer: uniformBuffer4,
+                  offset: 0,
+                  size: this.spotdirBuffer.store.byteLength,
+                },
+              },
+              {
+                binding: 18,
+                resource: {
+                  buffer: uniformBuffer5,
+                  offset: 0,
+                  size: this.lightIntensityBuffer.store.byteLength,
+                },
+              },
+        ];
+
+          device.queue.writeBuffer(
+            uniformBuffer,
+            0,
+            this.materialUniformBuffer.store.buffer,
+            this.materialUniformBuffer.store.byteOffset,
+            this.materialUniformBuffer.store.byteLength
+          );
+          device.queue.writeBuffer(
+            uniformBuffer2,
+            0,
+            this.lightColorBuffer.store.buffer,
+            this.lightColorBuffer.store.byteOffset,
+            this.lightColorBuffer.store.byteLength
+          );
+          device.queue.writeBuffer(
+            uniformBuffer3,
+            0,
+            this.lightPosBuffer.store.buffer,
+            this.lightPosBuffer.store.byteOffset,
+            this.lightPosBuffer.store.byteLength
+          );
+          device.queue.writeBuffer(
+            uniformBuffer4,
+            0,
+            this.spotdirBuffer.store.buffer,
+            this.spotdirBuffer.store.byteOffset,
+            this.spotdirBuffer.store.byteLength
+          );
+          device.queue.writeBuffer(
+            uniformBuffer5,
+            0,
+            this.lightIntensityBuffer.store.buffer,
+            this.lightIntensityBuffer.store.byteOffset,
+            this.lightIntensityBuffer.store.byteLength
+          );
+
+          this.uniformBindGroup1 = uniformBindGroup1.filter(r => r.resource);
     }
 
     hasNormal() {

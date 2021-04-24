@@ -1,7 +1,7 @@
 const webpack = require('webpack');
 const path = require('path');
 const CopyPlugin = require("copy-webpack-plugin");
-const libraryName = 'redcube';
+const libraryName = 'redcube.webgpu';
 
 module.exports = {
     mode: 'development',
@@ -10,7 +10,7 @@ module.exports = {
         filename: `${libraryName}.js`,
         chunkFilename: 'libs/[name].js',
         path: path.join(__dirname, '/dist'),
-        library: libraryName,
+        library: 'redcube',
         libraryTarget: 'umd',
         umdNamedDefine: true,
         assetModuleFilename: 'assets/[name][ext]'
@@ -31,7 +31,8 @@ module.exports = {
         new CopyPlugin({
           patterns: [
             { from: './libktx.wasm', to: './libs' },
-            { from: './draco_decoder.wasm', to: './libs' }
+            { from: './draco_decoder.wasm', to: './libs' },
+            { from: './glslang.wasm', to: './libs' }
           ]
         })
     ],

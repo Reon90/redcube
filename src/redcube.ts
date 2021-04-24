@@ -123,12 +123,12 @@ class RedCube {
         await this.parse.getJson();
         this.glInit();
         await this.parse.getBuffer();
-        await this.parse.initTextures();
+        await this.parse.initTextures(false);
         this.parse.buildSkin();
         await this.parse.buildMesh();
 
-
-        this.parse.createTextures();
+        this.parse.createSamplers();
+        this.parse.createTexturesWebGL();
 
         if (this.parse.cameras.length === 0) {
             this.parse.cameras.push(this.camera);
@@ -145,13 +145,14 @@ class RedCube {
             mesh.geometry.createGeometryForWebGl(gl);
 
             const program = this.parse.createProgram(mesh.defines);
-            [mesh.material, ...mesh.variants.map(m => m.m)].forEach(m => m.createUniforms(gl, program));
-            [mesh.material, ...mesh.variants.map(m => m.m)].forEach(m => m.updateUniforms(gl, program, this.camera, this.parse.lights));
+            [mesh.material, ...mesh.variants.map(m => m.m)].forEach(m => m.createUniforms(this.camera, this.parse.lights));
+            [mesh.material, ...mesh.variants.map(m => m.m)].forEach(m => m.updateUniformsWebgl(gl, program));
             mesh.material.setHarmonics(this.env.updateUniform(gl, program));
 
             mesh.setProgram(program);
 
-            mesh.geometry.updateUniforms(gl, mesh.program, mesh.matrixWorld, this.camera, this.light);
+            mesh.geometry.createUniforms(mesh.matrixWorld, this.camera, this.light);
+            mesh.geometry.updateUniformsWebGl(gl, mesh.program);
             mesh.visible = mesh.isVisible(planes);
 
             if (mesh instanceof SkinnedMesh) {

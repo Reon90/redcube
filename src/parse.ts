@@ -2,7 +2,7 @@ import { buildArray, getDataType, walk, getAnimationComponent, calculateProjecti
 import { Mesh, SkinnedMesh, Bone, Camera, Object3D, Scene, Light, UniformBuffer, Material } from './objects/index';
 import { Matrix4, Box, Vector3 } from './matrix';
 import { GlTf } from '../GLTF';
-import { fetch, fetchBinary, fetchImage } from './fetch';
+import { fetchJSON, fetchBinary, fetchImage } from './fetch';
 import { DecoderModule } from './decoder';
 
 import vertexShader from './shaders/vertex.glsl';
@@ -177,6 +177,20 @@ export class Parse {
         ).then(buffers => {
             this.arrayBuffer = buffers;
         });
+    }
+
+    createProgramWebGPU(defines) {
+        let program;
+        const programHash = defines.map(define => `${define.name}${define.value || 1}`).join('');
+        if (this.programs[programHash]) {
+            program = this.programs[programHash];
+        } else {
+            const defineStr = defines.map(define => `#define ${define.name} ${define.value || 1}` + '\n').join('');
+            program = [vertexShader.replace(/\n/, `\n${defineStr}`), fragmentShader.replace(/\n/, `\n${defineStr}`)];
+            this.programs[programHash] = program;
+        }
+
+        return program;
     }
 
     createProgram(defines) {
@@ -522,8 +536,7 @@ export class Parse {
                     this.scene.bin.push(buffer);
                 });
         } else {
-            return fetch(this.url)
-                // .then(res => res.json())
+            return fetchJSON(this.url)
                 .then((json: GlTf) => {
                     for (const key in json.buffers) {
                         this.scene.bin.push(json.buffers[key].uri);
@@ -535,7 +548,7 @@ export class Parse {
         }
     }
 
-    createTextures() {
+    createSamplers() {
         const samplers = this.json.samplers || [{}];
         this.samplers = samplers.map(s => {
             const sampler = gl.createSampler();
@@ -545,7 +558,17 @@ export class Parse {
             gl.samplerParameteri(sampler, gl.TEXTURE_WRAP_T, s.wrapT || gl.REPEAT);
             return sampler;
         });
+    }
 
+    createTexturesWebGPU(WebGPU: WEBGPU) {
+        this.createTextures(this.handleTextureLoadedWebGPU.bind(this, WebGPU));
+    }
+
+    createTexturesWebGL() {
+        this.createTextures(this.handleTextureLoaded.bind(this));
+    }
+
+    createTextures(callback) {
         this.scene.meshes.forEach((mesh) => {
             const materials = [mesh.material, ...mesh.variants.map(m => m.m)];
             const textureTypes = ['baseColorTexture', 'metallicRoughnessTexture', 'emissiveTexture', 'normalTexture', 'occlusionTexture', 'clearcoatTexture', 'clearcoatRoughnessTexture', 'clearcoatNormalTexture', 'sheenColorTexture', 'sheenRoughnessTexture', 'transmissionTexture', 'specularTexture'];
@@ -557,15 +580,13 @@ export class Parse {
                 if (!t) {
                     continue;
                 }
-                const sampler = this.samplers[t.sampler !== undefined ? t.sampler : 0];
-
-                material[textureType] = this.handleTextureLoaded(sampler, t);
+                material[textureType] = callback(t);
                 }
             }
         });
     }
 
-    async initTextures() {
+    async initTextures(isbitmap) {
         if (!this.json.textures) {
             return true;
         }
@@ -603,7 +624,7 @@ export class Parse {
             const s = t.extensions && t.extensions.KHR_texture_basisu ? t.extensions.KHR_texture_basisu.source : t.source;
             const source = this.json.images[s];
             // @ts-ignore
-            return fetchImage(this, source, {
+            return fetchImage(isbitmap, this, source, {
                 url: `${this.host}${source.uri}`,
                 name: t.name,
             }, t.sampler);
@@ -617,15 +638,33 @@ export class Parse {
         });
     }
 
-    handleTextureLoaded(sampler, {image, name, mimeType}) {
+    handleTextureLoadedWebGPU(WebGPU, {bitmap}) {
+        const { device } = WebGPU;
+
+        const tex = device.createTexture({
+            size: [bitmap.width, bitmap.height, 1],
+            format: 'rgba8unorm',
+            usage: GPUTextureUsage.SAMPLED | GPUTextureUsage.COPY_DST,
+        });
+        device.queue.copyImageBitmapToTexture(
+            { imageBitmap: bitmap },
+            { texture: tex, mipLevel: 0, origin: {x: 0, y: 0, z: 0} },
+            {width: bitmap.width, height: bitmap.height, depthOrArrayLayers: 1}
+        );
+
+        return tex;
+    }
+
+    handleTextureLoaded({image, name, mimeType, sampler}) {
+        const s = this.samplers[sampler !== undefined ? sampler : 0];
         if (mimeType) {
-            image.sampler = sampler;
+            image.sampler = s;
             return image;
         }
         const t = gl.createTexture();
         t.name = name;
         t.image = image.src.substr(image.src.lastIndexOf('/'));
-        t.sampler = sampler;
+        t.sampler = s;
 
         gl.activeTexture(gl[`TEXTURE${31}`]);
         gl.bindTexture(gl.TEXTURE_2D, t);
