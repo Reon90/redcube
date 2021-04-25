@@ -29,6 +29,9 @@
     <script>
         const url = new URL(location);
         if (url.searchParams.get('webgpu')) {
+            if (!navigator.gpu) {
+                document.write('<h1>WebGPU is not supported on your platform so far.</h1>');
+            }
             document.write('<script src="./dist/redcube.webgpu.js"><\/script>');
         } else {
             document.write('<script src="./dist/redcube.js"><\/script>');
