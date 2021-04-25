@@ -29,36 +29,37 @@ class RedCube {
     async init(cb) {
         const scene = new Scene();
         try {
-        this.parse = new Parse(this.url, [], () => {});
+            this.parse = new Parse(this.url, [], () => {});
 
-        this.parse.setScene(scene);
+            this.parse.setScene(scene);
 
-        await this.parse.getJson();
-        await this.parse.getBuffer();
-        await this.parse.initTextures(false);
-        this.parse.buildSkin();
-        await this.parse.buildMesh();
-        this.parse.buildAnimation();
+            await this.parse.getJson();
+            await this.parse.getBuffer();
+            await this.parse.initTextures(false);
+            this.parse.buildSkin();
+            await this.parse.buildMesh();
+            this.parse.buildAnimation();
 
-        if (this.parse.cameras.length === 0) {
-            this.camera = new Camera(
-                {
-                    type: 'perspective',
-                    isInitial: true,
-                    zoom: 1,
-                    aspect: 1,
-                    perspective: {
-                        yfov: (FOV * Math.PI) / 180
-                    }
-                },
-                'perspective'
-            );
-            this.parse.cameras.push(this.camera);
-        }
-        this.camera = this.parse.cameras[0];
-        this.parse.calculateFov(this.camera.props.isInitial);
-        this.resize();
-        } catch(e) {
+            if (this.parse.cameras.length === 0) {
+                this.camera = new Camera(
+                    {
+                        type: 'perspective',
+                        isInitial: true,
+                        zoom: 1,
+                        aspect: 1,
+                        perspective: {
+                            yfov: (FOV * Math.PI) / 180
+                        }
+                    },
+                    'perspective'
+                );
+                this.parse.cameras.push(this.camera);
+            }
+            const [c] = this.parse.cameras;
+            this.camera = c;
+            this.parse.calculateFov(this.camera.props.isInitial);
+            this.resize();
+        } catch (e) {
             console.log(e);
         }
 

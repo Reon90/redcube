@@ -40,7 +40,7 @@ export class Material extends M {
     alpha: boolean;
     UBO: WebGLBuffer;
     doubleSided: boolean;
-    defines: Array<{name: string}>
+    defines: Array<{ name: string }>;
     matrix: Matrix3;
     uniformBuffer: UniformBuffer;
     lightUBO1: WebGLBuffer;
@@ -112,7 +112,12 @@ export class Material extends M {
         }
 
         if (material.extensions && material.extensions.KHR_materials_sheen) {
-            const { sheenColorTexture, sheenColorFactor, sheenRoughnessFactor, sheenRoughnessTexture } = material.extensions.KHR_materials_sheen;
+            const {
+                sheenColorTexture,
+                sheenColorFactor,
+                sheenRoughnessFactor,
+                sheenRoughnessTexture
+            } = material.extensions.KHR_materials_sheen;
             this.sheenColorFactor = sheenColorFactor;
             this.sheenRoughnessFactor = sheenRoughnessFactor;
             if (sheenColorTexture) {
@@ -183,7 +188,7 @@ export class Material extends M {
             Sheen_E: null,
             depthTexture: null
         };
-        const pbrMetallicRoughness = material.pbrMetallicRoughness;
+        const { pbrMetallicRoughness } = material;
         if (pbrMetallicRoughness) {
             this.baseColorFactor = pbrMetallicRoughness.baseColorFactor;
             this.roughnessFactor = pbrMetallicRoughness.roughnessFactor;
@@ -278,11 +283,11 @@ export class Material extends M {
 
     buildTrans(ex, defines, name = '') {
         if (ex.offset || ex.scale || ex.rotation) {
-        const offset = ex.offset || [0, 0];
-        const scale = ex.scale || [1, 1];
-        const rotation = ex.rotation || 0;
-        this.matrix = new Matrix3().set([...offset, 0, ...scale, 0, rotation, 0, 0]);
-        defines.push({ name: name + '_TEXTURE_TRANSFORM' });
+            const offset = ex.offset || [0, 0];
+            const scale = ex.scale || [1, 1];
+            const rotation = ex.rotation || 0;
+            this.matrix = new Matrix3().set([...offset, 0, ...scale, 0, rotation, 0, 0]);
+            defines.push({ name: `${name}_TEXTURE_TRANSFORM` });
         }
     }
 
@@ -462,164 +467,166 @@ export class Material extends M {
         const { device } = WebGPU;
         const uniformBuffer = device.createBuffer({
             size: 256 + this.materialUniformBuffer.store.byteLength,
-            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
         });
         const uniformBuffer2 = device.createBuffer({
             size: 256 + this.lightColorBuffer.store.byteLength,
-            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
         });
         const uniformBuffer3 = device.createBuffer({
             size: 256 + this.lightPosBuffer.store.byteLength,
-            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
         });
         const uniformBuffer4 = device.createBuffer({
             size: 256 + this.spotdirBuffer.store.byteLength,
-            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
         });
         const uniformBuffer5 = device.createBuffer({
             size: 256 + this.lightIntensityBuffer.store.byteLength,
-            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
         });
-        const sampler = device.createSampler({
-            magFilter: 'linear',
-            minFilter: 'linear',
-            addressModeU: 'repeat',
-            addressModeV: 'repeat',
-            addressModeW: 'repeat'
-          });
+        const sampler = this.baseColorTexture
+            ? this.baseColorTexture.sampler
+            : device.createSampler({
+                  magFilter: 'linear',
+                  minFilter: 'linear',
+                  addressModeU: 'repeat',
+                  addressModeV: 'repeat',
+                  addressModeW: 'repeat'
+              });
 
         const uniformBindGroup1 = [
-              {
+            {
                 binding: 1,
                 resource: {
-                  buffer: uniformBuffer,
-                  offset: 0,
-                  size: this.materialUniformBuffer.store.byteLength,
-                },
-              },
-              {
+                    buffer: uniformBuffer,
+                    offset: 0,
+                    size: this.materialUniformBuffer.store.byteLength
+                }
+            },
+            {
                 binding: 2,
-                resource: sampler,
-              },
-              {
+                resource: sampler
+            },
+            {
                 binding: 3,
-                resource: this.baseColorTexture?.createView(),
-              },
-              {
+                resource: this.baseColorTexture?.createView()
+            },
+            {
                 binding: 4,
-                resource: this.metallicRoughnessTexture?.createView(),
-              },
-              {
+                resource: this.metallicRoughnessTexture?.createView()
+            },
+            {
                 binding: 5,
-                resource: this.normalTexture?.createView(),
-              },
-              {
+                resource: this.normalTexture?.createView()
+            },
+            {
                 binding: 6,
-                resource: this.emissiveTexture?.createView(),
-              },
-              {
+                resource: this.emissiveTexture?.createView()
+            },
+            {
                 binding: 7,
-                resource: this.occlusionTexture?.createView(),
-              },
-              {
+                resource: this.occlusionTexture?.createView()
+            },
+            {
                 binding: 8,
-                resource: this.clearcoatTexture?.createView(),
-              },
-              {
+                resource: this.clearcoatTexture?.createView()
+            },
+            {
                 binding: 9,
-                resource: this.clearcoatRoughnessTexture?.createView(),
-              },
-              {
+                resource: this.clearcoatRoughnessTexture?.createView()
+            },
+            {
                 binding: 10,
-                resource: this.transmissionTexture?.createView(),
-              },
-              {
+                resource: this.transmissionTexture?.createView()
+            },
+            {
                 binding: 11,
-                resource: this.sheenColorTexture?.createView(),
-              },
-              {
+                resource: this.sheenColorTexture?.createView()
+            },
+            {
                 binding: 12,
-                resource: this.sheenRoughnessTexture?.createView(),
-              },
-              {
+                resource: this.sheenRoughnessTexture?.createView()
+            },
+            {
                 binding: 13,
-                resource: this.clearcoatNormalTexture?.createView(),
-              },
-              {
+                resource: this.clearcoatNormalTexture?.createView()
+            },
+            {
                 binding: 14,
-                resource: this.specularTexture?.createView(),
-              },
-              {
+                resource: this.specularTexture?.createView()
+            },
+            {
                 binding: 15,
                 resource: {
-                  buffer: uniformBuffer2,
-                  offset: 0,
-                  size: this.lightColorBuffer.store.byteLength,
-                },
-              },
-              {
+                    buffer: uniformBuffer2,
+                    offset: 0,
+                    size: this.lightColorBuffer.store.byteLength
+                }
+            },
+            {
                 binding: 16,
                 resource: {
-                  buffer: uniformBuffer3,
-                  offset: 0,
-                  size: this.lightPosBuffer.store.byteLength,
-                },
-              },
-              {
+                    buffer: uniformBuffer3,
+                    offset: 0,
+                    size: this.lightPosBuffer.store.byteLength
+                }
+            },
+            {
                 binding: 17,
                 resource: {
-                  buffer: uniformBuffer4,
-                  offset: 0,
-                  size: this.spotdirBuffer.store.byteLength,
-                },
-              },
-              {
+                    buffer: uniformBuffer4,
+                    offset: 0,
+                    size: this.spotdirBuffer.store.byteLength
+                }
+            },
+            {
                 binding: 18,
                 resource: {
-                  buffer: uniformBuffer5,
-                  offset: 0,
-                  size: this.lightIntensityBuffer.store.byteLength,
-                },
-              },
+                    buffer: uniformBuffer5,
+                    offset: 0,
+                    size: this.lightIntensityBuffer.store.byteLength
+                }
+            }
         ];
 
-          device.queue.writeBuffer(
+        device.queue.writeBuffer(
             uniformBuffer,
             0,
             this.materialUniformBuffer.store.buffer,
             this.materialUniformBuffer.store.byteOffset,
             this.materialUniformBuffer.store.byteLength
-          );
-          device.queue.writeBuffer(
+        );
+        device.queue.writeBuffer(
             uniformBuffer2,
             0,
             this.lightColorBuffer.store.buffer,
             this.lightColorBuffer.store.byteOffset,
             this.lightColorBuffer.store.byteLength
-          );
-          device.queue.writeBuffer(
+        );
+        device.queue.writeBuffer(
             uniformBuffer3,
             0,
             this.lightPosBuffer.store.buffer,
             this.lightPosBuffer.store.byteOffset,
             this.lightPosBuffer.store.byteLength
-          );
-          device.queue.writeBuffer(
+        );
+        device.queue.writeBuffer(
             uniformBuffer4,
             0,
             this.spotdirBuffer.store.buffer,
             this.spotdirBuffer.store.byteOffset,
             this.spotdirBuffer.store.byteLength
-          );
-          device.queue.writeBuffer(
+        );
+        device.queue.writeBuffer(
             uniformBuffer5,
             0,
             this.lightIntensityBuffer.store.buffer,
             this.lightIntensityBuffer.store.byteOffset,
             this.lightIntensityBuffer.store.byteLength
-          );
+        );
 
-          this.uniformBindGroup1 = uniformBindGroup1.filter(r => r.resource);
+        this.uniformBindGroup1 = uniformBindGroup1.filter(r => r.resource);
     }
 
     hasNormal() {

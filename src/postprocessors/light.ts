@@ -31,7 +31,7 @@ export class Light extends PostProcessor {
 
     preProcessing(PP) {
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-        PP.renderScene({isprepender: true});
+        PP.renderScene({ isprepender: true });
 
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.texture, 0);

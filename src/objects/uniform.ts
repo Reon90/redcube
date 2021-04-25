@@ -53,7 +53,7 @@ export class UniformBuffer {
         gl.bufferSubData(gl.UNIFORM_BUFFER, offset * Float32Array.BYTES_PER_ELEMENT, buffer);
     }
 
-    updateWebGPU(WebGPU, name, value) {
+    updateWebGPU(WebGPU: WEBGPU, name, value) {
         const { device } = WebGPU;
         if (value.length === undefined) {
             value = new Float32Array([value]);

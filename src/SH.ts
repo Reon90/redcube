@@ -1,4 +1,4 @@
-import { Vector3 } from "./matrix";
+import { Vector3 } from './matrix';
 
 const SH3ylmBasisConstants = [
     Math.sqrt(1 / (4 * Math.PI)),
@@ -11,30 +11,29 @@ const SH3ylmBasisConstants = [
     -Math.sqrt(15 / (4 * Math.PI)),
     Math.sqrt(5 / (16 * Math.PI)),
     -Math.sqrt(15 / (4 * Math.PI)),
-    Math.sqrt(15 / (16 * Math.PI)),
+    Math.sqrt(15 / (16 * Math.PI))
 ];
-
 
 export class SphericalHarmonics {
     public preScaled = false;
 
-    public l00: Vector3 = new Vector3;
+    public l00: Vector3 = new Vector3();
 
-    public l1_1: Vector3 = new Vector3;
+    public l1_1: Vector3 = new Vector3();
 
-    public l10: Vector3 = new Vector3;
+    public l10: Vector3 = new Vector3();
 
-    public l11: Vector3 = new Vector3;
+    public l11: Vector3 = new Vector3();
 
-    public l2_2: Vector3 = new Vector3;
+    public l2_2: Vector3 = new Vector3();
 
-    public l2_1: Vector3 = new Vector3;
+    public l2_1: Vector3 = new Vector3();
 
-    public l20: Vector3 = new Vector3;
+    public l20: Vector3 = new Vector3();
 
-    public l21: Vector3 = new Vector3;
+    public l21: Vector3 = new Vector3();
 
-    public l22: Vector3 = new Vector3;
+    public l22: Vector3 = new Vector3();
 
     public scaleInPlace(scale: number): void {
         this.l00.scale(scale);
@@ -83,7 +82,6 @@ export class SphericalHarmonics {
     }
 }
 
-
 export class SphericalPolynomial {
     private _harmonics: SphericalHarmonics;
 
@@ -94,23 +92,23 @@ export class SphericalPolynomial {
         return this._harmonics;
     }
 
-    public x: Vector3 = new Vector3;
+    public x: Vector3 = new Vector3();
 
-    public y: Vector3 = new Vector3;
+    public y: Vector3 = new Vector3();
 
-    public z: Vector3 = new Vector3;
+    public z: Vector3 = new Vector3();
 
-    public xx: Vector3 = new Vector3;
+    public xx: Vector3 = new Vector3();
 
-    public yy: Vector3 = new Vector3;
+    public yy: Vector3 = new Vector3();
 
-    public zz: Vector3 = new Vector3;
+    public zz: Vector3 = new Vector3();
 
-    public xy: Vector3 = new Vector3;
+    public xy: Vector3 = new Vector3();
 
-    public yz: Vector3 = new Vector3;
+    public yz: Vector3 = new Vector3();
 
-    public zx: Vector3 = new Vector3;
+    public zx: Vector3 = new Vector3();
 
     public scale(scale: number) {
         this.x.scale(scale);
@@ -125,15 +123,21 @@ export class SphericalPolynomial {
     }
 
     public static FromHarmonics(harmonics: SphericalHarmonics): SphericalPolynomial {
-        var result = new SphericalPolynomial();
+        const result = new SphericalPolynomial();
         result._harmonics = harmonics;
 
         result.x = harmonics.l11.scale2(1.02333).scale2(-1);
         result.y = harmonics.l1_1.scale2(1.02333).scale2(-1);
         result.z = harmonics.l10.scale2(1.02333);
 
-        result.xx = harmonics.l00.scale2(0.886277).subtract2(harmonics.l20.scale2(0.247708)).add2(harmonics.l22.scale2(0.429043));
-        result.yy = harmonics.l00.scale2(0.886277).subtract2(harmonics.l20.scale2(0.247708)).subtract2(harmonics.l22.scale2(0.429043));
+        result.xx = harmonics.l00
+            .scale2(0.886277)
+            .subtract2(harmonics.l20.scale2(0.247708))
+            .add2(harmonics.l22.scale2(0.429043));
+        result.yy = harmonics.l00
+            .scale2(0.886277)
+            .subtract2(harmonics.l20.scale2(0.247708))
+            .subtract2(harmonics.l22.scale2(0.429043));
         result.zz = harmonics.l00.scale2(0.886277).add2(harmonics.l20.scale2(0.495417));
 
         result.yz = harmonics.l2_1.scale2(0.858086).scale2(-1);

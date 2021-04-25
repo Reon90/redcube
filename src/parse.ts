@@ -1,4 +1,13 @@
-import { buildArray, getDataType, walk, getAnimationComponent, calculateProjection, createProgram, calculateOffset, normalize } from './utils';
+import {
+    buildArray,
+    getDataType,
+    walk,
+    getAnimationComponent,
+    calculateProjection,
+    createProgram,
+    calculateOffset,
+    normalize
+} from './utils';
 import { Mesh, SkinnedMesh, Bone, Camera, Object3D, Scene, Light, UniformBuffer, Material } from './objects/index';
 import { Matrix4, Box, Vector3 } from './matrix';
 import { GlTf } from '../GLTF';
@@ -11,7 +20,7 @@ import { Geometry } from './objects/geometry';
 
 declare global {
     interface Constructable<T> {
-        new(...args: any) : T;
+        new (...args: any): T;
     }
     interface KtxTexture {
         needsTranscoding: boolean;
@@ -19,38 +28,38 @@ declare global {
         glUpload(): { texture: WebGLTexture };
     }
     interface TranscodeTarget {
-        ETC1_RGB,
-        BC1_RGB,
-        BC4_R,
-        BC5_RG,
-        BC3_RGBA,
-        BC1_OR_3,
-        PVRTC1_4_RGB,
-        PVRTC1_4_RGBA,
-        BC7_M6_RGB,
-        BC7_M5_RGBA,
-        ETC2_RGBA,
-        ASTC_4x4_RGBA,
-        RGBA32,
-        RGB565,
-        BGR565,
-        RGBA4444,
-        PVRTC2_4_RGB,
-        PVRTC2_4_RGBA,
-        ETC,
-        EAC_R11,
-        EAC_RG11
+        ETC1_RGB;
+        BC1_RGB;
+        BC4_R;
+        BC5_RG;
+        BC3_RGBA;
+        BC1_OR_3;
+        PVRTC1_4_RGB;
+        PVRTC1_4_RGBA;
+        BC7_M6_RGB;
+        BC7_M5_RGBA;
+        ETC2_RGBA;
+        ASTC_4x4_RGBA;
+        RGBA32;
+        RGB565;
+        BGR565;
+        RGBA4444;
+        PVRTC2_4_RGB;
+        PVRTC2_4_RGBA;
+        ETC;
+        EAC_R11;
+        EAC_RG11;
     }
     interface Window {
         LIBKTX: {
             ktxTexture: Constructable<KtxTexture>;
             TranscodeTarget: TranscodeTarget;
             transcoderConfig: {
-                astcSupported: boolean; 
-                dxtSupported: boolean; 
+                astcSupported: boolean;
+                dxtSupported: boolean;
                 pvrtcSupported: boolean;
                 etc1Supported: boolean;
-                etc2Supported: boolean; 
+                etc2Supported: boolean;
             };
             GL: {
                 makeContextCurrent: Function;
@@ -59,7 +68,7 @@ declare global {
             ErrorCode: {
                 SUCCESS: number;
             };
-        }
+        };
     }
 }
 
@@ -168,7 +177,7 @@ export class Parse {
                         }
                         return buffer;
                     } else {
-                        return fetchBinary(`${this.host}${url}`)/*.then(res => res.arrayBuffer())*/;
+                        return fetchBinary(`${this.host}${url}`) /*.then(res => res.arrayBuffer())*/;
                     }
                 } else {
                     return Promise.resolve(url);
@@ -210,7 +219,10 @@ export class Parse {
     buildPrim(parent, name, skin, weights, primitive) {
         const m = this.json.materials && this.json.materials[primitive.material];
         if (this.json.extensions && this.json.extensions.EXT_lights_image_based) {
-            this.defines.push({ name: 'SPHERICAL_HARMONICS', value: Math.ceil(Math.log(this.json.extensions.EXT_lights_image_based.lights[0].specularImageSize) * Math.LOG2E) + 10 });
+            this.defines.push({
+                name: 'SPHERICAL_HARMONICS',
+                value: Math.ceil(Math.log(this.json.extensions.EXT_lights_image_based.lights[0].specularImageSize) * Math.LOG2E) + 10
+            });
         }
         if (this.json.extensionsUsed && this.json.extensionsUsed.includes('KHR_texture_basisu')) {
             this.defines.push({ name: 'BASISU' });
@@ -223,9 +235,15 @@ export class Parse {
                 value: this.skins[skin].jointNames.length
             });
         }
-        //if (primitive.attributes.TANGENT || material.hasNormal()) {
+        if (primitive.indices !== undefined || primitive.attributes['TANGENT'] !== undefined) {
             defines.push({ name: 'TANGENT' });
-        //}
+        }
+        if (primitive.attributes['TEXCOORD_1'] !== undefined) {
+            defines.push({ name: 'MULTIUV' });
+        }
+        if (primitive.attributes['COLOR_0']) {
+            defines.push({ name: 'COLOR' });
+        }
 
         const mesh = skin !== undefined ? new SkinnedMesh(name, parent) : new Mesh(name, parent);
         const geometry = new Geometry(this.json, this.arrayBuffer, weights, this.draco, primitive);
@@ -238,7 +256,7 @@ export class Parse {
 
         if (primitive.extensions && primitive.extensions.KHR_materials_variants) {
             const variants = primitive.extensions.KHR_materials_variants.mappings.map(m => {
-                return { ...m, m: new Material(this.json.materials[m.material], this.textures, [...defines], this.lights)};
+                return { ...m, m: new Material(this.json.materials[m.material], this.textures, [...defines], this.lights) };
             });
             mesh.setVariants(variants);
         }
@@ -263,19 +281,14 @@ export class Parse {
             const camera = Object.assign(
                 {
                     zoom: 1,
-                    aspect: this.canvas ? (this.canvas.offsetWidth / this.canvas.offsetHeight) : 1
+                    aspect: this.canvas ? this.canvas.offsetWidth / this.canvas.offsetHeight : 1
                 },
                 this.json.cameras[el.camera]
             );
             // @ts-ignore
             if (Parse.__update) {
                 // @ts-ignore
-                Parse.__update(
-                    'camera',
-                    camera,
-                    name,
-                    parent
-                );
+                Parse.__update('camera', camera, name, parent);
             } else {
                 this.camera = new Camera(camera, name, parent);
             }
@@ -342,10 +355,10 @@ export class Parse {
 
         if (isInitial) {
             const center = new Vector3()
-            .add(box.min)
-            .add(box.max)
-            .scale(0.5);
-            const matrix = new Matrix4;
+                .add(box.min)
+                .add(box.max)
+                .scale(0.5);
+            const matrix = new Matrix4();
             matrix.translate(center.x, center.y, center.z);
             matrix.invert();
             this.scene.matrixWorld.multiply(matrix);
@@ -394,7 +407,6 @@ export class Parse {
 
         walk(this.scene, mesh => {
             if (mesh instanceof Mesh) {
-
                 if (mesh.material.alpha) {
                     this.scene.transparentChildren.push(mesh);
                 } else {
@@ -522,29 +534,27 @@ export class Parse {
 
     getJson() {
         if (/glb/.test(this.url)) {
-            return fetchBinary(this.url)
-                .then((b: ArrayBuffer) => {
-                    const decoder = new TextDecoder('utf-8');
-                    const [jsonLength] = new Uint32Array(b, 12, 1);
-                    const jsonBuffer = new Uint8Array(b, 20, jsonLength);
-                    const json = JSON.parse(decoder.decode(jsonBuffer));
-                    const [bufferLength] = new Uint32Array(b, 20 + jsonLength, 1);
-                    const buffer = b.slice(28 + jsonLength, 28 + jsonLength + bufferLength);
+            return fetchBinary(this.url).then((b: ArrayBuffer) => {
+                const decoder = new TextDecoder('utf-8');
+                const [jsonLength] = new Uint32Array(b, 12, 1);
+                const jsonBuffer = new Uint8Array(b, 20, jsonLength);
+                const json = JSON.parse(decoder.decode(jsonBuffer));
+                const [bufferLength] = new Uint32Array(b, 20 + jsonLength, 1);
+                const buffer = b.slice(28 + jsonLength, 28 + jsonLength + bufferLength);
 
-                    this.json = json;
+                this.json = json;
 
-                    this.scene.bin.push(buffer);
-                });
+                this.scene.bin.push(buffer);
+            });
         } else {
-            return fetchJSON(this.url)
-                .then((json: GlTf) => {
-                    for (const key in json.buffers) {
-                        this.scene.bin.push(json.buffers[key].uri);
-                    }
-                    this.json = json;
+            return fetchJSON(this.url).then((json: GlTf) => {
+                for (const key in json.buffers) {
+                    this.scene.bin.push(json.buffers[key].uri);
+                }
+                this.json = json;
 
-                    return true;
-                });
+                return true;
+            });
         }
     }
 
@@ -560,6 +570,30 @@ export class Parse {
         });
     }
 
+    createSamplersWebGPU(WebGPU: WEBGPU) {
+        function getSamplerParam(value) {
+            const map = {
+                9729: 'linear',
+                9728: 'nearest',
+                10497: 'repeat',
+                33648: 'mirror-repeat',
+                33071: 'clamp-to-edge'
+            };
+            return map[value];
+        }
+        const samplers = this.json.samplers || [{}];
+        this.samplers = samplers.map(s => {
+            const sampler = WebGPU.device.createSampler({
+                magFilter: getSamplerParam(s.minFilter) || 'linear',
+                minFilter: getSamplerParam(s.magFilter) || 'linear',
+                addressModeU: getSamplerParam(s.wrapS) || 'repeat',
+                addressModeV: getSamplerParam(s.wrapT) || 'repeat',
+                addressModeW: getSamplerParam(s.wrapS) || 'repeat'
+            });
+            return sampler;
+        });
+    }
+
     createTexturesWebGPU(WebGPU: WEBGPU) {
         this.createTextures(this.handleTextureLoadedWebGPU.bind(this, WebGPU));
     }
@@ -569,18 +603,31 @@ export class Parse {
     }
 
     createTextures(callback) {
-        this.scene.meshes.forEach((mesh) => {
+        this.scene.meshes.forEach(mesh => {
             const materials = [mesh.material, ...mesh.variants.map(m => m.m)];
-            const textureTypes = ['baseColorTexture', 'metallicRoughnessTexture', 'emissiveTexture', 'normalTexture', 'occlusionTexture', 'clearcoatTexture', 'clearcoatRoughnessTexture', 'clearcoatNormalTexture', 'sheenColorTexture', 'sheenRoughnessTexture', 'transmissionTexture', 'specularTexture'];
+            const textureTypes = [
+                'baseColorTexture',
+                'metallicRoughnessTexture',
+                'emissiveTexture',
+                'normalTexture',
+                'occlusionTexture',
+                'clearcoatTexture',
+                'clearcoatRoughnessTexture',
+                'clearcoatNormalTexture',
+                'sheenColorTexture',
+                'sheenRoughnessTexture',
+                'transmissionTexture',
+                'specularTexture'
+            ];
 
-            for (let i=0; i < textureTypes.length; i++) {
+            for (let i = 0; i < textureTypes.length; i++) {
                 for (const material of materials) {
-                const textureType = textureTypes[i];
-                const t = material[textureType];
-                if (!t) {
-                    continue;
-                }
-                material[textureType] = callback(t);
+                    const textureType = textureTypes[i];
+                    const t = material[textureType];
+                    if (!t) {
+                        continue;
+                    }
+                    material[textureType] = callback(t);
                 }
             }
         });
@@ -605,14 +652,15 @@ export class Parse {
         if (hasBasisu) {
             const m = await import(/*webpackChunkName: "libktx"*/ '../libktx');
             // @ts-ignore
-            m.default({preinitializedWebGLContext: gl}).then(module => {
+            m.default({ preinitializedWebGLContext: gl }).then(module => {
                 const transcoderConfig = {
-                    astcSupported: gl.getExtension( 'WEBGL_compressed_texture_astc' ),
-                    etc1Supported: gl.getExtension( 'WEBGL_compressed_texture_etc1' ),
-                    etc2Supported: gl.getExtension( 'WEBGL_compressed_texture_etc' ),
-                    dxtSupported: gl.getExtension( 'WEBGL_compressed_texture_s3tc' ),
-                    bptcSupported: gl.getExtension( 'EXT_texture_compression_bptc' ),
-                    pvrtcSupported: gl.getExtension( 'WEBGL_compressed_texture_pvrtc' ) || gl.getExtension( 'WEBKIT_WEBGL_compressed_texture_pvrtc' )
+                    astcSupported: gl.getExtension('WEBGL_compressed_texture_astc'),
+                    etc1Supported: gl.getExtension('WEBGL_compressed_texture_etc1'),
+                    etc2Supported: gl.getExtension('WEBGL_compressed_texture_etc'),
+                    dxtSupported: gl.getExtension('WEBGL_compressed_texture_s3tc'),
+                    bptcSupported: gl.getExtension('EXT_texture_compression_bptc'),
+                    pvrtcSupported:
+                        gl.getExtension('WEBGL_compressed_texture_pvrtc') || gl.getExtension('WEBKIT_WEBGL_compressed_texture_pvrtc')
                 };
                 window.LIBKTX = module;
                 window.LIBKTX.transcoderConfig = transcoderConfig;
@@ -624,10 +672,17 @@ export class Parse {
             const s = t.extensions && t.extensions.KHR_texture_basisu ? t.extensions.KHR_texture_basisu.source : t.source;
             const source = this.json.images[s];
             // @ts-ignore
-            return fetchImage(isbitmap, this, source, {
-                url: `${this.host}${source.uri}`,
-                name: t.name,
-            }, t.sampler);
+            return fetchImage(
+                isbitmap,
+                this,
+                //@ts-ignore
+                source,
+                {
+                    url: `${this.host}${source.uri}`,
+                    name: t.name
+                },
+                t.sampler
+            );
         });
 
         return Promise.all(promiseArr).then((textures: Texture[]) => {
@@ -638,24 +693,27 @@ export class Parse {
         });
     }
 
-    handleTextureLoadedWebGPU(WebGPU, {bitmap}) {
+    handleTextureLoadedWebGPU(WebGPU: WEBGPU, { bitmap, sampler }) {
         const { device } = WebGPU;
+        const s = this.samplers[sampler !== undefined ? sampler : 0];
 
         const tex = device.createTexture({
             size: [bitmap.width, bitmap.height, 1],
             format: 'rgba8unorm',
-            usage: GPUTextureUsage.SAMPLED | GPUTextureUsage.COPY_DST,
+            usage: GPUTextureUsage.SAMPLED | GPUTextureUsage.COPY_DST
         });
         device.queue.copyImageBitmapToTexture(
             { imageBitmap: bitmap },
-            { texture: tex, mipLevel: 0, origin: {x: 0, y: 0, z: 0} },
-            {width: bitmap.width, height: bitmap.height, depthOrArrayLayers: 1}
+            { texture: tex, mipLevel: 0, origin: { x: 0, y: 0, z: 0 } },
+            { width: bitmap.width, height: bitmap.height, depthOrArrayLayers: 1 }
         );
+        //@ts-ignore
+        tex.sampler = s;
 
         return tex;
     }
 
-    handleTextureLoaded({image, name, mimeType, sampler}) {
+    handleTextureLoaded({ image, name, mimeType, sampler }) {
         const s = this.samplers[sampler !== undefined ? sampler : 0];
         if (mimeType) {
             image.sampler = s;
@@ -677,16 +735,16 @@ export class Parse {
 
     async getEnv() {
         if (this.json.extensions && this.json.extensions.EXT_lights_image_based) {
-            const env = this.json.extensions.EXT_lights_image_based.lights[0];
+            const [env] = this.json.extensions.EXT_lights_image_based.lights;
             env.specularImages = env.specularImages.map(cube => {
                 return cube.map(img => {
                     const accessor = this.json.images[img];
                     const bufferView = this.json.bufferViews[accessor.bufferView];
                     const { buffer, byteLength, byteOffset } = bufferView;
                     const view = new Uint8Array(this.arrayBuffer[buffer], byteOffset, byteLength);
-                    const blob = new Blob( [ view ], { type: accessor.mimeType } );
-                    const imageUrl = window.URL.createObjectURL( blob );
-                    const imageEl = new Image;
+                    const blob = new Blob([view], { type: accessor.mimeType });
+                    const imageUrl = window.URL.createObjectURL(blob);
+                    const imageEl = new Image();
                     imageEl.src = imageUrl;
 
                     return imageEl;

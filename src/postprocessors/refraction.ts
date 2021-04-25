@@ -16,7 +16,7 @@ export class Refraction extends PostProcessor {
     preProcessing(PP) {
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-        PP.renderScene({isprerefraction: true});
+        PP.renderScene({ isprerefraction: true });
 
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 

@@ -109,7 +109,7 @@ class RedCube {
     }
 
     setVariant(variant) {
-        this.scene.meshes.forEach((mesh) => {
+        this.scene.meshes.forEach(mesh => {
             if (variant && mesh.variants.length) {
                 mesh.material = mesh.variants.find(v => v.variants.includes(Number(variant))).m;
             }
@@ -141,7 +141,7 @@ class RedCube {
         await this.env.createEnvironmentBuffer(envData);
 
         const hasTransmission = this.parse.json.extensionsUsed && this.parse.json.extensionsUsed.includes('KHR_materials_transmission');
-        this.scene.meshes.forEach((mesh) => {
+        this.scene.meshes.forEach(mesh => {
             mesh.geometry.createGeometryForWebGl(gl);
 
             const program = this.parse.createProgram(mesh.defines);

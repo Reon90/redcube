@@ -11,7 +11,7 @@ export class Shadow extends PostProcessor {
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
         //gl.enable(gl.RASTERIZER_DISCARD);
 
-        PP.renderScene({isprepender:true});
+        PP.renderScene({ isprepender: true });
 
         //gl.disable(gl.RASTERIZER_DISCARD);
     }

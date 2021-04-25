@@ -12,7 +12,7 @@ export class Mesh extends Object3D {
     mode: number;
     distance: number;
     visible: boolean;
-    variants: {m: Material, variants: number[]}[];
+    variants: { m: Material; variants: number[] }[];
 
     uniformBindGroup1: GPUBindGroup;
     pipeline: GPURenderPipeline;
@@ -38,7 +38,7 @@ export class Mesh extends Object3D {
         this.material = material;
     }
 
-    drawWebGPU(WebGPU, passEncoder, { needUpdateView, needUpdateProjection, camera, light }) {
+    drawWebGPU(WebGPU: WEBGPU, passEncoder, { needUpdateView, needUpdateProjection, camera, light }) {
         if (this.reflow) {
             // matrixWorld changed
             const normalMatrix = new Matrix4(this.matrixWorld);
@@ -54,19 +54,52 @@ export class Mesh extends Object3D {
         if (needUpdateProjection) {
             this.geometry.uniformBuffer.updateWebGPU(WebGPU, 'projection', camera.projection.elements);
         }
+        if (this instanceof SkinnedMesh) {
+            if (this.bones.some(bone => bone.reflow)) {
+                const jointMatrix = this.getJointMatrix();
+                const matrices = new Float32Array(jointMatrix.length * 16);
+                let i = 0;
+                for (const j of jointMatrix) {
+                    matrices.set(j.elements, 0 + 16 * i);
+                    i++;
+                }
+                WebGPU.device.queue.writeBuffer(
+                    this.skinBuffer,
+                    0 * Float32Array.BYTES_PER_ELEMENT,
+                    matrices.buffer,
+                    matrices.byteOffset,
+                    matrices.byteLength
+                );
+            }
+        }
 
         passEncoder.setBindGroup(0, this.uniformBindGroup1);
-        passEncoder.setVertexBuffer(0, this.geometry.verticesWebGPUBuffer );
+        passEncoder.setVertexBuffer(0, this.geometry.verticesWebGPUBuffer);
         if (this.geometry.indicesBuffer) {
             passEncoder.setIndexBuffer(this.geometry.indicesWebGPUBuffer, 'uint32');
             passEncoder.drawIndexed(this.geometry.indicesBuffer.length);
         } else {
             passEncoder.draw(this.geometry.attributes.POSITION.length / 3, 1, 0, 0);
-        }   
+        }
     }
 
-    draw(gl, { lights, camera, light, needUpdateView, needUpdateProjection, preDepthTexture, colorTexture, renderState, fakeDepth, isIBL, isDefaultLight }) {
-        const {isprepender, isprerefraction} = renderState;
+    draw(
+        gl,
+        {
+            lights,
+            camera,
+            light,
+            needUpdateView,
+            needUpdateProjection,
+            preDepthTexture,
+            colorTexture,
+            renderState,
+            fakeDepth,
+            isIBL,
+            isDefaultLight
+        }
+    ) {
+        const { isprepender, isprerefraction } = renderState;
         if (this.material.transmissionFactor && isprerefraction) {
             return;
         }
@@ -131,14 +164,8 @@ export class Mesh extends Object3D {
             gl.bindBufferBase(gl.UNIFORM_BUFFER, 7, this.material.sphericalHarmonics);
         }
 
-        gl.uniform1i(
-            this.material.uniforms.depthTexture,
-            (preDepthTexture && !isprepender) ? preDepthTexture.index : fakeDepth.index
-        );
-        gl.uniform1i(
-            this.material.uniforms.colorTexture,
-            (!isprerefraction) ? colorTexture.index : fakeDepth.index
-        );
+        gl.uniform1i(this.material.uniforms.depthTexture, preDepthTexture && !isprepender ? preDepthTexture.index : fakeDepth.index);
+        gl.uniform1i(this.material.uniforms.colorTexture, !isprerefraction ? colorTexture.index : fakeDepth.index);
         gl.uniform1i(gl.getUniformLocation(this.program, 'isTone'), isprerefraction ? 0 : 1);
         gl.uniform1i(gl.getUniformLocation(this.program, 'isIBL'), isIBL ? 1 : 0);
         gl.uniform1i(gl.getUniformLocation(this.program, 'isDefaultLight'), isDefaultLight || lights.some(l => !l.isInitial) ? 1 : 0);
@@ -266,8 +293,47 @@ export class SkinnedMesh extends Mesh {
     boneInverses: Array<Matrix4>;
     skin: string;
 
+    skinBuffer: GPUBuffer;
+
     constructor(name, parent) {
         super(name, parent);
+    }
+
+    setSkinWebGPU(WebGPU: WEBGPU, skin) {
+        this.bones = skin.bones;
+        this.boneInverses = skin.boneInverses;
+
+        const jointMatrix = this.getJointMatrix();
+        const matrices = new Float32Array(jointMatrix.length * 16);
+        let i = 0;
+        for (const j of jointMatrix) {
+            matrices.set(j.elements, 0 + 16 * i);
+            i++;
+        }
+
+        const matrixSize = matrices.byteLength;
+        const offset = 256; // uniformBindGroup offset must be 256-byte aligned
+        const uniformBufferSize = offset + matrixSize;
+
+        const { device } = WebGPU;
+        const uniformBuffer = device.createBuffer({
+            size: uniformBufferSize,
+            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
+        });
+        this.skinBuffer = uniformBuffer;
+
+        const uniformBindGroup1 = {
+            binding: 22,
+            resource: {
+                buffer: uniformBuffer,
+                offset: 0,
+                size: matrixSize
+            }
+        };
+
+        device.queue.writeBuffer(uniformBuffer, 0, matrices.buffer, matrices.byteOffset, matrices.byteLength);
+
+        return uniformBindGroup1;
     }
 
     setSkin(gl, skin) {

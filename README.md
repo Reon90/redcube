@@ -1,6 +1,6 @@
 # RedCube.js
 
-[Demo](https://reon90.github.io/redcube/)
+[WebGL Demo](https://reon90.github.io/redcube/) | [WebGPU Demo](https://reon90.github.io/redcube?webgpu=1)
 
 A javascript library for rendering webgl. RedCube is a minimalistic viewer used [Khronos glTF 2.0 format](https://github.com/KhronosGroup/glTF/tree/master/specification/2.0).
 
@@ -37,6 +37,8 @@ A javascript library for rendering webgl. RedCube is a minimalistic viewer used 
 ## Platforms
 
 &bull; Browsers with WebGL 2.0 support
+
+&bull; Browsers with WebGPU support
 
 &bull; Node.js renderless
 

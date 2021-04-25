@@ -342,18 +342,18 @@ export class Env {
             sphericalHarmonics.scaleInPlace(envData.intensity);
             sphericalHarmonics.convertIrradianceToLambertianRadiance();
             const sphericalPolynomial = SphericalPolynomial.FromHarmonics(sphericalHarmonics);
-            const preScaledHarmonics = sphericalPolynomial.preScaledHarmonics;
+            const { preScaledHarmonics } = sphericalPolynomial;
             const uniformBuffer = new UniformBuffer();
-            uniformBuffer.add("vSphericalL00", preScaledHarmonics.l00.elements);
-            uniformBuffer.add("vSphericalL1_1", preScaledHarmonics.l1_1.elements);
-            uniformBuffer.add("vSphericalL10", preScaledHarmonics.l10.elements);
-            uniformBuffer.add("vSphericalL11", preScaledHarmonics.l11.elements);
-            uniformBuffer.add("vSphericalL2_2", preScaledHarmonics.l2_2.elements);
-            uniformBuffer.add("vSphericalL2_1", preScaledHarmonics.l2_1.elements);
-            uniformBuffer.add("vSphericalL20", preScaledHarmonics.l20.elements);
-            uniformBuffer.add("vSphericalL21", preScaledHarmonics.l21.elements);
-            uniformBuffer.add("vSphericalL22", preScaledHarmonics.l22.elements);
-            uniformBuffer.add("rotationMatrix", matrix.elements);
+            uniformBuffer.add('vSphericalL00', preScaledHarmonics.l00.elements);
+            uniformBuffer.add('vSphericalL1_1', preScaledHarmonics.l1_1.elements);
+            uniformBuffer.add('vSphericalL10', preScaledHarmonics.l10.elements);
+            uniformBuffer.add('vSphericalL11', preScaledHarmonics.l11.elements);
+            uniformBuffer.add('vSphericalL2_2', preScaledHarmonics.l2_2.elements);
+            uniformBuffer.add('vSphericalL2_1', preScaledHarmonics.l2_1.elements);
+            uniformBuffer.add('vSphericalL20', preScaledHarmonics.l20.elements);
+            uniformBuffer.add('vSphericalL21', preScaledHarmonics.l21.elements);
+            uniformBuffer.add('vSphericalL22', preScaledHarmonics.l22.elements);
+            uniformBuffer.add('rotationMatrix', matrix.elements);
             uniformBuffer.done();
             this.uniformBuffer = uniformBuffer;
         }
@@ -423,7 +423,14 @@ export class Env {
 
             const texture = createTexture(gl.TEXTURE_CUBE_MAP, textureEnum.prefilterTexture);
             if (this.envData) {
-                const x = [gl.TEXTURE_CUBE_MAP_POSITIVE_X, gl.TEXTURE_CUBE_MAP_NEGATIVE_X, gl.TEXTURE_CUBE_MAP_NEGATIVE_Y, gl.TEXTURE_CUBE_MAP_POSITIVE_Y, gl.TEXTURE_CUBE_MAP_POSITIVE_Z, gl.TEXTURE_CUBE_MAP_NEGATIVE_Z];
+                const x = [
+                    gl.TEXTURE_CUBE_MAP_POSITIVE_X,
+                    gl.TEXTURE_CUBE_MAP_NEGATIVE_X,
+                    gl.TEXTURE_CUBE_MAP_NEGATIVE_Y,
+                    gl.TEXTURE_CUBE_MAP_POSITIVE_Y,
+                    gl.TEXTURE_CUBE_MAP_POSITIVE_Z,
+                    gl.TEXTURE_CUBE_MAP_NEGATIVE_Z
+                ];
                 for (let j = 0; j < this.envData.specularImages.length; j++) {
                     // @ts-ignore
                     const s = this.envData.specularImageSize * Math.pow(0.5, j);

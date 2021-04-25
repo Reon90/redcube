@@ -684,8 +684,8 @@ class Matrix4 {
 
     rotate(axis, rad) {
         let x = axis.elements[0],
-          y = axis.elements[1],
-          z = axis.elements[2];
+            y = axis.elements[1],
+            z = axis.elements[2];
         let len = Math.hypot(x, y, z);
         let s, c, t;
         let a00, a01, a02, a03;
@@ -694,21 +694,21 @@ class Matrix4 {
         let b00, b01, b02;
         let b10, b11, b12;
         let b20, b21, b22;
-      
+
         if (len < Number.EPSILON) {
-          return null;
+            return null;
         }
-      
+
         len = 1 / len;
         x *= len;
         y *= len;
         z *= len;
-      
+
         s = Math.sin(rad);
         c = Math.cos(rad);
         t = 1 - c;
         let a = this.elements;
-      
+
         a00 = a[0];
         a01 = a[1];
         a02 = a[2];
@@ -721,7 +721,7 @@ class Matrix4 {
         a21 = a[9];
         a22 = a[10];
         a23 = a[11];
-      
+
         // Construct the elements of the rotation matrix
         b00 = x * x * t + c;
         b01 = y * x * t + z * s;
@@ -732,7 +732,7 @@ class Matrix4 {
         b20 = x * z * t + y * s;
         b21 = y * z * t - x * s;
         b22 = z * z * t + c;
-      
+
         // Perform rotation-specific matrix multiplication
         a[0] = a00 * b00 + a10 * b01 + a20 * b02;
         a[1] = a01 * b00 + a11 * b01 + a21 * b02;
@@ -748,7 +748,7 @@ class Matrix4 {
         a[11] = a03 * b20 + a13 * b21 + a23 * b22;
 
         return this;
-      }
+    }
 
     makeRotationAxis(axis, angle) {
         // Based on http://www.gamedev.net/reference/articles/article1199.asp
@@ -908,9 +908,9 @@ class Vector3 {
         this.elements = v;
     }
 
-    projectOnVector( vector ) {
-        const scalar = Vector3.dot( vector, this ) / vector.lengthSq();
-        return new Vector3( vector ).scale( scalar );
+    projectOnVector(vector) {
+        const scalar = Vector3.dot(vector, this) / vector.lengthSq();
+        return new Vector3(vector).scale(scalar);
     }
 
     applyQuaternion({ elements }) {
@@ -1106,31 +1106,31 @@ class Vector3 {
     }
 
     length() {
-		return Math.sqrt( this.x * this.x + this.y * this.y + this.z * this.z );
-	}
+        return Math.sqrt(this.x * this.x + this.y * this.y + this.z * this.z);
+    }
 
     min(v) {
-        this.x = Math.min( this.x, v.x );
-		this.y = Math.min( this.y, v.y );
-        this.z = Math.min( this.z, v.z );
-        
+        this.x = Math.min(this.x, v.x);
+        this.y = Math.min(this.y, v.y);
+        this.z = Math.min(this.z, v.z);
+
         return this;
     }
 
     max(v) {
-		this.x = Math.max( this.x, v.x );
-		this.y = Math.max( this.y, v.y );
-		this.z = Math.max( this.z, v.z );
+        this.x = Math.max(this.x, v.x);
+        this.y = Math.max(this.y, v.y);
+        this.z = Math.max(this.z, v.z);
 
-		return this;
+        return this;
     }
     subVectors(a, b) {
-		this.x = a.x - b.x;
-		this.y = a.y - b.y;
-		this.z = a.z - b.z;
+        this.x = a.x - b.x;
+        this.y = a.y - b.y;
+        this.z = a.z - b.z;
 
-		return this;
-	}
+        return this;
+    }
 }
 
 class Box {
@@ -1138,12 +1138,12 @@ class Box {
     max = new Vector3([-Infinity, -Infinity, -Infinity]);
 
     expand(box) {
-        this.min.min( box.min );
-		this.max.max( box.max );
+        this.min.min(box.min);
+        this.max.max(box.max);
     }
 
     getSize() {
-        const size = new Vector3;
+        const size = new Vector3();
         size.subVectors(this.max, this.min);
         return size.length();
     }
@@ -1323,7 +1323,7 @@ class Vector4 {
     inverse() {
         this.elements[0] = -this.elements[0];
         this.elements[1] = -this.elements[1];
-        this.elements[2] = -this.elements[2]
+        this.elements[2] = -this.elements[2];
         return this;
     }
 }

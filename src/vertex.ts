@@ -115,7 +115,4 @@ export const cubeVertex = new Float32Array([
 ]);
 
 export const quadVertex = new Float32Array([-1.0, 1.0, -1.0, -1.0, 1.0, 1.0, 1.0, -1.0]);
-export const quadFull = new Float32Array([
-    -1.0, 1.0, -1.0, -1.0, 1.0, -1.0,
-    1.0, -1.0, 1.0, 1.0, -1.0, 1.0
-]);
+export const quadFull = new Float32Array([-1.0, 1.0, -1.0, -1.0, 1.0, -1.0, 1.0, -1.0, 1.0, 1.0, -1.0, 1.0]);

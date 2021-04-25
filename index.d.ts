@@ -15,4 +15,5 @@ interface WEBGPU {
     swapChain: GPUSwapChain;
     device: GPUDevice;
     renderPassDescriptor: GPURenderPassDescriptor;
+    commandEncoder?: GPUCommandEncoder;
 }

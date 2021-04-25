@@ -17,10 +17,10 @@ interface CameraPerspective {
 }
 
 function clamp(a, b, c) {
-  return a < b ? b : a > c ? c : a;
+    return a < b ? b : a > c ? c : a;
 }
 
-var x;
+let x;
 
 export class Camera extends Object3D {
     isInitial: boolean;

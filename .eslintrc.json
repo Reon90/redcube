@@ -1,5 +1,5 @@
 {
-    "parser": "typescript-eslint-parser",
+    "parser": "@typescript-eslint/parser",
     "env": {
         "browser": true,
         "es6": true
@@ -8,7 +8,7 @@
     "parserOptions": {
         "sourceType": "module"
     },
-    "plugins": ["typescript"],
+    "plugins": ["@typescript-eslint"],
     "rules": {
         "no-undef": "off",
         "no-redeclare": [
@@ -16,9 +16,6 @@
         ],
         "no-unused-vars": [
             "off"
-        ],
-        "typescript/no-unused-vars": [
-            "error"
         ],
         "no-console": [
             "off"

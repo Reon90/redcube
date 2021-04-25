@@ -73,7 +73,7 @@ layout(set = 0, binding = 9) uniform texture2D clearcoatRoughnessTexture;
 #ifdef TRANSMISSIONMAP
 layout(set = 0, binding = 10) uniform texture2D transmissionTexture;
 #endif
-#ifdef SHADOWMAP
+#ifdef SHEENMAP
 layout(set = 0, binding = 11) uniform texture2D sheenColorTexture;
 layout(set = 0, binding = 12) uniform texture2D sheenRoughnessTexture;
 #endif
@@ -266,9 +266,9 @@ float saturate(float a) {
 vec3 ImprovedOrenNayarDiffuse(vec3 baseColor, float metallic, vec3 N, vec3 H, float a, vec3 V, vec3 L) {
     vec3 F0 = vec3(0.04);
     F0 = mix(F0, baseColor, metallic);
-    #if defined SPECULARGLOSSINESSMAP
-        F0 = specularMap;
-    #endif
+    // #if defined SPECULARGLOSSINESSMAP
+    //     F0 = specularMap;
+    // #endif
     vec3 F = fresnelSchlick(max(dot(H, V), 0.0), F0);
     vec3 kD = vec3(1.0) - F;
     #if defined SPECULARGLOSSINESSMAP
@@ -416,6 +416,9 @@ void main() {
     if ( alpha < ALPHATEST ) {
         discard;
     }
+    if ( ALPHATEST > 0.01 ) {
+        alpha = 1.0;
+    }
     #else
         alpha = 1.0;
     #endif
@@ -429,7 +432,7 @@ void main() {
         return;
     #endif
 
-    float ao = 2.0;
+    float ao = 1.0;
     #ifdef OCCLUSIONMAP
         outUV = getUV(OCCLUSIONMAP);
         #ifdef OCCLUSIONMAP_TEXTURE_TRANSFORM
@@ -466,7 +469,7 @@ void main() {
             outUV = applyTransform(outUV);
         #endif
         vec4 sheenRoughnessTextureV = texture(sampler2D(sheenRoughnessTexture, baseSampler), outUV);
-        vec3 sheenColorTextureV = srgbToLinear(texture(sheenColorTexture, outUV));
+        vec3 sheenColorTextureV = srgbToLinear(texture(sampler2D(sheenColorTexture, baseSampler), outUV));
         sheenColor = sheenColorTextureV * sheenColor;
         sheenRoughness = sheenRoughnessTextureV.a * sheenRoughness;
     #endif
@@ -484,8 +487,8 @@ void main() {
             roughness = 1.0 - texture(sampler2D(metallicRoughnessTexture, baseSampler), outUV).a;
             specularMap = srgbToLinear(texture(sampler2D(metallicRoughnessTexture, baseSampler), outUV));
         #else
-            roughness = glossinessFactor.x;
-            specularMap = specularFactor;
+            roughness = uniforms.glossinessFactor.x;
+            specularMap = uniforms.specularFactor;
         #endif
     #else
         #ifdef METALROUGHNESSMAP
@@ -514,7 +517,7 @@ void main() {
             vec3 n = outTBN[2].xyz;
         #endif
     #else
-        vec3 n = outNormal;
+        vec3 n = outTBN[2].xyz;
     #endif
 
     #ifdef TANGENT
@@ -529,7 +532,7 @@ void main() {
         vec3 clearcoatNormal = outTBN[2].xyz;
     #endif
     #else
-        vec3 clearcoatNormal = outNormal;
+        vec3 clearcoatNormal = outTBN[2].xyz;
     #endif
 
     mat4 m = inverse(matrices.view);
@@ -597,9 +600,11 @@ void main() {
         vec3 clearcoatFresnel = vec3(1.0);
         #ifdef IBL
             ambient = IBLAmbient(specularMap, baseColor, metallic, n, roughness, viewDir);
+            #ifdef CLEARCOAT
             ambientClearcoat = IBLAmbient(specularMap, vec3(0.0), 0.0, clearcoatNormal, clearcoatRoughness, viewDir) * clearcoatBlendFactor;
             float NdotV = saturate(dot(clearcoatNormal, viewDir));
             clearcoatFresnel = (1.0 - clearcoatBlendFactor * fresnelSchlick(NdotV, vec3(0.04)));
+            #endif
         #else
             ambient = vec3(0.03) * baseColor * 0.2;
         #endif

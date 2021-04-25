@@ -62,7 +62,7 @@ export class Renderer {
     step(sec, v) {
         const val = interpolation(sec, v.keys);
 
-        if ((val[0] === -1 || val[1] === -1) || (val[0] === 0 && val[1] === 0)) {
+        if (val[0] === -1 || val[1] === -1 || (val[0] === 0 && val[1] === 0)) {
             return false;
         }
 
@@ -102,7 +102,7 @@ export class Renderer {
     spline(sec, v) {
         const val = interpolation(sec, v.keys);
 
-        if ((val[0] === -1 || val[1] === -1) || (val[0] === 0 && val[1] === 0)) {
+        if (val[0] === -1 || val[1] === -1 || (val[0] === 0 && val[1] === 0)) {
             return false;
         }
 
@@ -162,10 +162,14 @@ export class Renderer {
         }
     }
 
+    updateGeometry(mesh, geometry) {
+        mesh.geometry.update(gl, geometry);
+    }
+
     interpolation(sec, v) {
         const val = interpolation(sec, v.keys);
 
-        if ((val[0] === -1 || val[1] === -1) || (val[0] === 0 && val[1] === 0)) {
+        if (val[0] === -1 || val[1] === -1 || (val[0] === 0 && val[1] === 0)) {
             return false;
         }
 
@@ -234,7 +238,7 @@ export class Renderer {
                     }
                 }
 
-                mesh.geometry.update(gl, geometry);
+                this.updateGeometry(mesh, geometry);
             }
         } else if (v.type === 'translation') {
             const out = new Vector3();
@@ -253,51 +257,51 @@ export class Renderer {
             return;
         }
         const t = this.parse.tracks[this.currentTrack];
-        const duration = Math.max(...this.parse.tracks.map(t => t[0].duration))
+        const duration = Math.max(...this.parse.tracks.map(t => t[0].duration));
         const increment = Math.floor(sec / duration);
         sec -= increment * duration;
 
         for (const track of this.parse.tracks.sort((a, b) => a[0].duration - b[0].duration)) {
-        for (const v of track) {
-            let result;
-            switch (v.interpolation) {
-                case 'LINEAR':
-                    result = this.interpolation(sec, v);
-                    break;
-                case 'CUBICSPLINE':
-                    result = this.spline(sec, v);
-                    break;
-                case 'STEP':
-                    result = this.step(sec, v);
-                    break;
-                default:
-                    result = this.interpolation(sec, v);
-                    break;
+            for (const v of track) {
+                let result;
+                switch (v.interpolation) {
+                    case 'LINEAR':
+                        result = this.interpolation(sec, v);
+                        break;
+                    case 'CUBICSPLINE':
+                        result = this.spline(sec, v);
+                        break;
+                    case 'STEP':
+                        result = this.step(sec, v);
+                        break;
+                    default:
+                        result = this.interpolation(sec, v);
+                        break;
+                }
+
+                if (result === false) {
+                    continue;
+                }
+                for (const mesh of v.meshes) {
+                    walk(mesh, node => {
+                        node.updateMatrix();
+
+                        if (node instanceof Bone) {
+                            node.reflow = true;
+                        }
+
+                        if (node instanceof Mesh) {
+                            node.reflow = true;
+                        }
+
+                        if (node instanceof Camera && node === this.camera) {
+                            this.needUpdateView = true;
+                        }
+                    });
+                }
+
+                this.reflow = true;
             }
-
-            if (result === false) {
-                continue;
-            }
-            for (const mesh of v.meshes) {
-                walk(mesh, node => {
-                    node.updateMatrix();
-
-                    if (node instanceof Bone) {
-                        node.reflow = true;
-                    }
-
-                    if (node instanceof Mesh) {
-                        node.reflow = true;
-                    }
-
-                    if (node instanceof Camera && node === this.camera) {
-                        this.needUpdateView = true;
-                    }
-                });
-            }
-
-            this.reflow = true;
-        }
         }
     }
 

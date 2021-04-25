@@ -240,7 +240,8 @@ export function buildArrayWithStride(arrayBuffer, accessor, bufferView) {
             arr = new Float32Array(arrayBuffer, offset, length);
             break;
     }
-    if (length !== requiredLength) { // buffer is too big need to stride it
+    if (length !== requiredLength) {
+        // buffer is too big need to stride it
         const stridedArr = new arr.constructor(requiredLength);
         let j = 0;
         for (let i = 0; i < stridedArr.length; i += typeofComponent) {
@@ -375,12 +376,12 @@ export function calculateOffset(a = 0, b = 0) {
 }
 
 export function calculateUVs(vertex, normal) {
-    const UVS = new Float32Array(vertex.length/3 * 2);
+    const UVS = new Float32Array((vertex.length / 3) * 2);
 
     const Min = new Vector2([Infinity, Infinity]);
     const Max = new Vector2([-Infinity, -Infinity]);
 
-    for (let i = 0; i < vertex.length/3; ++i) {
+    for (let i = 0; i < vertex.length / 3; ++i) {
         const coords = [];
         const norm = [];
         for (let c = 0; c < 3; ++c) {
@@ -390,7 +391,7 @@ export function calculateUVs(vertex, normal) {
 
         const N = new Vector3(norm);
         const components = ['x', 'y', 'z'].sort((a, b) => {
-            return Math.abs(N[a]) - Math.abs(N[b])
+            return Math.abs(N[a]) - Math.abs(N[b]);
         });
 
         const pos = new Vector3(coords);
@@ -405,7 +406,7 @@ export function calculateUVs(vertex, normal) {
     }
 
     const diff = new Vector2(Max.elements).subtract(Min);
-    for (let i = 0; i < vertex.length/3; ++i) {
+    for (let i = 0; i < vertex.length / 3; ++i) {
         const ix = i * 2;
         UVS[ix] = (UVS[ix] - Min.x) / diff.x;
         UVS[ix + 1] = (UVS[ix + 1] - Min.y) / diff.y;
@@ -419,9 +420,9 @@ export function calculateNormals2(vertex) {
 
     for (let i = 0; i < vertex.length; i += 9) {
         const faceVertices = [
-            new Vector3([vertex[i], vertex[i+1], vertex[i+2]]),
-            new Vector3([vertex[i+3], vertex[i+4], vertex[i+5]]),
-            new Vector3([vertex[i+6], vertex[i+7], vertex[i+8]])
+            new Vector3([vertex[i], vertex[i + 1], vertex[i + 2]]),
+            new Vector3([vertex[i + 3], vertex[i + 4], vertex[i + 5]]),
+            new Vector3([vertex[i + 6], vertex[i + 7], vertex[i + 8]])
         ];
         const dv1 = faceVertices[1].subtract(faceVertices[0]);
         const dv2 = faceVertices[2].subtract(faceVertices[0]);
@@ -429,16 +430,16 @@ export function calculateNormals2(vertex) {
         const n = Vector3.cross(dv1.normalize(), dv2.normalize());
         const [x, y, z] = n.elements;
         ns[i] = x;
-        ns[i+1] = y;
-        ns[i+2] = z;
+        ns[i + 1] = y;
+        ns[i + 2] = z;
 
-        ns[i+3] = x;
-        ns[i+4] = y;
-        ns[i+5] = z;
+        ns[i + 3] = x;
+        ns[i + 4] = y;
+        ns[i + 5] = z;
 
-        ns[i+6] = x;
-        ns[i+7] = y;
-        ns[i+8] = z;
+        ns[i + 6] = x;
+        ns[i + 7] = y;
+        ns[i + 8] = z;
     }
 
     return ns;
@@ -456,7 +457,7 @@ export function calculateNormals(index, vertex) {
         const n = Vector3.cross(dv1.normalize(), dv2.normalize());
         const [x, y, z] = n.elements;
 
-        for (var j = 0; j < 3; j++) {
+        for (let j = 0; j < 3; j++) {
             ns[3 * index[i + j] + 0] = ns[3 * index[i + j] + 0] + x;
             ns[3 * index[i + j] + 1] = ns[3 * index[i + j] + 1] + y;
             ns[3 * index[i + j] + 2] = ns[3 * index[i + j] + 2] + z;

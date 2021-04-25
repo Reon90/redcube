@@ -1,6 +1,17 @@
 import { Vector3, Matrix4 } from '../matrix';
 import { UniformBuffer } from './uniform';
-import { buildArray, buildArrayWithStride, getDataType, calculateOffset, calculateBinormals, getGlEnum, calculateNormals, calculateNormals2, calculateUVs, ArrayBufferMap } from '../utils';
+import {
+    buildArray,
+    buildArrayWithStride,
+    getDataType,
+    calculateOffset,
+    calculateBinormals,
+    getGlEnum,
+    calculateNormals,
+    calculateNormals2,
+    calculateUVs,
+    ArrayBufferMap
+} from '../utils';
 import { decodeDracoData, getArray } from '../decoder';
 
 interface Attributes {
@@ -49,6 +60,7 @@ export class Geometry {
     indicesWebGPUBuffer: GPUBuffer;
     verticesWebGPUBuffer: GPUBuffer;
     uniformBindGroup1: GPUBindGroupEntry[];
+    g: Float32Array;
 
     constructor(json, arrayBuffer, weights, draco, primitive) {
         this.boundingSphere = {
@@ -142,11 +154,7 @@ export class Geometry {
             for (const k of vertexAccessor.keys()) {
                 const accessor = vertexAccessor.get(k);
                 const bufferView = json.bufferViews[accessor.bufferView];
-                vertexBuffers[k] = buildArrayWithStride(
-                    arrayBuffer[bufferView.buffer],
-                    accessor,
-                    bufferView
-                );
+                vertexBuffers[k] = buildArrayWithStride(arrayBuffer[bufferView.buffer], accessor, bufferView);
             }
         }
 
@@ -157,11 +165,7 @@ export class Geometry {
                     vertexAcc[a] = json.accessors[target[a]];
                     const accessor = vertexAcc[a];
                     const bufferView = json.bufferViews[accessor.bufferView];
-                    vertexAcc[a] = buildArrayWithStride(
-                        arrayBuffer[bufferView.buffer],
-                        accessor,
-                        bufferView
-                    );
+                    vertexAcc[a] = buildArrayWithStride(arrayBuffer[bufferView.buffer], accessor, bufferView);
                 }
                 this.targets.push(vertexAcc);
             }
@@ -272,38 +276,77 @@ export class Geometry {
     createGeometryForWebGPU(WebGPU: WEBGPU) {
         const { device } = WebGPU;
 
+        let total = 12;
+        const count = this.attributes['POSITION'].length / 3;
         const g = new Float32Array(
-            this.attributes['POSITION'].length +
-            this.attributes['TEXCOORD_0'].length +
-            this.attributes['NORMAL'].length +
-            this.attributes['TANGENT'].length
+            count * 3 +
+                count * 2 +
+                count * 3 +
+                count * 4 +
+                (this.attributes['JOINTS_0']?.length ?? 0) +
+                (this.attributes['WEIGHTS_0']?.length ?? 0) +
+                (this.attributes['COLOR_0']?.length ?? 0) +
+                (this.attributes['TEXCOORD_1']?.length ?? 0)
         );
+        if (this.attributes['WEIGHTS_0']) {
+            total += 8;
+        }
+        if (this.attributes['COLOR_0']) {
+            total += 4;
+        }
+        if (this.attributes['TEXCOORD_1']) {
+            total += 2;
+        }
         let k = 0;
         let l = 0;
         let m = 0;
-        for (let i = 0; i < g.length; i+=12) {
+        for (let i = 0; i < g.length; i += total) {
             g[i] = this.attributes['POSITION'][k];
-            g[i+1] = this.attributes['POSITION'][k+1];
-            g[i+2] = this.attributes['POSITION'][k+2];
-            g[i+3] = this.attributes['TEXCOORD_0'][l];
-            g[i+4] = this.attributes['TEXCOORD_0'][l+1];
-            g[i+5] = this.attributes['NORMAL'][k];
-            g[i+6] = this.attributes['NORMAL'][k+1];
-            g[i+7] = this.attributes['NORMAL'][k+2];
-            g[i+8] = this.attributes['TANGENT'][m];
-            g[i+9] = this.attributes['TANGENT'][m+1];
-            g[i+10] = this.attributes['TANGENT'][m+2];
-            g[i+11] = this.attributes['TANGENT'][m+3];
-            k+=3;
-            l+=2;
-            m+=4;
+            g[i + 1] = this.attributes['POSITION'][k + 1];
+            g[i + 2] = this.attributes['POSITION'][k + 2];
+            if (this.attributes['TEXCOORD_0']) {
+                g[i + 3] = this.attributes['TEXCOORD_0'][l];
+                g[i + 4] = this.attributes['TEXCOORD_0'][l + 1];
+            }
+            g[i + 5] = this.attributes['NORMAL'][k];
+            g[i + 6] = this.attributes['NORMAL'][k + 1];
+            g[i + 7] = this.attributes['NORMAL'][k + 2];
+            if (this.attributes['TANGENT']) {
+                g[i + 8] = this.attributes['TANGENT'][m];
+                g[i + 9] = this.attributes['TANGENT'][m + 1];
+                g[i + 10] = this.attributes['TANGENT'][m + 2];
+                g[i + 11] = this.attributes['TANGENT'][m + 3];
+            }
+            if (this.attributes['WEIGHTS_0']) {
+                g[i + 12] = this.attributes['JOINTS_0'][m];
+                g[i + 13] = this.attributes['JOINTS_0'][m + 1];
+                g[i + 14] = this.attributes['JOINTS_0'][m + 2];
+                g[i + 15] = this.attributes['JOINTS_0'][m + 3];
+                g[i + 16] = this.attributes['WEIGHTS_0'][m];
+                g[i + 17] = this.attributes['WEIGHTS_0'][m + 1];
+                g[i + 18] = this.attributes['WEIGHTS_0'][m + 2];
+                g[i + 19] = this.attributes['WEIGHTS_0'][m + 3];
+            }
+            if (this.attributes['COLOR_0']) {
+                g[i + 12] = this.attributes['COLOR_0'][m];
+                g[i + 13] = this.attributes['COLOR_0'][m + 1];
+                g[i + 14] = this.attributes['COLOR_0'][m + 2];
+                g[i + 15] = this.attributes['COLOR_0'][m + 3];
+            }
+            if (this.attributes['TEXCOORD_1']) {
+                g[i + 12] = this.attributes['TEXCOORD_1'][l];
+                g[i + 13] = this.attributes['TEXCOORD_1'][l + 1];
+            }
+            k += 3;
+            l += 2;
+            m += 4;
         }
-        
+        this.g = g;
 
         const verticesBuffer = device.createBuffer({
             size: g.byteLength,
-            usage: GPUBufferUsage.VERTEX,
-            mappedAtCreation: true,
+            usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+            mappedAtCreation: true
         });
         new Float32Array(verticesBuffer.getMappedRange()).set(g);
         verticesBuffer.unmap();
@@ -314,7 +357,7 @@ export class Geometry {
             const indicesBuffer = device.createBuffer({
                 size: this.indicesBuffer.byteLength,
                 usage: GPUBufferUsage.INDEX,
-                mappedAtCreation: true,
+                mappedAtCreation: true
             });
             new Uint32Array(indicesBuffer.getMappedRange()).set(this.indicesBuffer);
             indicesBuffer.unmap();
@@ -389,28 +432,30 @@ export class Geometry {
         const { device } = WebGPU;
         const uniformBuffer = device.createBuffer({
             size: uniformBufferSize,
-            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
         });
         this.uniformBuffer.bufferWebGPU = uniformBuffer;
 
-        const uniformBindGroup1 = [{
+        const uniformBindGroup1 = [
+            {
                 binding: 0,
                 resource: {
-                  buffer: uniformBuffer,
-                  offset: 0,
-                  size: matrixSize,
-                },
-              }];
+                    buffer: uniformBuffer,
+                    offset: 0,
+                    size: matrixSize
+                }
+            }
+        ];
 
-          device.queue.writeBuffer(
+        device.queue.writeBuffer(
             uniformBuffer,
             0,
             this.uniformBuffer.store.buffer,
             this.uniformBuffer.store.byteOffset,
             this.uniformBuffer.store.byteLength
-          );
+        );
 
-          this.uniformBindGroup1 = uniformBindGroup1;
+        this.uniformBindGroup1 = uniformBindGroup1;
     }
 
     updateUniformsWebGl(gl, program) {
@@ -421,6 +466,48 @@ export class Geometry {
         gl.bufferData(gl.UNIFORM_BUFFER, this.uniformBuffer.store, gl.DYNAMIC_DRAW);
         this.UBO = UBO;
         gl.bindBuffer(gl.UNIFORM_BUFFER, null);
+    }
+
+    async updateWebGPU(WebGPU: WEBGPU, geometry) {
+        const { device, commandEncoder } = WebGPU;
+        const total = 12;
+        let k = 0;
+        let l = 0;
+        let m = 0;
+        const { g } = this;
+        for (let i = 0; i < g.length; i += total) {
+            if (geometry['POSITION']) {
+                g[i] = geometry['POSITION'][k];
+                g[i + 1] = geometry['POSITION'][k + 1];
+                g[i + 2] = geometry['POSITION'][k + 2];
+            }
+            if (geometry['TEXCOORD_0']) {
+                g[i + 3] = geometry['TEXCOORD_0'][l];
+                g[i + 4] = geometry['TEXCOORD_0'][l + 1];
+            }
+            if (geometry['NORMAL']) {
+                g[i + 5] = geometry['NORMAL'][k];
+                g[i + 6] = geometry['NORMAL'][k + 1];
+                g[i + 7] = geometry['NORMAL'][k + 2];
+            }
+            if (geometry['TANGENT']) {
+                g[i + 8] = geometry['TANGENT'][m];
+                g[i + 9] = geometry['TANGENT'][m + 1];
+                g[i + 10] = geometry['TANGENT'][m + 2];
+                g[i + 11] = geometry['TANGENT'][m + 3];
+            }
+            k += 3;
+            l += 2;
+            m += 4;
+        }
+        const verticesBuffer = device.createBuffer({
+            size: g.byteLength,
+            usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_SRC,
+            mappedAtCreation: true
+        });
+        new Float32Array(verticesBuffer.getMappedRange()).set(g);
+        verticesBuffer.unmap();
+        commandEncoder.copyBufferToBuffer(verticesBuffer, 0, this.verticesWebGPUBuffer, 0, g.byteLength);
     }
 
     update(gl, geometry) {
