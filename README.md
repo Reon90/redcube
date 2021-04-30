@@ -38,7 +38,7 @@ A javascript library for rendering webgl. RedCube is a minimalistic viewer used 
 
 &bull; Browsers with WebGL 2.0 support
 
-&bull; Browsers with WebGPU support
+&bull; Browsers with WebGPU support (Chrome Canary with `--enable-unsafe-webgpu` flag)
 
 &bull; Node.js renderless
 
