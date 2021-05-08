@@ -19,6 +19,7 @@ interface Uniforms {
     clearcoatNormalTexture: WebGLUniformLocation;
     transmissionTexture: WebGLUniformLocation;
     specularTexture: WebGLUniformLocation;
+    thicknessTexture: WebGLUniformLocation;
     emissiveTexture: WebGLUniformLocation;
     prefilterMap: WebGLUniformLocation;
     brdfLUT: WebGLUniformLocation;
@@ -154,6 +155,18 @@ export class Material extends M {
             defines.push({ name: 'TRANSMISSION' });
         }
 
+        if (material.extensions && material.extensions.KHR_materials_volume) {
+            const { attenuationColor, attenuationDistance, thicknessFactor, thicknessTexture } = material.extensions.KHR_materials_volume;
+            this.attenuationColor = attenuationColor;
+            this.attenuationDistance = attenuationDistance;
+            this.thicknessFactor = thicknessFactor;
+            this.ior = (1 / 1.5);
+            if (thicknessTexture) {
+                this.thicknessTexture = textures[thicknessTexture.index];
+                defines.push({ name: 'THICKNESSMAP' });
+            }
+        }
+
         if (material.extensions && material.extensions.KHR_materials_ior) {
             this.ior = material.extensions.KHR_materials_ior.ior;
         }
@@ -184,6 +197,7 @@ export class Material extends M {
             irradianceMap: null,
             transmissionTexture: null,
             specularTexture: null,
+            thicknessTexture: null,
             colorTexture: null,
             Sheen_E: null,
             depthTexture: null
@@ -346,6 +360,10 @@ export class Material extends M {
             this.uniforms.specularTexture = gl.getUniformLocation(program, 'specularTexture');
             gl.uniform1i(this.uniforms.specularTexture, textureEnum.specularTexture);
         }
+        if (this.thicknessTexture) {
+            this.uniforms.thicknessTexture = gl.getUniformLocation(program, 'thicknessTexture');
+            gl.uniform1i(this.uniforms.thicknessTexture, textureEnum.thicknessTexture);
+        }
 
         this.uniforms.prefilterMap = gl.getUniformLocation(program, 'prefilterMap');
         this.uniforms.brdfLUT = gl.getUniformLocation(program, 'brdfLUT');
@@ -434,6 +452,9 @@ export class Material extends M {
             materialUniformBuffer.add('transmissionFactor', this.transmissionFactor ?? 0);
             materialUniformBuffer.add('ior', this.ior ?? 1);
             materialUniformBuffer.add('normalTextureScale', this.normalTextureScale ?? 1);
+            materialUniformBuffer.add('attenuationColor', this.attenuationColor ?? [1, 1, 1]);
+            materialUniformBuffer.add('attenuationDistance', this.attenuationDistance ?? 1);
+            materialUniformBuffer.add('thicknessFactor', this.thicknessFactor ?? 1);
             materialUniformBuffer.done();
             this.materialUniformBuffer = materialUniformBuffer;
         }

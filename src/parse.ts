@@ -617,7 +617,8 @@ export class Parse {
                 'sheenColorTexture',
                 'sheenRoughnessTexture',
                 'transmissionTexture',
-                'specularTexture'
+                'specularTexture',
+                'thicknessTexture'
             ];
 
             for (let i = 0; i < textureTypes.length; i++) {

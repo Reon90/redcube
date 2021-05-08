@@ -208,12 +208,12 @@ export class Mesh extends Object3D {
         if (this.material.sheenColorTexture) {
             gl.activeTexture(gl[`TEXTURE${11}`]);
             gl.bindTexture(gl.TEXTURE_2D, this.material.sheenColorTexture);
-            gl.bindSampler(8, this.material.sheenColorTexture.sampler);
+            gl.bindSampler(11, this.material.sheenColorTexture.sampler);
         }
         if (this.material.sheenRoughnessTexture) {
             gl.activeTexture(gl[`TEXTURE${12}`]);
             gl.bindTexture(gl.TEXTURE_2D, this.material.sheenRoughnessTexture);
-            gl.bindSampler(8, this.material.sheenRoughnessTexture.sampler);
+            gl.bindSampler(12, this.material.sheenRoughnessTexture.sampler);
         }
         if (this.material.clearcoatNormalTexture) {
             gl.activeTexture(gl[`TEXTURE${10}`]);
@@ -223,12 +223,17 @@ export class Mesh extends Object3D {
         if (this.material.transmissionTexture) {
             gl.activeTexture(gl[`TEXTURE${14}`]);
             gl.bindTexture(gl.TEXTURE_2D, this.material.transmissionTexture);
-            gl.bindSampler(12, this.material.transmissionTexture.sampler);
+            gl.bindSampler(14, this.material.transmissionTexture.sampler);
         }
         if (this.material.specularTexture) {
             gl.activeTexture(gl[`TEXTURE${15}`]);
             gl.bindTexture(gl.TEXTURE_2D, this.material.specularTexture);
-            gl.bindSampler(12, this.material.specularTexture.sampler);
+            gl.bindSampler(15, this.material.specularTexture.sampler);
+        }
+        if (this.material.thicknessTexture) {
+            gl.activeTexture(gl[`TEXTURE${16}`]);
+            gl.bindTexture(gl.TEXTURE_2D, this.material.thicknessTexture);
+            gl.bindSampler(16, this.material.thicknessTexture.sampler);
         }
         if (this.material.doubleSided) {
             gl.disable(gl.CULL_FACE);

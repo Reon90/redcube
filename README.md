@@ -22,6 +22,8 @@ A javascript library for rendering webgl. RedCube is a minimalistic viewer used 
 
 &bull; KHR_materials_transmission
 
+&bull; KHR_materials_volume
+
 &bull; KHR_materials_unlit
 
 &bull; KHR_materials_variants

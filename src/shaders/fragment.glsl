@@ -31,6 +31,9 @@ uniform Material {
     vec4 transmissionFactor;
     vec4 ior;
     vec4 normalTextureScale;
+    vec4 attenuationColor; 
+    vec4 attenuationDistance; 
+    vec4 thicknessFactor;
 };
 uniform Matrices {
     mat4 model;
@@ -77,6 +80,7 @@ uniform sampler2D sheenColorTexture;
 uniform sampler2D sheenRoughnessTexture;
 uniform sampler2D clearcoatNormalTexture;
 uniform sampler2D specularTexture;
+uniform sampler2D thicknessTexture;
 
 uniform samplerCube prefilterMap;
 uniform sampler2D brdfLUT;  
@@ -172,8 +176,8 @@ float fresnelSchlickRoughness(float cosTheta, float F0, float roughness) {
 vec3 fresnelSchlickRoughness(float cosTheta, vec3 F0, float roughness) {
     return F0 + (max(vec3(1.0 - roughness), F0) - F0) * pow(1.0 - cosTheta, 5.0);
 }
-vec3 calcTransmission(vec3 color, vec3 N, float roughness, vec3 V, float transmission) {
-    vec4 refractS = projection * view * vec4(outPosition + refract(-V, N, ior.x), 1.0);
+vec3 calcTransmission(vec3 color, vec3 N, float roughness, vec3 V, float transmission, float thickness) {
+    vec4 refractS = projection * view * vec4(outPosition + refract(-V, N, ior.x) * thickness, 1.0);
     refractS.xy = refractS.xy / refractS.w;
     refractS.xy = refractS.xy * 0.5 + 0.5;
     const float MAX_REFLECTION_LOD = 10.0;
@@ -382,6 +386,14 @@ vec2 applyTransform(vec2 uv) {
     return outUV;
 }
 
+vec3 cocaLambert(vec3 alpha, float distance) {
+    return exp(-alpha*distance);
+}
+
+vec3 computeColorAtDistanceInMedia(vec3 color, float distance) {
+    return -log(color)/distance;
+}
+
 void main() {
     vec2 outUV = outUV0;
     #ifdef BASECOLORTEXTURE
@@ -433,6 +445,7 @@ void main() {
     vec3 sheenColor = sheenColorFactor.xyz;
     float sheenRoughness = sheenRoughnessFactor.x;
     float transmission = transmissionFactor.x;
+    float thickness = clamp(thicknessFactor.x, 0.0, 1.0);
     #ifdef CLEARCOATMAP
         outUV = getUV(CLEARCOATMAP);
         #ifdef CLEARCOATMAP_TEXTURE_TRANSFORM
@@ -460,6 +473,10 @@ void main() {
     #ifdef TRANSMISSIONMAP
         float transmissionTextureV = texture(transmissionTexture, outUV).r;
         transmission = transmissionTextureV * transmission;
+    #endif
+    #ifdef THICKNESSMAP
+        float thicknessTextureV = texture(thicknessTexture, outUV).g;
+        thickness = thicknessTextureV * thickness;
     #endif
     vec3 specularMap = vec3(0);
     #ifdef SPECULARGLOSSINESSMAP
@@ -583,7 +600,7 @@ void main() {
         vec3 ambient = vec3(0.0);
         vec3 ambientClearcoat = vec3(0.0);
         vec3 clearcoatFresnel = vec3(1.0);
-        vec3 f_transmission = calcTransmission(baseColor, n, roughness, viewDir, transmission);
+        vec3 f_transmission = cocaLambert(computeColorAtDistanceInMedia(attenuationColor.rgb, attenuationDistance.x), thickness) * calcTransmission(baseColor, n, roughness, viewDir, transmission, thickness);
         vec3 aSpecular;
         vec3 cSpecular;
         if (isIBL == 1) {
