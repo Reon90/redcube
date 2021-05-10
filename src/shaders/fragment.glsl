@@ -246,14 +246,15 @@ vec3 IBLAmbient(vec3 specularMap, vec3 baseColor, float metallic, vec3 n, float 
     vec3 kD = vec3(1.0) - F;
     #if defined SPECULARGLOSSINESSMAP
     #else
-        kD *= 1.0 - metallic;
+        kD *= 1.0 - clamp(metallic, 0.0, 0.9);
     #endif
 
     vec3 R;
     #ifdef SPHERICAL_HARMONICS
     R = reflect(viewDir, n);
     vec4 rotatedR = rotationMatrix * vec4(R.x * -1.0, R.y, R.z, 0.0);
-    vec4 prefilterColor = textureLod(prefilterMap, rotatedR.xyz, roughness * float(SPHERICAL_HARMONICS));
+    R = rotatedR.xyz;
+    vec4 prefilterColor = textureLod(prefilterMap, R, roughness * float(SPHERICAL_HARMONICS));
     vec3 prefilteredColor = srgbToLinear(vec4(prefilterColor.rgb, 0.0)) / pow(prefilterColor.a, 2.2);
     vec3 irradianceVector = vec3(rotationMatrix * vec4(n.x, n.y, n.z * -1.0, 0)).xyz;
     vec3 irradiance = computeEnvironmentIrradiance(irradianceVector).rgb;
@@ -271,7 +272,7 @@ vec3 IBLAmbient(vec3 specularMap, vec3 baseColor, float metallic, vec3 n, float 
     // float sheenAlbedoScaling = min(1.0 - max3(sheenColor) * E(max(dot(viewDir, n), 0.0), sheenRoughness), 1.0 - max3(sheenColor) * E(max(dot(-R, n), 0.0), sheenRoughness));
     f_sheen /= max(1.0, 4.0 * abs(dot(n, -R)) * abs(dot(n, viewDir)));
 
-    return ((1.0 - transmission) * kD * irradiance * baseColor) + f_sheen;
+    return ((1.0 - transmission) * kD * irradiance * clamp(baseColor, vec3(0.05), vec3(1.0))) + f_sheen;
 }
 
 float specEnv(vec3 N, vec3 V, float metallic, float roughness) {
