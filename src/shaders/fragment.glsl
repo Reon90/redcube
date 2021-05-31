@@ -402,7 +402,7 @@ void main() {
         #ifdef BASECOLORTEXTURE_TEXTURE_TRANSFORM
             outUV = applyTransform(outUV);
         #endif
-        vec3 baseColor = srgbToLinear(texture(baseColorTexture, outUV)) * baseColorFactor.rgb;
+        vec3 baseColor = texture(baseColorTexture, outUV).rgb * baseColorFactor.rgb;
         float alpha = min(texture(baseColorTexture, outUV).a, baseColorFactor.a);
     #else
         vec3 baseColor = baseColorFactor.rgb;
@@ -467,7 +467,7 @@ void main() {
             outUV = applyTransform(outUV);
         #endif
         vec4 sheenRoughnessTextureV = texture(sheenRoughnessTexture, outUV);
-        vec3 sheenColorTextureV = srgbToLinear(texture(sheenColorTexture, outUV));
+        vec3 sheenColorTextureV = texture(sheenColorTexture, outUV).rgb;
         sheenColor = sheenColorTextureV * sheenColor;
         sheenRoughness = sheenRoughnessTextureV.a * sheenRoughness;
     #endif
@@ -487,7 +487,7 @@ void main() {
                 outUV = applyTransform(outUV);
             #endif
             roughness = 1.0 - texture(metallicRoughnessTexture, outUV).a;
-            specularMap = srgbToLinear(texture(metallicRoughnessTexture, outUV));
+            specularMap = texture(metallicRoughnessTexture, outUV).rgb;
         #else
             roughness = glossinessFactor.x;
             specularMap = specularFactor;
@@ -623,7 +623,7 @@ void main() {
             #ifdef EMISSIVEMAP_TEXTURE_TRANSFORM
                 outUV = applyTransform(outUV);
             #endif
-            emissive = srgbToLinear(texture(emissiveTexture, outUV));
+            emissive = texture(emissiveTexture, outUV).rgb;
         #endif
 
         #ifdef TRANSMISSION

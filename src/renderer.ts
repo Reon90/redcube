@@ -1,5 +1,5 @@
 import { Scene, Mesh, Camera, Bone } from './objects/index';
-import { Vector, Vector3, Vector4, Frustum } from './matrix';
+import { Vector, Vector3, Vector4, Frustum, Matrix4 } from './matrix';
 import { getAnimationComponent, interpolation, walk } from './utils';
 import { Parse } from './parse';
 import { PostProcessing } from './postprocessing';
@@ -80,7 +80,9 @@ export class Renderer {
 
         if (v.type === 'rotation') {
             for (const mesh of v.meshes) {
+                const scale = mesh.matrix.getScaling();
                 mesh.matrix.makeRotationFromQuaternion(vector.elements);
+                mesh.matrix.scale(scale);
             }
         } else if (v.type === 'scale') {
             for (const mesh of v.meshes) {
@@ -139,7 +141,9 @@ export class Renderer {
             const out = new Vector4(result).normalize();
 
             for (const mesh of v.meshes) {
+                const scale = mesh.matrix.getScaling();
                 mesh.matrix.makeRotationFromQuaternion(out.elements);
+                mesh.matrix.scale(scale);
             }
         } else if (v.type === 'scale') {
             const out = new Vector3(result);
@@ -195,7 +199,9 @@ export class Renderer {
             out.lerp(vector.elements, vector2.elements, t);
 
             for (const mesh of v.meshes) {
+                const scale = mesh.matrix.getScaling();
                 mesh.matrix.makeRotationFromQuaternion(out.elements);
+                mesh.matrix.scale(scale);
             }
         } else if (v.type === 'scale') {
             const out = new Vector3();

@@ -458,10 +458,10 @@ export class Parse {
                     walk(this.scene, node => {
                         if (node.name === name) {
                             if (target.path === 'weights' && node instanceof Object3D) {
-                                // eslint-disable-next-line
-                                node = node.children[0];
+                                meshes.push(...node.children);
+                            } else {
+                                meshes.push(node);
                             }
-                            meshes.push(node);
                         }
                     });
 
@@ -620,6 +620,13 @@ export class Parse {
                 'specularTexture',
                 'thicknessTexture'
             ];
+            const textureSRGB = [
+                'baseColorTexture',
+                'sheenColorTexture',
+                'emissiveTexture',
+                //@ts-ignore
+                mesh.defines.find(d => d.name === 'SPECULARGLOSSINESSMAP') && 'metallicRoughnessTexture'
+            ];
 
             for (let i = 0; i < textureTypes.length; i++) {
                 for (const material of materials) {
@@ -627,6 +634,9 @@ export class Parse {
                     const t = material[textureType];
                     if (!t) {
                         continue;
+                    }
+                    if (textureSRGB.find(name => name === textureType)) {
+                        t.srgb = true;
                     }
                     material[textureType] = callback(t);
                 }
@@ -714,7 +724,7 @@ export class Parse {
         return tex;
     }
 
-    handleTextureLoaded({ image, name, mimeType, sampler }) {
+    handleTextureLoaded({ image, name, mimeType, sampler, srgb }) {
         const s = this.samplers[sampler !== undefined ? sampler : 0];
         if (mimeType) {
             image.sampler = s;
@@ -728,7 +738,7 @@ export class Parse {
         gl.activeTexture(gl[`TEXTURE${31}`]);
         gl.bindTexture(gl.TEXTURE_2D, t);
         gl.pixelStorei(gl.UNPACK_COLORSPACE_CONVERSION_WEBGL, gl.NONE);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+        gl.texImage2D(gl.TEXTURE_2D, 0, srgb ? gl.SRGB8_ALPHA8 : gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
         gl.generateMipmap(gl.TEXTURE_2D);
 
         return t;
