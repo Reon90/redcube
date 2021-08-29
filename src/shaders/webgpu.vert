@@ -1,4 +1,4 @@
-#version 450
+#version 460
 precision highp float;
 
 layout (location = 0) in vec3 inPosition;

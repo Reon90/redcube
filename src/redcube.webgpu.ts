@@ -42,14 +42,15 @@ class RedCube {
         const device = await adapter.requestDevice();
         const glslang = await glslangModule.default();
 
-        const context = this.canvas.getContext('gpupresent');
-
-        const swapChainFormat = 'bgra8unorm';
-
-        // @ts-ignore
-        const swapChain = context.configureSwapChain({
+        const context = this.canvas.getContext('webgpu');
+        context.configure({
             device,
-            format: swapChainFormat
+            format: 'bgra8unorm',
+            size: {
+                width: this.canvas.offsetWidth * devicePixelRatio,
+                height: this.canvas.offsetHeight * devicePixelRatio,
+                depthOrArrayLayers: 1
+            },
         });
 
         const depthTexture = device.createTexture({
@@ -66,7 +67,7 @@ class RedCube {
             colorAttachments: [
                 {
                     // attachment is acquired in render loop.
-                    view: swapChain.getCurrentTexture().createView(),
+                    view: context.getCurrentTexture().createView(),
                     storeOp: 'store' as GPUStoreOp,
                     loadValue: { r: 0, g: 0, b: 0, a: 1.0 }
                 }
@@ -81,7 +82,7 @@ class RedCube {
             }
         };
 
-        return { glslang, swapChain, device, renderPassDescriptor };
+        return { glslang, context, device, renderPassDescriptor };
     }
 
     get camera(): Camera {

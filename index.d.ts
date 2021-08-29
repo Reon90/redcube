@@ -12,7 +12,7 @@ declare module '*.glsl' {
 }
 
 interface WEBGPU {
-    swapChain: GPUSwapChain;
+    context: GPUCanvasContext;
     device: GPUDevice;
     renderPassDescriptor: GPURenderPassDescriptor;
     commandEncoder?: GPUCommandEncoder;

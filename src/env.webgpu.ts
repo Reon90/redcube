@@ -101,7 +101,7 @@ export class Env {
         });
         m.multiply(calculateProjection(cam));
 
-        const vertex = `#version 450
+        const vertex = `#version 460
         precision highp float;
         
         layout (location = 0) in vec2 inPosition;
@@ -116,7 +116,7 @@ export class Env {
             gl_Position = vec4(inPosition, 0.0, 1.0);
         }
         `;
-        const fragment = `#version 450
+        const fragment = `#version 460
         precision highp float;
         
         layout (location = 0) in vec2 outUV;
@@ -135,13 +135,13 @@ export class Env {
         //gl.uniformMatrix4fv(gl.getUniformLocation(program, 'projection'), false, m.elements);
         //gl.uniformMatrix4fv(gl.getUniformLocation(program, 'view'), false, this.camera.matrixWorldInvert.elements);
 
-        const { device, swapChain } = WebGPU;
+        const { device, context } = WebGPU;
 
         let pass;
         {
             const depthTexture = device.createTexture({
                 size: [this.width, this.height, 1],
-                usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.SAMPLED,
+                usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
                 format: 'depth32float'
             });
             const depthTextureView = depthTexture.createView();
@@ -149,7 +149,7 @@ export class Env {
             pass = {
                 colorAttachments: [
                     {
-                        view: swapChain.getCurrentTexture().createView(),
+                        view: context.getCurrentTexture().createView(),
 
                         loadValue: { r: 0, g: 0, b: 0, a: 1.0 }
                     }
@@ -218,7 +218,7 @@ export class Env {
     }
 
     drawCube(WebGPU: WEBGPU) {
-        const { device, swapChain } = WebGPU;
+        const { device, context } = WebGPU;
         const m = new Matrix4();
         const cam = Object.assign({}, this.camera.props, {
             perspective: {
@@ -242,7 +242,7 @@ export class Env {
         });
         device.queue.writeBuffer(u, 0, uniformBuffer.store.buffer, uniformBuffer.store.byteOffset, uniformBuffer.store.byteLength);
 
-        const vertex = `#version 450
+        const vertex = `#version 460
         precision highp float;
         
         layout (location = 0) in vec3 inPosition;
@@ -259,7 +259,7 @@ export class Env {
             gl_Position = uniforms.projection * uniforms.view * vec4(inPosition, 1.0);
         }
         `;
-        const fragment = `#version 450
+        const fragment = `#version 460
         precision highp float;
         
         layout (location = 0) in vec3 outUV;
@@ -279,7 +279,7 @@ export class Env {
         {
             const depthTexture = device.createTexture({
                 size: [this.width, this.height, 1],
-                usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.SAMPLED,
+                usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
                 format: 'depth32float'
             });
             const depthTextureView = depthTexture.createView();
@@ -287,7 +287,7 @@ export class Env {
             pass = {
                 colorAttachments: [
                     {
-                        view: swapChain.getCurrentTexture().createView(),
+                        view: context.getCurrentTexture().createView(),
 
                         loadValue: { r: 0, g: 0, b: 0, a: 1.0 }
                     }
@@ -437,8 +437,8 @@ export class Env {
 
                 const tex = device.createTexture({
                     size: [shape[0], shape[1], 1],
-                    format: 'rgba32float',
-                    usage: GPUTextureUsage.SAMPLED | GPUTextureUsage.COPY_DST
+                    format: 'rgba16float', // TODO 16 filtered vs 32 non-filtered
+                    usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST
                 });
                 const bytesPerRow = shape[0] * 4 * 4;
                 device.queue.writeTexture(
@@ -462,15 +462,15 @@ export class Env {
 
         const depthTexture = device.createTexture({
             size: [size, size, 1],
-            usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.SAMPLED,
+            usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
             format: 'depth32float'
         });
         const depthTextureView = depthTexture.createView();
 
         const colorTexture = device.createTexture({
             size: [size, size, 1],
-            usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.SAMPLED | GPUTextureUsage.COPY_SRC,
-            format: 'rgba32float'
+            usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_SRC,
+            format: 'rgba16float'
         });
         this.tempTexture = colorTexture;
         const colorTextureView = colorTexture.createView();
@@ -535,7 +535,7 @@ export class Env {
                 entryPoint: 'main',
                 targets: [
                     {
-                        format: screen ? 'bgra8unorm' : 'rgba32float'
+                        format: screen ? 'bgra8unorm' : 'rgba16float'
                     }
                 ]
             },
@@ -570,8 +570,8 @@ export class Env {
 
         this.bdrfTexture = device.createTexture({
             size: [512, 512, 1],
-            usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.SAMPLED | GPUTextureUsage.COPY_DST,
-            format: 'rgba32float'
+            usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
+            format: 'rgba16float'
         });
 
         const commandEncoder = device.createCommandEncoder();
@@ -920,8 +920,8 @@ export class Env {
         this.cubeTexture = device.createTexture({
             mipLevelCount: 5,
             size: [512, 512, 6],
-            usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.SAMPLED | GPUTextureUsage.COPY_DST,
-            format: 'rgba32float'
+            usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
+            format: 'rgba16float'
         });
 
         const maxMipLevels = 5;
@@ -939,8 +939,8 @@ export class Env {
         const { device } = WebGPU;
         this.irradianceTexture = device.createTexture({
             size: [32, 32, 6],
-            usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.SAMPLED | GPUTextureUsage.COPY_DST,
-            format: 'rgba32float'
+            usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
+            format: 'rgba16float'
         });
 
         for (let i = 0; i < 6; i++) {
@@ -953,8 +953,8 @@ export class Env {
         this.prefilterTexture = device.createTexture({
             mipLevelCount: 5,
             size: [128, 128, 6],
-            usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.SAMPLED | GPUTextureUsage.COPY_DST,
-            format: 'rgba32float'
+            usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
+            format: 'rgba16float'
         });
 
         const maxMipLevels = 5;

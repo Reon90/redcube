@@ -34,9 +34,9 @@ export class RendererWebGPU extends Renderer {
     }
 
     renderScene() {
-        const { renderPassDescriptor, swapChain, device } = WebGPU;
+        const { renderPassDescriptor, context, device } = WebGPU;
 
-        renderPassDescriptor.colorAttachments[0].view = swapChain.getCurrentTexture().createView();
+        renderPassDescriptor.colorAttachments[0].view = context.getCurrentTexture().createView();
 
         const passEncoder = WebGPU.commandEncoder.beginRenderPass(renderPassDescriptor);
         this.scene.opaqueChildren.forEach(mesh => {

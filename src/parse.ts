@@ -711,10 +711,10 @@ export class Parse {
         const tex = device.createTexture({
             size: [bitmap.width, bitmap.height, 1],
             format: 'rgba8unorm',
-            usage: GPUTextureUsage.SAMPLED | GPUTextureUsage.COPY_DST
+            usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT
         });
-        device.queue.copyImageBitmapToTexture(
-            { imageBitmap: bitmap },
+        device.queue.copyExternalImageToTexture(
+            { source: bitmap },
             { texture: tex, mipLevel: 0, origin: { x: 0, y: 0, z: 0 } },
             { width: bitmap.width, height: bitmap.height, depthOrArrayLayers: 1 }
         );

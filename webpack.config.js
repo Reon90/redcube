@@ -1,7 +1,7 @@
 const webpack = require('webpack');
 const path = require('path');
 const CopyPlugin = require("copy-webpack-plugin");
-const libraryName = 'redcube';
+const libraryName = 'redcube.webgpu';
 
 module.exports = {
     mode: 'development',
