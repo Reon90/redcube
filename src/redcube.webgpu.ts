@@ -51,6 +51,7 @@ class RedCube {
                 height: this.canvas.offsetHeight * devicePixelRatio,
                 depthOrArrayLayers: 1
             },
+            compositingAlphaMode: 'opaque'
         });
 
         const depthTexture = device.createTexture({
@@ -59,7 +60,7 @@ class RedCube {
                 height: this.canvas.offsetHeight * devicePixelRatio,
                 depthOrArrayLayers: 1
             },
-            format: 'depth24plus-stencil8',
+            format: 'depth32float',
             usage: GPUTextureUsage.RENDER_ATTACHMENT
         });
 
@@ -69,16 +70,16 @@ class RedCube {
                     // attachment is acquired in render loop.
                     view: context.getCurrentTexture().createView(),
                     storeOp: 'store' as GPUStoreOp,
-                    loadValue: { r: 0, g: 0, b: 0, a: 1.0 }
+                    loadOp: 'clear',
+                    clearValue: { r: 0, g: 0, b: 0, a: 1.0 }
                 }
             ],
             depthStencilAttachment: {
                 view: depthTexture.createView(),
 
-                depthLoadValue: 1.0,
-                depthStoreOp: 'store' as GPUStoreOp,
-                stencilLoadValue: 0,
-                stencilStoreOp: 'store' as GPUStoreOp
+                depthLoadOp: 'clear',
+                depthClearValue: 1.0,
+                depthStoreOp: 'store' as GPUStoreOp
             }
         };
 

@@ -370,9 +370,9 @@ float sheenVisibility(vec3 N, vec3 V, vec3 L, float sheenRoughness) {
     float NdotL = max(dot(N, L), 0.0);
     float NdotV = max(dot(N, V), 0.0);
     float v = 1.0 / ((1.0 + lambdaSheen(NdotV, alphaG) + lambdaSheen(NdotL, alphaG)) * (4.0 * NdotV * NdotL));
-    if (isnan(v) || isinf(v)) {
-        v = 0.0;
-    }
+    // if (isnan(v) || isinf(v)) {
+    //     v = 0.0;
+    // }
     return v;
 }
 // float E(float x, float y) {

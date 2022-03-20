@@ -151,15 +151,15 @@ export class Env {
                     {
                         view: context.getCurrentTexture().createView(),
 
-                        loadValue: { r: 0, g: 0, b: 0, a: 1.0 }
+                        loadOp: 'clear',
+                        clearValue: { r: 0, g: 0, b: 0, a: 1.0 }
                     }
                 ],
                 depthStencilAttachment: {
                     view: depthTextureView,
-                    depthLoadValue: 1.0,
-                    depthStoreOp: 'store',
-                    stencilLoadValue: 0,
-                    stencilStoreOp: 'store'
+                    depthLoadOp: 'clear',
+                    depthClearValue: 1.0,
+                    depthStoreOp: 'store'
                 }
             };
         }
@@ -213,7 +213,7 @@ export class Env {
         );
         shadowPass.draw(6);
 
-        shadowPass.endPass();
+        shadowPass.end();
         device.queue.submit([commandEncoder.finish()]);
     }
 
@@ -289,15 +289,15 @@ export class Env {
                     {
                         view: context.getCurrentTexture().createView(),
 
-                        loadValue: { r: 0, g: 0, b: 0, a: 1.0 }
+                        loadOp: 'clear',
+                        clearValue: { r: 0, g: 0, b: 0, a: 1.0 }
                     }
                 ],
                 depthStencilAttachment: {
                     view: depthTextureView,
-                    depthLoadValue: 1.0,
-                    depthStoreOp: 'store',
-                    stencilLoadValue: 0,
-                    stencilStoreOp: 'store'
+                    depthLoadOp: 'clear',
+                    depthClearValue: 1.0,
+                    depthStoreOp: 'store'
                 }
             };
         }
@@ -368,7 +368,7 @@ export class Env {
         );
         shadowPass.draw(36);
 
-        shadowPass.endPass();
+        shadowPass.end();
         device.queue.submit([commandEncoder.finish()]);
     }
 
@@ -480,15 +480,15 @@ export class Env {
                 {
                     view: colorTextureView,
                     storeOp: 'store' as GPUStoreOp,
-                    loadValue: { r: 0, g: 0, b: 0, a: 1.0 }
+                    loadOp: 'clear',
+                    clearValue: { r: 0, g: 0, b: 0, a: 1.0 }
                 }
             ],
             depthStencilAttachment: {
                 view: depthTextureView,
-                depthLoadValue: 1.0,
-                depthStoreOp: 'store' as GPUStoreOp,
-                stencilLoadValue: 0,
-                stencilStoreOp: 'store' as GPUStoreOp
+                depthLoadOp: 'clear',
+                depthClearValue: 1.0,
+                depthStoreOp: 'store' as GPUStoreOp
             }
         };
     }
@@ -590,7 +590,7 @@ export class Env {
         shadowPass.setViewport(0, 0, 512, 512, 0, 1);
         shadowPass.draw(6);
 
-        shadowPass.endPass();
+        shadowPass.end();
 
         commandEncoder.copyTextureToTexture({ texture: this.tempTexture }, { texture: this.bdrfTexture }, [512, 512, 1]);
 
@@ -689,7 +689,7 @@ export class Env {
         shadowPass.setViewport(0, 0, mipWidth, mipHeight, 0, 1);
         shadowPass.draw(36);
 
-        shadowPass.endPass();
+        shadowPass.end();
 
         commandEncoder.copyTextureToTexture(
             { texture: this.tempTexture },
@@ -796,7 +796,7 @@ export class Env {
         shadowPass.setViewport(0, 0, mipWidth, mipHeight, 0, 1);
         shadowPass.draw(36);
 
-        shadowPass.endPass();
+        shadowPass.end();
 
         commandEncoder.copyTextureToTexture(
             { texture: this.tempTexture },
@@ -904,7 +904,7 @@ export class Env {
         shadowPass.setViewport(0, 0, mipWidth, mipHeight, 0, 1);
         shadowPass.draw(36);
 
-        shadowPass.endPass();
+        shadowPass.end();
 
         commandEncoder.copyTextureToTexture(
             { texture: this.tempTexture },

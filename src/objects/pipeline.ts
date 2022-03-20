@@ -207,7 +207,7 @@ export function create(device, glslang, uniformBindGroup1, defines) {
         depthStencil: {
             depthWriteEnabled: true,
             depthCompare: 'less',
-            format: 'depth24plus-stencil8'
+            format: 'depth32float'
         }
     });
     return pipeline;

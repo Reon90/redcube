@@ -51,7 +51,7 @@ export class RendererWebGPU extends Renderer {
             mesh.drawWebGPU(WebGPU, passEncoder, this.getState());
             //}
         });
-        passEncoder.endPass();
+        passEncoder.end();
         device.queue.submit([WebGPU.commandEncoder.finish()]);
     }
 }
