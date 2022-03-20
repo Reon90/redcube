@@ -12,6 +12,7 @@ declare module '*.glsl' {
 }
 
 interface WEBGPU {
+    glslang: any;
     context: GPUCanvasContext;
     device: GPUDevice;
     renderPassDescriptor: GPURenderPassDescriptor;

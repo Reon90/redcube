@@ -184,17 +184,17 @@ export function create(device, glslang, uniformBindGroup1, defines) {
                     format: 'bgra8unorm',
                     blend: defines.find(d => d.name === 'ALPHATEST')
                         ? {
-                              color: {
-                                  srcFactor: 'src-alpha',
-                                  dstFactor: 'one-minus-src-alpha',
-                                  operation: 'add'
-                              },
-                              alpha: {
-                                  srcFactor: 'src-alpha',
-                                  dstFactor: 'one-minus-src-alpha',
-                                  operation: 'add'
-                              }
-                          }
+                            color: {
+                                srcFactor: 'src-alpha',
+                                dstFactor: 'one-minus-src-alpha',
+                                operation: 'add'
+                            },
+                            alpha: {
+                                srcFactor: 'src-alpha',
+                                dstFactor: 'one-minus-src-alpha',
+                                operation: 'add'
+                            }
+                        }
                         : undefined
                 }
             ]

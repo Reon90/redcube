@@ -35,7 +35,7 @@ class RedCube {
         this.events = new Events(canvas, this.redraw.bind(this));
     }
 
-    async webgpuInit() {
+    async webgpuInit(): Promise<WEBGPU> {
         const glslangModule = await import(/*webpackChunkName: "glslang"*/ '../glslang.js');
         // @ts-ignore
         const adapter = await navigator.gpu.requestAdapter();
@@ -70,14 +70,14 @@ class RedCube {
                     // attachment is acquired in render loop.
                     view: context.getCurrentTexture().createView(),
                     storeOp: 'store' as GPUStoreOp,
-                    loadOp: 'clear',
+                    loadOp: 'clear' as GPULoadOp,
                     clearValue: { r: 0, g: 0, b: 0, a: 1.0 }
                 }
             ],
             depthStencilAttachment: {
                 view: depthTexture.createView(),
 
-                depthLoadOp: 'clear',
+                depthLoadOp: 'clear' as GPULoadOp,
                 depthClearValue: 1.0,
                 depthStoreOp: 'store' as GPUStoreOp
             }

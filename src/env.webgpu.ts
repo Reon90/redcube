@@ -480,13 +480,13 @@ export class Env {
                 {
                     view: colorTextureView,
                     storeOp: 'store' as GPUStoreOp,
-                    loadOp: 'clear',
+                    loadOp: 'clear' as GPULoadOp,
                     clearValue: { r: 0, g: 0, b: 0, a: 1.0 }
                 }
             ],
             depthStencilAttachment: {
                 view: depthTextureView,
-                depthLoadOp: 'clear',
+                depthLoadOp: 'clear' as GPULoadOp,
                 depthClearValue: 1.0,
                 depthStoreOp: 'store' as GPUStoreOp
             }
