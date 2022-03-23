@@ -27,6 +27,7 @@ interface Uniforms {
     depthTexture: WebGLUniformLocation;
     colorTexture: WebGLUniformLocation;
     Sheen_E: WebGLUniformLocation;
+    iridescenceThicknessTexture: WebGLUniformLocation;
 }
 
 const lightEnum = {
@@ -167,8 +168,35 @@ export class Material extends M {
             }
         }
 
+        if (material.extensions && material.extensions.KHR_materials_emissive_strength) {
+            const { emissiveStrength } = material.extensions.KHR_materials_emissive_strength;
+            this.emissiveStrength = emissiveStrength;
+        }
+
+        if (material.extensions && material.extensions.KHR_materials_anisotropy) {
+            const { anisotropy } = material.extensions.KHR_materials_anisotropy;
+            this.anisotropy = anisotropy;
+        }
+
+        if (material.extensions && material.extensions.KHR_materials_iridescence) {
+            const { iridescenceTexture, iridescenceThicknessTexture, iridescenceFactor, iridescenceIOR, iridescenceThicknessMaximum, iridescenceThicknessMinimum } = material.extensions.KHR_materials_iridescence;
+            this.iridescenceFactor = iridescenceFactor;
+            this.iridescenceIOR = iridescenceIOR;
+            this.iridescenceThicknessMaximum = iridescenceThicknessMaximum;
+            this.iridescenceThicknessMinimum = iridescenceThicknessMinimum;
+            if (iridescenceTexture) {
+                this.iridescenceTexture = textures[iridescenceTexture.index];
+            }
+            if (iridescenceThicknessTexture) {
+                this.iridescenceThicknessTexture = textures[iridescenceThicknessTexture.index];
+                defines.push({ name: 'IRIDESCENCEMAP', value: iridescenceThicknessTexture.texCoord ? 2 : 1 });
+            }
+            defines.push({ name: 'IRIDESCENCE' });
+        }
+
         if (material.extensions && material.extensions.KHR_materials_ior) {
             this.ior = material.extensions.KHR_materials_ior.ior;
+            defines.push({ name: 'IOR' });
         }
 
         if (material.extensions && material.extensions.KHR_materials_specular) {
@@ -189,6 +217,7 @@ export class Material extends M {
             clearcoatTexture: null,
             clearcoatRoughnessTexture: null,
             sheenRoughnessTexture: null,
+            iridescenceThicknessTexture: null,
             sheenColorTexture: null,
             clearcoatNormalTexture: null,
             emissiveTexture: null,
@@ -348,6 +377,10 @@ export class Material extends M {
             this.uniforms.sheenRoughnessTexture = gl.getUniformLocation(program, 'sheenRoughnessTexture');
             gl.uniform1i(this.uniforms.sheenRoughnessTexture, textureEnum.sheenRoughnessTexture);
         }
+        if (this.iridescenceThicknessTexture) {
+            this.uniforms.iridescenceThicknessTexture = gl.getUniformLocation(program, 'iridescenceThicknessTexture');
+            gl.uniform1i(this.uniforms.iridescenceThicknessTexture, textureEnum.iridescenceThicknessTexture);
+        }
         if (this.sheenColorTexture) {
             this.uniforms.sheenColorTexture = gl.getUniformLocation(program, 'sheenColorTexture');
             gl.uniform1i(this.uniforms.sheenColorTexture, textureEnum.sheenColorTexture);
@@ -455,6 +488,9 @@ export class Material extends M {
             materialUniformBuffer.add('attenuationColor', this.attenuationColor ?? [1, 1, 1]);
             materialUniformBuffer.add('attenuationDistance', this.attenuationDistance ?? 1);
             materialUniformBuffer.add('thicknessFactor', this.thicknessFactor ?? 1);
+            materialUniformBuffer.add('emissiveStrength', this.emissiveStrength ?? 1);
+            materialUniformBuffer.add('anisotropy', this.anisotropy ?? 1);
+            materialUniformBuffer.add('iridescence', [this.iridescenceFactor, this.iridescenceIOR, this.iridescenceThicknessMaximum, this.iridescenceThicknessMinimum] ?? [0, 0, 0, 0]);
             materialUniformBuffer.done();
             this.materialUniformBuffer = materialUniformBuffer;
         }
@@ -509,12 +545,12 @@ export class Material extends M {
         const sampler = this.baseColorTexture
             ? this.baseColorTexture.sampler
             : device.createSampler({
-                  magFilter: 'linear',
-                  minFilter: 'linear',
-                  addressModeU: 'repeat',
-                  addressModeV: 'repeat',
-                  addressModeW: 'repeat'
-              });
+                magFilter: 'linear',
+                minFilter: 'linear',
+                addressModeU: 'repeat',
+                addressModeV: 'repeat',
+                addressModeW: 'repeat'
+            });
 
         const uniformBindGroup1 = [
             {

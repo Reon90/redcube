@@ -34,6 +34,9 @@ uniform Material {
     vec4 attenuationColor; 
     vec4 attenuationDistance; 
     vec4 thicknessFactor;
+    vec4 emissiveStrength;
+    vec4 anisotropy;
+    vec4 iridescence;
 };
 uniform Matrices {
     mat4 model;
@@ -78,6 +81,7 @@ uniform sampler2D clearcoatRoughnessTexture;
 uniform sampler2D transmissionTexture;
 uniform sampler2D sheenColorTexture;
 uniform sampler2D sheenRoughnessTexture;
+uniform sampler2D iridescenceThicknessTexture;
 uniform sampler2D clearcoatNormalTexture;
 uniform sampler2D specularTexture;
 uniform sampler2D thicknessTexture;
@@ -93,7 +97,7 @@ uniform int isDefaultLight;
 uniform sampler2D Sheen_E;
 
 const float RECIPROCAL_PI = 0.31830988618;
-const float PI = 3.14159265359;
+const float PI = 3.141592653589793;
 const float EPSILON = 1e-6;
 const float ambientStrength = 0.1;
 const float specularStrength = 2.5;
@@ -135,17 +139,135 @@ vec3 srgbToLinear(vec4 srgbIn) {
     #endif
 }
 
+vec3 fresnelSchlick(float cosTheta, vec3 F0) {
+    return F0 + (vec3(1.0) - F0) * pow(1.0 - cosTheta, 5.0);
+}
+float fresnelSchlick(float cosTheta, float F0) {
+    return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
+}
+vec3 Schlick_to_F0(vec3 f, vec3 f90, float VdotH) {
+    float x = clamp(1.0 - VdotH, 0.0, 1.0);
+    float x2 = x * x;
+    float x5 = clamp(x * x2 * x2, 0.0, 0.9999);
+
+    return (f - f90 * x5) / (1.0 - x5);
+}
+vec3 Schlick_to_F0(vec3 f, float VdotH) {
+    return Schlick_to_F0(f, vec3(1.0), VdotH);
+}
+float sq(float t) {
+    return t * t;
+}
+vec3 sq(vec3 t) {
+    return t * t;
+}
+// XYZ to sRGB color space
+const mat3 XYZ_TO_REC709 = mat3(
+     3.2404542, -0.9692660,  0.0556434,
+    -1.5371385,  1.8760108, -0.2040259,
+    -0.4985314,  0.0415560,  1.0572252
+);
+
+// Assume air interface for top
+// Note: We don't handle the case fresnel0 == 1
+vec3 Fresnel0ToIor(vec3 fresnel0) {
+    vec3 sqrtF0 = sqrt(fresnel0);
+    return (vec3(1.0) + sqrtF0) / (vec3(1.0) - sqrtF0);
+}
+
+// Conversion FO/IOR
+vec3 IorToFresnel0(vec3 transmittedIor, float incidentIor) {
+    return sq((transmittedIor - vec3(incidentIor)) / (transmittedIor + vec3(incidentIor)));
+}
+
+// ior is a value between 1.0 and 3.0. 1.0 is air interface
+float IorToFresnel0(float transmittedIor, float incidentIor) {
+    return sq((transmittedIor - incidentIor) / (transmittedIor + incidentIor));
+}
+
+// Fresnel equations for dielectric/dielectric interfaces.
+// Ref: https://belcour.github.io/blog/research/2017/05/01/brdf-thin-film.html
+// Evaluation XYZ sensitivity curves in Fourier space
+vec3 evalSensitivity(float OPD, vec3 shift) {
+    float phase = 2.0 * PI * OPD * 1.0e-9;
+    vec3 val = vec3(5.4856e-13, 4.4201e-13, 5.2481e-13);
+    vec3 pos = vec3(1.6810e+06, 1.7953e+06, 2.2084e+06);
+    vec3 var = vec3(4.3278e+09, 9.3046e+09, 6.6121e+09);
+
+    vec3 xyz = val * sqrt(2.0 * PI * var) * cos(pos * phase + shift) * exp(-sq(phase) * var);
+    xyz.x += 9.7470e-14 * sqrt(2.0 * PI * 4.5282e+09) * cos(2.2399e+06 * phase + shift[0]) * exp(-4.5282e+09 * sq(phase));
+    xyz /= 1.0685e-7;
+
+    vec3 srgb = XYZ_TO_REC709 * xyz;
+    return srgb;
+}
+
+vec3 evalIridescence(float outsideIOR, float eta2, float cosTheta1, float thinFilmThickness, vec3 baseF0) {
+    vec3 I;
+
+    // Force iridescenceIOR -> outsideIOR when thinFilmThickness -> 0.0
+    float iridescenceIOR = mix(outsideIOR, eta2, smoothstep(0.0, 0.03, thinFilmThickness));
+    // Evaluate the cosTheta on the base layer (Snell law)
+    float sinTheta2Sq = sq(outsideIOR / iridescenceIOR) * (1.0 - sq(cosTheta1));
+
+    // Handle TIR:
+    float cosTheta2Sq = 1.0 - sinTheta2Sq;
+    if (cosTheta2Sq < 0.0) {
+        return vec3(1.0);
+    }
+
+    float cosTheta2 = sqrt(cosTheta2Sq);
+
+    // First interface
+    float R0 = IorToFresnel0(iridescenceIOR, outsideIOR);
+    float R12 = fresnelSchlick(cosTheta1, R0);
+    float R21 = R12;
+    float T121 = 1.0 - R12;
+    float phi12 = 0.0;
+    if (iridescenceIOR < outsideIOR) phi12 = PI;
+    float phi21 = PI - phi12;
+
+    // Second interface
+    vec3 baseIOR = Fresnel0ToIor(clamp(baseF0, 0.0, 0.9999)); // guard against 1.0
+    vec3 R1 = IorToFresnel0(baseIOR, iridescenceIOR);
+    vec3 R23 = fresnelSchlick(cosTheta2, R1);
+    vec3 phi23 = vec3(0.0);
+    if (baseIOR[0] < iridescenceIOR) phi23[0] = PI;
+    if (baseIOR[1] < iridescenceIOR) phi23[1] = PI;
+    if (baseIOR[2] < iridescenceIOR) phi23[2] = PI;
+
+    // Phase shift
+    float OPD = 2.0 * iridescenceIOR * thinFilmThickness * cosTheta2;
+    vec3 phi = vec3(phi21) + phi23;
+
+    // Compound terms
+    vec3 R123 = clamp(R12 * R23, 1e-5, 0.9999);
+    vec3 r123 = sqrt(R123);
+    vec3 Rs = sq(T121) * R23 / (vec3(1.0) - R123);
+
+    // Reflectance term for m = 0 (DC term amplitude)
+    vec3 C0 = R12 + Rs;
+    I = C0;
+
+    // Reflectance term for m > 0 (pairs of diracs)
+    vec3 Cm = Rs - T121;
+    for (int m = 1; m <= 2; ++m)
+    {
+        Cm *= r123;
+        vec3 Sm = 2.0 * evalSensitivity(float(m) * OPD, float(m) * phi);
+        I += Cm * Sm;
+    }
+
+    // Since out of gamut colors might be produced, negative color values are clamped to 0.
+    return max(I, vec3(0.0));
+}
+
 float DistributionGGX(vec3 N, vec3 H, float roughness) {
-    float a = roughness*roughness;
-    float a2 = max(a*a, 0.0001);
-    float NdotH = max(dot(N, H), 0.0);
-    float NdotH2 = NdotH*NdotH;
-
-    float nom   = a2;
-    float denom = (NdotH2 * (a2 - 1.0) + 1.0);
-    denom = PI * denom * denom;
-
-    return nom / max(denom, 0.0001);
+    float NdotH = max(dot(N, H), 0.01);
+    float a = max(roughness*roughness, 0.01);
+    float alphaRoughnessSq = a * a;
+    float f = (NdotH * NdotH) * (alphaRoughnessSq - 1.0) + 1.0;
+    return alphaRoughnessSq / (PI * f * f);
 }
 
 float GeometrySchlickGGX(float cosTheta, float roughness) {
@@ -167,9 +289,6 @@ float GeometrySmith(vec3 N, vec3 V, vec3 L, float roughness) {
     return ggx1 * ggx2;
 }
 
-vec3 fresnelSchlick(float cosTheta, vec3 F0) {
-    return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
-}
 float fresnelSchlickRoughness(float cosTheta, float F0, float roughness) {
     return F0 + (max(1.0 - roughness, F0) - F0) * pow(1.0 - cosTheta, 5.0);
 }
@@ -228,25 +347,17 @@ float E(float x, float y) {
     return texture(Sheen_E, vec2(x,y)).r;
 }
 float max3(vec3 v) { return max(max(v.x, v.y), v.z); }
-vec3 IBLAmbient(vec3 specularMap, vec3 baseColor, float metallic, vec3 n, float roughness, vec3 viewDir, float transmission, vec3 sheenColor, float sheenRoughness, float ior, out vec3 specular) {
-    vec3 F0 = mix(vec3(0.05), baseColor, metallic);
-
-    #if defined SPECULAR
-    if (metallic == 0.0) {
-        float relativeIOR = (1.0 - ior) / (1.0 + ior);
-        F0 = relativeIOR * relativeIOR * specularMap;
-    }
-    #endif
-    #if defined SPECULARGLOSSINESSMAP
-        F0 = specularMap;
-    #endif
-
+vec3 IBLAmbient(vec3 specularMap, vec3 baseColor, float metallic, vec3 n, float roughness, vec3 viewDir, float transmission, vec3 sheenColor, float sheenRoughness, float ior, vec3 iridescenceFresnel, float iridescenceFactor, vec3 F0, out vec3 specular) {
     vec3 F = fresnelSchlickRoughness(max(dot(n, viewDir), 0.0), F0, roughness);
 
     vec3 kD = vec3(1.0) - F;
     #if defined SPECULARGLOSSINESSMAP
     #else
         kD *= 1.0 - clamp(metallic, 0.0, 0.9);
+    #endif
+    #if defined IRIDESCENCE
+    kD = vec3(1.0) - mix(F, iridescenceFresnel, iridescenceFactor);
+    kD *= 1.0 - clamp(metallic, 0.0, 0.9);
     #endif
 
     vec3 R;
@@ -265,7 +376,11 @@ vec3 IBLAmbient(vec3 specularMap, vec3 baseColor, float metallic, vec3 n, float 
     vec3 irradiance = texture(irradianceMap, n).rgb;
     #endif
     vec2 envBRDF  = texture(brdfLUT, vec2(max(dot(n, viewDir), 0.0), roughness)).rg;
-    specular = prefilteredColor * (F * envBRDF.x + envBRDF.y);
+    vec3 kS = F;
+    #if defined IRIDESCENCE
+    kS = mix(F, iridescenceFresnel, iridescenceFactor);
+    #endif
+    specular = prefilteredColor * (kS * envBRDF.x + envBRDF.y);
 
     vec3 H = normalize(viewDir + -R);
     vec3 f_sheen = sheenColor * sheenDistribution(sheenRoughness, n, H) * sheenVisibility(n, viewDir, R, sheenRoughness);
@@ -275,50 +390,34 @@ vec3 IBLAmbient(vec3 specularMap, vec3 baseColor, float metallic, vec3 n, float 
     return ((1.0 - transmission) * kD * irradiance * clamp(baseColor, vec3(0.05), vec3(1.0))) + f_sheen;
 }
 
-float specEnv(vec3 N, vec3 V, float metallic, float roughness) {
-    float F0 = mix(0.05, 1.0, metallic);
-
-    float F = fresnelSchlickRoughness(max(dot(N, V), 0.0), F0, roughness);
+float specEnv(vec3 N, vec3 V, float metallic, float roughness, vec3 F0) {
+    float F = fresnelSchlickRoughness(max(dot(N, V), 0.0), (F0.x+F0.y+F0.z)/3.0, roughness);
     vec2 envBRDF  = texture(brdfLUT, vec2(max(dot(N, V), 0.0), roughness)).rg;
     return (F * envBRDF.x + envBRDF.y);
 }
 
-vec3 CookTorranceSpecular(vec3 specularMap, vec3 baseColor, float metallic, vec3 n, vec3 H, float roughness, vec3 viewDir, vec3 lightDir, float ior) {
-    vec3 F0 = vec3(0.04); 
-    F0 = mix(F0, baseColor, metallic);
-
-    #if defined SPECULAR
-    if (metallic == 0.0) {
-        float relativeIOR = (1.0 - ior) / (1.0 + ior);
-        F0 = relativeIOR * relativeIOR * specularMap;
-    }
-    #endif
-    #if defined SPECULARGLOSSINESSMAP
-        F0 = specularMap;
-    #endif
-
+vec3 CookTorranceSpecular2(vec3 specularMap, vec3 baseColor, float metallic, vec3 n, vec3 H, float roughness, vec3 viewDir, vec3 lightDir, float ior, float anisotropy, vec3 iridescenceFresnel, float iridescenceFactor, vec3 F0) {
     float D = DistributionGGX(n, H, roughness);
-    float G = GeometrySmith(n, viewDir, lightDir, roughness);      
-    vec3 F = fresnelSchlick(max(dot(H, viewDir), 0.0), F0); 
+    float G = GeometrySmith(n, viewDir, lightDir, roughness);
+    vec3 F = mix(fresnelSchlick(max(dot(viewDir, H), 0.0), F0), iridescenceFresnel, iridescenceFactor);
 
     vec3 nominator = D * G * F;
     float denominator = 4.0 * max(dot(n, viewDir), 0.0) * max(dot(n, lightDir), 0.0);
     return nominator / max(denominator, 0.001);
 }
 
-vec3 LambertDiffuse(vec3 specularMap, vec3 baseColor, float metallic, vec3 n, vec3 H, float roughness, vec3 viewDir, vec3 lightDir, float ior) {
+vec3 CookTorranceSpecular(vec3 specularMap, vec3 baseColor, float metallic, vec3 n, vec3 H, float roughness, vec3 viewDir, vec3 lightDir, float ior, float anisotropy, vec3 F0) {
+    float D = DistributionGGX(n, H, roughness);
+    float G = GeometrySmith(n, viewDir, lightDir, roughness);
+    vec3 F = fresnelSchlick(max(dot(viewDir, H), 0.0), F0); 
+
+    vec3 nominator = D * G * F;
+    float denominator = 4.0 * max(dot(n, viewDir), 0.0) * max(dot(n, lightDir), 0.0);
+    return nominator / max(denominator, 0.001);
+}
+
+vec3 LambertDiffuse(vec3 specularMap, vec3 baseColor, float metallic, vec3 n, vec3 H, float roughness, vec3 viewDir, vec3 lightDir, float ior, vec3 F0) {
     float NdotL = max(dot(n, lightDir), 0.0);
-    vec3 F0 = vec3(0.04);
-    F0 = mix(F0, baseColor, metallic);
-    #if defined SPECULAR
-    if (metallic == 0.0) {
-        float relativeIOR = (1.0 - ior) / (1.0 + ior);
-        F0 = relativeIOR * relativeIOR * specularMap;
-    }
-    #endif
-    #if defined SPECULARGLOSSINESSMAP
-        F0 = specularMap;
-    #endif
 
     vec3 F = fresnelSchlick(max(dot(H, viewDir), 0.0), F0);    
 
@@ -335,23 +434,16 @@ float saturate(float a) {
 	if (a < 0.0) return 0.0;
 	return a;
 }
-vec3 ImprovedOrenNayarDiffuse(vec3 specularMap, vec3 baseColor, float metallic, vec3 N, vec3 H, float a, vec3 V, vec3 L, float ior) {
-    vec3 F0 = vec3(0.04);
-    F0 = mix(F0, baseColor, metallic);
-    #if defined SPECULAR
-    if (metallic == 0.0) {
-        float relativeIOR = (1.0 - ior) / (1.0 + ior);
-        F0 = relativeIOR * relativeIOR * specularMap;
-    }
-    #endif
-    #if defined SPECULARGLOSSINESSMAP
-        F0 = specularMap;
-    #endif
+vec3 ImprovedOrenNayarDiffuse(vec3 specularMap, vec3 baseColor, float metallic, vec3 N, vec3 H, float a, vec3 V, vec3 L, float ior, vec3 F0, vec3 iridescenceFresnel, float iridescenceFactor) {
     vec3 F = fresnelSchlick(max(dot(H, V), 0.0), F0);
     vec3 kD = vec3(1.0) - F;
     #if defined SPECULARGLOSSINESSMAP
     #else
         kD *= 1.0 - metallic;
+    #endif
+    #if defined IRIDESCENCE
+    kD = vec3(1.0) - mix(F, iridescenceFresnel, iridescenceFactor);
+    kD *= 1.0 - clamp(metallic, 0.0, 0.9);
     #endif
     vec3 diffuseColor = baseColor * kD;
 	// calculate intermediary values
@@ -367,7 +459,7 @@ vec3 ImprovedOrenNayarDiffuse(vec3 specularMap, vec3 baseColor, float metallic, 
 	float sigma2 = a;
 	vec3 A = diffuseColor * (0.17 * sigma2 / (sigma2 + 0.13)) + vec3(1.0 - 0.5 * sigma2 / (sigma2 + 0.33));
 	float B = 0.45 * sigma2 / (sigma2 + 0.09);
-	return (diffuseColor * max(0.0, dotNL)) * (A + vec3(B * s / t) / PI);
+	return (diffuseColor * max(0.0, dotNL)) * (A + vec3(B * s / t) / PI) / PI;
 }
 
 vec2 applyTransform(vec2 uv) {
@@ -471,6 +563,10 @@ void main() {
         sheenColor = sheenColorTextureV * sheenColor;
         sheenRoughness = sheenRoughnessTextureV.a * sheenRoughness;
     #endif
+    float iridescenceThickness = iridescence.z;
+    #ifdef IRIDESCENCEMAP
+        iridescenceThickness = mix(iridescence.w, iridescence.z, texture(iridescenceThicknessTexture, outUV).g);
+    #endif
     #ifdef TRANSMISSIONMAP
         float transmissionTextureV = texture(transmissionTexture, outUV).r;
         transmission = transmissionTextureV * transmission;
@@ -509,6 +605,19 @@ void main() {
         specularMap *= texture(specularTexture, outUV).rgb;
         #endif
     #endif
+    vec3 F0 = mix(vec3(0.04), baseColor, metallic);
+    #if defined IOR
+    F0 = vec3(pow(( ior.x - 1.0) /  (ior.x + 1.0), 2.0));
+    #endif
+    #if defined SPECULAR
+    if (metallic == 0.0) {
+        float relativeIOR = (1.0 - ior.x) / (1.0 + ior.x);
+        F0 = relativeIOR * relativeIOR * specularMap;
+    }
+    #endif
+    #if defined SPECULARGLOSSINESSMAP
+        F0 = specularMap;
+    #endif
 
     #ifdef TANGENT
         #ifdef NORMALMAP
@@ -519,10 +628,10 @@ void main() {
             vec3 n = texture(normalTexture, outUV).rgb;
             n = normalize(outTBN * (2.0 * n - 1.0) * vec3(normalTextureScale.x, normalTextureScale.x, 1.0));
         #else
-            vec3 n = outTBN[2].xyz;
+            vec3 n = normalize(outTBN[2].xyz);
         #endif
     #else
-        vec3 n = outNormal;
+        vec3 n = normalize(outNormal);
     #endif
 
     #ifdef TANGENT
@@ -581,11 +690,18 @@ void main() {
                 radiance = radiance * attenuationSpot * attenuation;
             }
 
-            vec3 specular = CookTorranceSpecular(specularMap, baseColor, metallic, n, H, roughness, viewDir, lightDir, ior.x);
-            vec3 f_clearcoat = CookTorranceSpecular(specularMap, vec3(0.0), 0.0, clearcoatNormal, H, clearcoatRoughness, viewDir, lightDir, ior.x);
-            float NdotV = saturate(dot(clearcoatNormal, viewDir));
-            vec3 clearcoatFresnel = 1.0 - clearcoatBlendFactor * fresnelSchlick(NdotV, vec3(0.04));
-            vec3 diffuse = ImprovedOrenNayarDiffuse(specularMap, baseColor, metallic, n, H, roughness, viewDir, lightDir, ior.x);
+            float NdotV = saturate(dot(n, viewDir));
+            vec3 iridescenceF0 = vec3(0.0);
+            #if defined IRIDESCENCE
+            vec3 iridescenceFresnel = evalIridescence(1.0, iridescence.y, NdotV, iridescenceThickness, F0);
+            iridescenceF0 = Schlick_to_F0(iridescenceFresnel, NdotV);
+            vec3 specular = CookTorranceSpecular2(specularMap, baseColor, metallic, n, H, roughness, viewDir, lightDir, ior.x, anisotropy.x, iridescenceF0, iridescence.x, F0);
+            #else
+            vec3 specular = CookTorranceSpecular(specularMap, baseColor, metallic, n, H, roughness, viewDir, lightDir, ior.x, anisotropy.x, F0);
+            #endif
+            vec3 f_clearcoat = CookTorranceSpecular(specularMap, vec3(0.0), 0.0, clearcoatNormal, H, clearcoatRoughness, viewDir, lightDir, ior.x, anisotropy.x, F0);
+            vec3 clearcoatFresnel = 1.0 - clearcoatBlendFactor * fresnelSchlick(saturate(dot(clearcoatNormal, viewDir)), vec3(0.04));
+            vec3 diffuse = ImprovedOrenNayarDiffuse(specularMap, baseColor, metallic, n, H, roughness, viewDir, lightDir, ior.x, F0, iridescenceF0, iridescence.x);
             #if defined SPECULARGLOSSINESSMAP
                 diffuse = baseColor * (1.0 - max(max(specularMap.r, specularMap.g), specularMap.b));
             #endif
@@ -605,14 +721,16 @@ void main() {
         vec3 aSpecular;
         vec3 cSpecular;
         if (isIBL == 1) {
-            ambient = IBLAmbient(specularMap, baseColor, metallic, n, roughness, viewDir, transmission, sheenColor, sheenRoughness, ior.x, aSpecular);
-            ambientClearcoat = IBLAmbient(specularMap, vec3(0.0), 0.0, clearcoatNormal, clearcoatRoughness, viewDir, transmission, sheenColor, sheenRoughness, ior.x, cSpecular) * clearcoatBlendFactor;
+            float NdotV = saturate(dot(n, viewDir));
+            vec3 iridescenceFresnel = evalIridescence(1.0, iridescence.y, NdotV, iridescenceThickness, F0);
+            vec3 iridescenceF0 = Schlick_to_F0(iridescenceFresnel, NdotV);
+            ambient = IBLAmbient(specularMap, baseColor, metallic, n, roughness, viewDir, transmission, sheenColor, sheenRoughness, ior.x, iridescenceF0, iridescence.x, F0, aSpecular);
+            ambientClearcoat = IBLAmbient(specularMap, vec3(0.0), 0.0, clearcoatNormal, clearcoatRoughness, viewDir, transmission, sheenColor, sheenRoughness, ior.x, iridescenceF0, iridescence.x, F0, cSpecular) * clearcoatBlendFactor;
             #ifndef SPHERICAL_HARMONICS
             ambient += aSpecular;
             ambientClearcoat += cSpecular * clearcoatBlendFactor;
             #endif
-            float NdotV = saturate(dot(clearcoatNormal, viewDir));
-            clearcoatFresnel = (1.0 - clearcoatBlendFactor * fresnelSchlick(NdotV, vec3(0.04)));
+            clearcoatFresnel = (1.0 - clearcoatBlendFactor * fresnelSchlick(saturate(dot(clearcoatNormal, viewDir)), vec3(0.04)));
         } else {
             ambient = vec3(0.03) * baseColor * 0.2;
         }
@@ -623,11 +741,12 @@ void main() {
             #ifdef EMISSIVEMAP_TEXTURE_TRANSFORM
                 outUV = applyTransform(outUV);
             #endif
-            emissive = texture(emissiveTexture, outUV).rgb;
+            emissive *= texture(emissiveTexture, outUV).rgb;
         #endif
+        emissive *= emissiveStrength.x;
 
         #ifdef TRANSMISSION
-        color = vec4(ambient + Lo + f_transmission * (1.0 - specEnv(n, viewDir, metallic, roughness)), alpha);
+        color = vec4(ambient + Lo + f_transmission * (1.0 - specEnv(n, viewDir, metallic, roughness, F0)), alpha);
         #else
         color = vec4(ao * shadow * ((emissive + ambient + Lo) * clearcoatFresnel + ambientClearcoat), alpha);
         #endif
@@ -652,7 +771,7 @@ void main() {
         vec3 retColor = (X * (6.2 * X + 0.5)) / (X * (6.2 * X + 1.7) + 0.06);
         color.rgb = retColor * retColor;
         #else
-        color.rgb = color.rgb / (color.rgb + vec3(1.0));
+        // color.rgb = color.rgb / (color.rgb + vec3(1.0));
         color.rgb = pow(color.rgb, vec3(1.0 / gamma));
         #endif
     }

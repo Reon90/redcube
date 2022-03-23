@@ -618,7 +618,8 @@ export class Parse {
                 'sheenRoughnessTexture',
                 'transmissionTexture',
                 'specularTexture',
-                'thicknessTexture'
+                'thicknessTexture',
+                'iridescenceThicknessTexture'
             ];
             const textureSRGB = [
                 'baseColorTexture',

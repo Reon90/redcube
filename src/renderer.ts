@@ -271,18 +271,18 @@ export class Renderer {
             for (const v of track) {
                 let result;
                 switch (v.interpolation) {
-                    case 'LINEAR':
-                        result = this.interpolation(sec, v);
-                        break;
-                    case 'CUBICSPLINE':
-                        result = this.spline(sec, v);
-                        break;
-                    case 'STEP':
-                        result = this.step(sec, v);
-                        break;
-                    default:
-                        result = this.interpolation(sec, v);
-                        break;
+                case 'LINEAR':
+                    result = this.interpolation(sec, v);
+                    break;
+                case 'CUBICSPLINE':
+                    result = this.spline(sec, v);
+                    break;
+                case 'STEP':
+                    result = this.step(sec, v);
+                    break;
+                default:
+                    result = this.interpolation(sec, v);
+                    break;
                 }
 
                 if (result === false) {

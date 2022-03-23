@@ -28,7 +28,8 @@ export const textureEnum = {
     Sheen_E: 13,
     transmissionTexture: 14,
     specularTexture: 15,
-    thicknessTexture: 16
+    thicknessTexture: 16,
+    iridescenceThicknessTexture: 17
 };
 
 export function setGl(_gl) {

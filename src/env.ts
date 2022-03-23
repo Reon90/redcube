@@ -45,6 +45,7 @@ export class Env {
     irradiancebuffer: FrameBuffer;
     prefilterbuffer: FrameBuffer;
     views: Array<Matrix4>;
+    views2: Array<Matrix4>;
     prefilterrender: WebGLRenderbuffer;
     brdfbuffer: FrameBuffer;
     canvas: HTMLCanvasElement;
@@ -199,7 +200,7 @@ export class Env {
         gl.useProgram(program);
         gl.bindVertexArray(this.VAO);
         gl.uniformMatrix4fv(gl.getUniformLocation(program, 'projection'), false, m.elements);
-        gl.uniform1i(gl.getUniformLocation(program, 'environmentMap'), this.originalCubeTexture.index);
+        gl.uniform1i(gl.getUniformLocation(program, 'environmentMap'), this.prefilterMap.index);
         gl.uniformMatrix4fv(gl.getUniformLocation(program, 'view'), false, this.camera.matrixWorldInvert.elements);
         gl.drawArrays(gl.TRIANGLES, 0, 36);
     }
@@ -262,7 +263,7 @@ export class Env {
             gl.uniform1i(gl.getUniformLocation(this.irradianceprogram, 'environmentMap'), this.originalCubeTexture.index);
             for (let i = 0; i < 6; i++) {
                 gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_CUBE_MAP_POSITIVE_X + i, this.irradiancemap, 0);
-                gl.uniformMatrix4fv(gl.getUniformLocation(this.irradianceprogram, 'view'), false, this.views[i].elements);
+                gl.uniformMatrix4fv(gl.getUniformLocation(this.irradianceprogram, 'view'), false, this.views2[i].elements);
                 gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
                 gl.drawArrays(gl.TRIANGLES, 0, 36);
             }
@@ -295,7 +296,7 @@ export class Env {
                         this.prefilterMap,
                         mip
                     );
-                    gl.uniformMatrix4fv(gl.getUniformLocation(this.mipmapcubeprogram, 'view'), false, this.views[i].elements);
+                    gl.uniformMatrix4fv(gl.getUniformLocation(this.mipmapcubeprogram, 'view'), false, this.views2[i].elements);
                     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
                     gl.drawArrays(gl.TRIANGLES, 0, 36);
                 }
@@ -440,6 +441,7 @@ export class Env {
                     }
                 }
             } else {
+                gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
                 for (let i = 0; i < 6; i++) {
                     gl.texImage2D(gl.TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, gl.RGBA16F, size, size, 0, gl.RGBA, gl.FLOAT, null);
                     gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_CUBE_MAP_POSITIVE_X + i, texture, i);
@@ -476,18 +478,53 @@ export class Env {
         const views = [
             [new Vector3([0, 1, 0]), Math.PI / 2], // Right
             [new Vector3([0, 1, 0]), -Math.PI / 2], // Left
-            [new Vector3([1, 0, 0]), -Math.PI / 2], // Top
-            [new Vector3([1, 0, 0]), Math.PI / 2], // Bottom
-            [new Vector3([0, 1, 0]), Math.PI], // Front
-            [new Vector3([0, 1, 0]), 0] // Back
+            [new Vector3([1, 0, 0]), 0], // Top
+            [new Vector3([1, 0, 0]), Math.PI], // Bottom
+            [new Vector3([1, 0, 0]), -Math.PI / 2], // Front
+            [new Vector3([1, 0, 0]), Math.PI / 2] // Back
         ];
         this.views = views.map((view, i) => {
             const camMatrix = new Matrix4();
             camMatrix.makeRotationAxis(view[0], view[1]);
 
-            if (i !== 2 && i !== 3) {
+            if (i === 5) {
                 const m = new Matrix4();
                 m.makeRotationAxis(new Vector3([0, 0, 1]), Math.PI);
+                camMatrix.multiply(m);
+            }
+            if (i === 0) {
+                const m = new Matrix4();
+                m.makeRotationAxis(new Vector3([0, 0, 1]), Math.PI / 2);
+                camMatrix.multiply(m);
+            }
+            if (i === 1) {
+                const m = new Matrix4();
+                m.makeRotationAxis(new Vector3([0, 0, 1]), -Math.PI / 2);
+                camMatrix.multiply(m);
+            }
+
+            return new Matrix4().setInverseOf(camMatrix);
+        });
+        const views2 = [
+            [new Vector3([0, 1, 0]), Math.PI], // Right
+            [new Vector3([0, 1, 0]), 0], // Left
+            [new Vector3([1, 0, 0]), Math.PI / 2], // Top
+            [new Vector3([1, 0, 0]), -Math.PI / 2], // Bottom
+            [new Vector3([0, 1, 0]), Math.PI / 2], // Front
+            [new Vector3([0, 1, 0]), -Math.PI / 2] // Back
+        ];
+        this.views2 = views2.map((view, i) => {
+            const camMatrix = new Matrix4();
+            camMatrix.makeRotationAxis(view[0], view[1]);
+
+            if (i === 2) {
+                const m = new Matrix4();
+                m.makeRotationAxis(new Vector3([0, 0, 1]), Math.PI / 2);
+                camMatrix.multiply(m);
+            }
+            if (i === 3) {
+                const m = new Matrix4();
+                m.makeRotationAxis(new Vector3([0, 0, 1]), -Math.PI / 2);
                 camMatrix.multiply(m);
             }
 
@@ -516,7 +553,7 @@ export class Env {
                 const { data, shape } = parseHDR(buffer);
 
                 this.original2DTexture = createTexture();
-                gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+                //gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
                 gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, shape[0], shape[1], 0, gl.RGBA, gl.FLOAT, data);
                 gl.bindSampler(this.original2DTexture.index, this.sampler);
 

@@ -139,7 +139,7 @@
                     'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/' + name + '/glTF/' + name + '.gltf',
                     canvas, 
                     [],
-                    'src/images/env.hdr',
+                    `src/images/${localStorage.getItem('env') || 'env4'}.hdr`,
                     mode
                 );
                 renderer.init(() => {
