@@ -325,7 +325,9 @@ export class Renderer {
 
             gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-            //this.env.draw();
+            if (this.parse.json.extensions && this.parse.json.extensions.EXT_lights_image_based) {
+                this.env.draw();
+            }
 
             this.renderScene();
             this.clean();

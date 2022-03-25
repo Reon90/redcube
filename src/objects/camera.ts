@@ -111,6 +111,9 @@ export class Camera extends Object3D {
     }
 
     zoom(value) {
+        if (this.matrixInitial.elements[14] > this.modelSize * 5 && value > 0) {
+            return;
+        }
         this.matrixInitial.elements[14] += value * this.modelSize * 0.001;
 
         const m = new Matrix4(this.rotation);

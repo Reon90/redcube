@@ -60,6 +60,7 @@ export class Env {
     original2DTexture: Texture;
     irradiancemap: Texture;
     prefilterMap: Texture;
+    charlieMap: Texture;
     Sheen_E: Texture;
 
     constructor(url) {
@@ -170,10 +171,11 @@ export class Env {
 
         uniform mat4 projection;
         uniform mat4 view;
+        uniform mat4 model;
         
         void main() {
             outUV = inPosition;
-            gl_Position = projection * view * vec4(inPosition, 1.0);
+            gl_Position = projection * view * model * vec4(inPosition, 1.0);
         }
         `,
             program
@@ -185,24 +187,32 @@ export class Env {
         
         in vec3 outUV;
         layout (location = 0) out vec4 color;
+        uniform mat4 rotation;
 
         uniform samplerCube environmentMap;
         
         void main() {
-            vec3 c = textureLod(environmentMap, outUV, 0.0).rgb;
+            vec4 c = textureLod(environmentMap, mat3(rotation) * outUV, 0.0);
             
-            color = vec4(c, 1.0);
+            color = vec4(pow(c.rgb, vec3(2.2)) / pow(c.a, 2.2), 1.0);
         }
         `,
             program
         );
+        gl.disable(gl.DEPTH_TEST);
         gl.linkProgram(program);
         gl.useProgram(program);
         gl.bindVertexArray(this.VAO);
+        gl.uniformMatrix4fv(gl.getUniformLocation(program, 'rotation'), false, this.uniformBuffer.store.subarray(36));
         gl.uniformMatrix4fv(gl.getUniformLocation(program, 'projection'), false, m.elements);
+        const s = this.camera.modelSize * 2;
+        gl.uniformMatrix4fv(gl.getUniformLocation(program, 'model'), false,
+            new Matrix4().makeRotationAxis(new Vector3([1, 0, 0]), Math.PI).scale(new Vector3([s, s, s])).elements
+        );
         gl.uniform1i(gl.getUniformLocation(program, 'environmentMap'), this.prefilterMap.index);
         gl.uniformMatrix4fv(gl.getUniformLocation(program, 'view'), false, this.camera.matrixWorldInvert.elements);
         gl.drawArrays(gl.TRIANGLES, 0, 36);
+        gl.enable(gl.DEPTH_TEST);
     }
 
     createEnvironment() {
@@ -294,6 +304,13 @@ export class Env {
                         gl.COLOR_ATTACHMENT0,
                         gl.TEXTURE_CUBE_MAP_POSITIVE_X + i,
                         this.prefilterMap,
+                        mip
+                    );
+                    gl.framebufferTexture2D(
+                        gl.FRAMEBUFFER,
+                        gl.COLOR_ATTACHMENT1,
+                        gl.TEXTURE_CUBE_MAP_POSITIVE_X + i,
+                        this.charlieMap,
                         mip
                     );
                     gl.uniformMatrix4fv(gl.getUniformLocation(this.mipmapcubeprogram, 'view'), false, this.views2[i].elements);
@@ -440,15 +457,28 @@ export class Env {
                         // gl.texImage2D(x[i], j, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, this.envData.specularImages[j][i]);
                     }
                 }
+                gl.bindSampler(texture.index, this.samplerCube);
+                gl.generateMipmap(gl.TEXTURE_CUBE_MAP);
             } else {
                 gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
                 for (let i = 0; i < 6; i++) {
                     gl.texImage2D(gl.TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, gl.RGBA16F, size, size, 0, gl.RGBA, gl.FLOAT, null);
                     gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_CUBE_MAP_POSITIVE_X + i, texture, i);
                 }
+                gl.bindSampler(texture.index, this.samplerCube);
+                gl.generateMipmap(gl.TEXTURE_CUBE_MAP);
+
+                const texture2 = createTexture(gl.TEXTURE_CUBE_MAP, textureEnum.charlieTexture);
+                gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+                for (let i = 0; i < 6; i++) {
+                    gl.texImage2D(gl.TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, gl.RGBA16F, size, size, 0, gl.RGBA, gl.FLOAT, null);
+                    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, gl.TEXTURE_CUBE_MAP_POSITIVE_X + i, texture2, i);
+                }
+                gl.bindSampler(texture2.index, this.samplerCube);
+                gl.generateMipmap(gl.TEXTURE_CUBE_MAP);
+                this.charlieMap = texture2;
+                gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1]);
             }
-            gl.bindSampler(texture.index, this.samplerCube);
-            gl.generateMipmap(gl.TEXTURE_CUBE_MAP);
             this.prefilterMap = texture;
         }
 
@@ -460,7 +490,7 @@ export class Env {
             gl.bindFramebuffer(gl.FRAMEBUFFER, captureFBO);
 
             const texture = createTexture(gl.TEXTURE_2D, textureEnum.brdfLUTTexture);
-            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RG16F, size, size, 0, gl.RG, gl.FLOAT, null);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, size, size, 0, gl.RGBA, gl.FLOAT, null);
             gl.bindSampler(texture.index, this.sampler);
             this.brdfLUTTexture = texture;
 

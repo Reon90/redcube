@@ -284,6 +284,7 @@ class RedCube {
             irradiancemap: this.env.irradiancemap,
             Sheen_E: this.env.Sheen_E,
             prefilterMap: this.env.prefilterMap,
+            charlieMap: this.env.charlieMap,
             brdfLUT: this.env.brdfLUTTexture
         };
     }

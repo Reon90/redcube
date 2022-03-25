@@ -190,11 +190,11 @@ export class Parse {
 
     createProgramWebGPU(defines) {
         let program;
-        const programHash = defines.map(define => `${define.name}${define.value || 1}`).join('');
+        const programHash = defines.map(define => `${define.name}${define.value ?? 1}`).join('');
         if (this.programs[programHash]) {
             program = this.programs[programHash];
         } else {
-            const defineStr = defines.map(define => `#define ${define.name} ${define.value || 1}` + '\n').join('');
+            const defineStr = defines.map(define => `#define ${define.name} ${define.value ?? 1}` + '\n').join('');
             program = [vertexShader.replace(/\n/, `\n${defineStr}`), fragmentShader.replace(/\n/, `\n${defineStr}`)];
             this.programs[programHash] = program;
         }
@@ -204,11 +204,11 @@ export class Parse {
 
     createProgram(defines) {
         let program;
-        const programHash = defines.map(define => `${define.name}${define.value || 1}`).join('');
+        const programHash = defines.map(define => `${define.name}${define.value ?? 1}`).join('');
         if (this.programs[programHash]) {
             program = this.programs[programHash];
         } else {
-            const defineStr = defines.map(define => `#define ${define.name} ${define.value || 1}` + '\n').join('');
+            const defineStr = defines.map(define => `#define ${define.name} ${define.value ?? 1}` + '\n').join('');
             program = createProgram(vertexShader.replace(/\n/, `\n${defineStr}`), fragmentShader.replace(/\n/, `\n${defineStr}`));
             this.programs[programHash] = program;
         }

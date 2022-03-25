@@ -18,7 +18,6 @@ layout (location = 1) out vec3 normalColor;
 uniform Material {
     vec4 baseColorFactor;
     vec3 viewPos;
-    mat3 textureMatrix;
     vec3 specularFactor;
     vec3 emissiveFactor;
     vec4 glossinessFactor;
@@ -58,6 +57,11 @@ uniform LightIntensity {
 uniform LightPos {
     vec3 lightPos[LIGHTNUMBER];
 };
+#if defined MATRICES
+uniform TextureMatrices {
+    mat4 textureMatrices[MATRICES];
+};
+#endif
 uniform SphericalHarmonics {
     vec4 vSphericalL00;
     vec4 vSphericalL1_1;
@@ -87,6 +91,7 @@ uniform sampler2D specularTexture;
 uniform sampler2D thicknessTexture;
 
 uniform samplerCube prefilterMap;
+uniform samplerCube charlieMap;
 uniform sampler2D brdfLUT;  
 uniform samplerCube irradianceMap;
 uniform sampler2D depthTexture;
@@ -324,7 +329,7 @@ float sheenDistribution(float sheenRoughness, vec3 N, vec3 H) {
     float sin2h = 1.0 - cos2h;
     return (2.0 + invR) * pow(sin2h, invR * 0.5) / (2.0 * PI);
 }
-float l(float x, float alphaG) {
+float lambdaSheenNumericHelper(float x, float alphaG) {
     float oneMinusAlphaSq = (1.0 - alphaG) * (1.0 - alphaG);
     float a = mix(21.5473, 25.3245, oneMinusAlphaSq);
     float b = mix(3.82987, 3.32435, oneMinusAlphaSq);
@@ -334,20 +339,27 @@ float l(float x, float alphaG) {
     return a / (1.0 + b * pow(x, c)) + d * x + e;
 }
 float lambdaSheen(float cosTheta, float alphaG) {
-    return abs(cosTheta) < 0.5 ? exp(l(cosTheta, alphaG)) : exp(2.0 * l(0.5, alphaG) - l(1.0 - cosTheta, alphaG));
+    if (abs(cosTheta) < 0.5) {
+        return exp(lambdaSheenNumericHelper(cosTheta, alphaG));
+    } else {
+        return exp(2.0 * lambdaSheenNumericHelper(0.5, alphaG) - lambdaSheenNumericHelper(1.0 - cosTheta, alphaG));
+    }
 }
 float sheenVisibility(vec3 N, vec3 V, vec3 L, float sheenRoughness) {
-    float alphaG = sheenRoughness * sheenRoughness;
     float NdotL = max(dot(N, L), 0.0);
     float NdotV = max(dot(N, V), 0.0);
-    float v = 1.0 / (1.0 + lambdaSheen(NdotV, alphaG) + lambdaSheen(NdotL, alphaG));
-    return v;
+
+    sheenRoughness = max(sheenRoughness, 0.000001); //clamp (0,1]
+    float alphaG = sheenRoughness * sheenRoughness;
+
+    return clamp(1.0 / ((1.0 + lambdaSheen(NdotV, alphaG) + lambdaSheen(NdotL, alphaG)) *
+        (4.0 * NdotV * NdotL)), 0.0, 1.0);
 }
 float E(float x, float y) {
     return texture(Sheen_E, vec2(x,y)).r;
 }
 float max3(vec3 v) { return max(max(v.x, v.y), v.z); }
-vec3 IBLAmbient(vec3 specularMap, vec3 baseColor, float metallic, vec3 n, float roughness, vec3 viewDir, float transmission, vec3 sheenColor, float sheenRoughness, float ior, vec3 iridescenceFresnel, float iridescenceFactor, vec3 F0, out vec3 specular) {
+vec3 IBLAmbient(vec3 specularMap, vec3 baseColor, float metallic, vec3 n, float roughness, vec3 viewDir, float transmission, vec3 sheenColor, float sheenRoughness, float ior, vec3 iridescenceFresnel, float iridescenceFactor, vec3 F0, inout vec3 f_sheen, out vec3 specular) {
     vec3 F = fresnelSchlickRoughness(max(dot(n, viewDir), 0.0), F0, roughness);
 
     vec3 kD = vec3(1.0) - F;
@@ -382,12 +394,13 @@ vec3 IBLAmbient(vec3 specularMap, vec3 baseColor, float metallic, vec3 n, float 
     #endif
     specular = prefilteredColor * (kS * envBRDF.x + envBRDF.y);
 
-    vec3 H = normalize(viewDir + -R);
-    vec3 f_sheen = sheenColor * sheenDistribution(sheenRoughness, n, H) * sheenVisibility(n, viewDir, R, sheenRoughness);
-    // float sheenAlbedoScaling = min(1.0 - max3(sheenColor) * E(max(dot(viewDir, n), 0.0), sheenRoughness), 1.0 - max3(sheenColor) * E(max(dot(-R, n), 0.0), sheenRoughness));
-    f_sheen /= max(1.0, 4.0 * abs(dot(n, -R)) * abs(dot(n, viewDir)));
+    #if defined SHEEN
+    float charliebrdf = texture(brdfLUT, vec2(max(dot(n, viewDir), 0.0), sheenRoughness)).b;
+    vec3 sheenSample = textureLod(charlieMap, R, sheenRoughness * MAX_REFLECTION_LOD).rgb;
+    f_sheen += sheenSample * sheenColor * charliebrdf;
+    #endif
 
-    return ((1.0 - transmission) * kD * irradiance * clamp(baseColor, vec3(0.05), vec3(1.0))) + f_sheen;
+    return ((1.0 - transmission) * kD * irradiance * clamp(baseColor, vec3(0.05), vec3(1.0)));
 }
 
 float specEnv(vec3 N, vec3 V, float metallic, float roughness, vec3 F0) {
@@ -462,7 +475,7 @@ vec3 ImprovedOrenNayarDiffuse(vec3 specularMap, vec3 baseColor, float metallic, 
 	return (diffuseColor * max(0.0, dotNL)) * (A + vec3(B * s / t) / PI) / PI;
 }
 
-vec2 applyTransform(vec2 uv) {
+vec2 applyTransform(vec2 uv, mat4 textureMatrix) {
     mat3 translation = mat3(1, 0, 0, 0, 1, 0, textureMatrix[0].x, textureMatrix[0].y, 1);
     mat3 rotation = mat3(1, 0, 0, 0, 1, 0, 0, 0, 1);
     if (textureMatrix[2].x != 0.0) {
@@ -492,7 +505,7 @@ void main() {
     #ifdef BASECOLORTEXTURE
         outUV = getUV(BASECOLORTEXTURE);
         #ifdef BASECOLORTEXTURE_TEXTURE_TRANSFORM
-            outUV = applyTransform(outUV);
+            outUV = applyTransform(outUV, textureMatrices[BASECOLORTEXTURE_TEXTURE_TRANSFORM]);
         #endif
         vec3 baseColor = texture(baseColorTexture, outUV).rgb * baseColorFactor.rgb;
         float alpha = min(texture(baseColorTexture, outUV).a, baseColorFactor.a);
@@ -525,7 +538,7 @@ void main() {
     #ifdef OCCLUSIONMAP
         outUV = getUV(OCCLUSIONMAP);
         #ifdef OCCLUSIONMAP_TEXTURE_TRANSFORM
-            outUV = applyTransform(outUV);
+            outUV = applyTransform(outUV, textureMatrices[OCCLUSIONMAP_TEXTURE_TRANSFORM]);
         #endif
         ao = texture(occlusionTexture, outUV).r;
     #endif
@@ -542,26 +555,32 @@ void main() {
     #ifdef CLEARCOATMAP
         outUV = getUV(CLEARCOATMAP);
         #ifdef CLEARCOATMAP_TEXTURE_TRANSFORM
-            outUV = applyTransform(outUV);
+            outUV = applyTransform(outUV, textureMatrices[CLEARCOATMAP_TEXTURE_TRANSFORM]);
         #endif
         clearcoatBlendFactor = texture(clearcoatTexture, outUV).r * clearcoat;
     #endif
     #ifdef CLEARCOATROUGHMAP
         outUV = getUV(CLEARCOATROUGHMAP);
         #ifdef CLEARCOATROUGHMAP_TEXTURE_TRANSFORM
-            outUV = applyTransform(outUV);
+            outUV = applyTransform(outUV, textureMatrices[CLEARCOATROUGHMAP_TEXTURE_TRANSFORM]);
         #endif
         clearcoatRoughness = texture(clearcoatRoughnessTexture, outUV).g * clearcoatRoughness;
     #endif
     #ifdef SHEENMAP
         outUV = getUV(SHEENMAP);
         #ifdef SHEENMAP_TEXTURE_TRANSFORM
-            outUV = applyTransform(outUV);
+            outUV = applyTransform(outUV, textureMatrices[SHEENMAP_TEXTURE_TRANSFORM]);
         #endif
-        vec4 sheenRoughnessTextureV = texture(sheenRoughnessTexture, outUV);
         vec3 sheenColorTextureV = texture(sheenColorTexture, outUV).rgb;
         sheenColor = sheenColorTextureV * sheenColor;
-        sheenRoughness = sheenRoughnessTextureV.a * sheenRoughness;
+    #endif
+    #ifdef SHEENROUGHNESSMAP
+        outUV = getUV(SHEENROUGHNESSMAP);
+        #ifdef SHEENROUGHNESSMAP_TEXTURE_TRANSFORM
+            outUV = applyTransform(outUV, textureMatrices[SHEENROUGHNESSMAP_TEXTURE_TRANSFORM]);
+        #endif
+    vec4 sheenRoughnessTextureV = texture(sheenRoughnessTexture, outUV);
+    sheenRoughness = sheenRoughnessTextureV.a * sheenRoughness;
     #endif
     float iridescenceThickness = iridescence.z;
     #ifdef IRIDESCENCEMAP
@@ -580,7 +599,7 @@ void main() {
         #ifdef METALROUGHNESSMAP
             outUV = getUV(METALROUGHNESSMAP);
             #ifdef METALROUGHNESSMAP_TEXTURE_TRANSFORM
-                outUV = applyTransform(outUV);
+                outUV = applyTransform(outUV, textureMatrices[METALROUGHNESSMAP_TEXTURE_TRANSFORM]);
             #endif
             roughness = 1.0 - texture(metallicRoughnessTexture, outUV).a;
             specularMap = texture(metallicRoughnessTexture, outUV).rgb;
@@ -592,7 +611,7 @@ void main() {
         #ifdef METALROUGHNESSMAP
             outUV = getUV(METALROUGHNESSMAP);
             #ifdef METALROUGHNESSMAP_TEXTURE_TRANSFORM
-                outUV = applyTransform(outUV);
+                outUV = applyTransform(outUV, textureMatrices[METALROUGHNESSMAP_TEXTURE_TRANSFORM]);
             #endif
             vec4 metallicRoughness = texture(metallicRoughnessTexture, outUV);
             roughness *= metallicRoughness.g;
@@ -623,7 +642,7 @@ void main() {
         #ifdef NORMALMAP
             outUV = getUV(NORMALMAP);
             #ifdef NORMALMAP_TEXTURE_TRANSFORM
-                outUV = applyTransform(outUV);
+                outUV = applyTransform(outUV, textureMatrices[NORMALMAP_TEXTURE_TRANSFORM]);
             #endif
             vec3 n = texture(normalTexture, outUV).rgb;
             n = normalize(outTBN * (2.0 * n - 1.0) * vec3(normalTextureScale.x, normalTextureScale.x, 1.0));
@@ -638,7 +657,7 @@ void main() {
     #ifdef CLEARCOATNORMALMAP
         outUV = getUV(CLEARCOATNORMALMAP);
         #ifdef CLEARCOATNORMALMAP_TEXTURE_TRANSFORM
-            outUV = applyTransform(outUV);
+            outUV = applyTransform(outUV, textureMatrices[CLEARCOATNORMALMAP_TEXTURE_TRANSFORM]);
         #endif
         vec3 clearcoatNormal = texture(clearcoatNormalTexture, outUV).rgb;
         clearcoatNormal = normalize(outTBN * (2.0 * clearcoatNormal - 1.0));
@@ -666,6 +685,8 @@ void main() {
     #endif
 
     #ifdef USE_PBR
+        vec3 f_sheen = vec3(0.0);
+        float albedoSheenScaling = 1.0;
         vec3 Lo = vec3(0.0);
         if (isDefaultLight == 1) {
         for (int i = 0; i < LIGHTNUMBER; ++i) {
@@ -705,12 +726,13 @@ void main() {
             #if defined SPECULARGLOSSINESSMAP
                 diffuse = baseColor * (1.0 - max(max(specularMap.r, specularMap.g), specularMap.b));
             #endif
-            vec3 f_sheen = sheenColor * sheenDistribution(sheenRoughness, n, H) * sheenVisibility(n, viewDir, lightDir, sheenRoughness);
-            // f_sheen /= (4.0 * abs(dot(n, lightDir)) * abs(dot(n, viewDir)));
-            float sheenAlbedoScaling = min(1.0 - max3(sheenColor) * E(max(dot(viewDir, n), 0.0), sheenRoughness), 1.0 - max3(sheenColor) * E(max(dot(lightDir, n), 0.0), sheenRoughness));
+            #if defined SHEEN
+            f_sheen = NdotL * (sheenColor * sheenDistribution(sheenRoughness, n, H) * sheenVisibility(n, viewDir, lightDir, sheenRoughness));
+            albedoSheenScaling = min(1.0 - max3(sheenColor) * E(max(dot(viewDir, n), 0.0), sheenRoughness), 1.0 - max3(sheenColor) * E(max(dot(lightDir, n), 0.0), sheenRoughness));
+            #endif
 
             diffuse *= (1.0 - transmission);
-            Lo += sheenAlbedoScaling * (diffuse + specular * NdotL) * radiance * clearcoatFresnel + f_clearcoat * clearcoatBlendFactor + f_sheen;
+            Lo +=  (diffuse + specular * NdotL) * radiance * clearcoatFresnel + f_clearcoat * clearcoatBlendFactor;
         }
         }
 
@@ -724,8 +746,9 @@ void main() {
             float NdotV = saturate(dot(n, viewDir));
             vec3 iridescenceFresnel = evalIridescence(1.0, iridescence.y, NdotV, iridescenceThickness, F0);
             vec3 iridescenceF0 = Schlick_to_F0(iridescenceFresnel, NdotV);
-            ambient = IBLAmbient(specularMap, baseColor, metallic, n, roughness, viewDir, transmission, sheenColor, sheenRoughness, ior.x, iridescenceF0, iridescence.x, F0, aSpecular);
-            ambientClearcoat = IBLAmbient(specularMap, vec3(0.0), 0.0, clearcoatNormal, clearcoatRoughness, viewDir, transmission, sheenColor, sheenRoughness, ior.x, iridescenceF0, iridescence.x, F0, cSpecular) * clearcoatBlendFactor;
+            ambient = IBLAmbient(specularMap, baseColor, metallic, n, roughness, viewDir, transmission, sheenColor, sheenRoughness, ior.x, iridescenceF0, iridescence.x, F0, f_sheen, aSpecular);
+            vec3 placeholder = vec3(0.0);
+            ambientClearcoat = IBLAmbient(specularMap, vec3(0.0), 0.0, clearcoatNormal, clearcoatRoughness, viewDir, transmission, sheenColor, sheenRoughness, ior.x, iridescenceF0, iridescence.x, F0, placeholder, cSpecular) * clearcoatBlendFactor;
             #ifndef SPHERICAL_HARMONICS
             ambient += aSpecular;
             ambientClearcoat += cSpecular * clearcoatBlendFactor;
@@ -739,7 +762,7 @@ void main() {
         #ifdef EMISSIVEMAP
             outUV = getUV(EMISSIVEMAP);
             #ifdef EMISSIVEMAP_TEXTURE_TRANSFORM
-                outUV = applyTransform(outUV);
+                outUV = applyTransform(outUV, textureMatrices[EMISSIVEMAP_TEXTURE_TRANSFORM]);
             #endif
             emissive *= texture(emissiveTexture, outUV).rgb;
         #endif
@@ -750,6 +773,8 @@ void main() {
         #else
         color = vec4(ao * shadow * ((emissive + ambient + Lo) * clearcoatFresnel + ambientClearcoat), alpha);
         #endif
+
+        color.rgb = f_sheen + color.rgb * albedoSheenScaling;
     #else
         vec3 lightDir = normalize(lightPos[0] - outPosition);
         vec3 ambient = ambientStrength * lightColor[0];
