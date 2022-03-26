@@ -239,6 +239,11 @@ export class Mesh extends Object3D {
             gl.bindTexture(gl.TEXTURE_2D, this.material.specularTexture);
             gl.bindSampler(15, this.material.specularTexture.sampler);
         }
+        if (this.material.specularColorTexture) {
+            gl.activeTexture(gl[`TEXTURE${19}`]);
+            gl.bindTexture(gl.TEXTURE_2D, this.material.specularColorTexture);
+            gl.bindSampler(15, this.material.specularColorTexture.sampler);
+        }
         if (this.material.thicknessTexture) {
             gl.activeTexture(gl[`TEXTURE${16}`]);
             gl.bindTexture(gl.TEXTURE_2D, this.material.thicknessTexture);

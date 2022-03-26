@@ -19,6 +19,7 @@ interface Uniforms {
     clearcoatNormalTexture: WebGLUniformLocation;
     transmissionTexture: WebGLUniformLocation;
     specularTexture: WebGLUniformLocation;
+    specularColorTexture: WebGLUniformLocation;
     thicknessTexture: WebGLUniformLocation;
     emissiveTexture: WebGLUniformLocation;
     prefilterMap: WebGLUniformLocation;
@@ -204,11 +205,16 @@ export class Material extends M {
         }
 
         if (material.extensions && material.extensions.KHR_materials_specular) {
-            const { specularTexture, specularColorFactor } = material.extensions.KHR_materials_specular;
-            this.specularFactor = specularColorFactor;
+            const { specularFactor, specularTexture, specularColorFactor, specularColorTexture } = material.extensions.KHR_materials_specular;
+            this.specularFactor = specularFactor;
+            this.specularColorFactor = specularColorFactor;
             if (specularTexture) {
                 this.specularTexture = textures[specularTexture.index];
                 defines.push({ name: 'SPECULARMAP' });
+            }
+            if (specularColorTexture) {
+                this.specularColorTexture = textures[specularColorTexture.index];
+                defines.push({ name: 'SPECULARCOLORMAP' });
             }
             defines.push({ name: 'SPECULAR' });
         }
@@ -231,6 +237,7 @@ export class Material extends M {
             irradianceMap: null,
             transmissionTexture: null,
             specularTexture: null,
+            specularColorTexture: null,
             thicknessTexture: null,
             colorTexture: null,
             Sheen_E: null,
@@ -401,6 +408,10 @@ export class Material extends M {
             this.uniforms.specularTexture = gl.getUniformLocation(program, 'specularTexture');
             gl.uniform1i(this.uniforms.specularTexture, textureEnum.specularTexture);
         }
+        if (this.specularColorTexture) {
+            this.uniforms.specularColorTexture = gl.getUniformLocation(program, 'specularColorTexture');
+            gl.uniform1i(this.uniforms.specularColorTexture, textureEnum.specularColorTexture);
+        }
         if (this.thicknessTexture) {
             this.uniforms.thicknessTexture = gl.getUniformLocation(program, 'thicknessTexture');
             gl.uniform1i(this.uniforms.thicknessTexture, textureEnum.thicknessTexture);
@@ -494,7 +505,8 @@ export class Material extends M {
             const materialUniformBuffer = new UniformBuffer();
             materialUniformBuffer.add('baseColorFactor', this.baseColorFactor ?? [0.8, 0.8, 0.8, 1.0]);
             materialUniformBuffer.add('viewPos', camera.getPosition());
-            materialUniformBuffer.add('specularFactor', this.specularFactor ?? [1, 1, 1]);
+            materialUniformBuffer.add('specularFactor', this.specularFactor ?? 1);
+            materialUniformBuffer.add('specularColorFactor', this.specularColorFactor ?? [1, 1, 1]);
             materialUniformBuffer.add('emissiveFactor', this.emissiveFactor ?? [0, 0, 0]);
             materialUniformBuffer.add('glossinessFactor', this.glossinessFactor ?? 0.5);
             materialUniformBuffer.add('metallicFactor', this.metallicFactor ?? 1);

@@ -618,6 +618,7 @@ export class Parse {
                 'sheenRoughnessTexture',
                 'transmissionTexture',
                 'specularTexture',
+                'specularColorTexture',
                 'thicknessTexture',
                 'iridescenceThicknessTexture'
             ];
