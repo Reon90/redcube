@@ -238,7 +238,7 @@ export class Parse {
         if (primitive.indices !== undefined || primitive.attributes['TANGENT'] !== undefined) {
             defines.push({ name: 'TANGENT' });
         }
-        if (primitive.attributes['TEXCOORD_1'] !== undefined) {
+        if (primitive.attributes['TEXCOORD_1'] !== undefined || primitive.attributes['TEXCOORD_2'] !== undefined) {
             defines.push({ name: 'MULTIUV' });
         }
         if (primitive.attributes['COLOR_0']) {

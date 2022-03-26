@@ -41,7 +41,8 @@ const GeometryEnum = {
     WEIGHTS_0: [4, 4],
     TANGENT: [5, 4],
     COLOR_0: [6, 4],
-    TEXCOORD_1: [7, 2]
+    TEXCOORD_1: [7, 2],
+    TEXCOORD_2: [8, 2]
 };
 
 export class Geometry {

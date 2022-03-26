@@ -166,11 +166,12 @@ export class Material extends M {
             this.attenuationColor = attenuationColor;
             this.attenuationDistance = attenuationDistance;
             this.thicknessFactor = thicknessFactor;
-            this.ior = (1 / 1.5);
+            this.ior = 1.5;
             if (thicknessTexture) {
                 this.thicknessTexture = textures[thicknessTexture.index];
                 defines.push({ name: 'THICKNESSMAP' });
             }
+            defines.push({ name: 'VOLUME' });
         }
 
         if (material.extensions && material.extensions.KHR_materials_emissive_strength) {
