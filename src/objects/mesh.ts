@@ -222,7 +222,7 @@ export class Mesh extends Object3D {
         if (this.material.iridescenceThicknessTexture) {
             gl.activeTexture(gl[`TEXTURE${17}`]);
             gl.bindTexture(gl.TEXTURE_2D, this.material.iridescenceThicknessTexture);
-            gl.bindSampler(12, this.material.iridescenceThicknessTexture.sampler);
+            gl.bindSampler(17, this.material.iridescenceThicknessTexture.sampler);
         }
         if (this.material.clearcoatNormalTexture) {
             gl.activeTexture(gl[`TEXTURE${10}`]);
@@ -242,7 +242,7 @@ export class Mesh extends Object3D {
         if (this.material.specularColorTexture) {
             gl.activeTexture(gl[`TEXTURE${19}`]);
             gl.bindTexture(gl.TEXTURE_2D, this.material.specularColorTexture);
-            gl.bindSampler(15, this.material.specularColorTexture.sampler);
+            gl.bindSampler(19, this.material.specularColorTexture.sampler);
         }
         if (this.material.thicknessTexture) {
             gl.activeTexture(gl[`TEXTURE${16}`]);
