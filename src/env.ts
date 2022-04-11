@@ -236,7 +236,7 @@ export class Env {
 
             gl.uniformMatrix4fv(gl.getUniformLocation(this.cubeprogram, 'projection'), false, m.elements);
             gl.uniform1i(gl.getUniformLocation(this.cubeprogram, 'diffuse'), this.original2DTexture.index);
-            const maxMipLevels = 5;
+            const maxMipLevels = 10;
             for (let mip = 0; mip < maxMipLevels; ++mip) {
                 const mipWidth = this.framebuffer.size * Math.pow(0.5, mip);
                 const mipHeight = this.framebuffer.size * Math.pow(0.5, mip);

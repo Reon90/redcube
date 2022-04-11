@@ -787,9 +787,10 @@ void main() {
         emissive *= emissiveStrength.x;
 
         #ifdef TRANSMISSION
-        color = vec4(ambient + Lo + f_transmission * (1.0 - specEnv(n, viewDir, metallic, roughness, F0, specularWeight)), alpha);
+        float kT = 1.0 - specEnv(n, viewDir, metallic, roughness, F0, specularWeight);
+        color = vec4((ambient + Lo + f_transmission * kT) * clearcoatFresnel + ambientClearcoat, alpha);
         #else
-        color = vec4(ao * shadow * ((emissive + ambient + Lo) * clearcoatFresnel + ambientClearcoat), alpha);
+        color = vec4(ao * ((emissive + ambient + Lo) * clearcoatFresnel + ambientClearcoat), alpha);
         #endif
 
         color.rgb = f_sheen + color.rgb * albedoSheenScaling;

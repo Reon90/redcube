@@ -1,12 +1,33 @@
-# RedCube.js
+<h1 align="center">
+  <br>
+  <a href="https://github.com/Reon90/redcube"><img src="./img/cube.png" alt="redcube" width="200"></a>
+  <br>
+  RedCube
+  <br>
+  <br>
+</h1>
 
-[WebGL Demo](https://reon90.github.io/redcube/) | [WebGPU Demo](https://reon90.github.io/redcube?webgpu=1)
+<h3 align="center">The GLTF viewer with WebGL2 and WebGPU backends.</h3><br>
 
-A javascript library for rendering webgl. RedCube is a minimalistic viewer used [Khronos glTF 2.0 format](https://github.com/KhronosGroup/glTF/tree/master/specification/2.0).
+<p align="center">
+  <a href="https://www.npmjs.com/package/redcube.js"><img src="https://img.shields.io/npm/v/redcube.js?color=%232e58ff&style=for-the-badge" alt="npm downloads"></a>
+  <img src="https://img.shields.io/npm/types/typescript?color=%232e58ff&style=for-the-badge" alt="typescript">
+  <img src="https://img.shields.io/github/last-commit/reon90/redcube?color=2e58ff&style=for-the-badge" alt="last commit">
+  <img src="https://img.shields.io/bundlephobia/min/redcube.js?color=%232e58ff&style=for-the-badge" alt="size">
+  <img src="https://img.shields.io/badge/code%20style-eslint-%232e58ff?style=for-the-badge" alt="eslint">
+</p>
+
+<div align="center">
+  <h3>
+    <a href="https://reon90.github.io/redcube">WebGL2 demo</a>
+    <span> | </span>
+    <a href="https://reon90.github.io/redcube?webgpu=1">WebGPU demo</a>
+  </h3>
+</div><br>
+
+The javascript rendering library for [Khronos glTF 2.0 format](https://github.com/KhronosGroup/glTF/tree/master/specification/2.0).
 
 ## Features
-
-([Features checking page](https://github.com/cx20/gltf-test))
 
 &bull; glTF Specification, 2.0
 
@@ -15,6 +36,7 @@ A javascript library for rendering webgl. RedCube is a minimalistic viewer used 
 &bull; KHR_lights_punctual
 
 &bull; KHR_materials_clearcoat
+<p><img src="./img/clearcoat.webp" alt="KHR_materials_clearcoat"></p>
 
 &bull; KHR_materials_pbrSpecularGlossiness
 
@@ -23,10 +45,12 @@ A javascript library for rendering webgl. RedCube is a minimalistic viewer used 
 &bull; KHR_materials_transmission
 
 &bull; KHR_materials_volume
+<p><img src="./img/volume.webp" alt="KHR_materials_volume"></p>
 
 &bull; KHR_materials_emissive_strength
 
 &bull; KHR_materials_iridescence
+<p><img src="./img/iridescence.webp" alt="KHR_materials_iridescence"></p>
 
 &bull; KHR_materials_unlit
 
@@ -39,6 +63,11 @@ A javascript library for rendering webgl. RedCube is a minimalistic viewer used 
 &bull; KHR_texture_transform
 
 &bull; EXT_lights_image_based
+
+&bull; KHR_materials_ior
+<p><img src="./img/ior.webp" alt="KHR_materials_ior"></p>
+
+[Check list](https://github.com/cx20/gltf-test)
 
 ## Platforms
 
