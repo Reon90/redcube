@@ -59,20 +59,31 @@ export function create(device, glslang, uniformBindGroup1, defines) {
             binding: 19,
             visibility: GPUShaderStage.FRAGMENT,
             texture: {
-                viewDimension: 'cube'
+                viewDimension: 'cube',
+                sampleType: 'unfilterable-float'
             }
         },
         {
             binding: 20,
             visibility: GPUShaderStage.FRAGMENT,
             texture: {
-                viewDimension: 'cube'
+                viewDimension: 'cube',
+                sampleType: 'unfilterable-float'
             }
         },
         {
             binding: 21,
             visibility: GPUShaderStage.FRAGMENT,
-            texture: {}
+            texture: {
+                sampleType: 'unfilterable-float'
+            }
+        },
+        {
+            binding: 24,
+            visibility: GPUShaderStage.FRAGMENT,
+            sampler: {
+                type: 'non-filtering'
+            }
         }
     );
 

@@ -606,6 +606,10 @@ export class Material extends M {
                 resource: sampler
             },
             {
+                binding: 24,
+                resource: device.createSampler()
+            },
+            {
                 binding: 3,
                 resource: this.baseColorTexture?.createView()
             },

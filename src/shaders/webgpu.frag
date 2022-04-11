@@ -22,8 +22,8 @@ layout(set = 0, binding = 0) uniform Matrices {
 layout(set = 0, binding = 1) uniform Uniforms {
     vec4 baseColorFactor;
     vec3 viewPos;
-    mat3 textureMatrix;
     vec3 specularFactor;
+    vec3 specularColorFactor;
     vec3 emissiveFactor;
     vec4 glossinessFactor;
     vec4 metallicFactor;
@@ -34,6 +34,13 @@ layout(set = 0, binding = 1) uniform Uniforms {
     vec4 sheenRoughnessFactor;
     vec4 transmissionFactor;
     vec4 ior;
+    vec4 normalTextureScale;
+    vec4 attenuationColor; 
+    vec4 attenuationDistance; 
+    vec4 thicknessFactor;
+    vec4 emissiveStrength;
+    vec4 anisotropy;
+    vec4 iridescence;
 } uniforms;
 layout(set = 0, binding = 15) uniform LightColor {
     vec3 lightColor[LIGHTNUMBER];
@@ -47,8 +54,14 @@ layout(set = 0, binding = 18) uniform LightIntensity {
 layout(set = 0, binding = 16) uniform LightPos {
     vec3 lightPos[LIGHTNUMBER];
 } lightPos_;
+#if defined MATRICES
+layout(set = 0, binding = 23) uniform TextureMatrices {
+    mat4 textureMatrices[MATRICES];
+};
+#endif
 
 layout(set = 0, binding = 2) uniform sampler baseSampler;
+layout(set = 0, binding = 24) uniform sampler unfilteredSampler;
 #ifdef BASECOLORTEXTURE
 layout(set = 0, binding = 3) uniform texture2D baseColorTexture;
 #endif
@@ -202,16 +215,16 @@ vec3 IBLAmbient(vec3 specularMap, vec3 baseColor, float metallic, vec3 n, float 
     #ifdef SPHERICAL_HARMONICS
     vec3 R = reflect(viewDir, n);
     vec4 rotatedR = rotationMatrix * vec4(R, 0.0);
-    vec4 prefilterColor = textureLod(samplerCube(prefilterMap, baseSampler), rotatedR.xyz, roughness * MAX_REFLECTION_LOD);
+    vec4 prefilterColor = textureLod(samplerCube(prefilterMap, unfilteredSampler), rotatedR.xyz, roughness * MAX_REFLECTION_LOD);
     vec3 prefilteredColor = srgbToLinear(vec4(prefilterColor.rgb, 0.0)) / prefilterColor.a;
     vec3 irradianceVector = vec3(rotationMatrix * vec4(n, 0)).xyz;
     vec3 irradiance = computeEnvironmentIrradiance(irradianceVector).rgb;
     #else
     vec3 R = reflect(-viewDir, n);
-    vec3 prefilteredColor = textureLod(samplerCube(prefilterMap, baseSampler), R, roughness * MAX_REFLECTION_LOD).rgb;
-    vec3 irradiance = texture(samplerCube(irradianceMap, baseSampler), n).rgb;
+    vec3 prefilteredColor = textureLod(samplerCube(prefilterMap, unfilteredSampler), R, roughness * MAX_REFLECTION_LOD).rgb;
+    vec3 irradiance = texture(samplerCube(irradianceMap, unfilteredSampler), n).rgb;
     #endif
-    vec2 envBRDF  = texture(sampler2D(brdfLUT, baseSampler), vec2(max(dot(n, viewDir), 0.0), roughness)).rg;
+    vec2 envBRDF  = texture(sampler2D(brdfLUT, unfilteredSampler), vec2(max(dot(n, viewDir), 0.0), roughness)).rg;
     vec3 specular = prefilteredColor * (F * envBRDF.x + envBRDF.y);
 
     #if defined TRANSMISSION || defined CLEARCOAT
@@ -225,7 +238,7 @@ float specEnv(vec3 N, vec3 V, float metallic, float roughness) {
     float F0 = mix(0.05, 1.0, metallic);
 
     float F = fresnelSchlickRoughness(max(dot(N, V), 0.0), F0, roughness);
-    vec2 envBRDF  = texture(sampler2D(brdfLUT, baseSampler), vec2(max(dot(N, V), 0.0), roughness)).rg;
+    vec2 envBRDF  = texture(sampler2D(brdfLUT, unfilteredSampler), vec2(max(dot(N, V), 0.0), roughness)).rg;
     return (F * envBRDF.x + envBRDF.y);
 }
 
@@ -381,17 +394,17 @@ float sheenVisibility(vec3 N, vec3 V, vec3 L, float sheenRoughness) {
 
 float max3(vec3 v) { return max(max(v.x, v.y), v.z); }
 
-vec2 applyTransform(vec2 uv) {
-    mat3 translation = mat3(1, 0, 0, 0, 1, 0, uniforms.textureMatrix[0].x, uniforms.textureMatrix[0].y, 1);
+vec2 applyTransform(vec2 uv, mat4 textureMatrix) {
+    mat3 translation = mat3(1, 0, 0, 0, 1, 0, textureMatrix[0].x, textureMatrix[0].y, 1);
     mat3 rotation = mat3(1, 0, 0, 0, 1, 0, 0, 0, 1);
-    if (uniforms.textureMatrix[2].x != 0.0) {
+    if (textureMatrix[2].x != 0.0) {
         rotation = mat3(
-            cos(-uniforms.textureMatrix[2].x), sin(-uniforms.textureMatrix[2].x), 0,
-            -sin(-uniforms.textureMatrix[2].x), cos(-uniforms.textureMatrix[2].x), 0,
+            cos(-textureMatrix[2].x), sin(-textureMatrix[2].x), 0,
+            -sin(-textureMatrix[2].x), cos(-textureMatrix[2].x), 0,
             0, 0, 1
         );
     }
-    mat3 scale = mat3(uniforms.textureMatrix[1].x, 0, 0, 0, uniforms.textureMatrix[1].y, 0, 0, 0, 1);
+    mat3 scale = mat3(textureMatrix[1].x, 0, 0, 0, textureMatrix[1].y, 0, 0, 0, 1);
 
     mat3 matrix = translation * rotation * scale;
     vec2 outUV = ( matrix * vec3(uv, 1.0) ).xy;
@@ -594,6 +607,7 @@ void main() {
     // #endif
 
     #ifdef USE_PBR
+        vec3 f_sheen = vec3(0.0);
         vec3 Lo = vec3(0.0);
         vec3 f_transmission = vec3(0.0);
         for (int i = 0; i < LIGHTNUMBER; ++i) {
@@ -626,7 +640,9 @@ void main() {
             #if defined SPECULARGLOSSINESSMAP || defined SPECULARMAP
                 diffuse = baseColor * (1.0 - max(max(specularMap.r, specularMap.g), specularMap.b));
             #endif
-            vec3 f_sheen = sheenColor * sheenDistribution(sheenRoughness, n, H) * sheenVisibility(n, viewDir, lightDir, sheenRoughness);
+            #if defined SHEEN
+            f_sheen = sheenColor * sheenDistribution(sheenRoughness, n, H) * sheenVisibility(n, viewDir, lightDir, sheenRoughness);
+            #endif
             //float sheenAlbedoScaling = min(1.0 - max3(sheenColor) * E(max(dot(viewDir, n), 0.0), sheenRoughness), 1.0 - max3(sheenColor) * E(max(dot(lightDir, n), 0.0), sheenRoughness));
             float sheenAlbedoScaling=1.0;
 

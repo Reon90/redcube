@@ -150,7 +150,7 @@ export class Env {
                 colorAttachments: [
                     {
                         view: context.getCurrentTexture().createView(),
-
+                        storeOp: 'store' as GPUStoreOp,
                         loadOp: 'clear',
                         clearValue: { r: 0, g: 0, b: 0, a: 1.0 }
                     }
@@ -163,13 +163,7 @@ export class Env {
                 }
             };
         }
-        const sampler = device.createSampler({
-            magFilter: 'linear',
-            minFilter: 'linear',
-            addressModeU: 'clamp-to-edge',
-            addressModeV: 'clamp-to-edge',
-            addressModeW: 'clamp-to-edge'
-        });
+        const sampler = device.createSampler();
         const entries = [
             {
                 binding: 0,
@@ -177,7 +171,7 @@ export class Env {
             },
             {
                 binding: 1,
-                resource: this.bdrfTexture.createView()
+                resource: this.originalCubeTexture.createView()
             }
         ];
 
@@ -192,12 +186,16 @@ export class Env {
                 {
                     binding: 0,
                     visibility: GPUShaderStage.FRAGMENT,
-                    sampler: {}
+                    sampler: {
+                        type: 'non-filtering',
+                    }
                 },
                 {
                     binding: 1,
                     visibility: GPUShaderStage.FRAGMENT,
-                    texture: {}
+                    texture: {
+                        sampleType: 'unfilterable-float'
+                    }
                 }
             ],
             true
@@ -222,7 +220,7 @@ export class Env {
         const m = new Matrix4();
         const cam = Object.assign({}, this.camera.props, {
             perspective: {
-                yfov: 0.3,
+                yfov: 1.1,
                 znear: 0.01,
                 zfar: 10000
             }
@@ -288,7 +286,7 @@ export class Env {
                 colorAttachments: [
                     {
                         view: context.getCurrentTexture().createView(),
-
+                        storeOp: 'store' as GPUStoreOp,
                         loadOp: 'clear',
                         clearValue: { r: 0, g: 0, b: 0, a: 1.0 }
                     }
@@ -301,13 +299,7 @@ export class Env {
                 }
             };
         }
-        const sampler = device.createSampler({
-            magFilter: 'linear',
-            minFilter: 'linear',
-            addressModeU: 'clamp-to-edge',
-            addressModeV: 'clamp-to-edge',
-            addressModeW: 'clamp-to-edge'
-        });
+        const sampler = device.createSampler();
         const entries = [
             {
                 binding: 0,
@@ -323,7 +315,7 @@ export class Env {
             },
             {
                 binding: 2,
-                resource: this.prefilterTexture.createView({
+                resource: this.irradianceTexture.createView({
                     dimension: 'cube'
                 })
             }
@@ -345,13 +337,16 @@ export class Env {
                 {
                     binding: 1,
                     visibility: GPUShaderStage.FRAGMENT,
-                    sampler: {}
+                    sampler: {
+                        type: 'non-filtering'
+                    }
                 },
                 {
                     binding: 2,
                     visibility: GPUShaderStage.FRAGMENT,
                     texture: {
-                        viewDimension: 'cube'
+                        viewDimension: 'cube',
+                        sampleType: 'unfilterable-float'
                     }
                 }
             ],
@@ -437,7 +432,7 @@ export class Env {
 
                 const tex = device.createTexture({
                     size: [shape[0], shape[1], 1],
-                    format: 'rgba16float', // TODO 16 filtered vs 32 non-filtered
+                    format: 'rgba32float', // TODO 16 filtered vs 32 non-filtered
                     usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST
                 });
                 const bytesPerRow = shape[0] * 4 * 4;
@@ -470,7 +465,7 @@ export class Env {
         const colorTexture = device.createTexture({
             size: [size, size, 1],
             usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_SRC,
-            format: 'rgba16float'
+            format: 'rgba32float'
         });
         this.tempTexture = colorTexture;
         const colorTextureView = colorTexture.createView();
@@ -535,7 +530,7 @@ export class Env {
                 entryPoint: 'main',
                 targets: [
                     {
-                        format: screen ? 'bgra8unorm' : 'rgba16float'
+                        format: screen ? 'bgra8unorm' : 'rgba32float'
                     }
                 ]
             },
@@ -571,7 +566,7 @@ export class Env {
         this.bdrfTexture = device.createTexture({
             size: [512, 512, 1],
             usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
-            format: 'rgba16float'
+            format: 'rgba32float'
         });
 
         const commandEncoder = device.createCommandEncoder();
@@ -629,13 +624,7 @@ export class Env {
         });
         device.queue.writeBuffer(u, 0, uniformBuffer.store.buffer, uniformBuffer.store.byteOffset, uniformBuffer.store.byteLength);
 
-        const sampler = device.createSampler({
-            magFilter: 'linear',
-            minFilter: 'linear',
-            wrapS: 'clamp-to-edge',
-            wrapT: 'clamp-to-edge',
-            wrapR: 'clamp-to-edge'
-        });
+        const sampler = device.createSampler();
         const entries = [
             {
                 binding: 0,
@@ -664,12 +653,16 @@ export class Env {
             {
                 binding: 1,
                 visibility: GPUShaderStage.FRAGMENT,
-                sampler: {}
+                sampler: {
+                    type: 'non-filtering'
+                }
             },
             {
                 binding: 2,
                 visibility: GPUShaderStage.FRAGMENT,
-                texture: {}
+                texture: {
+                    sampleType: 'unfilterable-float'
+                }
             }
         ];
 
@@ -732,13 +725,7 @@ export class Env {
         });
         device.queue.writeBuffer(u, 0, uniformBuffer.store.buffer, uniformBuffer.store.byteOffset, uniformBuffer.store.byteLength);
 
-        const sampler = device.createSampler({
-            magFilter: 'linear',
-            minFilter: 'linear',
-            wrapS: 'clamp-to-edge',
-            wrapT: 'clamp-to-edge',
-            wrapR: 'clamp-to-edge'
-        });
+        const sampler = device.createSampler();
         const entries = [
             {
                 binding: 0,
@@ -769,13 +756,16 @@ export class Env {
             {
                 binding: 1,
                 visibility: GPUShaderStage.FRAGMENT,
-                sampler: {}
+                sampler: {
+                    type: 'non-filtering'
+                }
             },
             {
                 binding: 2,
                 visibility: GPUShaderStage.FRAGMENT,
                 texture: {
-                    viewDimension: 'cube'
+                    viewDimension: 'cube',
+                    sampleType: 'unfilterable-float'
                 }
             }
         ];
@@ -840,13 +830,7 @@ export class Env {
         });
         device.queue.writeBuffer(u, 0, uniformBuffer.store.buffer, uniformBuffer.store.byteOffset, uniformBuffer.store.byteLength);
 
-        const sampler = device.createSampler({
-            magFilter: 'linear',
-            minFilter: 'linear',
-            wrapS: 'clamp-to-edge',
-            wrapT: 'clamp-to-edge',
-            wrapR: 'clamp-to-edge'
-        });
+        const sampler = device.createSampler();
         const entries = [
             {
                 binding: 0,
@@ -877,13 +861,16 @@ export class Env {
             {
                 binding: 1,
                 visibility: GPUShaderStage.FRAGMENT,
-                sampler: {}
+                sampler: {
+                    type: 'non-filtering'
+                }
             },
             {
                 binding: 2,
                 visibility: GPUShaderStage.FRAGMENT,
                 texture: {
-                    viewDimension: 'cube'
+                    viewDimension: 'cube',
+                    sampleType: 'unfilterable-float'
                 }
             }
         ];
@@ -921,7 +908,7 @@ export class Env {
             mipLevelCount: 5,
             size: [512, 512, 6],
             usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
-            format: 'rgba16float'
+            format: 'rgba32float'
         });
 
         const maxMipLevels = 5;
@@ -940,7 +927,7 @@ export class Env {
         this.irradianceTexture = device.createTexture({
             size: [32, 32, 6],
             usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
-            format: 'rgba16float'
+            format: 'rgba32float'
         });
 
         for (let i = 0; i < 6; i++) {
@@ -954,7 +941,7 @@ export class Env {
             mipLevelCount: 5,
             size: [128, 128, 6],
             usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
-            format: 'rgba16float'
+            format: 'rgba32float'
         });
 
         const maxMipLevels = 5;

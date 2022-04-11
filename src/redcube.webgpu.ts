@@ -23,6 +23,8 @@ class RedCube {
     canvas: HTMLCanvasElement;
     events: Events;
     ioc: Container;
+    isIBL = true;
+    isDefaultLight = true;
 
     constructor(url, canvas, _pp, envUrl = 'env') {
         if (!url) {
@@ -116,7 +118,7 @@ class RedCube {
             ioc.register('scene', Scene);
             ioc.register('light', Light, [], {
                 type: 'directional',
-                intensity: 1,
+                intensity: 5,
                 color: [1, 1, 1],
                 isInitial: true,
                 spot: {}
@@ -286,6 +288,8 @@ class RedCube {
 
     getState() {
         return {
+            isIBL: this.isIBL,
+            isDefaultLight: this.isDefaultLight,
             camera: this.camera,
             light: this.light,
             needUpdateView: this.renderer.needUpdateView,
