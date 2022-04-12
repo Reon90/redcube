@@ -29,11 +29,12 @@ The javascript rendering library for [Khronos glTF 2.0 format](https://github.co
 
 ## Features
 
-&bull; glTF Specification, 2.0
+&bull; glTF 2.0 Specification
 
 &bull; KHR_draco_mesh_compression
 
 &bull; KHR_lights_punctual
+<p><img src="./img/lights.webp" alt="KHR_lights_punctual"></p>
 
 &bull; KHR_materials_clearcoat
 <p><img src="./img/clearcoat.webp" alt="KHR_materials_clearcoat"></p>
@@ -43,6 +44,7 @@ The javascript rendering library for [Khronos glTF 2.0 format](https://github.co
 &bull; KHR_materials_sheen
 
 &bull; KHR_materials_transmission
+<p><img src="./img/transmission.webp" alt="KHR_materials_transmission"></p>
 
 &bull; KHR_materials_volume
 <p><img src="./img/volume.webp" alt="KHR_materials_volume"></p>
@@ -55,6 +57,7 @@ The javascript rendering library for [Khronos glTF 2.0 format](https://github.co
 &bull; KHR_materials_unlit
 
 &bull; KHR_materials_variants
+<p><img src="./img/variants.webp" alt="KHR_materials_variants"></p>
 
 &bull; KHR_mesh_quantization
 
@@ -63,6 +66,7 @@ The javascript rendering library for [Khronos glTF 2.0 format](https://github.co
 &bull; KHR_texture_transform
 
 &bull; EXT_lights_image_based
+<p><img src="./img/ibl.webp" alt="EXT_lights_image_based"></p>
 
 &bull; KHR_materials_ior
 <p><img src="./img/ior.webp" alt="KHR_materials_ior"></p>
