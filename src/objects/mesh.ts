@@ -224,6 +224,21 @@ export class Mesh extends Object3D {
             gl.bindTexture(gl.TEXTURE_2D, this.material.iridescenceThicknessTexture);
             gl.bindSampler(17, this.material.iridescenceThicknessTexture.sampler);
         }
+        if (this.material.diffuseTransmissionTexture) {
+            gl.activeTexture(gl[`TEXTURE${20}`]);
+            gl.bindTexture(gl.TEXTURE_2D, this.material.diffuseTransmissionTexture);
+            gl.bindSampler(20, this.material.diffuseTransmissionTexture.sampler);
+        }
+        if (this.material.diffuseTransmissionColorTexture) {
+            gl.activeTexture(gl[`TEXTURE${21}`]);
+            gl.bindTexture(gl.TEXTURE_2D, this.material.diffuseTransmissionColorTexture);
+            gl.bindSampler(21, this.material.diffuseTransmissionColorTexture.sampler);
+        }
+        if (this.material.anisotropyTexture) {
+            gl.activeTexture(gl[`TEXTURE${22}`]);
+            gl.bindTexture(gl.TEXTURE_2D, this.material.anisotropyTexture);
+            gl.bindSampler(22, this.material.anisotropyTexture.sampler);
+        }
         if (this.material.clearcoatNormalTexture) {
             gl.activeTexture(gl[`TEXTURE${10}`]);
             gl.bindTexture(gl.TEXTURE_2D, this.material.clearcoatNormalTexture);

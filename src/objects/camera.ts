@@ -20,8 +20,6 @@ function clamp(a, b, c) {
     return a < b ? b : a > c ? c : a;
 }
 
-let x;
-
 export class Camera extends Object3D {
     isInitial: boolean;
     props: CameraProps;

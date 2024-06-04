@@ -33,6 +33,12 @@ The javascript rendering library for [Khronos glTF 2.0 format](https://github.co
 
 &bull; KHR_draco_mesh_compression
 
+&bull; KHR_materials_dispersion
+
+&bull; KHR_materials_anisotropy
+
+&bull; KHR_materials_diffuse_transmission
+
 &bull; KHR_lights_punctual
 <p><img src="./img/lights.webp" alt="KHR_lights_punctual"></p>
 
@@ -77,7 +83,7 @@ The javascript rendering library for [Khronos glTF 2.0 format](https://github.co
 
 &bull; Browsers with WebGL 2.0 support
 
-&bull; Browsers with WebGPU support (Chrome Canary with `--enable-unsafe-webgpu` flag)
+&bull; Browsers with WebGPU support (Chrome 113 and above)
 
 &bull; Node.js renderless
 

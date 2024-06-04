@@ -18,27 +18,27 @@ class Events {
 
     handleEvent(e) {
         switch (e.type) {
-            case 'wheel':
-                this.zoom(e);
-                break;
-            case 'mousedown':
-                this.onStart(e);
-                break;
-            case 'mousemove':
-                this.onMove(e);
-                break;
-            case 'mouseup':
-                this.onEnd();
-                break;
-            case 'keyup':
-                this.onKeyUp();
-                break;
-            case 'keydown':
-                this.onKeyDown(e);
-                break;
-            case 'resize':
-                this.onResize();
-                break;
+        case 'wheel':
+            this.zoom(e);
+            break;
+        case 'mousedown':
+            this.onStart(e);
+            break;
+        case 'mousemove':
+            this.onMove(e);
+            break;
+        case 'mouseup':
+            this.onEnd();
+            break;
+        case 'keyup':
+            this.onKeyUp();
+            break;
+        case 'keydown':
+            this.onKeyDown(e);
+            break;
+        case 'resize':
+            this.onResize();
+            break;
         }
     }
 

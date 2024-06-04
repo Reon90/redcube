@@ -1,7 +1,7 @@
 import vertexShaderGLSL from '../shaders/webgpu.vert';
 import fragmentShaderGLSL from '../shaders/webgpu.frag';
 
-export function create(device, glslang, uniformBindGroup1, defines) {
+export function create(device, glslang, wgsl, uniformBindGroup1, defines) {
     //const programHash = defines.map(define => `${define.name}${define.value || 1}`).join('');
     const defineStr = defines.map(define => `#define ${define.name} ${define.value || 1}` + '\n').join('');
     const program = [vertexShaderGLSL.replace(/\n/, `\n${defineStr}`), fragmentShaderGLSL.replace(/\n/, `\n${defineStr}`)];
@@ -60,7 +60,7 @@ export function create(device, glslang, uniformBindGroup1, defines) {
             visibility: GPUShaderStage.FRAGMENT,
             texture: {
                 viewDimension: 'cube',
-                sampleType: 'unfilterable-float'
+                sampleType: 'float'
             }
         },
         {
@@ -68,21 +68,21 @@ export function create(device, glslang, uniformBindGroup1, defines) {
             visibility: GPUShaderStage.FRAGMENT,
             texture: {
                 viewDimension: 'cube',
-                sampleType: 'unfilterable-float'
+                sampleType: 'float'
             }
         },
         {
             binding: 21,
             visibility: GPUShaderStage.FRAGMENT,
             texture: {
-                sampleType: 'unfilterable-float'
+                sampleType: 'float'
             }
         },
         {
             binding: 24,
             visibility: GPUShaderStage.FRAGMENT,
             sampler: {
-                type: 'non-filtering'
+                type: 'filtering'
             }
         }
     );
@@ -172,22 +172,29 @@ export function create(device, glslang, uniformBindGroup1, defines) {
         });
     }
 
+    function convertGLSLtoWGSL(code: string, type: string) {
+        const spirv = glslang.compileGLSL(code, type);
+        return wgsl
+            .convertSpirV2WGSL(spirv)
+            .replaceAll('type ', 'alias ');
+    }
+
     const pipeline = device.createRenderPipeline({
         layout: pipelineLayout,
         vertex: {
             module: device.createShaderModule({
-                code: glslang.compileGLSL(program[0], 'vertex'),
+                code: convertGLSLtoWGSL(program[0], 'vertex'),
                 source: program[0],
-                transform: glsl => glslang.compileGLSL(glsl, 'vertex')
+                transform: glsl => convertGLSLtoWGSL(glsl, 'vertex')
             }),
             entryPoint: 'main',
             buffers
         },
         fragment: {
             module: device.createShaderModule({
-                code: glslang.compileGLSL(program[1], 'fragment'),
+                code: convertGLSLtoWGSL(program[1], 'fragment'),
                 source: program[1],
-                transform: glsl => glslang.compileGLSL(glsl, 'fragment')
+                transform: glsl => convertGLSLtoWGSL(glsl, 'fragment')
             }),
             entryPoint: 'main',
             targets: [

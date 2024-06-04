@@ -7,10 +7,6 @@ import { Scene, Camera, Light, SkinnedMesh } from './objects/index';
 import { Events } from './events';
 import { Env } from './env.webgpu';
 import { Parse } from './parse';
-import { Matrix4 } from './matrix';
-import { PostProcessing } from './postprocessing';
-import { Particles } from './particles';
-import { Light as PPLight } from './postprocessors/light';
 import { RendererWebGPU } from './renderer.webgpu';
 import { create } from './objects/pipeline';
 import { walk } from './utils';
@@ -39,10 +35,16 @@ class RedCube {
 
     async webgpuInit(): Promise<WEBGPU> {
         const glslangModule = await import(/*webpackChunkName: "glslang"*/ '../glslang.js');
+        const twgslModule = await import(/*webpackChunkName: "twgsl"*/ '../twgsl.js');
+
         // @ts-ignore
         const adapter = await navigator.gpu.requestAdapter();
-        const device = await adapter.requestDevice();
+        const device = await adapter.requestDevice({
+            // @ts-ignore
+            requiredFeatures: ['float32-filterable']
+        });
         const glslang = await glslangModule.default();
+        const wgsl = await twgslModule.default('twgsl.wasm');
 
         const context = this.canvas.getContext('webgpu');
         context.configure({
@@ -85,7 +87,7 @@ class RedCube {
             }
         };
 
-        return { glslang, context, device, renderPassDescriptor };
+        return { glslang, wgsl, context, device, renderPassDescriptor };
     }
 
     get camera(): Camera {
@@ -165,6 +167,7 @@ class RedCube {
             this.env.drawIrradiance(WebGPU);
             this.env.drawPrefilter(WebGPU);
             //this.env.drawCube(WebGPU);
+            //return
 
             this.scene.meshes.forEach(mesh => {
                 mesh.geometry.createGeometryForWebGPU(WebGPU);
@@ -198,7 +201,7 @@ class RedCube {
                     mesh.geometry.uniformBindGroup1.push(mesh.setSkinWebGPU(WebGPU, this.parse.skins[mesh.skin]));
                 }
 
-                mesh.pipeline = create(WebGPU.device, WebGPU.glslang, mesh.material.uniformBindGroup1, mesh.defines);
+                mesh.pipeline = create(WebGPU.device, WebGPU.glslang, WebGPU.wgsl, mesh.material.uniformBindGroup1, mesh.defines);
                 mesh.uniformBindGroup1 = WebGPU.device.createBindGroup({
                     layout: mesh.pipeline.getBindGroupLayout(0),
                     entries: [...mesh.geometry.uniformBindGroup1, ...mesh.material.uniformBindGroup1]

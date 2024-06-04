@@ -34,7 +34,7 @@
             }
             document.write('<script src="./dist/redcube.webgpu.js"><\/script>');
         } else {
-            document.write('<script src="./dist/redcube.js"><\/script>');
+            document.write('<script src="./redcube.js"><\/script>');
         }
     </script>
 </head>
@@ -45,7 +45,7 @@
         <div id="selector"></div>
     </div>
     <script>
-        fetch('https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/model-index.json')
+        fetch('https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/model-index.json')
             .then(r => r.json())
             .then(samples => {
                 const name = localStorage.getItem('sample') || 'DamagedHelmet';
@@ -100,7 +100,7 @@
                 selector.appendChild(span);
                 slider.value = 0;
 
-                const envname = localStorage.getItem('env') || 'env4';
+                const envname = localStorage.getItem('env') || 'env2';
                 {
                     const select = document.createElement('select');
                     select.onchange = () => {
@@ -136,10 +136,10 @@
 
                 //https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/
                 window.renderer = new redcube.RedCube(
-                    'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/' + name + '/glTF/' + name + '.gltf',
+                    'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/' + name + '/glTF/' + name + '.gltf',
                     canvas, 
                     [],
-                    `src/images/${localStorage.getItem('env') || 'env4'}.hdr`,
+                    `src/images/${localStorage.getItem('env') || 'env2'}.hdr`,
                     mode
                 );
                 renderer.init(() => {

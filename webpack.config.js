@@ -1,10 +1,10 @@
-const webpack = require('webpack');
 const path = require('path');
-const CopyPlugin = require("copy-webpack-plugin");
+const CopyPlugin = require('copy-webpack-plugin');
 const libraryName = 'redcube';
 
 module.exports = {
     mode: 'development',
+    //entry: path.join(__dirname, `/src/${libraryName}.webgpu.ts`),
     entry: path.join(__dirname, `/src/${libraryName}.ts`),
     output: {
         filename: `${libraryName}.js`,
@@ -16,8 +16,9 @@ module.exports = {
         assetModuleFilename: 'assets/[name][ext]'
     },
     devServer: {
-        publicPath: '/dist/',
-        injectClient: false
+        static: {
+            directory: path.join(__dirname, '.')
+        }
     },
     resolve: {
         extensions: ['.ts', '.js'],
@@ -29,18 +30,18 @@ module.exports = {
     },
     plugins: [
         new CopyPlugin({
-          patterns: [
-            { from: './libktx.wasm', to: './libs' },
-            { from: './draco_decoder.wasm', to: './libs' },
-            { from: './glslang.wasm', to: './libs' }
-          ]
+            patterns: [
+                { from: './libktx.wasm', to: './libs' },
+                { from: './draco_decoder.wasm', to: './libs' },
+                { from: './glslang.wasm', to: './libs' }
+            ]
         })
     ],
     module: {
-        rules: [ 
-            { 
-                test: /\.ts$/, 
-                use: "awesome-typescript-loader?configFileName=tsconfig.client.json"
+        rules: [
+            {
+                test: /\.ts$/,
+                use: 'ts-loader'
             },
             {
                 test: /\.(glsl|vert|frag)$/,
@@ -53,7 +54,7 @@ module.exports = {
             {
                 test: /\.(jpeg|jpg|png|gif)$/,
                 use: 'url-loader'
-            } 
+            }
         ]
     }
 };

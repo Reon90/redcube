@@ -8,8 +8,12 @@
     "parserOptions": {
         "sourceType": "module"
     },
-    "plugins": ["@typescript-eslint"],
+    "plugins": ["@typescript-eslint", "unused-imports"],
     "rules": {
+        "unused-imports/no-unused-vars": [
+            "error"
+        ],
+        "unused-imports/no-unused-imports": "error",
         "no-undef": "off",
         "no-redeclare": [
             "error"

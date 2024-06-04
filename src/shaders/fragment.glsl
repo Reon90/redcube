@@ -15,6 +15,8 @@ in vec4 outPositionView;
 
 layout (location = 0) out vec4 color;
 layout (location = 1) out vec3 normalColor;
+layout (location = 2) out vec4 irradianceColor;
+layout (location = 3) out vec4 albedoColor;
 
 uniform Material {
     vec4 baseColorFactor;
@@ -32,12 +34,14 @@ uniform Material {
     vec4 transmissionFactor;
     vec4 ior;
     vec4 normalTextureScale;
-    vec4 attenuationColor; 
+    vec4 attenuationColorFactor; 
     vec4 attenuationDistance; 
     vec4 thicknessFactor;
     vec4 emissiveStrength;
-    vec4 anisotropy;
+    vec4 anisotropyFactor;
     vec4 iridescence;
+    vec4 diffuseTransmissionFactor;
+    vec4 dispersionFactor;
 };
 uniform Matrices {
     mat4 model;
@@ -92,6 +96,9 @@ uniform sampler2D clearcoatNormalTexture;
 uniform sampler2D specularTexture;
 uniform sampler2D specularColorTexture;
 uniform sampler2D thicknessTexture;
+uniform sampler2D diffuseTransmissionTexture;
+uniform sampler2D diffuseTransmissionColorTexture;
+uniform sampler2D anisotropyTexture;
 
 uniform samplerCube prefilterMap;
 uniform samplerCube charlieMap;
@@ -282,7 +289,32 @@ vec3 evalIridescence(float outsideIOR, float eta2, float cosTheta1, float thinFi
     // Since out of gamut colors might be produced, negative color values are clamped to 0.
     return max(I, vec3(0.0));
 }
+#ifdef ANISOTROPY
+float DistributionGGX(vec3 N, vec3 H, vec3 anisotropicT, vec3 anisotropicB, float at, float ab) {
+    float NdotH = dot(N, H);
+    float TdotH = dot(anisotropicT, H);
+    float BdotH = dot(anisotropicB, H);
 
+    float a2 = at * ab;
+    vec3 f = vec3(ab * TdotH, at * BdotH, a2 * NdotH);
+    float w2 = a2 / dot(f, f);
+    return a2 * w2 * w2 / PI;
+}
+
+float GeometrySmith(vec3 N, vec3 V, vec3 L, vec3 anisotropicT, vec3 anisotropicB, float at, float ab) {
+    float NdotV = dot(N, V);
+    float NdotL = dot(N, L);
+    float TdotV = dot(anisotropicT, V);
+    float TdotL = dot(anisotropicT, L);
+    float BdotV = dot(anisotropicB, V);
+    float BdotL = dot(anisotropicB, L);
+
+    float GGXV = NdotL * length(vec3(at * TdotV, ab * BdotV, NdotV));
+    float GGXL = NdotV * length(vec3(at * TdotL, ab * BdotL, NdotL));
+    float v = 0.5 / (GGXV + GGXL);
+    return clamp(v, 0.0, 1.0);
+}
+#else
 float DistributionGGX(vec3 N, vec3 H, float roughness) {
     float NdotH = max(dot(N, H), 0.01);
     float a = max(roughness*roughness, 0.01);
@@ -309,6 +341,7 @@ float GeometrySmith(vec3 N, vec3 V, vec3 L, float roughness) {
 
     return ggx1 * ggx2;
 }
+#endif
 
 float fresnelSchlickRoughness(float cosTheta, float F0, float roughness) {
     return F0 + (max(1.0 - roughness, F0) - F0) * pow(1.0 - cosTheta, 5.0);
@@ -317,13 +350,30 @@ vec3 fresnelSchlickRoughness(float cosTheta, vec3 F0, float roughness) {
     return F0 + (max(vec3(1.0 - roughness), F0) - F0) * pow(1.0 - cosTheta, 5.0);
 }
 vec3 calcTransmission(vec3 color, vec3 N, float roughness, vec3 V, float transmission, float thickness) {
-    vec4 refractS = projection * view * vec4(outPosition + refract(-V, N, 1.0 / ior.x) * thickness, 1.0);
+    float refraction_ior = 1.0 / ior.x;
+    vec3 environmentRefraction = vec3(0.0);
+    #ifdef DISPERSION
+    float realIOR = 1.0 / ior.x;
+    float iorDispersionSpread = 0.04 * dispersionFactor.x * (realIOR - 1.0);
+    vec3 iors = vec3(realIOR - iorDispersionSpread, refraction_ior, realIOR + iorDispersionSpread);
+    for (int i = 0; i < 3; i++) {
+        refraction_ior = iors[i];
+    #endif
+
+    vec4 refractS = projection * view * vec4(outPosition + refract(-V, N, refraction_ior) * thickness, 1.0);
     refractS.xy = refractS.xy / refractS.w;
     refractS.xy = refractS.xy * 0.5 + 0.5;
     const float MAX_REFLECTION_LOD = 10.0;
-    vec3 baseColor = textureLod(colorTexture, refractS.xy, applyIorToRoughness(roughness, ior.x) * MAX_REFLECTION_LOD).xyz;
+    vec3 baseColor = textureLod(colorTexture, refractS.xy, applyIorToRoughness(roughness, 1.0 / refraction_ior) * MAX_REFLECTION_LOD).xyz;
 
-    return transmission * baseColor * color;
+    #ifdef DISPERSION
+        environmentRefraction[i] = baseColor[i];
+    }
+    #else
+        environmentRefraction = baseColor;
+    #endif
+
+    return transmission * environmentRefraction * color;
 }
 
 vec3 computeEnvironmentIrradiance(vec3 normal) {
@@ -375,7 +425,15 @@ float E(float x, float y) {
     return texture(Sheen_E, vec2(x,y)).r;
 }
 float max3(vec3 v) { return max(max(v.x, v.y), v.z); }
-vec3 IBLAmbient(vec3 baseColor, float metallic, vec3 n, float roughness, vec3 viewDir, float transmission, vec3 sheenColor, float sheenRoughness, vec3 iridescenceFresnel, float iridescenceFactor, vec3 F0, float specularWeight, inout vec3 f_sheen, out vec3 specular) {
+float pow2(float v) { return v * v; }
+vec3 IBLAmbient(vec3 baseColor, float metallic, vec3 n, float roughness, vec3 viewDir, float transmission, vec3 sheenColor, float sheenRoughness, vec3 iridescenceFresnel, float iridescenceFactor, vec3 F0, float specularWeight, float anisotropy, vec3 anisotropicB, inout vec3 f_sheen, out vec3 specular) {
+    #ifdef ANISOTROPY
+    vec3 Normal = cross(anisotropicB, viewDir);
+    Normal = normalize(cross(Normal, anisotropicB));
+    float a = pow2(pow2(1.0 - anisotropy * (1.0 - roughness)));
+    n = normalize(mix(Normal, n, a));
+    #endif
+    
     vec3 F = fresnelSchlickRoughness(max(dot(n, viewDir), 0.0), F0, roughness);
 
     vec3 kD = vec3(1.0) - F * specularWeight;
@@ -425,7 +483,33 @@ float specEnv(vec3 N, vec3 V, float metallic, float roughness, vec3 F0, float sp
     return (F * specularWeight * envBRDF.x + envBRDF.y);
 }
 
-vec3 CookTorranceSpecular2(vec3 baseColor, float metallic, vec3 n, vec3 H, float roughness, vec3 viewDir, vec3 lightDir, float anisotropy, vec3 iridescenceFresnel, float iridescenceFactor, vec3 F0, float specularWeight) {
+#ifdef ANISOTROPY
+vec3 CookTorranceSpecular2(vec3 baseColor, float metallic, vec3 n, vec3 H, vec3 anisotropicT, vec3 anisotropicB, float roughness, vec3 viewDir, vec3 lightDir, float anisotropy, vec3 iridescenceFresnel, float iridescenceFactor, vec3 F0, float specularWeight) {
+    roughness = roughness * roughness;
+    float at = max(mix(roughness, 1.0, anisotropy * anisotropy), 0.001);
+    float ab = max(roughness, 0.001);
+    float D = DistributionGGX(n, H, anisotropicT, anisotropicB, at, ab);
+    float G = GeometrySmith(n, viewDir, lightDir, anisotropicT, anisotropicB, at, ab);
+    vec3 F = mix(fresnelSchlick(max(dot(viewDir, H), 0.0), F0), iridescenceFresnel, iridescenceFactor);
+
+    vec3 nominator = D * G * F * specularWeight;
+    float denominator = 4.0 * max(dot(n, viewDir), 0.0) * max(dot(n, lightDir), 0.0);
+    return D * G * F;
+}
+vec3 CookTorranceSpecular(vec3 baseColor, float metallic, vec3 n, vec3 H, vec3 anisotropicT, vec3 anisotropicB, float roughness, vec3 viewDir, vec3 lightDir, float anisotropy, vec3 F0, float specularWeight) {
+    roughness = roughness * roughness;
+    float at = max(mix(roughness, 1.0, anisotropy * anisotropy), 0.001);
+    float ab = max(roughness, 0.001);
+    float D = DistributionGGX(n, H, anisotropicT, anisotropicB, at, ab);
+    float G = GeometrySmith(n, viewDir, lightDir, anisotropicT, anisotropicB, at, ab);
+    vec3 F = fresnelSchlick(max(dot(viewDir, H), 0.0), F0); 
+
+    vec3 nominator = D * G * F * specularWeight;
+    float denominator = 4.0 * max(dot(n, viewDir), 0.0) * max(dot(n, lightDir), 0.0);
+    return D * G * F;
+}
+#else
+vec3 CookTorranceSpecular2(vec3 baseColor, float metallic, vec3 n, vec3 H, vec3 anisotropicT, vec3 anisotropicB, float roughness, vec3 viewDir, vec3 lightDir, float anisotropy, vec3 iridescenceFresnel, float iridescenceFactor, vec3 F0, float specularWeight) {
     float D = DistributionGGX(n, H, roughness);
     float G = GeometrySmith(n, viewDir, lightDir, roughness);
     vec3 F = mix(fresnelSchlick(max(dot(viewDir, H), 0.0), F0), iridescenceFresnel, iridescenceFactor);
@@ -434,8 +518,7 @@ vec3 CookTorranceSpecular2(vec3 baseColor, float metallic, vec3 n, vec3 H, float
     float denominator = 4.0 * max(dot(n, viewDir), 0.0) * max(dot(n, lightDir), 0.0);
     return nominator / max(denominator, 0.001);
 }
-
-vec3 CookTorranceSpecular(vec3 baseColor, float metallic, vec3 n, vec3 H, float roughness, vec3 viewDir, vec3 lightDir, float anisotropy, vec3 F0, float specularWeight) {
+vec3 CookTorranceSpecular(vec3 baseColor, float metallic, vec3 n, vec3 H, vec3 anisotropicT, vec3 anisotropicB, float roughness, vec3 viewDir, vec3 lightDir, float anisotropy, vec3 F0, float specularWeight) {
     float D = DistributionGGX(n, H, roughness);
     float G = GeometrySmith(n, viewDir, lightDir, roughness);
     vec3 F = fresnelSchlick(max(dot(viewDir, H), 0.0), F0); 
@@ -444,6 +527,7 @@ vec3 CookTorranceSpecular(vec3 baseColor, float metallic, vec3 n, vec3 H, float 
     float denominator = 4.0 * max(dot(n, viewDir), 0.0) * max(dot(n, lightDir), 0.0);
     return nominator / max(denominator, 0.001);
 }
+#endif
 
 vec3 LambertDiffuse(vec3 baseColor, float metallic, vec3 n, vec3 H, float roughness, vec3 viewDir, vec3 lightDir, vec3 F0, float specularWeight) {
     float NdotL = max(dot(n, lightDir), 0.0);
@@ -507,9 +591,33 @@ vec2 applyTransform(vec2 uv, mat4 textureMatrix) {
     vec2 outUV = ( matrix * vec3(uv, 1.0) ).xy;
     return outUV;
 }
+float computeWrappedDiffuseNdotL(float NdotL, float w) {
+    float t = 1.0+w;
+    float invt2 = 1.0/(t*t);
+    return saturate((NdotL+w)*invt2);
+}
+float pow5(float value) {
+    float sq = value*value;
+    return sq*sq*value;
+}
+float diffuseBRDF_Burley(float NdotL, float NdotV, float VdotH, float roughness) {
+    float diffuseFresnelNV = pow5(saturate(1.0-NdotL)+EPSILON);
+    float diffuseFresnelNL = pow5(saturate(1.0-NdotV)+EPSILON);
+    float diffuseFresnel90 = 0.5+2.0*VdotH*VdotH*roughness;
+    float fresnel = (1.0+(diffuseFresnel90-1.0)*diffuseFresnelNL) *
+    (1.0+(diffuseFresnel90-1.0)*diffuseFresnelNV);
+    return fresnel/PI;
+}
+#define absEps(x) abs(x)+EPSILON
 
 vec3 cocaLambert(vec3 alpha, float distance) {
     return exp(-alpha*distance);
+}
+#define maxEps(x) max(x, EPSILON)
+vec3 transmittanceBRDF_Burley(const vec3 tintColor, const vec3 diffusionDistance, float thickness) {
+    vec3 S = 1./maxEps(diffusionDistance);
+    vec3 temp = exp((-0.333333333*thickness)*S);
+    return tintColor.rgb*0.25*(temp*temp*temp+3.0*temp);
 }
 
 vec3 computeColorAtDistanceInMedia(vec3 color, float distance) {
@@ -567,7 +675,18 @@ void main() {
     vec3 sheenColor = sheenColorFactor.xyz;
     float sheenRoughness = sheenRoughnessFactor.x;
     float transmission = transmissionFactor.x;
+    float transmissionDiffuse = diffuseTransmissionFactor.x;
     float thickness = clamp(thicknessFactor.x, 0.0, 1.0);
+    #ifdef DIFFUSE_TRANSMISSION_MAP
+        vec4 diffuseTransmissionTextureV = texture(diffuseTransmissionTexture, outUV);
+        transmissionDiffuse *= diffuseTransmissionTextureV.a;
+    #endif
+    vec3 attenuationColor = attenuationColorFactor.rgb;
+    vec3 tintColor = diffuseTransmissionFactor.yzw;
+    #ifdef DIFFUSE_TRANSMISSION_COLOR_MAP
+        vec4 diffuseTransmissionColorTextureV = texture(diffuseTransmissionColorTexture, outUV);
+        tintColor *= diffuseTransmissionColorTextureV.rgb;
+    #endif
     #ifdef CLEARCOATMAP
         outUV = getUV(CLEARCOATMAP);
         #ifdef CLEARCOATMAP_TEXTURE_TRANSFORM
@@ -609,6 +728,9 @@ void main() {
     #ifdef THICKNESSMAP
         float thicknessTextureV = texture(thicknessTexture, outUV).g;
         thickness = thicknessTextureV * thickness;
+    #endif
+    #ifdef DIFFUSE_TRANSMISSION
+        thickness = 2.2;
     #endif
     vec3 specularMap = vec3(0);
     #ifdef SPECULARGLOSSINESSMAP
@@ -702,10 +824,34 @@ void main() {
         shadow = 1.0 - ShadowCalculation(outPositionView, shadowBias);
     #endif
 
+    vec3 anisotropy = anisotropyFactor.xyz;
+    anisotropy.yz = vec2(cos(anisotropy.y), sin(anisotropy.y));
+    #ifdef ANISOTROPYMAP
+        vec4 anisotropyTex = texture(anisotropyTexture, outUV);
+        vec2 direction = anisotropyTex.rg * 2.0 - vec2(1.0);
+        direction = mat2(anisotropy.y, anisotropy.z, -anisotropy.z, anisotropy.y) * normalize(direction);
+        anisotropy.x = anisotropyTex.b * anisotropyFactor.x;
+        anisotropy.yz = direction;
+    #endif
+    vec3 anisotropicT = normalize(outTBN * vec3(anisotropy.yz, 0.0));
+    vec3 anisotropicB = normalize(cross(n, anisotropicT));
+
     #ifdef USE_PBR
+        vec3 finalDiffuse = vec3(0.0);
         vec3 f_sheen = vec3(0.0);
         float albedoSheenScaling = 1.0;
         vec3 Lo = vec3(0.0);
+
+        #ifdef DIFFUSE_TRANSMISSION
+        float translucencyIntensity = transmissionDiffuse;
+        vec3 transmittance = transmittanceBRDF_Burley(tintColor, vec3(1.0), thickness);
+        transmittance *= translucencyIntensity;
+        vec3 f_transmission = transmittance;
+        vec3 f_transmission2 = transmittance;
+        #else
+        vec3 f_transmission = cocaLambert(computeColorAtDistanceInMedia(attenuationColor.rgb, attenuationDistance.x), thickness) * calcTransmission(baseColor, n, roughness, viewDir, transmission, thickness);
+        #endif
+
         if (isDefaultLight == 1) {
         for (int i = 0; i < LIGHTNUMBER; ++i) {
             vec3 lightDir = normalize(lightPos[i] - outPosition);
@@ -713,8 +859,9 @@ void main() {
             vec3 H = normalize(viewDir + lightDir);
 
             vec3 radiance = lightColor[i] * lightIntensity[i].x;
-            float distance = length(lightPos[i] - outPosition);
+            float distance = dot(lightPos[i] - outPosition, lightPos[i] - outPosition);
             float attenuation = 1.0 / (distance * distance);
+            //radiance = radiance * attenuation;
             if (lightIntensity[i].w == 1.0) { // point
                 radiance = radiance * attenuation;
             }
@@ -734,13 +881,21 @@ void main() {
             #if defined IRIDESCENCE
             vec3 iridescenceFresnel = evalIridescence(1.0, iridescence.y, NdotV, iridescenceThickness, F0);
             iridescenceF0 = Schlick_to_F0(iridescenceFresnel, NdotV);
-            vec3 specular = CookTorranceSpecular2(baseColor, metallic, n, H, roughness, viewDir, lightDir, anisotropy.x, iridescenceF0, iridescence.x, F0, specularWeight);
+            vec3 specular = CookTorranceSpecular2(baseColor, metallic, n, H, anisotropicT, anisotropicB, roughness, viewDir, lightDir, anisotropy.x, iridescenceF0, iridescence.x, F0, specularWeight);
             #else
-            vec3 specular = CookTorranceSpecular(baseColor, metallic, n, H, roughness, viewDir, lightDir, anisotropy.x, F0, specularWeight);
+            vec3 specular = CookTorranceSpecular(baseColor, metallic, n, H, anisotropicT, anisotropicB, roughness, viewDir, lightDir, anisotropy.x, F0, specularWeight);
             #endif
-            vec3 f_clearcoat = CookTorranceSpecular(vec3(0.0), 0.0, clearcoatNormal, H, clearcoatRoughness, viewDir, lightDir, anisotropy.x, F0, specularWeight);
+            vec3 f_clearcoat = CookTorranceSpecular(vec3(0.0), 0.0, clearcoatNormal, H, anisotropicT, anisotropicB, clearcoatRoughness, viewDir, lightDir, anisotropy.x, F0, specularWeight);
             vec3 clearcoatFresnel = 1.0 - clearcoatBlendFactor * fresnelSchlick(saturate(dot(clearcoatNormal, viewDir)), vec3(0.04));
+            #ifndef DIFFUSE_TRANSMISSION
             vec3 diffuse = ImprovedOrenNayarDiffuse(baseColor, metallic, n, H, roughness, viewDir, lightDir, F0, iridescenceF0, iridescence.x, specularWeight);
+            diffuse *= radiance * clearcoatFresnel;
+            #else
+            float NdotV2 = absEps(dot(n, viewDir));
+            float NdotL2 = absEps(dot(n, lightDir));
+            float VdotH = absEps(dot(viewDir, H));
+            float diffuse = diffuseBRDF_Burley(NdotL2, NdotV2, VdotH, roughness);
+            #endif
             #if defined SPECULARGLOSSINESSMAP
                 diffuse = baseColor * (1.0 - max(max(specularMap.r, specularMap.g), specularMap.b));
             #endif
@@ -749,26 +904,47 @@ void main() {
             albedoSheenScaling = min(1.0 - max3(sheenColor) * E(max(dot(viewDir, n), 0.0), sheenRoughness), 1.0 - max3(sheenColor) * E(max(dot(lightDir, n), 0.0), sheenRoughness));
             #endif
 
-            diffuse *= (1.0 - transmission);
-            Lo +=  (diffuse + specular * NdotL) * radiance * clearcoatFresnel + f_clearcoat * clearcoatBlendFactor;
+            Lo += (specular * NdotL) * radiance * clearcoatFresnel + f_clearcoat * clearcoatBlendFactor;
+            vec3 diffuseLobe = vec3(diffuse);
+
+            #ifdef DIFFUSE_TRANSMISSION
+            float trAdapt = step(0., dot(n, lightDir));
+            float wrapNdotL = computeWrappedDiffuseNdotL(absEps(dot(n, lightDir)), 0.02);
+            vec3 transmittanceNdotL = mix(f_transmission*wrapNdotL, vec3(wrapNdotL), trAdapt);
+            diffuseLobe = diffuseLobe*radiance*transmittanceNdotL * baseColor;
+            transmission = 0.0;
+            f_transmission = vec3(0.0);
+            #else
+            diffuseLobe *= (1.0 - transmission);
+            #endif
+
+            #ifndef SCATTERING
+            Lo += diffuseLobe;
+            #endif
+
+            finalDiffuse += diffuseLobe;
         }
         }
 
         vec3 ambient = vec3(0.0);
         vec3 ambientClearcoat = vec3(0.0);
         vec3 clearcoatFresnel = vec3(1.0);
-        vec3 f_transmission = cocaLambert(computeColorAtDistanceInMedia(attenuationColor.rgb, attenuationDistance.x), thickness) * calcTransmission(baseColor, n, roughness, viewDir, transmission, thickness);
         vec3 aSpecular;
         vec3 cSpecular;
         if (isIBL == 1) {
             float NdotV = saturate(dot(n, viewDir));
             vec3 iridescenceFresnel = evalIridescence(1.0, iridescence.y, NdotV, iridescenceThickness, F0);
             vec3 iridescenceF0 = Schlick_to_F0(iridescenceFresnel, NdotV);
-            ambient = IBLAmbient(baseColor, metallic, n, roughness, viewDir, transmission, sheenColor, sheenRoughness, iridescenceF0, iridescence.x, F0, specularWeight, f_sheen, aSpecular);
+            ambient = IBLAmbient(baseColor, metallic, n, roughness, viewDir, transmission, sheenColor, sheenRoughness, iridescenceF0, iridescence.x, F0, specularWeight, anisotropy.x, anisotropicB, f_sheen, aSpecular);
             vec3 placeholder = vec3(0.0);
-            ambientClearcoat = IBLAmbient(vec3(0.0), 0.0, clearcoatNormal, clearcoatRoughness, viewDir, transmission, sheenColor, sheenRoughness, iridescenceF0, iridescence.x, F0, specularWeight, placeholder, cSpecular) * clearcoatBlendFactor;
+            ambientClearcoat = IBLAmbient(vec3(0.0), 0.0, clearcoatNormal, clearcoatRoughness, viewDir, transmission, sheenColor, sheenRoughness, iridescenceF0, iridescence.x, F0, specularWeight, anisotropy.x, anisotropicB, placeholder, cSpecular) * clearcoatBlendFactor;
+            #ifdef DIFFUSE_TRANSMISSION
+            ambient *= f_transmission2;
+            #endif
             #ifndef SPHERICAL_HARMONICS
+            #ifndef SCATTERING
             ambient += aSpecular;
+            #endif
             ambientClearcoat += cSpecular * clearcoatBlendFactor;
             #endif
             clearcoatFresnel = (1.0 - clearcoatBlendFactor * fresnelSchlick(saturate(dot(clearcoatNormal, viewDir)), vec3(0.04)));
@@ -788,9 +964,16 @@ void main() {
 
         #ifdef TRANSMISSION
         float kT = 1.0 - specEnv(n, viewDir, metallic, roughness, F0, specularWeight);
-        color = vec4((ambient + Lo + f_transmission * kT) * clearcoatFresnel + ambientClearcoat, alpha);
+        f_transmission = f_transmission * kT;
+        color = vec4((Lo) * clearcoatFresnel + ambientClearcoat, alpha);
+        #ifndef SCATTERING
+        color.rgb += (ambient * ao + f_transmission) * clearcoatFresnel;
+        #endif
         #else
-        color = vec4(ao * ((emissive + ambient + Lo) * clearcoatFresnel + ambientClearcoat), alpha);
+        color = vec4(ao * ((emissive + Lo) * clearcoatFresnel + ambientClearcoat), alpha);
+        #ifndef SCATTERING
+        color.rgb += ambient * ao * clearcoatFresnel;
+        #endif
         #endif
 
         color.rgb = f_sheen + color.rgb * albedoSheenScaling;
@@ -808,6 +991,7 @@ void main() {
         color = vec4(baseColor.rgb * (ambient + diffuse + specular) * shadow, alpha);
     #endif
 
+    #ifndef SCATTERING
     if (isTone == 1) {
         #ifdef SPHERICAL_HARMONICS
         color.rgb  *= 4.0;
@@ -819,10 +1003,23 @@ void main() {
         color.rgb = pow(color.rgb, vec3(1.0 / gamma));
         #endif
     }
+    #endif
 
     #ifdef SPHERICAL_HARMONICS
     color.rgb += aSpecular;
     #endif
 
     normalColor = n;
+
+    vec3 irradiance = finalDiffuse;
+    irradiance += ambient;
+    irradiance += f_transmission;
+    irradiance /= sqrt(baseColor.rgb);
+
+    irradianceColor = vec4(clamp(irradiance, vec3(0.), vec3(1.)), 1.0);
+    #ifdef TRANSMISSION
+    albedoColor = vec4(sqrt(attenuationColor.rgb), 1.0);
+    #else
+    albedoColor = vec4(sqrt(baseColor), 1.0);
+    #endif
 }

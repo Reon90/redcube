@@ -1,5 +1,5 @@
 import { Scene, Mesh, Camera, Bone } from './objects/index';
-import { Vector, Vector3, Vector4, Frustum, Matrix4 } from './matrix';
+import { Vector, Vector3, Vector4, Frustum } from './matrix';
 import { getAnimationComponent, interpolation, walk } from './utils';
 import { Parse } from './parse';
 import { PostProcessing } from './postprocessing';
@@ -262,7 +262,6 @@ export class Renderer {
         if (!this.parse.tracks.length) {
             return;
         }
-        const t = this.parse.tracks[this.currentTrack];
         const duration = Math.max(...this.parse.tracks.map(t => t[0].duration));
         const increment = Math.floor(sec / duration);
         sec -= increment * duration;
@@ -317,10 +316,12 @@ export class Renderer {
         this.animate(sec);
 
         if (this.reflow) {
-            if (this.PP.postprocessors.length > 0) {
+            if (this.PP.hasPrePass) {
                 this.PP.bindPrePass();
                 this.PP.preProcessing();
-                //this.PP.bindPostPass();
+            }
+            if (this.PP.hasPostPass) {
+                this.PP.bindPostPass();
             }
 
             gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -338,9 +339,9 @@ export class Renderer {
                 this.reflow = true;
             }
 
-            // if (this.PP.postprocessors.length > 0) {
-            //     this.PP.postProcessing();
-            // }
+            if (this.PP.hasPostPass) {
+                this.PP.postProcessing();
+            }
         }
 
         this.fps.tick(time);

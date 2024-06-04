@@ -163,13 +163,14 @@ class RedCube {
             }
         });
         if (hasTransmission) {
-            this.PP.add('refraction');
+            this.PP.addPrepass('refraction');
         }
+        //this.PP.add('scattering');
 
         if (this.PP.postprocessors.some(p => p instanceof PPLight)) {
             this.Particles.build();
         }
-        if (this.PP.postprocessors.length > 0) {
+        if (this.PP.hasPostPass || this.PP.hasPrePass) {
             this.PP.buildScreenBuffer();
         }
 

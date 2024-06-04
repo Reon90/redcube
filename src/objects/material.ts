@@ -1,4 +1,4 @@
-import { Matrix3, Vector3, Matrix4 } from '../matrix';
+import { Vector3, Matrix4 } from '../matrix';
 import { UniformBuffer } from './uniform';
 import { Material as M } from '../../GLTF';
 import { textureEnum } from '../utils';
@@ -30,6 +30,9 @@ interface Uniforms {
     colorTexture: WebGLUniformLocation;
     Sheen_E: WebGLUniformLocation;
     iridescenceThicknessTexture: WebGLUniformLocation;
+    diffuseTransmissionTexture: WebGLUniformLocation;
+    diffuseTransmissionColorTexture: WebGLUniformLocation;
+    anisotropyTexture: WebGLUniformLocation;
 }
 
 const lightEnum = {
@@ -66,6 +69,7 @@ export class Material extends M {
         this.defines = defines;
         this.name = material.name;
         this.matrices = [];
+        this.diffuseTransmissionColorFactor = [1, 1, 1];
 
         if (!material.pbrMetallicRoughness && material.extensions && material.extensions.KHR_materials_pbrSpecularGlossiness) {
             material.pbrMetallicRoughness = {};
@@ -180,8 +184,20 @@ export class Material extends M {
         }
 
         if (material.extensions && material.extensions.KHR_materials_anisotropy) {
-            const { anisotropy } = material.extensions.KHR_materials_anisotropy;
-            this.anisotropy = anisotropy;
+            const { anisotropyStrength, anisotropyRotation, anisotropyTexture } = material.extensions.KHR_materials_anisotropy;
+            this.anisotropyStrength = anisotropyStrength;
+            this.anisotropyRotation = anisotropyRotation;
+            if (anisotropyTexture) {
+                this.anisotropyTexture = textures[anisotropyTexture.index];
+                defines.push({ name: 'ANISOTROPYMAP', value: anisotropyTexture.texCoord ? 2 : 1 });
+            }
+            defines.push({ name: 'ANISOTROPY' });
+        }
+
+        if (material.extensions && material.extensions.KHR_materials_dispersion) {
+            const { dispersion } = material.extensions.KHR_materials_dispersion;
+            this.dispersion = dispersion;
+            defines.push({ name: 'DISPERSION' });
         }
 
         if (material.extensions && material.extensions.KHR_materials_iridescence) {
@@ -198,6 +214,21 @@ export class Material extends M {
                 defines.push({ name: 'IRIDESCENCEMAP', value: iridescenceThicknessTexture.texCoord ? 2 : 1 });
             }
             defines.push({ name: 'IRIDESCENCE' });
+        }
+
+        if (material.extensions && material.extensions.KHR_materials_diffuse_transmission) {
+            const { diffuseTransmissionFactor, diffuseTransmissionTexture, diffuseTransmissionColorFactor, diffuseTransmissionColorTexture } = material.extensions.KHR_materials_diffuse_transmission;
+            this.diffuseTransmissionFactor = diffuseTransmissionFactor;
+            if (diffuseTransmissionTexture) {
+                this.diffuseTransmissionTexture = textures[diffuseTransmissionTexture.index];
+                defines.push({ name: 'DIFFUSE_TRANSMISSION_MAP', value: diffuseTransmissionTexture.texCoord ? 2 : 1 });
+            }
+            this.diffuseTransmissionColorFactor = diffuseTransmissionColorFactor ?? [1, 1, 1];
+            if (diffuseTransmissionColorTexture) {
+                this.diffuseTransmissionColorTexture = textures[diffuseTransmissionColorTexture.index];
+                defines.push({ name: 'DIFFUSE_TRANSMISSION_COLOR_MAP', value: diffuseTransmissionColorTexture.texCoord ? 2 : 1 });
+            }
+            defines.push({ name: 'DIFFUSE_TRANSMISSION' });
         }
 
         if (material.extensions && material.extensions.KHR_materials_ior) {
@@ -242,7 +273,10 @@ export class Material extends M {
             thicknessTexture: null,
             colorTexture: null,
             Sheen_E: null,
-            depthTexture: null
+            depthTexture: null,
+            diffuseTransmissionTexture: null,
+            diffuseTransmissionColorTexture: null,
+            anisotropyTexture: null
         };
         const { pbrMetallicRoughness } = material;
         if (pbrMetallicRoughness) {
@@ -397,6 +431,18 @@ export class Material extends M {
             this.uniforms.iridescenceThicknessTexture = gl.getUniformLocation(program, 'iridescenceThicknessTexture');
             gl.uniform1i(this.uniforms.iridescenceThicknessTexture, textureEnum.iridescenceThicknessTexture);
         }
+        if (this.anisotropyTexture) {
+            this.uniforms.anisotropyTexture = gl.getUniformLocation(program, 'anisotropyTexture');
+            gl.uniform1i(this.uniforms.anisotropyTexture, textureEnum.anisotropyTexture);
+        }
+        if (this.diffuseTransmissionColorTexture) {
+            this.uniforms.diffuseTransmissionColorTexture = gl.getUniformLocation(program, 'diffuseTransmissionColorTexture');
+            gl.uniform1i(this.uniforms.diffuseTransmissionColorTexture, textureEnum.diffuseTransmissionColorTexture);
+        }
+        if (this.diffuseTransmissionTexture) {
+            this.uniforms.diffuseTransmissionTexture = gl.getUniformLocation(program, 'diffuseTransmissionTexture');
+            gl.uniform1i(this.uniforms.diffuseTransmissionTexture, textureEnum.diffuseTransmissionTexture);
+        }
         if (this.sheenColorTexture) {
             this.uniforms.sheenColorTexture = gl.getUniformLocation(program, 'sheenColorTexture');
             gl.uniform1i(this.uniforms.sheenColorTexture, textureEnum.sheenColorTexture);
@@ -523,8 +569,10 @@ export class Material extends M {
             materialUniformBuffer.add('attenuationDistance', this.attenuationDistance ?? 1);
             materialUniformBuffer.add('thicknessFactor', this.thicknessFactor ?? 1);
             materialUniformBuffer.add('emissiveStrength', this.emissiveStrength ?? 1);
-            materialUniformBuffer.add('anisotropy', this.anisotropy ?? 1);
+            materialUniformBuffer.add('anisotropy', [this.anisotropyStrength ?? 0, this.anisotropyRotation ?? 0]);
             materialUniformBuffer.add('iridescence', [this.iridescenceFactor, this.iridescenceIOR, this.iridescenceThicknessMaximum, this.iridescenceThicknessMinimum] ?? [0, 0, 0, 0]);
+            materialUniformBuffer.add('diffuseTransmissionFactor', [this.diffuseTransmissionFactor ?? 0, ...this.diffuseTransmissionColorFactor]);
+            materialUniformBuffer.add('dispersionFactor', [this.dispersion ?? 0]);
             materialUniformBuffer.done();
             this.materialUniformBuffer = materialUniformBuffer;
         }
@@ -607,7 +655,9 @@ export class Material extends M {
             },
             {
                 binding: 24,
-                resource: device.createSampler()
+                resource: device.createSampler({
+                    magFilter: 'linear'
+                })
             },
             {
                 binding: 3,

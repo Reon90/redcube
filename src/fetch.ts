@@ -10,22 +10,16 @@ function loadKTX(b) {
     }
     const texture = new ktxTexture(ktxdata);
     if (texture.needsTranscoding) {
-        let formatString;
         let format;
         if (astcSupported) {
-            formatString = 'ASTC';
             format = TranscodeTarget.ASTC_4x4_RGBA;
         } else if (dxtSupported) {
-            formatString = 'BC1 or BC3';
             format = TranscodeTarget.BC1_OR_3;
         } else if (pvrtcSupported) {
-            formatString = 'PVRTC1';
             format = TranscodeTarget.PVRTC1_4_RGBA;
         } else if (etc1Supported || etc2Supported) {
-            formatString = 'ETC';
             format = TranscodeTarget.ETC;
         } else {
-            formatString = 'RGBA4444';
             format = TranscodeTarget.RGBA4444;
         }
         const result = texture.transcodeBasis(format, 0);
@@ -128,7 +122,7 @@ export function fetchImage(isbitmap, s, { bufferView, mimeType, uri }, { url, na
                     }
                 };
 
-                image.onerror = err => {
+                image.onerror = () => {
                     reject(new Error('Cant load texture'));
                 };
                 image.crossOrigin = 'anonymous';

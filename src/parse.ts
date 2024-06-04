@@ -8,7 +8,7 @@ import {
     calculateOffset,
     normalize
 } from './utils';
-import { Mesh, SkinnedMesh, Bone, Camera, Object3D, Scene, Light, UniformBuffer, Material } from './objects/index';
+import { Mesh, SkinnedMesh, Bone, Camera, Object3D, Scene, Light, Material } from './objects/index';
 import { Matrix4, Box, Vector3 } from './matrix';
 import { GlTf } from '../GLTF';
 import { fetchJSON, fetchBinary, fetchImage } from './fetch';
@@ -620,7 +620,10 @@ export class Parse {
                 'specularTexture',
                 'specularColorTexture',
                 'thicknessTexture',
-                'iridescenceThicknessTexture'
+                'iridescenceThicknessTexture',
+                'diffuseTransmissionTexture',
+                'diffuseTransmissionColorTexture',
+                'anisotropyTexture'
             ];
             const textureSRGB = [
                 'baseColorTexture',

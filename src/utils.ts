@@ -31,7 +31,10 @@ export const textureEnum = {
     specularColorTexture: 19,
     thicknessTexture: 16,
     iridescenceThicknessTexture: 17,
-    charlieTexture: 18
+    charlieTexture: 18,
+    diffuseTransmissionTexture: 20,
+    diffuseTransmissionColorTexture: 21,
+    anisotropyTexture: 22
 };
 
 export function setGl(_gl) {
@@ -71,27 +74,27 @@ export function getMatrixType(type) {
 export function getDataType(type) {
     let count;
     switch (type) {
-        case 'MAT2':
-            count = 4;
-            break;
-        case 'MAT3':
-            count = 9;
-            break;
-        case 'MAT4':
-            count = 16;
-            break;
-        case 'VEC4':
-            count = 4;
-            break;
-        case 'VEC3':
-            count = 3;
-            break;
-        case 'VEC2':
-            count = 2;
-            break;
-        case 'SCALAR':
-            count = 1;
-            break;
+    case 'MAT2':
+        count = 4;
+        break;
+    case 'MAT3':
+        count = 9;
+        break;
+    case 'MAT4':
+        count = 16;
+        break;
+    case 'VEC4':
+        count = 4;
+        break;
+    case 'VEC3':
+        count = 3;
+        break;
+    case 'VEC2':
+        count = 2;
+        break;
+    case 'SCALAR':
+        count = 1;
+        break;
     }
     return count;
 }
@@ -99,15 +102,15 @@ export function getDataType(type) {
 export function getComponentType(type) {
     let count;
     switch (glEnum[type]) {
-        case 'FLOAT_VEC4':
-            count = 4;
-            break;
-        case 'FLOAT_VEC3':
-            count = 3;
-            break;
-        case 'FLOAT_VEC2':
-            count = 2;
-            break;
+    case 'FLOAT_VEC4':
+        count = 4;
+        break;
+    case 'FLOAT_VEC3':
+        count = 3;
+        break;
+    case 'FLOAT_VEC2':
+        count = 2;
+        break;
     }
     return count;
 }
@@ -115,30 +118,30 @@ export function getComponentType(type) {
 export function getMethod(type) {
     let method;
     switch (glEnum[type]) {
-        case 'FLOAT_VEC2':
-            method = 'uniform2f';
-            break;
-        case 'FLOAT_VEC4':
-            method = 'uniform4f';
-            break;
-        case 'FLOAT':
-            method = 'uniform1f';
-            break;
-        case 'FLOAT_VEC3':
-            method = 'uniform3f';
-            break;
-        case 'FLOAT_MAT4':
-            method = 'uniformMatrix4fv';
-            break;
-        case 'FLOAT_MAT3':
-            method = 'uniformMatrix3fv';
-            break;
-        case 'FLOAT_MAT2':
-            method = 'uniformMatrix2fv';
-            break;
-        case 'SAMPLER_2D':
-            method = 'uniform1i';
-            break;
+    case 'FLOAT_VEC2':
+        method = 'uniform2f';
+        break;
+    case 'FLOAT_VEC4':
+        method = 'uniform4f';
+        break;
+    case 'FLOAT':
+        method = 'uniform1f';
+        break;
+    case 'FLOAT_VEC3':
+        method = 'uniform3f';
+        break;
+    case 'FLOAT_MAT4':
+        method = 'uniformMatrix4fv';
+        break;
+    case 'FLOAT_MAT3':
+        method = 'uniformMatrix3fv';
+        break;
+    case 'FLOAT_MAT2':
+        method = 'uniformMatrix2fv';
+        break;
+    case 'SAMPLER_2D':
+        method = 'uniform1i';
+        break;
     }
     return method;
 }
@@ -187,18 +190,18 @@ export function interpolation(time, frames) {
 function getCount(type) {
     let arr;
     switch (glEnum[type]) {
-        case 'BYTE':
-        case 'UNSIGNED_BYTE':
-            arr = 1;
-            break;
-        case 'SHORT':
-        case 'UNSIGNED_SHORT':
-            arr = 2;
-            break;
-        case 'UNSIGNED_INT':
-        case 'FLOAT':
-            arr = 4;
-            break;
+    case 'BYTE':
+    case 'UNSIGNED_BYTE':
+        arr = 1;
+        break;
+    case 'SHORT':
+    case 'UNSIGNED_SHORT':
+        arr = 2;
+        break;
+    case 'UNSIGNED_INT':
+    case 'FLOAT':
+        arr = 4;
+        break;
     }
     return arr;
 }
@@ -225,24 +228,24 @@ export function buildArrayWithStride(arrayBuffer, accessor, bufferView) {
 
     let arr;
     switch (glEnum[accessor.componentType]) {
-        case 'BYTE':
-            arr = new Int8Array(arrayBuffer, offset, length);
-            break;
-        case 'UNSIGNED_BYTE':
-            arr = new Uint8Array(arrayBuffer, offset, length);
-            break;
-        case 'SHORT':
-            arr = new Int16Array(arrayBuffer, offset, length);
-            break;
-        case 'UNSIGNED_SHORT':
-            arr = new Uint16Array(arrayBuffer, offset, length);
-            break;
-        case 'UNSIGNED_INT':
-            arr = new Uint32Array(arrayBuffer, offset, length);
-            break;
-        case 'FLOAT':
-            arr = new Float32Array(arrayBuffer, offset, length);
-            break;
+    case 'BYTE':
+        arr = new Int8Array(arrayBuffer, offset, length);
+        break;
+    case 'UNSIGNED_BYTE':
+        arr = new Uint8Array(arrayBuffer, offset, length);
+        break;
+    case 'SHORT':
+        arr = new Int16Array(arrayBuffer, offset, length);
+        break;
+    case 'UNSIGNED_SHORT':
+        arr = new Uint16Array(arrayBuffer, offset, length);
+        break;
+    case 'UNSIGNED_INT':
+        arr = new Uint32Array(arrayBuffer, offset, length);
+        break;
+    case 'FLOAT':
+        arr = new Float32Array(arrayBuffer, offset, length);
+        break;
     }
     if (length !== requiredLength) {
         // buffer is too big need to stride it
@@ -263,24 +266,24 @@ export function buildArrayWithStride(arrayBuffer, accessor, bufferView) {
 export function buildArray(arrayBuffer, type, offset, length) {
     let arr;
     switch (glEnum[type]) {
-        case 'BYTE':
-            arr = new Int8Array(arrayBuffer, offset, length);
-            break;
-        case 'UNSIGNED_BYTE':
-            arr = new Uint8Array(arrayBuffer, offset, length);
-            break;
-        case 'SHORT':
-            arr = new Int16Array(arrayBuffer, offset, length);
-            break;
-        case 'UNSIGNED_SHORT':
-            arr = new Uint16Array(arrayBuffer, offset, length);
-            break;
-        case 'UNSIGNED_INT':
-            arr = new Uint32Array(arrayBuffer, offset, length);
-            break;
-        case 'FLOAT':
-            arr = new Float32Array(arrayBuffer, offset, length);
-            break;
+    case 'BYTE':
+        arr = new Int8Array(arrayBuffer, offset, length);
+        break;
+    case 'UNSIGNED_BYTE':
+        arr = new Uint8Array(arrayBuffer, offset, length);
+        break;
+    case 'SHORT':
+        arr = new Int16Array(arrayBuffer, offset, length);
+        break;
+    case 'UNSIGNED_SHORT':
+        arr = new Uint16Array(arrayBuffer, offset, length);
+        break;
+    case 'UNSIGNED_INT':
+        arr = new Uint32Array(arrayBuffer, offset, length);
+        break;
+    case 'FLOAT':
+        arr = new Float32Array(arrayBuffer, offset, length);
+        break;
     }
     return arr;
 }
@@ -551,18 +554,18 @@ export function getGlEnum(name) {
 export function normalize(array) {
     let fn;
     switch (true) {
-        case array instanceof Uint8Array:
-            fn = c => c / 255;
-            break;
-        case array instanceof Int8Array:
-            fn = c => Math.max(c / 127.0, -1.0);
-            break;
-        case array instanceof Uint16Array:
-            fn = c => c / 65535;
-            break;
-        case array instanceof Int16Array:
-            fn = c => Math.max(c / 32767.0, -1.0);
-            break;
+    case array instanceof Uint8Array:
+        fn = c => c / 255;
+        break;
+    case array instanceof Int8Array:
+        fn = c => Math.max(c / 127.0, -1.0);
+        break;
+    case array instanceof Uint16Array:
+        fn = c => c / 65535;
+        break;
+    case array instanceof Int16Array:
+        fn = c => Math.max(c / 32767.0, -1.0);
+        break;
     }
     if (fn) {
         const normalizedArray = new Float32Array(array.length);

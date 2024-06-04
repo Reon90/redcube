@@ -26,7 +26,7 @@ export class Refraction extends PostProcessor {
     }
 
     buildScreenBuffer(pp) {
-        this.texture = pp.createDefaultTexture();
+        this.texture = pp.createDefaultTexture(1, true);
         gl.generateMipmap(gl.TEXTURE_2D);
         gl.bindFramebuffer(gl.FRAMEBUFFER, pp.preframebuffer);
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.texture, 0);

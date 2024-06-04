@@ -12,6 +12,7 @@ uniform sampler2D bloom;
 uniform sampler2D depth;
 uniform sampler2D preDepth;
 uniform sampler2D light;
+uniform sampler2D scattering;
 
 const float gamma = 2.2;
 
@@ -25,6 +26,9 @@ void main() {
     #endif
     #ifdef LIGHT
         c += texture(light, uv).r;
+    #endif
+    #ifdef SCATTERING
+        c = texture(scattering, uv).rgb;
     #endif
 
     c.rgb = c.rgb / (c.rgb + vec3(1.0));
