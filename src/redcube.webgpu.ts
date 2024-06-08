@@ -50,12 +50,7 @@ class RedCube {
         context.configure({
             device,
             format: 'bgra8unorm',
-            size: {
-                width: this.canvas.offsetWidth * devicePixelRatio,
-                height: this.canvas.offsetHeight * devicePixelRatio,
-                depthOrArrayLayers: 1
-            },
-            compositingAlphaMode: 'opaque'
+            alphaMode: 'opaque'
         });
 
         const depthTexture = device.createTexture({

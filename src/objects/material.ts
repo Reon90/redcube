@@ -46,7 +46,6 @@ export class Material extends M {
     uniforms: Uniforms;
     alpha: boolean;
     UBO: WebGLBuffer;
-    doubleSided: boolean;
     defines: Array<{ name: string }>;
     matrices: Matrix4[];
     uniformBuffer: UniformBuffer;

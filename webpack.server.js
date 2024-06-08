@@ -24,15 +24,15 @@ module.exports = {
         rules: [
             {
                 test: /\.ts$/,
-                use: 'awesome-typescript-loader?configFileName=tsconfig.server.json'
+                use: 'ts-loader'
             },
             {
                 test: /\.(glsl|vert|frag)$/,
-                use: 'raw-loader'
+                type: 'asset/source'
             },
             {
                 test: /\.(jpeg|jpg|png|gif)$/,
-                use: 'url-loader'
+                type: 'asset/inline'
             }
         ]
     }
