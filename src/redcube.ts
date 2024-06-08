@@ -165,7 +165,7 @@ class RedCube {
         if (hasTransmission) {
             this.PP.addPrepass('refraction');
         }
-        //this.PP.add('scattering');
+       //this.PP.add('scattering');
 
         if (this.PP.postprocessors.some(p => p instanceof PPLight)) {
             this.Particles.build();
@@ -190,7 +190,7 @@ class RedCube {
     renderScene(renderState) {
         this.renderState = renderState;
         this.renderer.renderScene();
-        this.renderState = {};
+        this.renderState = this.PP.hasPostPass ? { isprerefraction: true } : {};
     }
 
     redraw(type, coordsStart, coordsMove) {

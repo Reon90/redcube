@@ -34,10 +34,15 @@ The javascript rendering library for [Khronos glTF 2.0 format](https://github.co
 &bull; KHR_draco_mesh_compression
 
 &bull; KHR_materials_dispersion
+<p><img src="./img/dispersion.webp" alt="KHR_materials_dispersion"></p>
 
 &bull; KHR_materials_anisotropy
+<p><img src="./img/anisotropy.webp" alt="KHR_materials_anisotropy"></p>
 
 &bull; KHR_materials_diffuse_transmission
+<p><img src="./img/translucency.webp" alt="KHR_materials_diffuse_transmission"></p>
+&bull; KHR_materials_diffuse_transmission + subsurface scatering
+<p><img src="./img/sss.webp" alt="sss"></p>
 
 &bull; KHR_lights_punctual
 <p><img src="./img/lights.webp" alt="KHR_lights_punctual"></p>
@@ -48,6 +53,7 @@ The javascript rendering library for [Khronos glTF 2.0 format](https://github.co
 &bull; KHR_materials_pbrSpecularGlossiness
 
 &bull; KHR_materials_sheen
+<p><img src="./img/sheen.webp" alt="KHR_materials_sheen"></p>
 
 &bull; KHR_materials_transmission
 <p><img src="./img/transmission.webp" alt="KHR_materials_transmission"></p>

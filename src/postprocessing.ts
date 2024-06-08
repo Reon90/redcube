@@ -32,6 +32,7 @@ export class PostProcessing {
     screenTexture: Texture;
     normalTexture: Texture;
     irradianceTexture: Texture;
+    specTexture: Texture;
     albedoTexture: Texture;
     depthTexture: Texture;
     preDepthTexture: Texture;
@@ -157,6 +158,7 @@ export class PostProcessing {
         gl.uniform1i(gl.getUniformLocation(this.program, 'normal'), this.normalTexture.index);
         gl.uniform1i(gl.getUniformLocation(this.program, 'depth'), this.depthTexture.index);
         gl.uniform1i(gl.getUniformLocation(this.program, 'preDepth'), this.preDepthTexture.index);
+        gl.uniform1i(gl.getUniformLocation(this.program, 'spec'), this.specTexture.index);
 
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     }
@@ -256,6 +258,7 @@ export class PostProcessing {
         this.screenTexture = this.createDefaultTexture();
         this.normalTexture = this.createDefaultTexture();
         this.irradianceTexture = this.createDefaultTexture();
+        this.specTexture = this.createDefaultTexture();
         this.albedoTexture = this.createDefaultTexture();
         this.depthTexture = this.createDepthTexture();
 
@@ -263,8 +266,9 @@ export class PostProcessing {
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, gl.TEXTURE_2D, this.normalTexture, 0);
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT2, gl.TEXTURE_2D, this.irradianceTexture, 0);
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT3, gl.TEXTURE_2D, this.albedoTexture, 0);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT4, gl.TEXTURE_2D, this.specTexture, 0);
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, this.depthTexture, 0);
-        gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1, gl.COLOR_ATTACHMENT2, gl.COLOR_ATTACHMENT3]);
+        gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1, gl.COLOR_ATTACHMENT2, gl.COLOR_ATTACHMENT3, gl.COLOR_ATTACHMENT4]);
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
         this.preframebuffer = gl.createFramebuffer();

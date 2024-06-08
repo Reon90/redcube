@@ -1,6 +1,10 @@
 #version 300 es
 precision highp float;
 
+// #ifdef DIFFUSE_TRANSMISSION
+//     #define SCATTERING 1
+// #endif
+
 in vec4 vColor;
 in vec2 outUV0;
 in vec2 outUV2;
@@ -17,6 +21,7 @@ layout (location = 0) out vec4 color;
 layout (location = 1) out vec3 normalColor;
 layout (location = 2) out vec4 irradianceColor;
 layout (location = 3) out vec4 albedoColor;
+layout (location = 4) out vec4 specColor;
 
 uniform Material {
     vec4 baseColorFactor;
@@ -730,7 +735,7 @@ void main() {
         thickness = thicknessTextureV * thickness;
     #endif
     #ifdef DIFFUSE_TRANSMISSION
-        thickness = 2.2;
+        thickness *= 2.2;
     #endif
     vec3 specularMap = vec3(0);
     #ifdef SPECULARGLOSSINESSMAP
@@ -963,17 +968,17 @@ void main() {
         emissive *= emissiveStrength.x;
 
         #ifdef TRANSMISSION
-        float kT = 1.0 - specEnv(n, viewDir, metallic, roughness, F0, specularWeight);
-        f_transmission = f_transmission * kT;
-        color = vec4((Lo) * clearcoatFresnel + ambientClearcoat, alpha);
-        #ifndef SCATTERING
-        color.rgb += (ambient * ao + f_transmission) * clearcoatFresnel;
-        #endif
+            float kT = 1.0 - specEnv(n, viewDir, metallic, roughness, F0, specularWeight);
+            f_transmission = f_transmission * kT;
+            color = vec4((Lo) * clearcoatFresnel + ambientClearcoat, alpha);
+            #ifndef SCATTERING
+            color.rgb += (ambient * ao + f_transmission) * clearcoatFresnel;
+            #endif
         #else
-        color = vec4(ao * ((emissive + Lo) * clearcoatFresnel + ambientClearcoat), alpha);
-        #ifndef SCATTERING
-        color.rgb += ambient * ao * clearcoatFresnel;
-        #endif
+            color = vec4(Lo, alpha);
+            #ifndef SCATTERING
+            color.rgb += ambient * ao * clearcoatFresnel;
+            #endif
         #endif
 
         color.rgb = f_sheen + color.rgb * albedoSheenScaling;
@@ -1011,6 +1016,9 @@ void main() {
 
     normalColor = n;
 
+    #ifdef SCATTERING
+    specColor = vec4(Lo + aSpecular, 1.0);
+
     vec3 irradiance = finalDiffuse;
     irradiance += ambient;
     irradiance += f_transmission;
@@ -1021,5 +1029,10 @@ void main() {
     albedoColor = vec4(sqrt(attenuationColor.rgb), 1.0);
     #else
     albedoColor = vec4(sqrt(baseColor), 1.0);
+    #endif
+    #else
+    irradianceColor = vec4(0.0);
+    albedoColor = vec4(0.0);
+    specColor = vec4(0.0);
     #endif
 }

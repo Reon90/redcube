@@ -229,6 +229,6 @@ void main(void) {
         EvaluateSample(i, n, S, d, centerPosVS, mmPerUnit, pixelsPerMm, phase, totalIrradiance, totalWeight);
     }
     totalWeight = max(totalWeight, HALF_MIN);
-    //color = vec4(inputColor.rgb + albedo * max(totalIrradiance / totalWeight, vec3(0.0f)), 1.f);
-    color = vec4(inputColor.rgb, 1.f);
+    color = vec4(inputColor.rgb + albedo * max(totalIrradiance / totalWeight, vec3(0.0f)), 1.f);
+    //color = vec4(inputColor.rgb, 1.f);
 }
