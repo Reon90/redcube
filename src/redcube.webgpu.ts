@@ -3,13 +3,15 @@
 
 import { Container } from './container';
 import { Renderer } from './renderer';
-import { Scene, Camera, Light, SkinnedMesh } from './objects/index';
+import { Scene, Camera, Light, SkinnedMesh, UniformBuffer } from './objects/index';
 import { Events } from './events';
 import { Env } from './env.webgpu';
 import { Parse } from './parse';
 import { RendererWebGPU } from './renderer.webgpu';
 import { create } from './objects/pipeline';
 import { walk } from './utils';
+import { PostProcessing } from './postprocessing.webgpu';
+import { Refraction } from './postprocessors/refraction';
 
 const FOV = 45; // degrees
 
@@ -21,6 +23,8 @@ class RedCube {
     ioc: Container;
     isIBL = true;
     isDefaultLight = true;
+    renderState = {};
+    stateBuffer = {};
 
     constructor(url, canvas, _pp, envUrl = 'env') {
         if (!url) {
@@ -103,6 +107,9 @@ class RedCube {
     get env(): Env {
         return this.ioc.get('env');
     }
+    get PP(): PostProcessing {
+        return this.ioc.get('pp');
+    }
 
     async init(cb) {
         const ioc = new Container();
@@ -120,9 +127,10 @@ class RedCube {
                 isInitial: true,
                 spot: {}
             });
+            this.ioc.register('pp', PostProcessing, ['light', 'camera', 'canvas', 'gl'], [], this.renderScene.bind(this));
             ioc.register('parser', Parse, ['gl', 'scene', 'camera', 'light'], this.url, [], () => {});
             ioc.register('env', Env, ['camera', 'canvas'], this.envUrl);
-            ioc.register('renderer', RendererWebGPU, ['gl', 'scene', 'parser', 'env'], this.getState.bind(this));
+            ioc.register('renderer', RendererWebGPU, ['gl', 'scene', 'parser', 'env', 'pp'], this.getState.bind(this));
             ioc.register(
                 'camera',
                 Camera,
@@ -164,6 +172,35 @@ class RedCube {
             //this.env.drawCube(WebGPU);
             //return
 
+            const { renderState, isIBL, isDefaultLight, lights } = this.getState();
+            const stateBuffer = new UniformBuffer();
+            // @ts-expect-error
+            stateBuffer.add('isTone', renderState.isprerefraction ? 0 : 1);
+            stateBuffer.add('isIBL', isIBL ? 1 : 0);
+            stateBuffer.add('isDefaultLight', isDefaultLight || lights.some(l => !l.isInitial) ? 1 : 0);
+            stateBuffer.done();
+            this.stateBuffer = stateBuffer;
+            const uniformBuffer = WebGPU.device.createBuffer({
+                size: 256 + stateBuffer.store.byteLength,
+                usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
+            });
+            stateBuffer.bufferWebGPU = uniformBuffer;
+            WebGPU.device.queue.writeBuffer(
+                uniformBuffer,
+                0,
+                stateBuffer.store.buffer,
+                stateBuffer.store.byteOffset,
+                stateBuffer.store.byteLength
+            );
+
+            const hasTransmission = this.parse.json.extensionsUsed && this.parse.json.extensionsUsed.includes('KHR_materials_transmission');
+            if (hasTransmission) {
+                this.PP.addPrepass('refraction');
+            }
+            if (this.PP.hasPostPass || this.PP.hasPrePass) {
+                this.PP.buildScreenBuffer();
+            }
+            const refraction = this.PP.postprocessors.find(p => p instanceof Refraction);
             this.scene.meshes.forEach(mesh => {
                 mesh.geometry.createGeometryForWebGPU(WebGPU);
                 mesh.geometry.createUniforms(mesh.matrixWorld, this.camera, this.light);
@@ -187,6 +224,44 @@ class RedCube {
                     {
                         binding: 21,
                         resource: this.env.bdrfTexture?.createView()
+                    },
+                    {
+                        binding: 28,
+                        resource: this.env.bdrfTexture?.createView()
+                    },
+                    {
+                        binding: 25,
+                        resource: this.env.bdrfTexture?.createView()
+                    },
+                    {
+                        binding: 26,
+                        // @ts-expect-error
+                        resource: mesh.defines.find(i => i.name === 'TRANSMISSION')
+                        // @ts-expect-error
+                        ? refraction.texture.texture.createView()
+                        : this.PP.fakeDepth.texture.createView()
+                    },
+                    {
+                        binding: 35,
+                        resource: this.env.prefilterTexture?.createView({
+                            dimension: 'cube'
+                        })
+                    },
+                    {
+                        binding: 30,
+                        resource: {
+                            buffer: uniformBuffer,
+                            offset: 0,
+                            size: stateBuffer.store.byteLength
+                        }
+                    },
+                    {
+                        binding: 27,
+                        resource: {
+                            buffer: uniformBuffer,
+                            offset: 0,
+                            size: stateBuffer.store.byteLength
+                        }
                     }
                 );
                 if (mesh instanceof SkinnedMesh) {
@@ -254,6 +329,12 @@ class RedCube {
         this.camera.updateNF();
     }
 
+    renderScene(renderState) {
+        this.renderState = renderState;
+        this.renderer.renderScene();
+        this.renderState = this.PP.hasPostPass ? { isprerefraction: true } : {};
+    }
+
     redraw(type, coordsStart, coordsMove) {
         if (type === 'zoom') {
             this.camera.zoom(coordsStart);
@@ -286,6 +367,9 @@ class RedCube {
 
     getState() {
         return {
+            stateBuffer: this.stateBuffer,
+            renderState: this.renderState,
+            lights: [],
             isIBL: this.isIBL,
             isDefaultLight: this.isDefaultLight,
             camera: this.camera,

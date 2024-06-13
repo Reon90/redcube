@@ -48,7 +48,7 @@ export class Material extends M {
     UBO: WebGLBuffer;
     defines: Array<{ name: string }>;
     matrices: Matrix4[];
-    uniformBuffer: UniformBuffer;
+    uniformBuffer: GPUBuffer;
     lightUBO1: WebGLBuffer;
     lightUniformBuffer1: UniformBuffer;
     lightUBO2: WebGLBuffer;
@@ -613,6 +613,7 @@ export class Material extends M {
             size: 256 + this.materialUniformBuffer.store.byteLength,
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
         });
+        this.materialUniformBuffer.bufferWebGPU = uniformBuffer;
         const uniformBuffer2 = device.createBuffer({
             size: 256 + this.lightColorBuffer.store.byteLength,
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
@@ -621,6 +622,7 @@ export class Material extends M {
             size: 256 + this.lightPosBuffer.store.byteLength,
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
         });
+        this.lightPosBuffer.bufferWebGPU = uniformBuffer3;
         const uniformBuffer4 = device.createBuffer({
             size: 256 + this.spotdirBuffer.store.byteLength,
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
@@ -629,6 +631,13 @@ export class Material extends M {
             size: 256 + this.lightIntensityBuffer.store.byteLength,
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
         });
+        let uniformBuffer6;
+        if (this.textureMatricesBuffer) {
+            uniformBuffer6 = device.createBuffer({
+                size: 256 + this.textureMatricesBuffer.store.byteLength,
+                usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
+            });
+        }
         const sampler = this.baseColorTexture
             ? this.baseColorTexture.sampler
             : device.createSampler({
@@ -737,7 +746,35 @@ export class Material extends M {
                     offset: 0,
                     size: this.lightIntensityBuffer.store.byteLength
                 }
-            }
+            },
+            {
+                binding: 29,
+                resource: this.thicknessTexture?.createView()
+            },
+            {
+                binding: 31,
+                resource: this.anisotropyTexture?.createView()
+            },
+            {
+                binding: 32,
+                resource: this.iridescenceThicknessTexture?.createView()
+            },
+            {
+                binding: 33,
+                resource: this.specularColorTexture?.createView()
+            },
+            {
+                binding: 34,
+                resource: this.diffuseTransmissionTexture?.createView()
+            },
+            {
+                binding: 23,
+                resource: this.textureMatricesBuffer && {
+                    buffer: uniformBuffer6,
+                    offset: 0,
+                    size: this.textureMatricesBuffer.store.byteLength
+                }
+            },
         ];
 
         device.queue.writeBuffer(
@@ -775,6 +812,15 @@ export class Material extends M {
             this.lightIntensityBuffer.store.byteOffset,
             this.lightIntensityBuffer.store.byteLength
         );
+        if (this.textureMatricesBuffer) {
+            device.queue.writeBuffer(
+                uniformBuffer6,
+                0,
+                this.textureMatricesBuffer.store.buffer,
+                this.textureMatricesBuffer.store.byteOffset,
+                this.textureMatricesBuffer.store.byteLength
+            );
+        }
 
         this.uniformBindGroup1 = uniformBindGroup1.filter(r => r.resource);
     }

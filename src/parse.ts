@@ -16,6 +16,8 @@ import { DecoderModule } from './decoder';
 
 import vertexShader from './shaders/vertex.glsl';
 import fragmentShader from './shaders/fragment.glsl';
+import fragGLSL from './shaders/frag.h';
+import vertGLSL from './shaders/vert.h';
 import { Geometry } from './objects/geometry';
 
 declare global {
@@ -188,20 +190,6 @@ export class Parse {
         });
     }
 
-    createProgramWebGPU(defines) {
-        let program;
-        const programHash = defines.map(define => `${define.name}${define.value ?? 1}`).join('');
-        if (this.programs[programHash]) {
-            program = this.programs[programHash];
-        } else {
-            const defineStr = defines.map(define => `#define ${define.name} ${define.value ?? 1}` + '\n').join('');
-            program = [vertexShader.replace(/\n/, `\n${defineStr}`), fragmentShader.replace(/\n/, `\n${defineStr}`)];
-            this.programs[programHash] = program;
-        }
-
-        return program;
-    }
-
     createProgram(defines) {
         let program;
         const programHash = defines.map(define => `${define.name}${define.value ?? 1}`).join('');
@@ -209,8 +197,18 @@ export class Parse {
             program = this.programs[programHash];
         } else {
             const defineStr = defines.map(define => `#define ${define.name} ${define.value ?? 1}` + '\n').join('');
-            program = createProgram(vertexShader.replace(/\n/, `\n${defineStr}`), fragmentShader.replace(/\n/, `\n${defineStr}`));
-            this.programs[programHash] = program;
+            const shaders = [vertexShader, fragmentShader]
+            .map(p => p.replace(/#include ".*/g, str => {
+                const subPath = str.split('"')[1];
+                if (subPath.includes('vert')) {
+                    return vertGLSL;
+                } else {
+                    return fragGLSL;
+                }
+            }))
+            .map(p => p.replace(/\n/, `\n${defineStr}`));
+            this.programs[programHash] = createProgram(shaders[0], shaders[1]);
+            program = this.programs[programHash];
         }
 
         return program;
@@ -643,7 +641,7 @@ export class Parse {
                     if (textureSRGB.find(name => name === textureType)) {
                         t.srgb = true;
                     }
-                    material[textureType] = callback(t);
+                    material[textureType] = callback(t, textureType);
                 }
             }
         });
@@ -709,11 +707,12 @@ export class Parse {
         });
     }
 
-    handleTextureLoadedWebGPU(WebGPU: WEBGPU, { bitmap, sampler }) {
+    handleTextureLoadedWebGPU(WebGPU: WEBGPU, { bitmap, sampler }, textureType) {
         const { device } = WebGPU;
         const s = this.samplers[sampler !== undefined ? sampler : 0];
 
         const tex = device.createTexture({
+            label: textureType,
             size: [bitmap.width, bitmap.height, 1],
             format: 'rgba8unorm',
             usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT

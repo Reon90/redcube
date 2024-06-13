@@ -11,6 +11,8 @@ import bdrf from './shaders/bdrf.webgpu.frag';
 import quad from './shaders/quad.webgpu.glsl';
 import { cubeVertex, quadFull } from './vertex';
 import { UniformBuffer } from './objects/uniform';
+//@ts-ignore
+import Sheen_E from '../src/images/Sheen_E.hdr';
 
 interface Texture extends WebGLTexture {
     index: number;
@@ -58,13 +60,16 @@ export class Env {
     original2DTexture: Texture;
     irradiancemap: Texture;
     prefilterMap: Texture;
-    Sheen_E: Texture;
+    Sheen_E: GPUTexture;
 
     prefilterTexture: GPUTexture;
     irradianceTexture: GPUTexture;
     tempTexture: GPUTexture;
     bdrfTexture: GPUTexture;
     cubeTexture: GPUTexture;
+    pipeline: GPURenderPipeline;
+    pipeline2: GPURenderPipeline;
+    pipeline3: GPURenderPipeline;
 
     constructor(url) {
         this.url = url;
@@ -316,7 +321,7 @@ export class Env {
             },
             {
                 binding: 2,
-                resource: this.prefilterTexture.createView({
+                resource: this.irradianceTexture.createView({
                     dimension: 'cube'
                 })
             }
@@ -453,7 +458,7 @@ export class Env {
             });
     }
 
-    buildPass(WebGPU, size) {
+    buildPass(WebGPU: WEBGPU, size) {
         const { device } = WebGPU;
 
         const depthTexture = device.createTexture({
@@ -489,7 +494,7 @@ export class Env {
         };
     }
 
-    buildPipeline(WebGPU, vertex, fragment, vertexId, entries, screen = false) {
+    buildPipeline(WebGPU: WEBGPU, vertex, fragment, vertexId, entries, screen = false) {
         const { device, glslang, wgsl } = WebGPU;
 
         function convertGLSLtoWGSL(code: string, type: string) {
@@ -510,9 +515,7 @@ export class Env {
             layout: pipelineLayout,
             vertex: {
                 module: device.createShaderModule({
-                    code: convertGLSLtoWGSL(vertex, 'vertex'),
-                    source: vertex,
-                    transform: glsl => convertGLSLtoWGSL(glsl, 'vertex')
+                    code: convertGLSLtoWGSL(vertex, 'vertex')
                 }),
                 entryPoint: 'main',
                 buffers: [
@@ -523,7 +526,7 @@ export class Env {
                                 // position
                                 shaderLocation: 0,
                                 offset: 0,
-                                format: `float32x${vertexId}`
+                                format: `float32x${vertexId}` as GPUVertexFormat
                             }
                         ]
                     }
@@ -531,9 +534,7 @@ export class Env {
             },
             fragment: {
                 module: device.createShaderModule({
-                    code: convertGLSLtoWGSL(fragment, 'fragment'),
-                    source: fragment,
-                    transform: glsl => convertGLSLtoWGSL(glsl, 'fragment')
+                    code: convertGLSLtoWGSL(fragment, 'fragment')
                 }),
                 entryPoint: 'main',
                 targets: [
@@ -556,7 +557,7 @@ export class Env {
         return pipeline;
     }
 
-    buildVertex(WebGPU, g) {
+    buildVertex(WebGPU: WEBGPU, g) {
         const { device } = WebGPU;
         const verticesBuffer = device.createBuffer({
             size: g.byteLength,
@@ -572,6 +573,7 @@ export class Env {
         const { device } = WebGPU;
 
         this.bdrfTexture = device.createTexture({
+            label: 'bdrfTexture',
             size: [FULL_SIZE, FULL_SIZE, 1],
             usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
             format: 'rgba32float'
@@ -600,7 +602,7 @@ export class Env {
         device.queue.submit([commandEncoder.finish()]);
     }
 
-    drawWebGPU(WebGPU, mipWidth, mipHeight, layer, mip) {
+    drawWebGPU(WebGPU: WEBGPU, mipWidth, mipHeight, layer, mip) {
         const { device } = WebGPU;
 
         const m = new Matrix4();
@@ -679,7 +681,8 @@ export class Env {
         const commandEncoder = device.createCommandEncoder();
         const pass = this.buildPass(WebGPU, FULL_SIZE);
         const shadowPass = commandEncoder.beginRenderPass(pass);
-        const p = this.buildPipeline(WebGPU, vertex, cube, 3, entriesL);
+        const p = this.pipeline || this.buildPipeline(WebGPU, vertex, cube, 3, entriesL);
+        this.pipeline = p;
         shadowPass.setPipeline(p);
         shadowPass.setVertexBuffer(0, this.buildVertex(WebGPU, cubeVertex));
         shadowPass.setBindGroup(
@@ -703,7 +706,7 @@ export class Env {
         device.queue.submit([commandEncoder.finish()]);
     }
 
-    drawWebGPU2(WebGPU, mipWidth, mipHeight, layer, mip) {
+    drawWebGPU2(WebGPU: WEBGPU, mipWidth, mipHeight, layer, mip) {
         const { device } = WebGPU;
 
         const m = new Matrix4();
@@ -785,7 +788,8 @@ export class Env {
         const commandEncoder = device.createCommandEncoder();
         const pass = this.buildPass(WebGPU, IRRADIANCE_SIZE);
         const shadowPass = commandEncoder.beginRenderPass(pass);
-        const p = this.buildPipeline(WebGPU, vertex, irradiance, 3, entriesL);
+        const p = this.pipeline2 || this.buildPipeline(WebGPU, vertex, irradiance, 3, entriesL);
+        this.pipeline2 = p;
         shadowPass.setPipeline(p);
         shadowPass.setVertexBuffer(0, this.buildVertex(WebGPU, cubeVertex));
         shadowPass.setBindGroup(
@@ -809,7 +813,7 @@ export class Env {
         device.queue.submit([commandEncoder.finish()]);
     }
 
-    drawWebGPU3(WebGPU, mipWidth, mipHeight, layer, mip) {
+    drawWebGPU3(WebGPU: WEBGPU, mipWidth, mipHeight, layer, mip) {
         const { device } = WebGPU;
 
         const m = new Matrix4();
@@ -892,7 +896,8 @@ export class Env {
         const commandEncoder = device.createCommandEncoder();
         const pass = this.buildPass(WebGPU, RADIANCE_SIZE);
         const shadowPass = commandEncoder.beginRenderPass(pass);
-        const p = this.buildPipeline(WebGPU, vertex, cubeMipmap, 3, entriesL);
+        const p = this.pipeline3 || this.buildPipeline(WebGPU, vertex, cubeMipmap, 3, entriesL);
+        this.pipeline3 = p;
         shadowPass.setPipeline(p);
         shadowPass.setVertexBuffer(0, this.buildVertex(WebGPU, cubeVertex));
         shadowPass.setBindGroup(
@@ -939,6 +944,7 @@ export class Env {
     drawIrradiance(WebGPU: WEBGPU) {
         const { device } = WebGPU;
         this.irradianceTexture = device.createTexture({
+            label: 'irradianceTexture',
             size: [IRRADIANCE_SIZE, IRRADIANCE_SIZE, 6],
             usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
             format: 'rgba32float'
@@ -952,6 +958,7 @@ export class Env {
     drawPrefilter(WebGPU: WEBGPU) {
         const { device } = WebGPU;
         this.prefilterTexture = device.createTexture({
+            label: 'prefilterTexture',
             mipLevelCount: 5,
             size: [RADIANCE_SIZE, RADIANCE_SIZE, 6],
             usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,

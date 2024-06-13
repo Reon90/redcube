@@ -278,7 +278,7 @@ export class PostProcessing {
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
         const defines = this.postprocessors.map(postProcessor => postProcessor.buildScreenBuffer(this));
-        const defineStr = defines.map(define => `#define ${define.name} ${define.value || 1}` + '\n').join('');
+        const defineStr = defines.map(define => `#define ${define.name} ${define.value ?? 1}` + '\n').join('');
         this.program = createProgram(quadShader.replace(/\n/, `\n${defineStr}`), composerShader.replace(/\n/, `\n${defineStr}`));
     }
 

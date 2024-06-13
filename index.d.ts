@@ -11,6 +11,11 @@ declare module '*.glsl' {
     export default content;
 }
 
+declare module '*.h' {
+    const content: string;
+    export default content;
+}
+
 interface WEBGPU {
     glslang: any;
     wgsl: any;

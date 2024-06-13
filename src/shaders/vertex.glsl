@@ -1,42 +1,4 @@
-#version 300 es
-precision highp float;
-
-layout (location = 0) in vec3 inPosition;
-layout (location = 1) in vec3 inNormal;
-layout (location = 2) in vec2 inUV;
-layout (location = 3) in vec4 inJoint;
-layout (location = 4) in vec4 inWeight;
-layout (location = 5) in vec4 inTangent;
-layout (location = 6) in vec4 inColor;
-layout (location = 7) in vec2 inUV2;
-layout (location = 8) in vec2 inUV3;
-
-out vec4 vColor;
-out vec2 outUV0;
-out vec2 outUV2;
-out vec2 outUV3;
-out vec3 outPosition;
-out vec4 outPositionView;
-#ifdef TANGENT
-    out mat3 outTBN;
-#else
-    out vec3 outNormal;
-#endif
-
-uniform Matrices {
-    mat4 model;
-    mat4 normalMatrix;
-    mat4 view;
-    mat4 projection;
-    mat4 light;
-    vec4 isShadow;
-};
-
-#ifdef JOINTNUMBER
-uniform Skin {
-    mat4 joint[JOINTNUMBER];
-};
-#endif
+#include "./vert.h"
 
 void main() {
     #ifdef JOINTNUMBER
@@ -48,14 +10,18 @@ void main() {
         mat4 skin = mat4(1.0);
     #endif
 
+    #ifdef COLOR
     #ifdef COLOR_255
         vColor = inColor / 255.0;
     #else
         vColor = inColor;
     #endif
+    #endif
     outUV0 = inUV;
+    #ifdef MULTIUV
     outUV2 = inUV2;
     outUV3 = inUV3;
+    #endif
     #ifdef TANGENT
         vec3 normalW = normalize(vec3(model * vec4(inNormal.xyz, 0.0)));
         vec3 tangentW = normalize(vec3(model * vec4(inTangent.xyz, 0.0)));

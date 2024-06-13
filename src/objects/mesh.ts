@@ -38,7 +38,11 @@ export class Mesh extends Object3D {
         this.material = material;
     }
 
-    drawWebGPU(WebGPU: WEBGPU, passEncoder, { needUpdateView, needUpdateProjection, camera, light }) {
+    drawWebGPU(WebGPU: WEBGPU, passEncoder, { stateBuffer, renderState, needUpdateView, needUpdateProjection, camera, light }) {
+        const { isprerefraction } = renderState;
+        if (this.material.transmissionFactor && isprerefraction) {
+            return;
+        }
         if (this.reflow) {
             // matrixWorld changed
             const normalMatrix = new Matrix4(this.matrixWorld);
@@ -47,9 +51,17 @@ export class Mesh extends Object3D {
             this.geometry.uniformBuffer.updateWebGPU(WebGPU, 'model', this.matrixWorld.elements);
             this.geometry.uniformBuffer.updateWebGPU(WebGPU, 'normalMatrix', normalMatrix.elements);
         }
+        stateBuffer.updateWebGPU(WebGPU, 'isTone', isprerefraction ? 0 : 1);
         if (needUpdateView) {
             this.geometry.uniformBuffer.updateWebGPU(WebGPU, 'view', camera.matrixWorldInvert.elements);
             this.geometry.uniformBuffer.updateWebGPU(WebGPU, 'light', light.matrixWorldInvert.elements);
+
+            const lightPos = new Float32Array(3);
+            lightPos.set(light.getPosition(), 0);
+
+            this.material.materialUniformBuffer.updateWebGPU(WebGPU, 'viewPos', camera.getPosition());
+
+            this.material.lightPosBuffer.updateWebGPU(WebGPU, 'lightPos', lightPos);
         }
         if (needUpdateProjection) {
             this.geometry.uniformBuffer.updateWebGPU(WebGPU, 'projection', camera.projection.elements);
@@ -170,9 +182,9 @@ export class Mesh extends Object3D {
 
         gl.uniform1i(this.material.uniforms.depthTexture, preDepthTexture && !isprepender ? preDepthTexture.index : fakeDepth.index);
         gl.uniform1i(this.material.uniforms.colorTexture, !isprerefraction ? colorTexture.index : fakeDepth.index);
-        gl.uniform1i(gl.getUniformLocation(this.program, 'isTone'), isprerefraction ? 0 : 1);
-        gl.uniform1i(gl.getUniformLocation(this.program, 'isIBL'), isIBL ? 1 : 0);
-        gl.uniform1i(gl.getUniformLocation(this.program, 'isDefaultLight'), isDefaultLight || lights.some(l => !l.isInitial) ? 1 : 0);
+        gl.uniform2f(gl.getUniformLocation(this.program, 'isTone'), isprerefraction ? 0 : 1, 0);
+        gl.uniform2f(gl.getUniformLocation(this.program, 'isIBL'), isIBL ? 1 : 0, 0);
+        gl.uniform2f(gl.getUniformLocation(this.program, 'isDefaultLight'), isDefaultLight || lights.some(l => !l.isInitial) ? 1 : 0, 0);
 
         if (this.material.baseColorTexture) {
             gl.activeTexture(gl[`TEXTURE${0}`]);

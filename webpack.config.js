@@ -45,7 +45,7 @@ module.exports = {
                 use: 'ts-loader'
             },
             {
-                test: /\.(glsl|vert|frag)$/,
+                test: /\.(glsl|vert|frag|h)$/,
                 type: 'asset/source'
             },
             {

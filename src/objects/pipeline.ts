@@ -1,10 +1,30 @@
-import vertexShaderGLSL from '../shaders/webgpu.vert';
-import fragmentShaderGLSL from '../shaders/webgpu.frag';
+import vertexShaderGLSL from '../shaders/vertex.glsl';
+import fragmentShaderGLSL from '../shaders/fragment.glsl';
+import fragGLSL from '../shaders/frag2.h';
+import vertGLSL from '../shaders/vert2.h';
 
-export function create(device, glslang, wgsl, uniformBindGroup1, defines) {
-    //const programHash = defines.map(define => `${define.name}${define.value || 1}`).join('');
-    const defineStr = defines.map(define => `#define ${define.name} ${define.value || 1}` + '\n').join('');
-    const program = [vertexShaderGLSL.replace(/\n/, `\n${defineStr}`), fragmentShaderGLSL.replace(/\n/, `\n${defineStr}`)];
+const programs = {};
+
+export function create(device: GPUDevice, glslang, wgsl, uniformBindGroup1, defines) {
+    const programHash = defines.map(define => `${define.name}${define.value ?? 1}`).join('');
+    let program;
+    if (programs[programHash]) {
+        program = programs[programHash];
+    } else {
+        const defineStr = defines.map(define => `#define ${define.name} ${define.value ?? 1}` + '\n').join('');
+        const shaders = [vertexShaderGLSL, fragmentShaderGLSL]
+        .map(p => p.replace(/#include ".*/g, str => {
+            const subPath = str.split('"')[1];
+            if (subPath.includes('vert')) {
+                return vertGLSL;
+            } else {
+                return fragGLSL;
+            }
+        }))
+        .map(p => p.replace(/\n/, `\n${defineStr}`));
+        programs[programHash] = [convertGLSLtoWGSL(shaders[0], 'vertex'), convertGLSLtoWGSL(shaders[1], 'fragment')];
+        program = programs[programHash];
+    }
 
     const entries: GPUBindGroupLayoutEntry[] = [
         {
@@ -25,7 +45,7 @@ export function create(device, glslang, wgsl, uniformBindGroup1, defines) {
     ];
 
     uniformBindGroup1.forEach(u => {
-        if (u.binding > 2 && u.binding < 15) {
+        if ((u.binding > 2 && u.binding < 15) || u.binding === 29 || u.binding === 31 || u.binding === 32 || u.binding === 33 || u.binding === 34) {
             entries.push({
                 binding: u.binding,
                 visibility: GPUShaderStage.FRAGMENT,
@@ -84,6 +104,39 @@ export function create(device, glslang, wgsl, uniformBindGroup1, defines) {
             sampler: {
                 type: 'filtering'
             }
+        },
+        {
+            binding: 25,
+            visibility: GPUShaderStage.FRAGMENT,
+            texture: {}
+        },
+        {
+            binding: 26,
+            visibility: GPUShaderStage.FRAGMENT,
+            texture: {}
+        },
+        {
+            binding: 27,
+            visibility: GPUShaderStage.FRAGMENT,
+            buffer: {}
+        },
+        {
+            binding: 28,
+            visibility: GPUShaderStage.FRAGMENT,
+            texture: {}
+        },
+        {
+            binding: 35,
+            visibility: GPUShaderStage.FRAGMENT,
+            texture: {
+                viewDimension: 'cube',
+                sampleType: 'float'
+            }
+        },
+        {
+            binding: 30,
+            visibility: GPUShaderStage.FRAGMENT,
+            buffer: {}
         }
     );
 
@@ -91,6 +144,13 @@ export function create(device, glslang, wgsl, uniformBindGroup1, defines) {
         entries.push({
             binding: 22,
             visibility: GPUShaderStage.VERTEX,
+            buffer: {}
+        });
+    }
+    if (defines.find(d => d.name === 'MATRICES')) {
+        entries.push({
+            binding: 23,
+            visibility: GPUShaderStage.FRAGMENT,
             buffer: {}
         });
     }
@@ -121,22 +181,22 @@ export function create(device, glslang, wgsl, uniformBindGroup1, defines) {
                 {
                     shaderLocation: 0,
                     offset: 0,
-                    format: 'float32x3'
+                    format: 'float32x3' as GPUVertexFormat
                 },
                 {
                     shaderLocation: 1,
                     offset: Float32Array.BYTES_PER_ELEMENT * vertexLayout[0],
-                    format: 'float32x2'
+                    format: 'float32x2' as GPUVertexFormat
                 },
                 {
                     shaderLocation: 2,
                     offset: Float32Array.BYTES_PER_ELEMENT * (vertexLayout[0] + vertexLayout[1]),
-                    format: 'float32x3'
+                    format: 'float32x3' as GPUVertexFormat
                 },
                 {
                     shaderLocation: 3,
                     offset: Float32Array.BYTES_PER_ELEMENT * (vertexLayout[0] + vertexLayout[1] + vertexLayout[2]),
-                    format: 'float32x4'
+                    format: 'float32x4' as GPUVertexFormat
                 }
             ]
         }
@@ -146,14 +206,14 @@ export function create(device, glslang, wgsl, uniformBindGroup1, defines) {
             {
                 shaderLocation: 4,
                 offset: Float32Array.BYTES_PER_ELEMENT * (vertexLayout[0] + vertexLayout[1] + vertexLayout[2] + vertexLayout[3]),
-                format: 'float32x4'
+                format: 'float32x4' as GPUVertexFormat
             },
             {
                 shaderLocation: 5,
                 offset:
                     Float32Array.BYTES_PER_ELEMENT *
                     (vertexLayout[0] + vertexLayout[1] + vertexLayout[2] + vertexLayout[3] + vertexLayout[4]),
-                format: 'float32x4'
+                format: 'float32x4' as GPUVertexFormat
             }
         );
     }
@@ -161,14 +221,19 @@ export function create(device, glslang, wgsl, uniformBindGroup1, defines) {
         buffers[0].attributes.push({
             shaderLocation: 6,
             offset: Float32Array.BYTES_PER_ELEMENT * (vertexLayout[0] + vertexLayout[1] + vertexLayout[2] + vertexLayout[3]),
-            format: 'float32x4'
+            format: 'float32x4' as GPUVertexFormat
         });
     }
     if (defines.find(d => d.name === 'MULTIUV')) {
         buffers[0].attributes.push({
             shaderLocation: 7,
             offset: Float32Array.BYTES_PER_ELEMENT * (vertexLayout[0] + vertexLayout[1] + vertexLayout[2] + vertexLayout[3]),
-            format: 'float32x2'
+            format: 'float32x2' as GPUVertexFormat
+        });
+        buffers[0].attributes.push({
+            shaderLocation: 8,
+            offset: Float32Array.BYTES_PER_ELEMENT * (vertexLayout[0] + vertexLayout[1] + vertexLayout[2] + vertexLayout[3]),
+            format: 'float32x2' as GPUVertexFormat
         });
     }
 
@@ -183,18 +248,14 @@ export function create(device, glslang, wgsl, uniformBindGroup1, defines) {
         layout: pipelineLayout,
         vertex: {
             module: device.createShaderModule({
-                code: convertGLSLtoWGSL(program[0], 'vertex'),
-                source: program[0],
-                transform: glsl => convertGLSLtoWGSL(glsl, 'vertex')
+                code: program[0]
             }),
             entryPoint: 'main',
             buffers
         },
         fragment: {
             module: device.createShaderModule({
-                code: convertGLSLtoWGSL(program[1], 'fragment'),
-                source: program[1],
-                transform: glsl => convertGLSLtoWGSL(glsl, 'fragment')
+                code: program[1]
             }),
             entryPoint: 'main',
             targets: [
