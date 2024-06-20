@@ -137,7 +137,7 @@ class RedCube {
         this.parse.calculateFov(this.parse.cameras[0].props.isInitial);
         const planes = Frustum(this.camera.getViewProjMatrix());
 
-        const envData = await this.parse.getEnv();
+        const envData = await this.parse.getEnv(false);
         await this.env.createEnvironmentBuffer(envData);
 
         const hasTransmission = this.parse.json.extensionsUsed && this.parse.json.extensionsUsed.includes('KHR_materials_transmission');

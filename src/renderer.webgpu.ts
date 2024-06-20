@@ -24,9 +24,18 @@ export class RendererWebGPU extends Renderer {
             if (this.PP.hasPrePass) {
                 this.PP.bindPrePass();
                 this.PP.preProcessing();
+                this.PP.target = undefined;
             }
+            if (this.PP.hasPostPass) {
+                this.PP.bindPostPass();
+            }
+
             this.renderScene();
             this.clean();
+
+            if (this.PP.hasPostPass) {
+                this.PP.postProcessing();
+            }
         }
 
         this.fps.tick(time);
@@ -39,13 +48,26 @@ export class RendererWebGPU extends Renderer {
     }
 
     renderScene() {
-        const { renderPassDescriptor, context, device } = WebGPU;
+        let { renderPassDescriptor, context, device } = WebGPU;
 
-        const state = this.getState();
-        renderPassDescriptor.colorAttachments[0].view = state.renderState.isprerefraction
-            // @ts-expect-error
-            ? this.PP.target[0]
-            : context.getCurrentTexture().createView();
+        if (this.PP.target) {
+            renderPassDescriptor = {
+                ...renderPassDescriptor,
+                colorAttachments: this.PP.target,
+                // @ts-expect-error
+                depthStencilAttachment: this.PP.pipeline.pass.depthStencilAttachment
+            };
+        } else {
+            renderPassDescriptor = {...renderPassDescriptor, colorAttachments: [
+                {
+                    // attachment is acquired in render loop.
+                    view: context.getCurrentTexture().createView(),
+                    storeOp: 'store' as GPUStoreOp,
+                    loadOp: 'clear' as GPULoadOp,
+                    clearValue: { r: 0, g: 0, b: 0, a: 1.0 }
+                }
+            ]};
+        }
 
         const commandEncoder = device.createCommandEncoder();
         WebGPU.commandEncoder = commandEncoder;

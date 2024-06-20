@@ -68,15 +68,7 @@ class RedCube {
         });
 
         const renderPassDescriptor = {
-            colorAttachments: [
-                {
-                    // attachment is acquired in render loop.
-                    view: context.getCurrentTexture().createView(),
-                    storeOp: 'store' as GPUStoreOp,
-                    loadOp: 'clear' as GPULoadOp,
-                    clearValue: { r: 0, g: 0, b: 0, a: 1.0 }
-                }
-            ],
+            colorAttachments: [],
             depthStencilAttachment: {
                 view: depthTexture.createView(),
 
@@ -160,6 +152,9 @@ class RedCube {
             this.parse.createSamplersWebGPU(WebGPU);
             this.parse.createTexturesWebGPU(WebGPU);
 
+            const envData = await this.parse.getEnv(true);
+            await this.env.createEnvironmentBuffer(envData, WebGPU);
+
             this.parse.calculateFov(this.camera.props.isInitial);
             this.resize();
 
@@ -197,6 +192,7 @@ class RedCube {
             if (hasTransmission) {
                 this.PP.addPrepass('refraction');
             }
+            this.PP.add('scattering');
             if (this.PP.hasPostPass || this.PP.hasPrePass) {
                 this.PP.buildScreenBuffer();
             }
@@ -227,11 +223,7 @@ class RedCube {
                     },
                     {
                         binding: 28,
-                        resource: this.env.bdrfTexture?.createView()
-                    },
-                    {
-                        binding: 25,
-                        resource: this.env.bdrfTexture?.createView()
+                        resource: this.env.Sheen_E?.createView()
                     },
                     {
                         binding: 26,
@@ -243,7 +235,7 @@ class RedCube {
                     },
                     {
                         binding: 35,
-                        resource: this.env.prefilterTexture?.createView({
+                        resource: this.env.charlieTexture?.createView({
                             dimension: 'cube'
                         })
                     },
@@ -254,16 +246,18 @@ class RedCube {
                             offset: 0,
                             size: stateBuffer.store.byteLength
                         }
-                    },
-                    {
-                        binding: 27,
-                        resource: {
-                            buffer: uniformBuffer,
-                            offset: 0,
-                            size: stateBuffer.store.byteLength
-                        }
                     }
                 );
+                if (this.env.uniformBuffer) {
+                    mesh.material.uniformBindGroup1.push({
+                        binding: 27,
+                        resource: {
+                            buffer: this.env.uniformBuffer.bufferWebGPU,
+                            offset: 0,
+                            size: this.env.uniformBuffer.store.byteLength
+                        }
+                    });
+                }
                 if (mesh instanceof SkinnedMesh) {
                     for (const join of this.parse.skins[mesh.skin].jointNames) {
                         walk(this.scene, this.buildBones.bind(this, join, this.parse.skins[mesh.skin]));
@@ -332,7 +326,7 @@ class RedCube {
     renderScene(renderState) {
         this.renderState = renderState;
         this.renderer.renderScene();
-        this.renderState = this.PP.hasPostPass ? { isprerefraction: true } : {};
+        this.renderState = {};
     }
 
     redraw(type, coordsStart, coordsMove) {

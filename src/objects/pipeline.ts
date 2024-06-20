@@ -1,7 +1,7 @@
 import vertexShaderGLSL from '../shaders/vertex.glsl';
 import fragmentShaderGLSL from '../shaders/fragment.glsl';
-import fragGLSL from '../shaders/frag2.h';
-import vertGLSL from '../shaders/vert2.h';
+import fragGLSL from '../shaders/frag.webgpu.h';
+import vertGLSL from '../shaders/vert.webgpu.h';
 
 const programs = {};
 
@@ -106,19 +106,9 @@ export function create(device: GPUDevice, glslang, wgsl, uniformBindGroup1, defi
             }
         },
         {
-            binding: 25,
-            visibility: GPUShaderStage.FRAGMENT,
-            texture: {}
-        },
-        {
             binding: 26,
             visibility: GPUShaderStage.FRAGMENT,
             texture: {}
-        },
-        {
-            binding: 27,
-            visibility: GPUShaderStage.FRAGMENT,
-            buffer: {}
         },
         {
             binding: 28,
@@ -144,6 +134,13 @@ export function create(device: GPUDevice, glslang, wgsl, uniformBindGroup1, defi
         entries.push({
             binding: 22,
             visibility: GPUShaderStage.VERTEX,
+            buffer: {}
+        });
+    }
+    if (defines.find(d => d.name === 'SPHERICAL_HARMONICS')) {
+        entries.push({
+            binding: 27,
+            visibility: GPUShaderStage.FRAGMENT,
             buffer: {}
         });
     }
@@ -240,8 +237,7 @@ export function create(device: GPUDevice, glslang, wgsl, uniformBindGroup1, defi
     function convertGLSLtoWGSL(code: string, type: string) {
         const spirv = glslang.compileGLSL(code, type);
         return wgsl
-            .convertSpirV2WGSL(spirv)
-            .replaceAll('type ', 'alias ');
+            .convertSpirV2WGSL(spirv);
     }
 
     const pipeline = device.createRenderPipeline({
@@ -260,7 +256,7 @@ export function create(device: GPUDevice, glslang, wgsl, uniformBindGroup1, defi
             entryPoint: 'main',
             targets: [
                 {
-                    format: 'bgra8unorm',
+                    format: 'rgba16float',
                     blend: defines.find(d => d.name === 'ALPHATEST')
                         ? {
                             color: {
@@ -275,7 +271,11 @@ export function create(device: GPUDevice, glslang, wgsl, uniformBindGroup1, defi
                             }
                         }
                         : undefined
-                }
+                },
+                { format: 'rgba16float' },
+                { format: 'rgba16float' },
+                { format: 'rgba16float' }
+            
             ]
         },
 

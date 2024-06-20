@@ -25,6 +25,16 @@ export class Refraction extends PostProcessor {
         gl.generateMipmap(gl.TEXTURE_2D);
     }
     preProcessingWebGPU(PP) {
+        PP.target = [
+            {
+                 // @ts-expect-error
+                view: this.texture.view,
+                storeOp: 'store' as GPUStoreOp,
+                loadOp: 'clear' as GPULoadOp,
+                clearValue: { r: 0, g: 0, b: 0, a: 1.0 },
+            },
+            ...(PP.pipeline.pass.colorAttachments.slice(1))
+        ];
         PP.renderScene({ isprerefraction: true });
     }
 
@@ -37,11 +47,10 @@ export class Refraction extends PostProcessor {
         return { name: 'REFRACTION' };
     }
     buildScreenBufferWebGPU(pp) {
-        this.texture = pp.createByteTexture();
-        // @ts-expect-error
-        pp.target = [this.texture.texture.createView()];
+        this.texture = pp.createDefaultTexture();
         return { name: 'REFRACTION' };
     }
     attachUniform() {}
     postProcessing() {}
+    postProcessingWebGPU() {}
 }

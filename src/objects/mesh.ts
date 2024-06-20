@@ -51,7 +51,7 @@ export class Mesh extends Object3D {
             this.geometry.uniformBuffer.updateWebGPU(WebGPU, 'model', this.matrixWorld.elements);
             this.geometry.uniformBuffer.updateWebGPU(WebGPU, 'normalMatrix', normalMatrix.elements);
         }
-        stateBuffer.updateWebGPU(WebGPU, 'isTone', isprerefraction ? 0 : 1);
+        stateBuffer.updateWebGPU(WebGPU, 'isTone', 0);
         if (needUpdateView) {
             this.geometry.uniformBuffer.updateWebGPU(WebGPU, 'view', camera.matrixWorldInvert.elements);
             this.geometry.uniformBuffer.updateWebGPU(WebGPU, 'light', light.matrixWorldInvert.elements);

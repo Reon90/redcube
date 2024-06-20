@@ -9,7 +9,7 @@ import { PostProcessor } from './postprocessors/base';
 
 import quadShader from './shaders/quad.webgpu.glsl';
 import composerShader from './shaders/composer.webgpu.glsl';
-import { quadVertex } from './vertex';
+import { quadFull } from './vertex';
 import { Scattering } from './postprocessors/scattering';
 
 let gl: WEBGPU;
@@ -28,14 +28,14 @@ interface Texture extends WebGLTexture {
 }
 
 export class PostProcessing {
-    screenTexture: { texture: GPUTexture; sampler: GPUSampler; };
-    normalTexture: { texture: GPUTexture; sampler: GPUSampler; };
-    irradianceTexture: { texture: GPUTexture; sampler: GPUSampler; };
-    specTexture: { texture: GPUTexture; sampler: GPUSampler; };
-    albedoTexture: { texture: GPUTexture; sampler: GPUSampler; };
-    depthTexture: { texture: GPUTexture; sampler: GPUSampler; };
-    preDepthTexture: { texture: GPUTexture; sampler: GPUSampler; };
-    fakeDepth: { texture: GPUTexture; sampler: GPUSampler; };
+    screenTexture: { texture: GPUTexture; sampler: GPUSampler; view: GPUTextureView; };
+    normalTexture: { texture: GPUTexture; sampler: GPUSampler; view: GPUTextureView; };
+    irradianceTexture: { texture: GPUTexture; sampler: GPUSampler; view: GPUTextureView; };
+    specTexture: { texture: GPUTexture; sampler: GPUSampler; view: GPUTextureView; };
+    albedoTexture: { texture: GPUTexture; sampler: GPUSampler; view: GPUTextureView; };
+    depthTexture: { texture: GPUTexture; sampler: GPUSampler; view: GPUTextureView; };
+    preDepthTexture: { texture: GPUTexture; sampler: GPUSampler; view: GPUTextureView; };
+    fakeDepth: { texture: GPUTexture; sampler: GPUSampler; view: GPUTextureView; };
     camera: Camera;
     renderer: Renderer;
     canvas: HTMLCanvasElement;
@@ -48,8 +48,11 @@ export class PostProcessing {
     MSAA: Number;
     renderScene: Function;
     pipeline: GPURenderPipeline;
+    target: GPURenderPassColorAttachment[] | undefined;
+    vertexBuffer: GPUBuffer;
+    bindGroup: GPUBindGroup;
 
-    hasPostPass = false;
+    hasPostPass = true;
     hasPrePass = false;
 
     constructor(processors, renderScene) {
@@ -114,7 +117,8 @@ export class PostProcessing {
     }
 
     bindPostPass() {
-        
+        // @ts-expect-error
+        this.target = this.pipeline.pass.colorAttachments;
     }
 
     preProcessing() {
@@ -123,53 +127,31 @@ export class PostProcessing {
     }
 
     postProcessing() {
-        const { device } = gl;
-        this.postprocessors.forEach(postProcessor => postProcessor.postProcessing(this));
-
-        this.postprocessors.forEach(postProcessor => {
-            postProcessor.attachUniform(this.program);
-        });
-
-        const sampler = device.createSampler({
-            magFilter: 'linear'
-        });
-        const entries = [
-            {
-                binding: 10,
-                resource: sampler
-            },
-            {
-                binding: 0,
-                resource: this.screenTexture.texture.createView()
-            },
-            {
-                binding: 1,
-                resource: this.normalTexture.texture.createView()
-            },
-            {
-                binding: 2,
-                resource: this.depthTexture.texture.createView()
-            },
-            {
-                binding: 3,
-                resource: this.preDepthTexture.texture.createView()
-            },
-            {
-                binding: 4,
-                resource: this.specTexture.texture.createView()
-            }
-        ];
-        const commandEncoder = device.createCommandEncoder();
+        const { device, context } = gl;
         // @ts-expect-error
-        const shadowPass = commandEncoder.beginRenderPass(this.pipeline.pass);
+        this.postprocessors.forEach(postProcessor => postProcessor.postProcessingWebGPU(this));
+
+        const commandEncoder = device.createCommandEncoder();
+        const shadowPass = commandEncoder.beginRenderPass({
+            colorAttachments: [{
+                // attachment is acquired in render loop.
+                view: context.getCurrentTexture().createView(),
+                storeOp: 'store' as GPUStoreOp,
+                loadOp: 'clear' as GPULoadOp,
+                clearValue: { r: 0, g: 0, b: 0, a: 1.0 }
+            }],
+            depthStencilAttachment: {
+                view: this.depthTexture.view,
+                depthLoadOp: 'clear',
+                depthClearValue: 1.0,
+                depthStoreOp: 'store'
+            }
+        });
         shadowPass.setPipeline(this.pipeline);
-        shadowPass.setVertexBuffer(0, this.buildVertex(gl, quadVertex));
+        shadowPass.setVertexBuffer(0, this.vertexBuffer);
         shadowPass.setBindGroup(
             0,
-            device.createBindGroup({
-                layout: this.pipeline.getBindGroupLayout(0),
-                entries
-            })
+            this.bindGroup
         );
         shadowPass.draw(6);
 
@@ -177,7 +159,7 @@ export class PostProcessing {
         device.queue.submit([commandEncoder.finish()]);
     }
 
-    createByteTexture() {
+    createByteTexture(label: string) {
         const sampler = gl.device.createSampler({
             magFilter: 'nearest',
             minFilter: 'nearest'
@@ -185,9 +167,10 @@ export class PostProcessing {
         const texture = gl.device.createTexture({
             size: [this.width, this.height, 1],
             usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
-            format: 'bgra8unorm'
+            format: 'bgra8unorm',
+            label
         });
-        return { texture, sampler };
+        return { texture, sampler, view: texture.createView() };
     }
 
     createDefaultTexture(scale = 1, hasMipmap = false) {
@@ -201,7 +184,7 @@ export class PostProcessing {
             usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
             format: 'rgba16float'
         });
-        return { texture, sampler };
+        return { texture, sampler, view: texture.createView() };
     }
 
     createOneChannelTexture(scale = 1) {
@@ -214,10 +197,10 @@ export class PostProcessing {
             usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
             format: 'r8uint'
         });
-        return { texture, sampler };
+        return { texture, sampler, view: texture.createView() };
     }
 
-    createDepthTexture() {
+    createDepthTexture(label: string) {
         const sampler = gl.device.createSampler({
             magFilter: 'nearest',
             minFilter: 'nearest'
@@ -225,9 +208,10 @@ export class PostProcessing {
         const texture = gl.device.createTexture({
             size: [this.width, this.height, 1],
             usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
-            format: 'depth24plus'
+            format: 'depth32float',
+            label
         });
-        return { texture, sampler };
+        return { texture, sampler, view: texture.createView() };
     }
 
     createNoiceTexture(size, data) {
@@ -242,7 +226,7 @@ export class PostProcessing {
             usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
             format: 'rgba16float'
         });
-        return { texture, sampler };
+        return { texture, sampler, view: texture.createView() };
     }
 
     buildVertex(WebGPU: WEBGPU, g) {
@@ -257,23 +241,23 @@ export class PostProcessing {
         return verticesBuffer;
     }
 
-    buildPipeline(WebGPU: WEBGPU, vertex, fragment, vertexId, entries, screen = false) {
+    buildPipeline(WebGPU: WEBGPU, vertex, fragment, vertexId, entries, screen = false, label) {
         const { device, glslang, wgsl } = WebGPU;
 
         function convertGLSLtoWGSL(code: string, type: string) {
             const spirv = glslang.compileGLSL(code, type);
             return wgsl
-                .convertSpirV2WGSL(spirv)
-                .replaceAll('type ', 'alias ');
+                .convertSpirV2WGSL(spirv);
         }
 
         const bindGroupLayout = device.createBindGroupLayout({
-            entries
+            entries,
+            label
         });
         const pipelineLayout = device.createPipelineLayout({
             bindGroupLayouts: [bindGroupLayout]
         });
-
+        const fragmentCode ='diagnostic(off,derivative_uniformity);\n' + convertGLSLtoWGSL(fragment, 'fragment');
         const pipeline = device.createRenderPipeline({
             layout: pipelineLayout,
             vertex: {
@@ -297,12 +281,13 @@ export class PostProcessing {
             },
             fragment: {
                 module: device.createShaderModule({
-                    code: convertGLSLtoWGSL(fragment, 'fragment')
+                    code: fragmentCode,
+                    label
                 }),
                 entryPoint: 'main',
                 targets: [
                     {
-                        format: screen ? 'bgra8unorm' : 'rgba32float'
+                        format: screen ? 'bgra8unorm' : 'rgba16float'
                     }
                 ]
             },
@@ -311,11 +296,11 @@ export class PostProcessing {
                 topology: 'triangle-list',
                 cullMode: 'none'
             },
-            depthStencil: {
+            depthStencil: screen ? {
                 depthWriteEnabled: true,
                 depthCompare: 'less',
                 format: 'depth32float'
-            }
+            } : undefined
         });
         return pipeline;
     }
@@ -325,13 +310,15 @@ export class PostProcessing {
             return true;
         }
 
+        this.vertexBuffer = this.buildVertex(gl, quadFull);
+
         this.screenTexture = this.createDefaultTexture();
-        this.normalTexture = this.createDefaultTexture();
+        this.normalTexture = this.createByteTexture('normalTexture');
         this.irradianceTexture = this.createDefaultTexture();
         this.specTexture = this.createDefaultTexture();
         this.albedoTexture = this.createDefaultTexture();
-        this.depthTexture = this.createDepthTexture();
-        this.preDepthTexture = this.createDepthTexture();
+        this.depthTexture = this.createDepthTexture('depthTexture');
+        this.preDepthTexture = this.createDepthTexture('preDepthTexture');
         const colorAttachments = [
             {
                 view: this.screenTexture.texture.createView(),
@@ -339,12 +326,12 @@ export class PostProcessing {
                 loadOp: 'clear',
                 clearValue: { r: 0, g: 0, b: 0, a: 1.0 }
             },
-            {
-                view: this.normalTexture.texture.createView(),
-                storeOp: 'store' as GPUStoreOp,
-                loadOp: 'clear',
-                clearValue: { r: 0, g: 0, b: 0, a: 1.0 }
-            },
+            // {
+            //     view: this.normalTexture.texture.createView(),
+            //     storeOp: 'store' as GPUStoreOp,
+            //     loadOp: 'clear',
+            //     clearValue: { r: 0, g: 0, b: 0, a: 1.0 }
+            // },
             {
                 view: this.irradianceTexture.texture.createView(),
                 storeOp: 'store' as GPUStoreOp,
@@ -379,47 +366,26 @@ export class PostProcessing {
                 {
                     binding: 10,
                     visibility: GPUShaderStage.FRAGMENT,
-                    sampler: {
-                        type: 'filtering',
-                    }
-                },
-                {
-                    binding: 1,
-                    visibility: GPUShaderStage.FRAGMENT,
-                    texture: {
-                        sampleType: 'float'
-                    }
-                },
-                {
-                    binding: 2,
-                    visibility: GPUShaderStage.FRAGMENT,
-                    texture: {
-                        sampleType: 'float'
-                    }
-                },
-                {
-                    binding: 3,
-                    visibility: GPUShaderStage.FRAGMENT,
-                    texture: {
-                        sampleType: 'float'
-                    }
-                },
-                {
-                    binding: 4,
-                    visibility: GPUShaderStage.FRAGMENT,
-                    texture: {
-                        sampleType: 'float'
-                    }
+                    sampler: {}
                 },
                 {
                     binding: 0,
                     visibility: GPUShaderStage.FRAGMENT,
-                    texture: {
-                        sampleType: 'float'
-                    }
+                    texture: {}
+                },
+                {
+                    binding: 8,
+                    visibility: GPUShaderStage.FRAGMENT,
+                    texture: {}
+                },
+                {
+                    binding: 9,
+                    visibility: GPUShaderStage.FRAGMENT,
+                    texture: {}
                 }
             ],
-            true
+            true,
+            'screen'
         );
         // @ts-expect-error
         this.pipeline.pass = {
@@ -431,6 +397,31 @@ export class PostProcessing {
                 depthStoreOp: 'store'
             }
         };
+        const entriesExternal = this.postprocessors
+            // @ts-expect-error
+            .filter(p => p.attachUniformWebGPU)
+            // @ts-expect-error
+            .map(postProcessor => postProcessor.attachUniformWebGPU());
+
+        const entries = [
+            {
+                binding: 10,
+                resource: this.screenTexture.sampler
+            },
+            {
+                binding: 0,
+                resource: this.screenTexture.view
+            },
+            {
+                binding: 9,
+                resource: this.specTexture.view
+            },
+            ...entriesExternal
+        ];
+        this.bindGroup = gl.device.createBindGroup({
+            layout: this.pipeline.getBindGroupLayout(0),
+            entries
+        })
     }
 
     clear() {

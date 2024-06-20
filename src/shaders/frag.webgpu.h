@@ -2,6 +2,10 @@
 
 #extension GL_EXT_samplerless_texture_functions:require
 
+#ifdef DIFFUSE_TRANSMISSION
+    #define SCATTERING 1
+#endif
+
 #define texture2D(p, uv) texture(sampler2D(p, baseSampler), uv)
 #define textureCube(p, uv) texture(samplerCube(p, unfilteredSampler), uv)
 #define textureLodCube(p, uv, i) textureLod(samplerCube(p, unfilteredSampler), uv, i)
@@ -21,10 +25,10 @@ layout(location = 3) in vec4 vColor;
 layout(location = 7) in vec4 outPositionView;
 
 layout(location = 0) out vec4 color;
-layout (location = 1) out vec3 normalColor;
-layout (location = 2) out vec4 irradianceColor;
-layout (location = 3) out vec4 albedoColor;
-layout (location = 4) out vec4 specColor;
+// layout (location = 1) out vec4 normalColor;
+layout (location = 1) out vec4 irradianceColor;
+layout (location = 2) out vec4 albedoColor;
+layout (location = 3) out vec4 specColor;
 
 layout(set = 0, binding = 0) uniform Matrices {
     mat4 model;
@@ -128,7 +132,9 @@ layout(set = 0, binding = 14) uniform texture2D specularTexture;
 layout(set = 0, binding = 19) uniform textureCube prefilterMap;
 layout(set = 0, binding = 20) uniform textureCube irradianceMap;
 layout(set = 0, binding = 21) uniform texture2D brdfLUT;
+#ifdef SHADOWMAP
 layout(set = 0, binding = 25) uniform texture2D depthTexture;
+#endif
 layout(set = 0, binding = 26) uniform texture2D colorTexture;
 layout(set = 0, binding = 28) uniform texture2D Sheen_E;
 layout(set = 0, binding = 29) uniform texture2D thicknessTexture;

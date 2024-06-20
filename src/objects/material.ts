@@ -214,7 +214,6 @@ export class Material extends M {
             }
             defines.push({ name: 'IRIDESCENCE' });
         }
-
         if (material.extensions && material.extensions.KHR_materials_diffuse_transmission) {
             const { diffuseTransmissionFactor, diffuseTransmissionTexture, diffuseTransmissionColorFactor, diffuseTransmissionColorTexture } = material.extensions.KHR_materials_diffuse_transmission;
             this.diffuseTransmissionFactor = diffuseTransmissionFactor;

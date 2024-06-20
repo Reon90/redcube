@@ -1,5 +1,5 @@
 import { calculateProjection } from './utils';
-import { Matrix4, Vector3 } from './matrix';
+import { Matrix4, Vector3, Vector4 } from './matrix';
 import { Camera } from './objects/index';
 import parseHDR from 'parse-hdr';
 
@@ -13,6 +13,7 @@ import { cubeVertex, quadFull } from './vertex';
 import { UniformBuffer } from './objects/uniform';
 //@ts-ignore
 import Sheen_E from '../src/images/Sheen_E.hdr';
+import { SphericalHarmonics, SphericalPolynomial } from './SH';
 
 interface Texture extends WebGLTexture {
     index: number;
@@ -22,12 +23,56 @@ interface FrameBuffer extends WebGLFramebuffer {
 }
 
 interface IBLData {
-    specularImages: Array<Array<HTMLImageElement>>;
+    specularImages: Array<Array<{bitmap: ImageBitmap}>>;
+    specularImageSize: number;
 }
 
 const FULL_SIZE = 512;
-const RADIANCE_SIZE = 128;
+let RADIANCE_SIZE = 128;
 const IRRADIANCE_SIZE = 32;
+
+function loadHDR(device, { data, shape, usage = GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST }) {
+    const img = new Float32Array(data.length);
+    let k;
+    let r;
+    let g;
+    let b;
+    let a;
+    let m;
+    for (let j = 0; j <= shape[1]; j++) {
+        for (let i = 0; i <= shape[0]; i++) {
+            k = j * shape[0] + i;
+            r = data[4 * k];
+            g = data[4 * k + 1];
+            b = data[4 * k + 2];
+            a = data[4 * k + 3];
+
+            m = (shape[1] - j + 1) * shape[0] + i;
+            img[4 * m] = r;
+            img[4 * m + 1] = g;
+            img[4 * m + 2] = b;
+            img[4 * m + 3] = a;
+        }
+    }
+
+    const tex = device.createTexture({
+        size: [shape[0], shape[1], 1],
+        format: 'rgba32float', // TODO 16 filtered vs 32 non-filtered
+        usage
+    });
+    const bytesPerRow = shape[0] * 4 * 4;
+    device.queue.writeTexture(
+        { texture: tex },
+        img,
+        {
+            // offset: 0,
+            bytesPerRow
+            // rowsPerImage: shape[1]
+        },
+        [shape[0], shape[1], 1]
+    );
+    return tex;
+}
 
 export class Env {
     camera: Camera;
@@ -63,6 +108,7 @@ export class Env {
     Sheen_E: GPUTexture;
 
     prefilterTexture: GPUTexture;
+    charlieTexture: GPUTexture;
     irradianceTexture: GPUTexture;
     tempTexture: GPUTexture;
     bdrfTexture: GPUTexture;
@@ -202,7 +248,9 @@ export class Env {
                     }
                 }
             ],
-            true
+            [{
+                format: 'bgra8unorm'
+            }]
         );
         shadowPass.setPipeline(p);
         shadowPass.setVertexBuffer(0, this.buildVertex(WebGPU, quadFull));
@@ -356,7 +404,7 @@ export class Env {
                     }
                 }
             ],
-            true
+            [{ format: 'bgra8unorm' }]
         );
         shadowPass.setPipeline(p);
         shadowPass.setVertexBuffer(0, this.buildVertex(WebGPU, cubeVertex));
@@ -371,6 +419,48 @@ export class Env {
 
         shadowPass.end();
         device.queue.submit([commandEncoder.finish()]);
+    }
+
+    async createEnvironmentBuffer(envData, WebGPU: WEBGPU) {
+        this.envData = envData;
+
+        if (envData) {
+            const matrix = new Matrix4();
+            matrix.makeRotationFromQuaternion(new Vector4(envData.rotation).elements);
+            const sphericalHarmonics = SphericalHarmonics.FromArray(envData.irradianceCoefficients);
+            sphericalHarmonics.scaleInPlace(envData.intensity);
+            sphericalHarmonics.convertIrradianceToLambertianRadiance();
+            const sphericalPolynomial = SphericalPolynomial.FromHarmonics(sphericalHarmonics);
+            const { preScaledHarmonics } = sphericalPolynomial;
+            const uniformBuffer = new UniformBuffer();
+            uniformBuffer.add('vSphericalL00', preScaledHarmonics.l00.elements);
+            uniformBuffer.add('vSphericalL1_1', preScaledHarmonics.l1_1.elements);
+            uniformBuffer.add('vSphericalL10', preScaledHarmonics.l10.elements);
+            uniformBuffer.add('vSphericalL11', preScaledHarmonics.l11.elements);
+            uniformBuffer.add('vSphericalL2_2', preScaledHarmonics.l2_2.elements);
+            uniformBuffer.add('vSphericalL2_1', preScaledHarmonics.l2_1.elements);
+            uniformBuffer.add('vSphericalL20', preScaledHarmonics.l20.elements);
+            uniformBuffer.add('vSphericalL21', preScaledHarmonics.l21.elements);
+            uniformBuffer.add('vSphericalL22', preScaledHarmonics.l22.elements);
+            uniformBuffer.add('rotationMatrix', matrix.elements);
+            uniformBuffer.done();
+            this.uniformBuffer = uniformBuffer;
+
+            const buffer = WebGPU.device.createBuffer({
+                size: 256 + uniformBuffer.store.byteLength,
+                usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
+            });
+            uniformBuffer.bufferWebGPU = buffer;
+            WebGPU.device.queue.writeBuffer(
+                buffer,
+                0,
+                uniformBuffer.store.buffer,
+                uniformBuffer.store.byteOffset,
+                uniformBuffer.store.byteLength
+            );
+
+            RADIANCE_SIZE = envData.specularImageSize;
+        }
     }
 
     async createTexture(WebGPU: WEBGPU) {
@@ -399,61 +489,17 @@ export class Env {
         await fetch(this.url)
             .then(res => res.arrayBuffer())
             .then(buffer => {
-                const { data, shape } = parseHDR(buffer);
-
-                // const uniformBuffer = device.createBuffer({
-                //     size: data.byteLength,
-                //     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-                // });
-                // device.queue.writeBuffer(
-                //     uniformBuffer,
-                //     0,
-                //     data.buffer,
-                //     data.byteOffset,
-                //     data.byteLength
-                // );
-
-                const img = new Float32Array(data.length);
-                let k;
-                let r;
-                let g;
-                let b;
-                let a;
-                let m;
-                for (let j = 0; j <= shape[1]; j++) {
-                    for (let i = 0; i <= shape[0]; i++) {
-                        k = j * shape[0] + i;
-                        r = data[4 * k];
-                        g = data[4 * k + 1];
-                        b = data[4 * k + 2];
-                        a = data[4 * k + 3];
-
-                        m = (shape[1] - j + 1) * shape[0] + i;
-                        img[4 * m] = r;
-                        img[4 * m + 1] = g;
-                        img[4 * m + 2] = b;
-                        img[4 * m + 3] = a;
-                    }
-                }
-
-                const tex = device.createTexture({
-                    size: [shape[0], shape[1], 1],
-                    format: 'rgba32float', // TODO 16 filtered vs 32 non-filtered
-                    usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST
-                });
-                const bytesPerRow = shape[0] * 4 * 4;
-                device.queue.writeTexture(
-                    { texture: tex },
-                    img,
-                    {
-                        // offset: 0,
-                        bytesPerRow
-                        // rowsPerImage: shape[1]
-                    },
-                    [shape[0], shape[1], 1]
-                );
+                const tex = loadHDR(device, parseHDR(buffer));
 
                 this.originalCubeTexture = tex;
+                return tex;
+            });
+        await fetch(Sheen_E)
+            .then(res => res.arrayBuffer())
+            .then(buffer => {
+                const tex = loadHDR(device, parseHDR(buffer));
+
+                this.Sheen_E = tex;
                 return tex;
             });
     }
@@ -494,14 +540,13 @@ export class Env {
         };
     }
 
-    buildPipeline(WebGPU: WEBGPU, vertex, fragment, vertexId, entries, screen = false) {
+    buildPipeline(WebGPU: WEBGPU, vertex, fragment, vertexId, entries, targets) {
         const { device, glslang, wgsl } = WebGPU;
 
         function convertGLSLtoWGSL(code: string, type: string) {
             const spirv = glslang.compileGLSL(code, type);
             return wgsl
-                .convertSpirV2WGSL(spirv)
-                .replaceAll('type ', 'alias ');
+                .convertSpirV2WGSL(spirv);
         }
 
         const bindGroupLayout = device.createBindGroupLayout({
@@ -537,11 +582,7 @@ export class Env {
                     code: convertGLSLtoWGSL(fragment, 'fragment')
                 }),
                 entryPoint: 'main',
-                targets: [
-                    {
-                        format: screen ? 'bgra8unorm' : 'rgba32float'
-                    }
-                ]
+                targets
             },
 
             primitive: {
@@ -582,7 +623,9 @@ export class Env {
         const commandEncoder = device.createCommandEncoder();
         const pass = this.buildPass(WebGPU, FULL_SIZE);
         const shadowPass = commandEncoder.beginRenderPass(pass);
-        const p = this.buildPipeline(WebGPU, quad, bdrf, 2, []);
+        const p = this.buildPipeline(WebGPU, quad, bdrf, 2, [], [{
+            format: 'rgba32float'
+        }]);
         shadowPass.setPipeline(p);
         shadowPass.setVertexBuffer(0, this.buildVertex(WebGPU, quadFull));
         shadowPass.setBindGroup(
@@ -681,7 +724,9 @@ export class Env {
         const commandEncoder = device.createCommandEncoder();
         const pass = this.buildPass(WebGPU, FULL_SIZE);
         const shadowPass = commandEncoder.beginRenderPass(pass);
-        const p = this.pipeline || this.buildPipeline(WebGPU, vertex, cube, 3, entriesL);
+        const p = this.pipeline || this.buildPipeline(WebGPU, vertex, cube, 3, entriesL, [{
+            format: 'rgba32float'
+        }]);
         this.pipeline = p;
         shadowPass.setPipeline(p);
         shadowPass.setVertexBuffer(0, this.buildVertex(WebGPU, cubeVertex));
@@ -788,7 +833,9 @@ export class Env {
         const commandEncoder = device.createCommandEncoder();
         const pass = this.buildPass(WebGPU, IRRADIANCE_SIZE);
         const shadowPass = commandEncoder.beginRenderPass(pass);
-        const p = this.pipeline2 || this.buildPipeline(WebGPU, vertex, irradiance, 3, entriesL);
+        const p = this.pipeline2 || this.buildPipeline(WebGPU, vertex, irradiance, 3, entriesL, [{
+            format: 'rgba32float'
+        }]);
         this.pipeline2 = p;
         shadowPass.setPipeline(p);
         shadowPass.setVertexBuffer(0, this.buildVertex(WebGPU, cubeVertex));
@@ -895,8 +942,21 @@ export class Env {
 
         const commandEncoder = device.createCommandEncoder();
         const pass = this.buildPass(WebGPU, RADIANCE_SIZE);
+        const colorTexture = device.createTexture({
+            size: [RADIANCE_SIZE, RADIANCE_SIZE, 1],
+            usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_SRC,
+            format: 'rgba32float'
+        });
+        pass.colorAttachments.push({
+            view: colorTexture.createView(),
+            storeOp: 'store' as GPUStoreOp,
+            loadOp: 'clear' as GPULoadOp,
+            clearValue: { r: 0, g: 0, b: 0, a: 1.0 }
+        });
         const shadowPass = commandEncoder.beginRenderPass(pass);
-        const p = this.pipeline3 || this.buildPipeline(WebGPU, vertex, cubeMipmap, 3, entriesL);
+        const p = this.pipeline3 || this.buildPipeline(WebGPU, vertex, cubeMipmap, 3, entriesL, [{
+            format: 'rgba32float'
+        }, { format: 'rgba32float' }]);
         this.pipeline3 = p;
         shadowPass.setPipeline(p);
         shadowPass.setVertexBuffer(0, this.buildVertex(WebGPU, cubeVertex));
@@ -912,11 +972,33 @@ export class Env {
 
         shadowPass.end();
 
-        commandEncoder.copyTextureToTexture(
-            { texture: this.tempTexture },
-            { texture: this.prefilterTexture, mipLevel: mip, origin: { z: layer } },
-            [mipWidth, mipHeight, 1]
-        );
+        if (this.envData) {
+            let i = layer;
+            if (layer === 2) {
+                i = 3;
+            }
+            if (layer === 3) {
+                i = 2;
+            }
+            const data = this.envData.specularImages[mip][i];
+
+            device.queue.copyExternalImageToTexture(
+                { source: data.bitmap },
+                { texture: this.prefilterTexture, mipLevel: mip, origin: { z: layer } },
+                { width: mipWidth, height: mipHeight, depthOrArrayLayers: 1 }
+            );
+        } else {
+            commandEncoder.copyTextureToTexture(
+                { texture: this.tempTexture },
+                { texture: this.prefilterTexture, mipLevel: mip, origin: { z: layer } },
+                [mipWidth, mipHeight, 1]
+            );
+            commandEncoder.copyTextureToTexture(
+                { texture: colorTexture },
+                { texture: this.charlieTexture, mipLevel: mip, origin: { z: layer } },
+                [mipWidth, mipHeight, 1]
+            );
+        }
 
         device.queue.submit([commandEncoder.finish()]);
     }
@@ -959,6 +1041,13 @@ export class Env {
         const { device } = WebGPU;
         this.prefilterTexture = device.createTexture({
             label: 'prefilterTexture',
+            mipLevelCount: 5,
+            size: [RADIANCE_SIZE, RADIANCE_SIZE, 6],
+            usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
+            format: 'rgba32float'
+        });
+        this.charlieTexture = device.createTexture({
+            label: 'charlieTexture',
             mipLevelCount: 5,
             size: [RADIANCE_SIZE, RADIANCE_SIZE, 6],
             usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,

@@ -22,7 +22,7 @@ vec2 getUV(int index) {
         return outUV0;
     }
 }
-
+#ifdef SHADOWMAP
 float ShadowCalculation(vec4 fragPosLightSpace, float bias) {
     vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
     projCoords = projCoords * 0.5 + 0.5;
@@ -40,6 +40,7 @@ float ShadowCalculation(vec4 fragPosLightSpace, float bias) {
 
     return shadow;
 }
+#endif
 
 vec3 srgbToLinear(vec4 srgbIn) {
     #ifdef BASISU
@@ -756,7 +757,7 @@ void main() {
             vec3 radiance = lightColor[i] * lightIntensity[i].x;
             float distance = dot(lightPos[i] - outPosition, lightPos[i] - outPosition);
             float attenuation = 1.0 / (distance * distance);
-            //radiance = radiance * attenuation;
+            // radiance = radiance * attenuation;
             if (lightIntensity[i].w == 1.0) { // point
                 radiance = radiance * attenuation;
             }
@@ -904,7 +905,7 @@ void main() {
     color.rgb += aSpecular;
     #endif
 
-    normalColor = n;
+    // normalColor = vec4(n, 0.0);
 
     #ifdef SCATTERING
     specColor = vec4(Lo + aSpecular, 1.0);

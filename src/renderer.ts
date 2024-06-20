@@ -2,7 +2,7 @@ import { Scene, Mesh, Camera, Bone } from './objects/index';
 import { Vector, Vector3, Vector4, Frustum } from './matrix';
 import { getAnimationComponent, interpolation, walk } from './utils';
 import { Parse } from './parse';
-import { PostProcessing } from './postprocessing';
+import { PostProcessing } from './postprocessing.webgpu';
 import { Particles } from './particles';
 import { FPS } from './fps';
 import { Light as PPLight } from './postprocessors/light';

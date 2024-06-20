@@ -748,7 +748,7 @@ export class Parse {
         return t;
     }
 
-    async getEnv() {
+    async getEnv(isBuffer) {
         if (this.json.extensions && this.json.extensions.EXT_lights_image_based) {
             const [env] = this.json.extensions.EXT_lights_image_based.lights;
             env.specularImages = env.specularImages.map(cube => {
@@ -766,6 +766,13 @@ export class Parse {
                 });
             });
             await new Promise(r => setTimeout(r, 200));
+            if (isBuffer) {
+                for (const images of env.specularImages) {
+                    for (const image of images) {
+                        image.bitmap = await createImageBitmap(image);
+                    }
+                }
+            }
             return env;
         }
     }

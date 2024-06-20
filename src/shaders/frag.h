@@ -23,7 +23,7 @@ in vec4 outPositionView;
 #endif
 
 layout (location = 0) out vec4 color;
-layout (location = 1) out vec3 normalColor;
+layout (location = 1) out vec4 normalColor;
 layout (location = 2) out vec4 irradianceColor;
 layout (location = 3) out vec4 albedoColor;
 layout (location = 4) out vec4 specColor;
