@@ -1,8 +1,10 @@
-const path = require('path');
-const CopyPlugin = require('copy-webpack-plugin');
-const libraryName = 'redcube.webgpu';
+import path from 'path';
+import CopyPlugin from 'copy-webpack-plugin';
+const libraryName = 'redcube';
 
-module.exports = {
+const __dirname = import.meta.dirname;
+
+export default {
     mode: 'development',
     //entry: path.join(__dirname, `/src/${libraryName}.webgpu.ts`),
     entry: path.join(__dirname, `/src/${libraryName}.ts`),
