@@ -23,10 +23,6 @@ const processorsMap = {
     scattering: Scattering,
 };
 
-interface Texture extends WebGLTexture {
-    index: number;
-}
-
 export class PostProcessing {
     screenTexture: { texture: GPUTexture; sampler: GPUSampler; view: GPUTextureView; };
     normalTexture: { texture: GPUTexture; sampler: GPUSampler; view: GPUTextureView; };
@@ -214,7 +210,7 @@ export class PostProcessing {
         return { texture, sampler, view: texture.createView() };
     }
 
-    createNoiceTexture(size, data) {
+    createNoiceTexture(size) {
         const sampler = gl.device.createSampler({
             magFilter: 'nearest',
             minFilter: 'nearest',

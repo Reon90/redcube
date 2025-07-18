@@ -6,7 +6,7 @@ import {
     calculateProjection,
     createProgram,
     calculateOffset,
-    normalize
+    normalize,
 } from './utils';
 import { Mesh, SkinnedMesh, Bone, Camera, Object3D, Scene, Light, Material } from './objects/index';
 import { Matrix4, Box, Vector3 } from './matrix';
@@ -166,7 +166,7 @@ export class Parse {
 
     getBuffer() {
         return Promise.all(
-            this.scene.bin.map(url => {
+            this.scene.bin.map((url) => {
                 if (typeof url === 'string') {
                     if (/base64/.test(url)) {
                         const base64Index = url.indexOf(BASE64_MARKER) + BASE64_MARKER.length;
@@ -184,29 +184,31 @@ export class Parse {
                 } else {
                     return Promise.resolve(url);
                 }
-            })
-        ).then(buffers => {
+            }),
+        ).then((buffers) => {
             this.arrayBuffer = buffers;
         });
     }
 
     createProgram(defines) {
         let program;
-        const programHash = defines.map(define => `${define.name}${define.value ?? 1}`).join('');
+        const programHash = defines.map((define) => `${define.name}${define.value ?? 1}`).join('');
         if (this.programs[programHash]) {
             program = this.programs[programHash];
         } else {
-            const defineStr = defines.map(define => `#define ${define.name} ${define.value ?? 1}` + '\n').join('');
+            const defineStr = defines.map((define) => `#define ${define.name} ${define.value ?? 1}` + '\n').join('');
             const shaders = [vertexShader, fragmentShader]
-            .map(p => p.replace(/#include ".*/g, str => {
-                const subPath = str.split('"')[1];
-                if (subPath.includes('vert')) {
-                    return vertGLSL;
-                } else {
-                    return fragGLSL;
-                }
-            }))
-            .map(p => p.replace(/\n/, `\n${defineStr}`));
+                .map((p) =>
+                    p.replace(/#include ".*/g, (str) => {
+                        const [, subPath] = str.split('"');
+                        if (subPath.includes('vert')) {
+                            return vertGLSL;
+                        } else {
+                            return fragGLSL;
+                        }
+                    }),
+                )
+                .map((p) => p.replace(/\n/, `\n${defineStr}`));
             this.programs[programHash] = createProgram(shaders[0], shaders[1]);
             program = this.programs[programHash];
         }
@@ -219,7 +221,7 @@ export class Parse {
         if (this.json.extensions && this.json.extensions.EXT_lights_image_based) {
             this.defines.push({
                 name: 'SPHERICAL_HARMONICS',
-                value: Math.ceil(Math.log(this.json.extensions.EXT_lights_image_based.lights[0].specularImageSize) * Math.LOG2E) + 10
+                value: Math.ceil(Math.log(this.json.extensions.EXT_lights_image_based.lights[0].specularImageSize) * Math.LOG2E) + 10,
             });
         }
         if (this.json.extensionsUsed && this.json.extensionsUsed.includes('KHR_texture_basisu')) {
@@ -230,7 +232,7 @@ export class Parse {
         if (skin !== undefined) {
             defines.push({
                 name: 'JOINTNUMBER',
-                value: this.skins[skin].jointNames.length
+                value: this.skins[skin].jointNames.length,
             });
         }
         if (primitive.indices !== undefined || primitive.attributes['TANGENT'] !== undefined) {
@@ -253,7 +255,7 @@ export class Parse {
         }
 
         if (primitive.extensions && primitive.extensions.KHR_materials_variants) {
-            const variants = primitive.extensions.KHR_materials_variants.mappings.map(m => {
+            const variants = primitive.extensions.KHR_materials_variants.mappings.map((m) => {
                 return { ...m, m: new Material(this.json.materials[m.material], this.textures, [...defines], this.lights) };
             });
             mesh.setVariants(variants);
@@ -279,9 +281,9 @@ export class Parse {
             const camera = Object.assign(
                 {
                     zoom: 1,
-                    aspect: this.canvas ? this.canvas.offsetWidth / this.canvas.offsetHeight : 1
+                    aspect: this.canvas ? this.canvas.offsetWidth / this.canvas.offsetHeight : 1,
                 },
-                this.json.cameras[el.camera]
+                this.json.cameras[el.camera],
             );
             // @ts-ignore
             if (Parse.__update) {
@@ -332,8 +334,8 @@ export class Parse {
         if (el.mesh !== undefined) {
             parent.children.push(
                 ...this.json.meshes[el.mesh].primitives.map(
-                    this.buildPrim.bind(this, parent, this.json.meshes[el.mesh].name, el.skin, this.json.meshes[el.mesh].weights)
-                )
+                    this.buildPrim.bind(this, parent, this.json.meshes[el.mesh].name, el.skin, this.json.meshes[el.mesh].weights),
+                ),
             );
         }
 
@@ -344,7 +346,7 @@ export class Parse {
 
     calculateFov(isInitial) {
         const box = new Box();
-        walk(this.scene, node => {
+        walk(this.scene, (node) => {
             if (node instanceof Mesh) {
                 box.expand(node.geometry.boundingSphere);
             }
@@ -352,22 +354,19 @@ export class Parse {
         const size = box.getSize();
 
         if (isInitial) {
-            const center = new Vector3()
-                .add(box.min)
-                .add(box.max)
-                .scale(0.5);
+            const center = new Vector3().add(box.min).add(box.max).scale(0.5);
             const matrix = new Matrix4();
             matrix.translate(center.x, center.y, center.z);
             matrix.invert();
             this.scene.matrixWorld.multiply(matrix);
-            walk(this.scene, node => {
+            walk(this.scene, (node) => {
                 if (node instanceof Object3D) {
                     node.updateMatrix();
                 }
             });
         }
 
-        this.cameras.forEach(c => {
+        this.cameras.forEach((c) => {
             c.modelSize = size;
         });
 
@@ -381,7 +380,7 @@ export class Parse {
         if (this.json.extensions && this.json.extensions.KHR_materials_variants) {
             this.scene.variants = this.json.extensions.KHR_materials_variants.variants;
         }
-        this.json.scenes[this.json.scene !== undefined ? this.json.scene : 0].nodes.forEach(n => {
+        this.json.scenes[this.json.scene !== undefined ? this.json.scene : 0].nodes.forEach((n) => {
             if (this.json.nodes[n].extensions) {
                 this.buildNode(this.scene, n);
             }
@@ -391,7 +390,7 @@ export class Parse {
             this.lights.push(this.light);
         }
 
-        this.json.scenes[this.json.scene !== undefined ? this.json.scene : 0].nodes.forEach(n => {
+        this.json.scenes[this.json.scene !== undefined ? this.json.scene : 0].nodes.forEach((n) => {
             if (this.json.nodes[n].children && this.json.nodes[n].children.length && !this.json.nodes[n].extensions) {
                 this.buildNode(this.scene, n);
             }
@@ -403,7 +402,7 @@ export class Parse {
             }
         });
 
-        walk(this.scene, mesh => {
+        walk(this.scene, (mesh) => {
             if (mesh instanceof Mesh) {
                 if (mesh.material.alpha) {
                     this.scene.transparentChildren.push(mesh);
@@ -443,17 +442,17 @@ export class Parse {
                         this.arrayBuffer[inputBuffer.buffer],
                         inputAccessor.componentType,
                         calculateOffset(inputBuffer.byteOffset, inputAccessor.byteOffset),
-                        getDataType(inputAccessor.type) * inputAccessor.count
+                        getDataType(inputAccessor.type) * inputAccessor.count,
                     );
                     const outputArray = buildArray(
                         this.arrayBuffer[outputBuffer.buffer],
                         outputAccessor.componentType,
                         calculateOffset(outputBuffer.byteOffset, outputAccessor.byteOffset),
-                        getDataType(outputAccessor.type) * outputAccessor.count
+                        getDataType(outputAccessor.type) * outputAccessor.count,
                     );
 
                     const meshes = [];
-                    walk(this.scene, node => {
+                    walk(this.scene, (node) => {
                         if (node.name === name) {
                             if (target.path === 'weights' && node instanceof Object3D) {
                                 meshes.push(...node.children);
@@ -474,7 +473,7 @@ export class Parse {
 
                         keys.push({
                             time: firstT,
-                            value: normalize(firstV)
+                            value: normalize(firstV),
                         });
                     }
                     if (keys.length >= 2) {
@@ -486,7 +485,7 @@ export class Parse {
                                 type: target.path,
                                 name: `${meshes[0].name}.${target.path}`,
                                 keys: keys,
-                                interpolation: sampler.interpolation
+                                interpolation: sampler.interpolation,
                             });
                         }
                     }
@@ -507,14 +506,14 @@ export class Parse {
                 this.arrayBuffer[buffer.buffer],
                 acc.componentType,
                 calculateOffset(buffer.byteOffset, acc.byteOffset),
-                getDataType(acc.type) * acc.count
+                getDataType(acc.type) * acc.count,
             );
 
             const v = {
                 jointNames: skin.joints,
                 inverseBindMatrices: array,
                 bones: [],
-                boneInverses: []
+                boneInverses: [],
             };
 
             let i = 0;
@@ -558,7 +557,7 @@ export class Parse {
 
     createSamplers() {
         const samplers = this.json.samplers || [{}];
-        this.samplers = samplers.map(s => {
+        this.samplers = samplers.map((s) => {
             const sampler = gl.createSampler();
             gl.samplerParameteri(sampler, gl.TEXTURE_MIN_FILTER, s.minFilter || gl.NEAREST_MIPMAP_LINEAR);
             gl.samplerParameteri(sampler, gl.TEXTURE_MAG_FILTER, s.magFilter || gl.LINEAR);
@@ -575,18 +574,18 @@ export class Parse {
                 9728: 'nearest',
                 10497: 'repeat',
                 33648: 'mirror-repeat',
-                33071: 'clamp-to-edge'
+                33071: 'clamp-to-edge',
             };
             return map[value];
         }
         const samplers = this.json.samplers || [{}];
-        this.samplers = samplers.map(s => {
+        this.samplers = samplers.map((s) => {
             const sampler = WebGPU.device.createSampler({
                 magFilter: getSamplerParam(s.minFilter) || 'linear',
                 minFilter: getSamplerParam(s.magFilter) || 'linear',
                 addressModeU: getSamplerParam(s.wrapS) || 'repeat',
                 addressModeV: getSamplerParam(s.wrapT) || 'repeat',
-                addressModeW: getSamplerParam(s.wrapS) || 'repeat'
+                addressModeW: getSamplerParam(s.wrapS) || 'repeat',
             });
             return sampler;
         });
@@ -601,8 +600,8 @@ export class Parse {
     }
 
     createTextures(callback) {
-        this.scene.meshes.forEach(mesh => {
-            const materials = [mesh.material, ...mesh.variants.map(m => m.m)];
+        this.scene.meshes.forEach((mesh) => {
+            const materials = [mesh.material, ...mesh.variants.map((m) => m.m)];
             const textureTypes = [
                 'baseColorTexture',
                 'metallicRoughnessTexture',
@@ -621,14 +620,14 @@ export class Parse {
                 'iridescenceThicknessTexture',
                 'diffuseTransmissionTexture',
                 'diffuseTransmissionColorTexture',
-                'anisotropyTexture'
+                'anisotropyTexture',
             ];
             const textureSRGB = [
                 'baseColorTexture',
                 'sheenColorTexture',
                 'emissiveTexture',
                 //@ts-ignore
-                mesh.defines.find(d => d.name === 'SPECULARGLOSSINESSMAP') && 'metallicRoughnessTexture'
+                mesh.defines.find((d) => d.name === 'SPECULARGLOSSINESSMAP') && 'metallicRoughnessTexture',
             ];
 
             for (let i = 0; i < textureTypes.length; i++) {
@@ -638,7 +637,7 @@ export class Parse {
                     if (!t) {
                         continue;
                     }
-                    if (textureSRGB.find(name => name === textureType)) {
+                    if (textureSRGB.find((name) => name === textureType)) {
                         t.srgb = true;
                     }
                     material[textureType] = callback(t, textureType);
@@ -653,7 +652,7 @@ export class Parse {
         }
         const texturesMap: texturesMap = {};
         let hasBasisu = false;
-        this.json.textures.forEach(t => {
+        this.json.textures.forEach((t) => {
             if (t.extensions && t.extensions.KHR_texture_basisu) {
                 hasBasisu = true;
             }
@@ -666,7 +665,7 @@ export class Parse {
         if (hasBasisu) {
             const m = await import(/*webpackChunkName: "libktx"*/ '../libktx');
             // @ts-ignore
-            m.default({ preinitializedWebGLContext: gl }).then(module => {
+            m.default({ preinitializedWebGLContext: gl }).then((module) => {
                 const transcoderConfig = {
                     astcSupported: gl.getExtension('WEBGL_compressed_texture_astc'),
                     etc1Supported: gl.getExtension('WEBGL_compressed_texture_etc1'),
@@ -674,15 +673,15 @@ export class Parse {
                     dxtSupported: gl.getExtension('WEBGL_compressed_texture_s3tc'),
                     bptcSupported: gl.getExtension('EXT_texture_compression_bptc'),
                     pvrtcSupported:
-                        gl.getExtension('WEBGL_compressed_texture_pvrtc') || gl.getExtension('WEBKIT_WEBGL_compressed_texture_pvrtc')
+                        gl.getExtension('WEBGL_compressed_texture_pvrtc') || gl.getExtension('WEBKIT_WEBGL_compressed_texture_pvrtc'),
                 };
                 window.LIBKTX = module;
                 window.LIBKTX.transcoderConfig = transcoderConfig;
                 window.LIBKTX.GL.makeContextCurrent(window.LIBKTX.GL.registerContext(gl, { majorVersion: 2.0 }));
             });
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            await new Promise((resolve) => setTimeout(resolve, 1000));
         }
-        const promiseArr = Object.values(texturesMap).map(t => {
+        const promiseArr = Object.values(texturesMap).map((t) => {
             const s = t.extensions && t.extensions.KHR_texture_basisu ? t.extensions.KHR_texture_basisu.source : t.source;
             const source = this.json.images[s];
             // @ts-ignore
@@ -693,15 +692,15 @@ export class Parse {
                 source,
                 {
                     url: `${this.host}${source.uri}`,
-                    name: t.name
+                    name: t.name,
                 },
-                t.sampler
+                t.sampler,
             );
         });
 
         return Promise.all(promiseArr).then((textures: Texture[]) => {
-            this.textures = this.json.textures.map(t => {
-                return textures.find(j => j.name === t.name);
+            this.textures = this.json.textures.map((t) => {
+                return textures.find((j) => j.name === t.name);
             });
             return true;
         });
@@ -715,12 +714,12 @@ export class Parse {
             label: textureType,
             size: [bitmap.width, bitmap.height, 1],
             format: 'rgba8unorm',
-            usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT
+            usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT,
         });
         device.queue.copyExternalImageToTexture(
             { source: bitmap },
             { texture: tex, mipLevel: 0, origin: { x: 0, y: 0, z: 0 } },
-            { width: bitmap.width, height: bitmap.height, depthOrArrayLayers: 1 }
+            { width: bitmap.width, height: bitmap.height, depthOrArrayLayers: 1 },
         );
         //@ts-ignore
         tex.sampler = s;
@@ -751,8 +750,8 @@ export class Parse {
     async getEnv(isBuffer) {
         if (this.json.extensions && this.json.extensions.EXT_lights_image_based) {
             const [env] = this.json.extensions.EXT_lights_image_based.lights;
-            env.specularImages = env.specularImages.map(cube => {
-                return cube.map(img => {
+            env.specularImages = env.specularImages.map((cube) => {
+                return cube.map((img) => {
                     const accessor = this.json.images[img];
                     const bufferView = this.json.bufferViews[accessor.bufferView];
                     const { buffer, byteLength, byteOffset } = bufferView;
@@ -765,7 +764,7 @@ export class Parse {
                     return imageEl;
                 });
             });
-            await new Promise(r => setTimeout(r, 200));
+            await new Promise((r) => setTimeout(r, 200));
             if (isBuffer) {
                 for (const images of env.specularImages) {
                     for (const image of images) {
