@@ -200,9 +200,9 @@ export class Material extends M {
         }
 
         if (material.extensions && material.extensions.KHR_materials_iridescence) {
-            const { iridescenceTexture, iridescenceThicknessTexture, iridescenceFactor, iridescenceIOR, iridescenceThicknessMaximum, iridescenceThicknessMinimum } = material.extensions.KHR_materials_iridescence;
+            const { iridescenceTexture, iridescenceThicknessTexture, iridescenceFactor, iridescenceIor, iridescenceThicknessMaximum, iridescenceThicknessMinimum } = material.extensions.KHR_materials_iridescence;
             this.iridescenceFactor = iridescenceFactor;
-            this.iridescenceIOR = iridescenceIOR;
+            this.iridescenceIOR = iridescenceIor;
             this.iridescenceThicknessMaximum = iridescenceThicknessMaximum;
             this.iridescenceThicknessMinimum = iridescenceThicknessMinimum;
             if (iridescenceTexture) {

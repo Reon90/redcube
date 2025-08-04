@@ -89,7 +89,7 @@ export class PostProcessing {
             this.postprocessors.forEach(postProcessor => {
                 postProcessor.setGL(gl);
             });
-            this.fakeDepth = this.createNoiceTexture(1, new Float32Array([1, 1, 0]));
+            this.fakeDepth = this.createNoiceTexture(1);
         }
     }
 
