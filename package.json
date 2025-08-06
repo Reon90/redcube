@@ -1,6 +1,6 @@
 {
   "name": "redcube.js",
-  "version": "4.0.0",
+  "version": "5.0.0",
   "description": "JS renderer based on GLTF to WebGPU or WebGL backends.",
   "main": "dist/redcube",
   "type": "module",

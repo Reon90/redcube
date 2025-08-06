@@ -216,7 +216,7 @@ export class Parse {
         return program;
     }
 
-    buildPrim(parent, name, skin, weights, primitive) {
+    buildPrim(el, parent, name, skin, weights, primitive) {
         const m = this.json.materials && this.json.materials[primitive.material];
         if (this.json.extensions && this.json.extensions.EXT_lights_image_based) {
             this.defines.push({
@@ -263,6 +263,9 @@ export class Parse {
         mesh.setMode(primitive.mode);
         mesh.setMaterial(material);
         mesh.setGeometry(geometry);
+        if (el.scale) {
+            material.thicknessFactor *= el.scale[0];
+        }
         mesh.setDefines(material.defines);
         if (mesh instanceof SkinnedMesh) {
             mesh.skin = skin;
@@ -285,15 +288,8 @@ export class Parse {
                 },
                 this.json.cameras[el.camera],
             );
-            // @ts-ignore
-            if (Parse.__update) {
-                // @ts-ignore
-                Parse.__update('camera', camera, name, parent);
-            } else {
-                this.camera = new Camera(camera, name, parent);
-            }
 
-            child = this.camera;
+            child = new Camera(camera, name, parent);
             const proj = calculateProjection(child.props);
             child.setProjection(proj);
 
@@ -334,7 +330,7 @@ export class Parse {
         if (el.mesh !== undefined) {
             parent.children.push(
                 ...this.json.meshes[el.mesh].primitives.map(
-                    this.buildPrim.bind(this, parent, this.json.meshes[el.mesh].name, el.skin, this.json.meshes[el.mesh].weights),
+                    this.buildPrim.bind(this, el, parent, this.json.meshes[el.mesh].name, el.skin, this.json.meshes[el.mesh].weights),
                 ),
             );
         }

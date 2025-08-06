@@ -39,7 +39,7 @@ class RedCube {
 
     async webgpuInit(): Promise<WEBGPU> {
         const glslangModule = await import(/*webpackChunkName: "glslang"*/ '../glslang.js');
-        const twgslModule = await import(/*webpackChunkName: "twgsl"*/ '../twgsl.js');
+        await import(/*webpackChunkName: "twgsl"*/ '../twgsl.js');
 
         // @ts-ignore
         const adapter = await navigator.gpu.requestAdapter();
@@ -48,7 +48,8 @@ class RedCube {
             requiredFeatures: ['float32-filterable']
         });
         const glslang = await glslangModule.default();
-        const wgsl = await twgslModule.default('twgsl.wasm');
+        // @ts-ignore
+        const wgsl = await twgsl('twgsl.wasm');
 
         const context = this.canvas.getContext('webgpu');
         context.configure({

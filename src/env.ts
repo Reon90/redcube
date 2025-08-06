@@ -142,7 +142,7 @@ export class Env {
         gl.useProgram(program);
         gl.bindVertexArray(this.quadVAO);
         gl.uniformMatrix4fv(gl.getUniformLocation(program, 'projection'), false, m.elements);
-        gl.uniform1i(gl.getUniformLocation(program, 'environmentMap'), this.brdfLUTTexture.index);
+        gl.uniform1i(gl.getUniformLocation(program, 'environmentMap'), this.charlieMap.index);
         gl.uniformMatrix4fv(gl.getUniformLocation(program, 'view'), false, this.camera.matrixWorldInvert.elements);
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     }
@@ -175,7 +175,7 @@ export class Env {
         
         void main() {
             outUV = inPosition;
-            gl_Position = projection * view * model * vec4(inPosition, 1.0);
+            gl_Position = projection * view * model * vec4(inPosition*0.1, 1.0);
         }
         `,
             program
@@ -192,24 +192,28 @@ export class Env {
         uniform samplerCube environmentMap;
         
         void main() {
-            vec4 c = textureLod(environmentMap, mat3(rotation) * outUV, 0.0);
+            vec4 c = textureLod(environmentMap, outUV, 1.0);
             
-            color = vec4(pow(c.rgb, vec3(2.2)) / pow(c.a, 2.2), 1.0);
+            color = c;
         }
         `,
             program
         );
-        gl.disable(gl.DEPTH_TEST);
+        //gl.disable(gl.DEPTH_TEST);
         gl.linkProgram(program);
         gl.useProgram(program);
         gl.bindVertexArray(this.VAO);
-        gl.uniformMatrix4fv(gl.getUniformLocation(program, 'rotation'), false, this.uniformBuffer.store.subarray(36));
+        const uniformBuffer = new UniformBuffer();
+        uniformBuffer.add('view', this.camera.matrixWorldInvert.elements);
+        uniformBuffer.add('projection', m.elements);
+        uniformBuffer.done();
+        //gl.uniformMatrix4fv(gl.getUniformLocation(program, 'rotation'), false, uniformBuffer.store.subarray(36));
         gl.uniformMatrix4fv(gl.getUniformLocation(program, 'projection'), false, m.elements);
         const s = this.camera.modelSize * 2;
         gl.uniformMatrix4fv(gl.getUniformLocation(program, 'model'), false,
             new Matrix4().makeRotationAxis(new Vector3([1, 0, 0]), Math.PI).scale(new Vector3([s, s, s])).elements
         );
-        gl.uniform1i(gl.getUniformLocation(program, 'environmentMap'), this.prefilterMap.index);
+        gl.uniform1i(gl.getUniformLocation(program, 'environmentMap'), this.charlieMap.index);
         gl.uniformMatrix4fv(gl.getUniformLocation(program, 'view'), false, this.camera.matrixWorldInvert.elements);
         gl.drawArrays(gl.TRIANGLES, 0, 36);
         gl.enable(gl.DEPTH_TEST);

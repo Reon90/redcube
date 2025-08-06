@@ -257,7 +257,7 @@ vec3 calcTransmission(vec3 color, vec3 N, float roughness, vec3 V, float transmi
     refractS.xy = refractS.xy / refractS.w;
     refractS.xy = refractS.xy * 0.5 + 0.5;
     const float MAX_REFLECTION_LOD = 10.0;
-    #ifdef USERIGHTHANDEDSYSTEM
+    #if defined(WEBGPU)
     refractS.y = 1.0 - refractS.y;
     #endif
     vec3 baseColor = textureLod2D(colorTexture, refractS.xy, applyIorToRoughness(roughness, 1.0 / refraction_ior) * MAX_REFLECTION_LOD).xyz;
@@ -572,7 +572,7 @@ void main() {
     float sheenRoughness = sheenRoughnessFactor.x;
     float transmission = transmissionFactor.x;
     float transmissionDiffuse = diffuseTransmissionFactor.x;
-    float thickness = clamp(thicknessFactor.x, 0.0, 1.0);
+    float thickness = thicknessFactor.x;
     #ifdef DIFFUSE_TRANSMISSION_MAP
         vec4 diffuseTransmissionTextureV = texture2D(diffuseTransmissionTexture, outUV);
         transmissionDiffuse *= diffuseTransmissionTextureV.a;
@@ -664,7 +664,7 @@ void main() {
         #endif
     #endif
     vec3 F0 = mix(vec3(0.04), baseColor, metallic);
-    #if defined IOR
+    #if defined(IOR) && defined(VOLUME)
     F0 = vec3(pow(( ior.x - 1.0) /  (ior.x + 1.0), 2.0));
     #endif
     #if defined SPECULAR
@@ -707,7 +707,7 @@ void main() {
     vec3 viewDir = normalize(viewPos - outPosition);
 
     #ifdef DOUBLESIDED
-    if (dot(n, viewDir) < 0.0) {
+    if (gl_FrontFacing == false) {
         n = -n;
         clearcoatNormal = -clearcoatNormal;
     }
@@ -785,7 +785,9 @@ void main() {
             vec3 clearcoatFresnel = 1.0 - clearcoatBlendFactor * fresnelSchlick(saturate(dot(clearcoatNormal, viewDir)), vec3(0.04));
             #ifndef DIFFUSE_TRANSMISSION
             vec3 diffuse = ImprovedOrenNayarDiffuse(baseColor, metallic, n, H, roughness, viewDir, lightDir, F0, iridescenceF0, iridescence.x, specularWeight);
+            #ifdef CLEARCOAT
             diffuse *= radiance * clearcoatFresnel;
+            #endif
             #else
             float NdotV2 = absEps(dot(n, viewDir));
             float NdotL2 = absEps(dot(n, lightDir));
@@ -800,14 +802,18 @@ void main() {
             albedoSheenScaling = min(1.0 - max3(sheenColor) * E(max(dot(viewDir, n), 0.0), sheenRoughness), 1.0 - max3(sheenColor) * E(max(dot(lightDir, n), 0.0), sheenRoughness));
             #endif
 
-            Lo += (specular * NdotL) * radiance * clearcoatFresnel + f_clearcoat * clearcoatBlendFactor;
+            Lo += (specular * NdotL);
+            #ifdef CLEARCOAT
+            Lo = Lo * radiance * clearcoatFresnel + f_clearcoat * clearcoatBlendFactor;
+            #endif
             vec3 diffuseLobe = vec3(diffuse);
 
             #ifdef DIFFUSE_TRANSMISSION
             float trAdapt = step(0., dot(n, lightDir));
             float wrapNdotL = computeWrappedDiffuseNdotL(absEps(dot(n, lightDir)), 0.02);
             vec3 transmittanceNdotL = mix(f_transmission*wrapNdotL, vec3(wrapNdotL), trAdapt);
-            diffuseLobe = diffuseLobe*radiance*transmittanceNdotL * baseColor;
+            diffuseLobe = diffuseLobe * radiance * baseColor;
+            diffuseLobe = mix(diffuseLobe, f_transmission * transmittanceNdotL, transmissionDiffuse);
             transmission = 0.0;
             f_transmission = vec3(0.0);
             #else
@@ -835,7 +841,7 @@ void main() {
             vec3 placeholder = vec3(0.0);
             ambientClearcoat = IBLAmbient(vec3(0.0), 0.0, clearcoatNormal, clearcoatRoughness, viewDir, transmission, sheenColor, sheenRoughness, iridescenceF0, iridescence.x, F0, specularWeight, anisotropy.x, anisotropicB, placeholder, cSpecular) * clearcoatBlendFactor;
             #ifdef DIFFUSE_TRANSMISSION
-            ambient *= f_transmission2;
+            ambient = mix(ambient, f_transmission2, transmissionDiffuse);
             #endif
             #ifndef SPHERICAL_HARMONICS
             #ifndef SCATTERING
@@ -863,7 +869,7 @@ void main() {
             f_transmission = f_transmission * kT;
             color = vec4((Lo) * clearcoatFresnel + ambientClearcoat, alpha);
             #ifndef SCATTERING
-            color.rgb += (ambient * ao + f_transmission) * clearcoatFresnel;
+            color.rgb += (ambient * ao + emissive + f_transmission) * clearcoatFresnel;
             #endif
         #else
             color = vec4(ao * ((emissive + Lo) * clearcoatFresnel + ambientClearcoat), alpha);

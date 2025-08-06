@@ -2,9 +2,9 @@
 
 #extension GL_EXT_samplerless_texture_functions:require
 
-#ifdef DIFFUSE_TRANSMISSION
-    #define SCATTERING 1
-#endif
+// #ifdef DIFFUSE_TRANSMISSION
+//     #define SCATTERING 1
+// #endif
 
 #define texture2D(p, uv) texture(sampler2D(p, baseSampler), uv)
 #define textureCube(p, uv) texture(samplerCube(p, unfilteredSampler), uv)
@@ -13,6 +13,7 @@
 
 #define IBL 1
 #define USE_PBR 1
+#define WEBGPU 1
 
 layout(location = 0) in vec2 outUV0;
 layout(location = 4) in mat3 outTBN;

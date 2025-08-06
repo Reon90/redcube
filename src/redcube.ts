@@ -130,9 +130,7 @@ class RedCube {
         this.parse.createSamplers();
         this.parse.createTexturesWebGL();
 
-        if (this.parse.cameras.length === 0) {
-            this.parse.cameras.push(this.camera);
-        }
+        this.parse.cameras.push(this.camera);
 
         this.parse.calculateFov(this.parse.cameras[0].props.isInitial);
         const planes = Frustum(this.camera.getViewProjMatrix());

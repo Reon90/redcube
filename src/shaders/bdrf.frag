@@ -93,7 +93,7 @@ vec3 IntegrateBRDF(float NdotV, float roughness) {
     for(uint i = 0u; i < SAMPLE_COUNT; ++i) {
         vec2 Xi = Hammersley(i, SAMPLE_COUNT);
         vec3 H  = ImportanceSampleGGX(Xi, N, roughness, false);
-        vec3 L  = normalize(2.0 * dot(V, H) * H - V);
+        vec3 L  = normalize(reflect(-V, H));
 
         float NdotL = max(L.z, 0.0);
         float NdotH = max(H.z, 0.0);
@@ -117,12 +117,12 @@ vec3 IntegrateBRDF(float NdotV, float roughness) {
             float sheenDistribution = D_Charlie(roughness, NdotH);
             float sheenVisibility = V_Ashikhmin(NdotL, NdotV);
 
-            C += sheenVisibility * sheenDistribution; // * NdotL * VdotH;
+            C += sheenVisibility * sheenDistribution * NdotL * VdotH;
         }
     }
     A /= float(SAMPLE_COUNT);
     B /= float(SAMPLE_COUNT);
-    C = 2.0 * PI * C / float(SAMPLE_COUNT);
+    C = 4.0 * 2.0 * PI * C / float(SAMPLE_COUNT);
     return vec3(A, B, C);
 }
 

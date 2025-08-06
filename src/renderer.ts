@@ -329,6 +329,7 @@ export class Renderer {
             if (this.parse.json.extensions && this.parse.json.extensions.EXT_lights_image_based) {
                 this.env.draw();
             }
+            //this.env.draw()
 
             this.renderScene();
             this.clean();

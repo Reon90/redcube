@@ -565,11 +565,11 @@ export class Material extends M {
             materialUniformBuffer.add('normalTextureScale', this.normalTextureScale ?? 1);
             materialUniformBuffer.add('attenuationColor', this.attenuationColor ?? [1, 1, 1]);
             materialUniformBuffer.add('attenuationDistance', this.attenuationDistance ?? 1);
-            materialUniformBuffer.add('thicknessFactor', this.thicknessFactor ?? 1);
+            materialUniformBuffer.add('thicknessFactor', this.thicknessFactor ?? 0);
             materialUniformBuffer.add('emissiveStrength', this.emissiveStrength ?? 1);
             materialUniformBuffer.add('anisotropy', [this.anisotropyStrength ?? 0, this.anisotropyRotation ?? 0]);
-            materialUniformBuffer.add('iridescence', [this.iridescenceFactor, this.iridescenceIOR, this.iridescenceThicknessMaximum, this.iridescenceThicknessMinimum]);
-            materialUniformBuffer.add('diffuseTransmissionFactor', [this.diffuseTransmissionFactor ?? 1, ...this.diffuseTransmissionColorFactor]);
+            materialUniformBuffer.add('iridescence', [this.iridescenceFactor ?? 0, this.iridescenceIOR ?? 1.3, this.iridescenceThicknessMaximum ?? 400, this.iridescenceThicknessMinimum ?? 100]);
+            materialUniformBuffer.add('diffuseTransmissionFactor', [this.diffuseTransmissionFactor ?? 0, ...this.diffuseTransmissionColorFactor]);
             materialUniformBuffer.add('dispersionFactor', [this.dispersion ?? 0]);
             materialUniformBuffer.done();
             this.materialUniformBuffer = materialUniformBuffer;
