@@ -363,7 +363,6 @@ export class Material extends M {
         if (this.doubleSided) {
             defines.push({ name: 'DOUBLESIDED' });
         }
-        defines.push({ name: 'LIGHTNUMBER', value: lights.length });
 
         if (material.extensions && material.extensions.KHR_materials_unlit) {
             defines.push({ name: 'NOLIGHT' });
@@ -527,19 +526,19 @@ export class Material extends M {
     }
 
     createUniforms(camera, lights) {
-        const spotDirs = new Float32Array(lights.length * 3);
-        const lightPos = new Float32Array(lights.length * 3);
-        const lightColor = new Float32Array(lights.length * 3);
+        const spotDirs = new Float32Array(lights.length * 4);
+        const lightPos = new Float32Array(lights.length * 4);
+        const lightColor = new Float32Array(lights.length * 4);
         const lightProps = new Float32Array(lights.length * 4);
         const textureMatrices = new Float32Array(this.matrices.length * 16);
         lights.forEach((light, i) => {
             spotDirs.set(
                 new Vector3([light.matrixWorld.elements[8], light.matrixWorld.elements[9], light.matrixWorld.elements[10]]).normalize()
                     .elements,
-                i * 3
+                i * 4
             );
-            lightPos.set(light.getPosition(), i * 3);
-            lightColor.set(light.color.elements, i * 3);
+            lightPos.set(light.getPosition(), i * 4);
+            lightColor.set(light.color.elements, i * 4);
             lightProps.set([light.intensity, light.spot.innerConeAngle ?? 0, light.spot.outerConeAngle ?? 0, lightEnum[light.type]], i * 4);
         });
         this.matrices.forEach((m, i) => {

@@ -62,16 +62,16 @@ uniform Matrices {
     vec4 isShadow;
 };
 uniform LightColor {
-    vec3 lightColor[LIGHTNUMBER];
+    vec4 lightColor[LIGHTNUMBER];
 };
 uniform Spotdir {
-    vec3 spotdir[LIGHTNUMBER];
+    vec4 spotdir[LIGHTNUMBER];
 };
 uniform LightIntensity {
     vec4 lightIntensity[LIGHTNUMBER];
 };
 uniform LightPos {
-    vec3 lightPos[LIGHTNUMBER];
+    vec4 lightPos[LIGHTNUMBER];
 };
 #if defined MATRICES
 uniform TextureMatrices {

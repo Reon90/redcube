@@ -77,16 +77,16 @@ layout(set = 0, binding = 27) uniform SphericalHarmonics {
     mat4 rotationMatrix;
 };
 layout(set = 0, binding = 15) uniform LightColor {
-    vec3 lightColor[LIGHTNUMBER];
+    vec4 lightColor[LIGHTNUMBER];
 };
 layout(set = 0, binding = 17) uniform Spotdir {
-    vec3 spotdir[LIGHTNUMBER];
+    vec4 spotdir[LIGHTNUMBER];
 };
 layout(set = 0, binding = 18) uniform LightIntensity {
     vec4 lightIntensity[LIGHTNUMBER];
 };
 layout(set = 0, binding = 16) uniform LightPos {
-    vec3 lightPos[LIGHTNUMBER];
+    vec4 lightPos[LIGHTNUMBER];
 };
 #if defined MATRICES
 layout(set = 0, binding = 23) uniform TextureMatrices {

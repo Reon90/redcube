@@ -753,13 +753,14 @@ void main() {
         #endif
 
         if (isDefaultLight.x == 1.0) {
-        for (int i = 0; i < LIGHTNUMBER; ++i) {
-            vec3 lightDir = normalize(lightPos[i] - outPosition);
+            int i = LIGHTINDEX;
+        //for (int i = 0; i < LIGHTNUMBER; ++i) {
+            vec3 lightDir = normalize(lightPos[i].xyz - outPosition);
             float NdotL = max(dot(n, lightDir), 0.0);
             vec3 H = normalize(viewDir + lightDir);
 
-            vec3 radiance = lightColor[i] * lightIntensity[i].x;
-            float distance = dot(lightPos[i] - outPosition, lightPos[i] - outPosition);
+            vec3 radiance = lightColor[i].xyz * lightIntensity[i].x;
+            float distance = dot(lightPos[i].xyz - outPosition, lightPos[i].xyz - outPosition);
             float attenuation = 1.0 / (distance * distance);
             // radiance = radiance * attenuation;
             if (lightIntensity[i].w == 1.0) { // point
@@ -769,7 +770,7 @@ void main() {
                 float lightAngleScale = 1.0 / max(0.001, cos(lightIntensity[i].y) - cos(lightIntensity[i].z));
                 float lightAngleOffset = -cos(lightIntensity[i].z) * lightAngleScale;
 
-                float cd = dot(spotdir[i], lightDir);
+                float cd = dot(spotdir[i].xyz, lightDir);
                 float attenuationSpot = saturate(cd * lightAngleScale + lightAngleOffset);
                 attenuationSpot *= attenuationSpot;
 
@@ -789,9 +790,9 @@ void main() {
             vec3 clearcoatFresnel = 1.0 - clearcoatBlendFactor * fresnelSchlick(saturate(dot(clearcoatNormal, viewDir)), vec3(0.04));
             #ifndef DIFFUSE_TRANSMISSION
             vec3 diffuse = ImprovedOrenNayarDiffuse(baseColor, metallic, n, H, roughness, viewDir, lightDir, F0, iridescenceF0, iridescence.x, specularWeight);
-            #ifdef CLEARCOAT
+            //#ifdef CLEARCOAT
             diffuse *= radiance * clearcoatFresnel;
-            #endif
+            //#endif
             #else
             float NdotV2 = absEps(dot(n, viewDir));
             float NdotL2 = absEps(dot(n, lightDir));
@@ -807,9 +808,9 @@ void main() {
             #endif
 
             Lo += (specular * NdotL);
-            #ifdef CLEARCOAT
+            //#ifdef CLEARCOAT
             Lo = Lo * radiance * clearcoatFresnel + f_clearcoat * clearcoatBlendFactor;
-            #endif
+            //#endif
             vec3 diffuseLobe = vec3(diffuse);
 
             #ifdef DIFFUSE_TRANSMISSION
@@ -829,7 +830,7 @@ void main() {
             #endif
 
             finalDiffuse += diffuseLobe;
-        }
+        //}
         }
 
         vec3 ambient = vec3(0.0);
@@ -884,15 +885,15 @@ void main() {
 
         color.rgb = f_sheen + color.rgb * albedoSheenScaling;
     #else
-        vec3 lightDir = normalize(lightPos[0] - outPosition);
-        vec3 ambient = ambientStrength * lightColor[0];
+        vec3 lightDir = normalize(lightPos[0].xyz - outPosition);
+        vec3 ambient = ambientStrength * lightColor[0].xyz;
 
         float diff = max(dot(n, lightDir), 0.0);
-        vec3 diffuse = diff * lightColor[0];
+        vec3 diffuse = diff * lightColor[0].XYZ;
 
         vec3 reflectDir = reflect(-lightDir, n);
         float spec = pow(max(dot(viewDir, reflectDir), 0.0), specularPower);
-        vec3 specular = specularStrength * spec * lightColor[0];
+        vec3 specular = specularStrength * spec * lightColor[0].xyz;
 
         color = vec4(baseColor.rgb * (ambient + diffuse + specular) * shadow, alpha);
     #endif

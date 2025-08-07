@@ -72,7 +72,7 @@ export class UniformBuffer {
     }
 
     done() {
-        this.store = new Float32Array(Math.max(this.offset, 20));
+        this.store = new Float32Array(this.offset);
         for (const [name, offset] of this.map) {
             this.store.set(this.tempStore[name], offset);
         }

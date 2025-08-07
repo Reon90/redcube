@@ -156,9 +156,9 @@ export class Mesh extends Object3D {
             gl.bindBufferBase(gl.UNIFORM_BUFFER, 1, this.material.UBO);
 
             if (needUpdateView) {
-                const lightPos = new Float32Array(lights.length * 3);
+                const lightPos = new Float32Array(lights.length * 4);
                 lights.forEach((light, i) => {
-                    lightPos.set(light.getPosition(), i * 3);
+                    lightPos.set(light.getPosition(), i * 4);
                 });
 
                 this.material.materialUniformBuffer.update(gl, 'viewPos', camera.getPosition());
