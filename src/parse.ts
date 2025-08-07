@@ -268,7 +268,7 @@ export class Parse {
         if (el.scale && el.scale[0] < 0) {
             mesh.setFrontFace();
         }
-        if (el.scale) {
+        if (el.scale && material.thicknessFactor) {
             material.thicknessFactor *= el.scale[0];
         }
         mesh.setDefines(material.defines);

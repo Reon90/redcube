@@ -6,7 +6,6 @@ const __dirname = import.meta.dirname;
 
 export default {
     mode: 'development',
-    //entry: path.join(__dirname, `/src/${libraryName}.webgpu.ts`),
     entry: path.join(__dirname, `/src/${libraryName}.ts`),
     output: {
         filename: `${libraryName}.js`,
