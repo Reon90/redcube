@@ -207,15 +207,6 @@ describe('getMethod', () => {
     });
 });
 
-describe('getAnimationComponent', () => {
-    it('should return 4 for rotation, 3 for translation/scale', () => {
-        expect(utils.getAnimationComponent('rotation')).toBe(4);
-        expect(utils.getAnimationComponent('translation')).toBe(3);
-        expect(utils.getAnimationComponent('scale')).toBe(3);
-        expect(utils.getAnimationComponent('other')).toBeUndefined();
-    });
-});
-
 describe('range', () => {
     it('should map value to [0,1] between min and max', () => {
         expect(utils.range(0, 10, 5)).toBe(0.5);

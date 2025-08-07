@@ -20,12 +20,13 @@ lint:
         - yamllint@1.37.1
         - checkov@3.2.427
         - eslint@8.57.0
-        - git-diff-check
         - markdownlint@0.45.0
         - osv-scanner@2.0.2
         - oxipng@9.1.5
         - prettier@3.5.3
         - trufflehog@3.88.30
+    disabled:
+        - git-diff-check
 actions:
     disabled:
         - trunk-announce

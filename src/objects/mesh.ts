@@ -3,6 +3,7 @@ import { Object3D } from './object3d';
 import { Geometry } from './geometry';
 import { Material } from './material';
 import { ArrayBufferMap } from '../utils';
+import glEnum from '../glEnum';
 
 export class Mesh extends Object3D {
     geometry: Geometry;
@@ -10,6 +11,7 @@ export class Mesh extends Object3D {
     program: WebGLProgram;
     defines: Array<string>;
     mode: number;
+    frontFace: boolean;
     distance: number;
     visible: boolean;
     variants: { m: Material; variants: number[] }[];
@@ -279,6 +281,9 @@ export class Mesh extends Object3D {
         if (this.material.doubleSided) {
             gl.disable(gl.CULL_FACE);
         }
+        if (this.frontFace) {
+            gl.frontFace(gl.CW);
+        }
 
         if (this.geometry.indicesBuffer) {
             gl.drawElements(
@@ -293,6 +298,9 @@ export class Mesh extends Object3D {
 
         if (this.material.doubleSided) {
             gl.enable(gl.CULL_FACE);
+        }
+        if (this.frontFace) {
+            gl.frontFace(gl.CCW);
         }
     }
 
@@ -310,6 +318,10 @@ export class Mesh extends Object3D {
 
     setVariants(variants) {
         this.variants = variants;
+    }
+
+    setFrontFace() {
+        this.frontFace = true;
     }
 
     isVisible(planes) {

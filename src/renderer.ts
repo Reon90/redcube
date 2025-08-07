@@ -1,6 +1,6 @@
 import { Scene, Mesh, Camera, Bone } from './objects/index';
 import { Vector, Vector3, Vector4, Frustum } from './matrix';
-import { getAnimationComponent, interpolation, walk } from './utils';
+import { interpolation, walk } from './utils';
 import { Parse } from './parse';
 import { PostProcessing } from './postprocessing.webgpu';
 import { Particles } from './particles';
@@ -67,7 +67,7 @@ export class Renderer {
         }
 
         const current = v.keys[val[0]];
-        const component = getAnimationComponent(v.type);
+        const { component } = v;
         let vectorC;
         if (component === 3) {
             vectorC = Vector3;
@@ -111,7 +111,7 @@ export class Renderer {
         const t = sec;
         const t1 = v.keys[val[1]].time;
         const t0 = v.keys[val[0]].time;
-        const stride = getAnimationComponent(v.type);
+        const stride = v.component;
 
         const td = t1 - t0;
         const p = (t - t0) / td;
@@ -182,7 +182,7 @@ export class Renderer {
         // eslint-disable-next-line
         const t = val[2];
 
-        const component = getAnimationComponent(v.type);
+        const { component } = v;
         let vectorC;
         if (component === 3) {
             vectorC = Vector3;
@@ -254,7 +254,12 @@ export class Renderer {
                 mesh.matrix.setTranslate(out);
             }
         } else {
-            console.error('ERROR');
+            const out = new Vector4();
+            out.lerp(vector.elements, vector2.elements, t);
+
+            for (const mesh of v.meshes) {
+                mesh.material.setColor(gl, v.type, out);
+            }
         }
     }
 
@@ -329,7 +334,7 @@ export class Renderer {
             if (this.parse.json.extensions && this.parse.json.extensions.EXT_lights_image_based) {
                 this.env.draw();
             }
-            //this.env.draw()
+            this.env.draw()
 
             this.renderScene();
             this.clean();

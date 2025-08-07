@@ -2,7 +2,7 @@ import {
     buildArray,
     getDataType,
     walk,
-    getAnimationComponent,
+    getComponentType,
     calculateProjection,
     createProgram,
     calculateOffset,
@@ -113,6 +113,7 @@ export class Parse {
     host: string;
     skins: Array<Skin>;
     textures: Array<object>;
+    images: Map<string, object>;
     samplers: Array<object>;
     arrayBuffer: object;
     cameras: Array<Camera>;
@@ -135,6 +136,7 @@ export class Parse {
         this.tracks = [];
         this.skins = [];
         this.textures = null;
+        this.images = new Map();
         this.samplers = null;
         this.arrayBuffer = null;
         this.cameras = [];
@@ -263,6 +265,9 @@ export class Parse {
         mesh.setMode(primitive.mode);
         mesh.setMaterial(material);
         mesh.setGeometry(geometry);
+        if (el.scale && el.scale[0] < 0) {
+            mesh.setFrontFace();
+        }
         if (el.scale) {
             material.thicknessFactor *= el.scale[0];
         }
@@ -425,7 +430,15 @@ export class Parse {
 
                 if (sampler) {
                     const { target } = channel;
-                    const name = target.node;
+                    let name = target.node;
+                    let path = target.path;
+                    if (name === undefined) {
+                        const s = target.extensions.KHR_animation_pointer.pointer.split('/');
+                        const mat = this.json.materials[s[2]].name;
+                        // @ts-ignore
+                        name = this.scene.meshes.find(m => m.material.name === mat).name;
+                        path = s[s.length - 1];
+                    }
                     const input = animation.parameters !== undefined ? animation.parameters[sampler.input] : sampler.input;
                     const output = animation.parameters !== undefined ? animation.parameters[sampler.output] : sampler.output;
 
@@ -450,7 +463,7 @@ export class Parse {
                     const meshes = [];
                     walk(this.scene, (node) => {
                         if (node.name === name) {
-                            if (target.path === 'weights' && node instanceof Object3D) {
+                            if (path === 'weights' && node instanceof Object3D) {
                                 meshes.push(...node.children);
                             } else {
                                 meshes.push(node);
@@ -458,7 +471,7 @@ export class Parse {
                         }
                     });
 
-                    let component = getAnimationComponent(target.path) || meshes[0].geometry.targets.length;
+                    let component = getDataType(outputAccessor.type) || meshes[0].geometry.targets.length;
                     if (sampler.interpolation === 'CUBICSPLINE') {
                         component = component * 3;
                     }
@@ -478,8 +491,9 @@ export class Parse {
                                 duration: Math.max(keys[keys.length - 1].time, duration),
                                 stoped: false,
                                 meshes: meshes,
-                                type: target.path,
-                                name: `${meshes[0].name}.${target.path}`,
+                                component,
+                                type: path,
+                                name: `${meshes[0].name}.${path}`,
                                 keys: keys,
                                 interpolation: sampler.interpolation,
                             });
@@ -652,7 +666,8 @@ export class Parse {
             if (t.extensions && t.extensions.KHR_texture_basisu) {
                 hasBasisu = true;
             }
-            const source = t.extensions && t.extensions.KHR_texture_basisu ? t.extensions.KHR_texture_basisu.source : t.source;
+            let source = t.extensions && t.extensions.KHR_texture_basisu ? t.extensions.KHR_texture_basisu.source : t.source;
+            source = t.extensions && t.extensions.EXT_texture_webp ? t.extensions.EXT_texture_webp.source : source;
             const name = String(t.sampler) + String(source);
             texturesMap[name] = t;
             texturesMap[name].name = name;
@@ -678,7 +693,8 @@ export class Parse {
             await new Promise((resolve) => setTimeout(resolve, 1000));
         }
         const promiseArr = Object.values(texturesMap).map((t) => {
-            const s = t.extensions && t.extensions.KHR_texture_basisu ? t.extensions.KHR_texture_basisu.source : t.source;
+            let s = t.extensions && t.extensions.KHR_texture_basisu ? t.extensions.KHR_texture_basisu.source : t.source;
+            s = t.extensions && t.extensions.EXT_texture_webp ? t.extensions.EXT_texture_webp.source : s;
             const source = this.json.images[s];
             // @ts-ignore
             return fetchImage(
@@ -729,6 +745,9 @@ export class Parse {
             image.sampler = s;
             return image;
         }
+        if (this.images.get(name)) {
+            return this.images.get(name);
+        }
         const t = gl.createTexture();
         t.name = name;
         t.image = image.src.substr(image.src.lastIndexOf('/'));
@@ -739,6 +758,7 @@ export class Parse {
         gl.pixelStorei(gl.UNPACK_COLORSPACE_CONVERSION_WEBGL, gl.NONE);
         gl.texImage2D(gl.TEXTURE_2D, 0, srgb ? gl.SRGB8_ALPHA8 : gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
         gl.generateMipmap(gl.TEXTURE_2D);
+        this.images.set(name, t);
 
         return t;
     }

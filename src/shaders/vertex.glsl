@@ -41,4 +41,6 @@ void main() {
     } else {
         gl_Position = projection * view * model * skin * vec4(inPosition, 1.0);
     }
+
+    gl_PointSize = 1.0;
 }

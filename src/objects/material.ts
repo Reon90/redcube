@@ -827,4 +827,9 @@ export class Material extends M {
     hasNormal() {
         return Boolean(this.normalTexture) || Boolean(this.clearcoatNormalTexture);
     }
+
+    setColor(gl, name, value) {
+        gl.bindBufferBase(gl.UNIFORM_BUFFER, 1, this.UBO);
+        this.materialUniformBuffer.update(gl, name, value.elements);
+    }
 }

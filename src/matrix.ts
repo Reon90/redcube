@@ -1253,7 +1253,14 @@ class Vector4 {
     lerp(a, b, t) {
         const out = this.elements;
 
-        if (t === 0) return this;
+        if (t === 0) {
+            out[0] = a[0];
+            out[1] = a[1];
+            out[2] = a[2];
+            out[3] = a[3];
+
+            return this;
+        }
         if (t === 1) {
             out[0] = b[0];
             out[1] = b[1];

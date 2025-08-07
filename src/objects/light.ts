@@ -17,7 +17,7 @@ export class Light extends Object3D {
     constructor(props, name?, parent?) {
         super(name, parent);
 
-        const { type, color, intensity, isInitial, spot = {} } = props;
+        const { type, color = [1, 1, 1], intensity, isInitial, spot = {} } = props;
         this.type = type;
         this.color = new Vector3(color);
         this.intensity = intensity;

@@ -146,14 +146,6 @@ export function getMethod(type) {
     return method;
 }
 
-export function getAnimationComponent(type) {
-    if (type === 'rotation') {
-        return 4;
-    } else if (type === 'translation' || type === 'scale') {
-        return 3;
-    }
-}
-
 export function range(min, max, value) {
     return (value - min) / (max - min);
 }

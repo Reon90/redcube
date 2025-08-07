@@ -34,7 +34,7 @@
             }
             document.write('<script src="./dist/redcube.webgpu.js"><\/script>');
         } else {
-            document.write('<script src="./dist/redcube.js"><\/script>');
+            document.write('<script src="./redcube.js"><\/script>');
         }
     </script>
 </head>
@@ -100,14 +100,14 @@
                 selector.appendChild(span);
                 slider.value = 0;
 
-                const envname = localStorage.getItem('env') || 'env2';
+                const envname = localStorage.getItem('env') || 'env';
                 {
                     const select = document.createElement('select');
                     select.onchange = () => {
                         localStorage.setItem('env', select.value);
                         window.location.reload();
                     }
-                    ['env', 'env1', 'env2', 'env3', 'env4'].forEach((it) => {
+                    ['env', 'env1', 'env2', 'env3', 'env4', 'env5'].forEach((it) => {
                         const option = document.createElement('option');
                         option.innerHTML = it;
                         option.value = it;
@@ -134,12 +134,21 @@
                     selector.appendChild(select);
                 }
 
+                const model = samples.find(s => s.name === name);
+                let url = model.variants.glTF;
+                if (url) {
+                    url = name + '/glTF/' + name + 'gltf';
+                }
+                if (model.variants['glTF-Binary']) {
+                    url = name + '/glTF-Binary/' + name + '.glb';
+                }
+
                 //https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/
                 window.renderer = new redcube.RedCube(
-                    'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/' + name + '/glTF/' + name + '.gltf',
+                    'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/' + url,
                     canvas, 
                     [],
-                    `src/images/${localStorage.getItem('env') || 'env2'}.hdr`,
+                    `src/images/${localStorage.getItem('env') || 'env'}.hdr`,
                     mode
                 );
                 renderer.init(() => {

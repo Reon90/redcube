@@ -720,6 +720,8 @@ void main() {
         shadow = 1.0 - ShadowCalculation(outPositionView, shadowBias);
     #endif
 
+    vec3 anisotropicT = vec3(0.0);
+    vec3 anisotropicB = vec3(0.0);
     vec3 anisotropy = anisotropyFactor.xyz;
     anisotropy.yz = vec2(cos(anisotropy.y), sin(anisotropy.y));
     #ifdef ANISOTROPYMAP
@@ -729,8 +731,10 @@ void main() {
         anisotropy.x = anisotropyTex.b * anisotropyFactor.x;
         anisotropy.yz = direction;
     #endif
-    vec3 anisotropicT = normalize(outTBN * vec3(anisotropy.yz, 0.0));
-    vec3 anisotropicB = normalize(cross(n, anisotropicT));
+    #ifdef TANGENT
+        anisotropicT = normalize(outTBN * vec3(anisotropy.yz, 0.0));
+        anisotropicB = normalize(cross(n, anisotropicT));
+    #endif
 
     #ifdef USE_PBR
         vec3 finalDiffuse = vec3(0.0);
