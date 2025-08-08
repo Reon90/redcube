@@ -135,12 +135,12 @@
                 }
 
                 const model = samples.find(s => s.name === name);
-                let url = model.variants.glTF;
-                if (url) {
-                    url = name + '/glTF/' + name + 'gltf';
-                }
+                let url;
                 if (model.variants['glTF-Binary']) {
                     url = name + '/glTF-Binary/' + name + '.glb';
+                }
+                if (model.variants.glTF) {
+                    url = name + '/glTF/' + name + '.gltf';
                 }
 
                 //https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/
