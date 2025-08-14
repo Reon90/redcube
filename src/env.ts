@@ -193,9 +193,9 @@ export class Env {
         
         void main() {
             vec3 uv = outUV;
-            vec4 c = textureLod(environmentMap, uv, 4.0);
+            vec4 c = textureLod(environmentMap, uv, 7.0);
             
-            color = vec4(pow(c.rgb, vec3(2.2)) / pow(c.a, 2.2), 1.0);
+            color = c;
         }
         `,
             program
@@ -209,7 +209,7 @@ export class Env {
         gl.uniformMatrix4fv(gl.getUniformLocation(program, 'model'), false,
             new Matrix4().makeRotationAxis(new Vector3([1, 0, 0]), Math.PI).scale(new Vector3([s, s, s])).elements
         );
-        gl.uniform1i(gl.getUniformLocation(program, 'environmentMap'), this.prefilterMap.index);
+        gl.uniform1i(gl.getUniformLocation(program, 'environmentMap'), this.originalCubeTexture.index);
         gl.uniformMatrix4fv(gl.getUniformLocation(program, 'view'), false, this.camera.matrixWorldInvert.elements);
         gl.drawArrays(gl.TRIANGLES, 0, 36);
         gl.enable(gl.DEPTH_TEST);

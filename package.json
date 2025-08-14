@@ -1,24 +1,30 @@
 {
   "name": "redcube.js",
-  "version": "5.0.1",
+  "version": "5.0.2",
   "description": "JS renderer based on GLTF to WebGPU or WebGL backends.",
   "main": "dist/redcube",
   "type": "module",
   "scripts": {
-    "client": "webpack serve --port 8000",
+    "client": "webpack serve --port 8002",
     "server": "webpack --config webpack.server.js",
     "prod": "rm -rf ./dist && webpack --mode production",
-    "lint": "eslint --fix --ext .ts ./src/ || true && prettier --write \"src/**/*.ts\""
+    "lint": "eslint --fix --ext .ts ./src/ || true && prettier --write \"src/**/*.ts\"",
+    "test": "playwright test"
   },
   "devDependencies": {
     "@types/jest": "^30.0.0",
+    "@types/node": "^24.2.0",
     "@typescript-eslint/eslint-plugin": "^8.39.0",
     "@typescript-eslint/parser": "^8.39.0",
     "@webgpu/types": "^0.1.64",
     "copy-webpack-plugin": "^13.0.0",
     "eslint": "^9.32.0",
     "eslint-plugin-unused-imports": "^4.1.4",
+    "fs-extra": "^11.3.1",
     "jest": "^30.0.5",
+    "pixelmatch": "^7.1.0",
+    "playwright": "^1.54.2",
+    "pngjs": "^7.0.0",
     "prettier": "^3.6.2",
     "source-map-support": "^0.5.21",
     "ts-jest": "^29.4.1",

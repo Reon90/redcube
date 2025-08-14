@@ -5,7 +5,7 @@ import vertGLSL from '../shaders/vert.webgpu.h';
 
 const programs = {};
 
-export function create(device: GPUDevice, glslang, wgsl, uniformBindGroup1, defines) {
+export function create(device: GPUDevice, glslang, wgsl, uniformBindGroup1, defines, hasTransmission, mode, frontFace) {
     const programHash = defines.map(define => `${define.name}${define.value ?? 1}`).join('');
     let program;
     if (programs[programHash]) {
@@ -41,11 +41,16 @@ export function create(device: GPUDevice, glslang, wgsl, uniformBindGroup1, defi
             binding: 2,
             visibility: GPUShaderStage.FRAGMENT,
             sampler: {}
+        },
+        {
+            binding: 37,
+            visibility: GPUShaderStage.FRAGMENT,
+            sampler: {}
         }
     ];
 
     uniformBindGroup1.forEach(u => {
-        if ((u.binding > 2 && u.binding < 15) || u.binding === 29 || u.binding === 31 || u.binding === 32 || u.binding === 33 || u.binding === 34) {
+        if ((u.binding > 2 && u.binding < 15) || u.binding === 29 || u.binding === 31 || u.binding === 32 || u.binding === 33 || u.binding === 34 || u.binding === 36) {
             entries.push({
                 binding: u.binding,
                 visibility: GPUShaderStage.FRAGMENT,
@@ -241,6 +246,7 @@ export function create(device: GPUDevice, glslang, wgsl, uniformBindGroup1, defi
     }
 
     const pipeline = device.createRenderPipeline({
+        label: 'main-pipeline',
         layout: pipelineLayout,
         vertex: {
             module: device.createShaderModule({
@@ -256,7 +262,7 @@ export function create(device: GPUDevice, glslang, wgsl, uniformBindGroup1, defi
             entryPoint: 'main',
             targets: [
                 {
-                    format: 'rgba16float',
+                    format: hasTransmission ? 'bgra8unorm' : 'bgra8unorm',
                     blend: defines.find(d => d.name === 'ALPHATEST')
                         ? {
                             color: {
@@ -272,15 +278,17 @@ export function create(device: GPUDevice, glslang, wgsl, uniformBindGroup1, defi
                         }
                         : undefined
                 },
-                { format: 'rgba16float' },
-                { format: 'rgba16float' },
-                { format: 'rgba16float' }
+                // { format: 'rgba16float' },
+                // { format: 'rgba16float' },
+                // { format: 'rgba16float' }
             
             ]
         },
 
         primitive: {
-            topology: 'triangle-list',
+            frontFace: frontFace ? 'cw' : 'ccw',
+            stripIndexFormat: getMode(mode).endsWith('strip') ? 'uint32' : undefined,
+            topology: getMode(mode),
             cullMode: defines.find(d => d.name === 'DOUBLESIDED') ? 'none' : 'back'
         },
         depthStencil: {
@@ -290,4 +298,21 @@ export function create(device: GPUDevice, glslang, wgsl, uniformBindGroup1, defi
         }
     });
     return pipeline;
+}
+
+function getMode(mode) {
+    switch (mode) {
+    case 0:
+        return 'point-list';
+    case 1:
+        return 'line-list';
+    case 2:
+        return 'line-strip';
+    case 3:
+        return 'line-strip';
+    case 4:
+        return 'triangle-list';
+    default:
+        return 'triangle-list';
+    }
 }

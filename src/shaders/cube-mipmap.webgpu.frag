@@ -27,8 +27,8 @@ float RadicalInverse_VdC(uint bits) {
 vec2 Hammersley(uint i, uint N) {
     return vec2(float(i)/float(N), RadicalInverse_VdC(i));
 }  
-vec3 ImportanceSampleGGX(vec2 Xi, vec3 N, float roughness, bool isCharlie, float cosZ) {
-    float a = roughness*roughness;
+vec3 ImportanceSampleGGX(vec2 Xi, vec3 N, float roughness, bool isCharlie, inout float cosZ) {
+    float a = max(roughness*roughness, 0.000001);
 	
     float phi = 2.0 * PI * Xi.x;
     float cosTheta = sqrt((1.0 - Xi.y) / (1.0 + (a*a - 1.0) * Xi.y));
@@ -53,7 +53,8 @@ vec3 ImportanceSampleGGX(vec2 Xi, vec3 N, float roughness, bool isCharlie, float
 	
     vec3 sampleVec = tangent * H.x + bitangent * H.y + N * H.z;
     return normalize(sampleVec);
-}
+} 
+
 float DistributionGGX(vec3 N, vec3 H, float roughness) {
     float a = roughness*roughness;
     float a2 = max(a*a, 0.0001);
@@ -76,18 +77,18 @@ float D_Charlie(float sheenRoughness, float NdotH) {
 }
 
 vec3 x(bool isCharlie, float roughness) {
-    vec3 N = normalize(outUV);    
+    vec3 N = normalize(vec3(outUV.z, outUV.y, outUV.x));    
     vec3 R = N;
     vec3 V = R;
 
-    const uint SAMPLE_COUNT = 1024u;
+    const uint SAMPLE_COUNT = isCharlie ? 64u : 1024u;
     float totalWeight = 0.0;   
     vec3 prefilteredColor = vec3(0.0);     
     for(uint i = 0u; i < SAMPLE_COUNT; ++i) {
         vec2 Xi = Hammersley(i, SAMPLE_COUNT);
-        float cosZ;
+        float cosZ = 0.0;
         vec3 H  = ImportanceSampleGGX(Xi, N, roughness, isCharlie, cosZ);
-        vec3 L  = normalize(2.0 * dot(V, H) * H - V);
+        vec3 L  = normalize(reflect(-V, H));
 
         float NdotL = max(dot(N, L), 0.0);
         if (NdotL > 0.0) {
@@ -95,13 +96,13 @@ vec3 x(bool isCharlie, float roughness) {
             float pdf = (D * max(dot(N, H), 0.0) / (4.0 * max(dot(H, V), 0.0))) + 0.0001;
             if (isCharlie) {
                 pdf = D_Charlie(roughness * roughness, cosZ);
+                pdf /= 4.0;
             }
-            float saTexel = 4.0 * PI / (6.0 * 512.0 * 512.0);
-            float saSample = 1.0 / (float(SAMPLE_COUNT) * pdf + 0.00001);
-             
-            float mipLevel = roughness == 0.0 ? 0.0 :  0.5 * log2( saSample / saTexel )  ;
-                                 
-            prefilteredColor += textureLod( samplerCube(environmentMap, baseSampler), L, mipLevel ).rgb * NdotL;     
+
+            float mip = floor(log2(512.0)) - 1.0;
+            float lod = roughness == 0.0 ? 0.0 : 0.5 * log2( mip * float(512) * float(512) / (float(SAMPLE_COUNT) * pdf));
+
+            prefilteredColor += textureLod( samplerCube(environmentMap, baseSampler), L, clamp(lod, 0.0, 4.0) ).rgb * NdotL;
             totalWeight += NdotL;
         }
     }

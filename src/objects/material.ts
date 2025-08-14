@@ -88,7 +88,7 @@ export class Material extends M {
             if (cl.clearcoatTexture) {
                 const { extensions, texCoord } = cl.clearcoatTexture;
                 this.clearcoatTexture = textures[cl.clearcoatTexture.index];
-                defines.push({ name: 'CLEARCOATMAP', value: texCoord ? 2 : 1 });
+                defines.push({ name: 'CLEARCOATMAP', value: texCoord ?? 0 });
                 if (extensions) {
                     const ex = extensions.KHR_texture_transform;
                     if (ex) {
@@ -99,7 +99,7 @@ export class Material extends M {
             if (cl.clearcoatNormalTexture) {
                 const { extensions, texCoord } = cl.clearcoatNormalTexture;
                 this.clearcoatNormalTexture = textures[cl.clearcoatNormalTexture.index];
-                defines.push({ name: 'CLEARCOATNORMALMAP', value: texCoord ? 2 : 1 });
+                defines.push({ name: 'CLEARCOATNORMALMAP', value: texCoord ?? 0 });
                 if (extensions) {
                     const ex = extensions.KHR_texture_transform;
                     if (ex) {
@@ -110,7 +110,7 @@ export class Material extends M {
             if (cl.clearcoatRoughnessTexture) {
                 const { extensions, texCoord } = cl.clearcoatRoughnessTexture;
                 this.clearcoatRoughnessTexture = textures[cl.clearcoatRoughnessTexture.index];
-                defines.push({ name: 'CLEARCOATROUGHMAP', value: texCoord ? 2 : 1 });
+                defines.push({ name: 'CLEARCOATROUGHMAP', value: texCoord ?? 0 });
                 if (extensions) {
                     const ex = extensions.KHR_texture_transform;
                     if (ex) {
@@ -132,7 +132,7 @@ export class Material extends M {
             if (sheenColorTexture) {
                 const { extensions, texCoord } = sheenColorTexture;
                 this.sheenColorTexture = textures[sheenColorTexture.index];
-                defines.push({ name: 'SHEENMAP', value: texCoord ? 2 : 1 });
+                defines.push({ name: 'SHEENMAP', value: texCoord ?? 0 });
                 if (extensions) {
                     const ex = extensions.KHR_texture_transform;
                     if (ex) {
@@ -143,7 +143,7 @@ export class Material extends M {
             if (sheenRoughnessTexture) {
                 const { extensions, texCoord } = sheenRoughnessTexture;
                 this.sheenRoughnessTexture = textures[sheenRoughnessTexture.index];
-                defines.push({ name: 'SHEENROUGHNESSMAP', value: texCoord ? 2 : 1 });
+                defines.push({ name: 'SHEENROUGHNESSMAP', value: texCoord ?? 0 });
                 if (extensions) {
                     const ex = extensions.KHR_texture_transform;
                     if (ex) {
@@ -188,7 +188,7 @@ export class Material extends M {
             this.anisotropyRotation = anisotropyRotation;
             if (anisotropyTexture) {
                 this.anisotropyTexture = textures[anisotropyTexture.index];
-                defines.push({ name: 'ANISOTROPYMAP', value: anisotropyTexture.texCoord ? 2 : 1 });
+                defines.push({ name: 'ANISOTROPYMAP', value: anisotropyTexture.texCoord ?? 0 });
             }
             defines.push({ name: 'ANISOTROPY' });
         }
@@ -210,7 +210,7 @@ export class Material extends M {
             }
             if (iridescenceThicknessTexture) {
                 this.iridescenceThicknessTexture = textures[iridescenceThicknessTexture.index];
-                defines.push({ name: 'IRIDESCENCEMAP', value: iridescenceThicknessTexture.texCoord ? 2 : 1 });
+                defines.push({ name: 'IRIDESCENCEMAP', value: iridescenceThicknessTexture.texCoord ?? 0 });
             }
             defines.push({ name: 'IRIDESCENCE' });
         }
@@ -219,12 +219,12 @@ export class Material extends M {
             this.diffuseTransmissionFactor = diffuseTransmissionFactor;
             if (diffuseTransmissionTexture) {
                 this.diffuseTransmissionTexture = textures[diffuseTransmissionTexture.index];
-                defines.push({ name: 'DIFFUSE_TRANSMISSION_MAP', value: diffuseTransmissionTexture.texCoord ? 2 : 1 });
+                defines.push({ name: 'DIFFUSE_TRANSMISSION_MAP', value: diffuseTransmissionTexture.texCoord ?? 0 });
             }
             this.diffuseTransmissionColorFactor = diffuseTransmissionColorFactor ?? [1, 1, 1];
             if (diffuseTransmissionColorTexture) {
                 this.diffuseTransmissionColorTexture = textures[diffuseTransmissionColorTexture.index];
-                defines.push({ name: 'DIFFUSE_TRANSMISSION_COLOR_MAP', value: diffuseTransmissionColorTexture.texCoord ? 2 : 1 });
+                defines.push({ name: 'DIFFUSE_TRANSMISSION_COLOR_MAP', value: diffuseTransmissionColorTexture.texCoord ?? 0 });
             }
             defines.push({ name: 'DIFFUSE_TRANSMISSION' });
         }
@@ -296,7 +296,7 @@ export class Material extends M {
         if (pbrMetallicRoughness && pbrMetallicRoughness.metallicRoughnessTexture) {
             const { extensions, texCoord } = pbrMetallicRoughness.metallicRoughnessTexture;
             this.metallicRoughnessTexture = textures[pbrMetallicRoughness.metallicRoughnessTexture.index];
-            defines.push({ name: 'METALROUGHNESSMAP', value: texCoord ? 2 : 1 });
+            defines.push({ name: 'METALROUGHNESSMAP', value: texCoord ?? 0 });
             if (extensions) {
                 const ex = extensions.KHR_texture_transform;
                 if (ex) {
@@ -308,7 +308,7 @@ export class Material extends M {
             const { extensions, texCoord, scale } = material.normalTexture;
             this.normalTexture = textures[material.normalTexture.index];
             this.normalTextureScale = scale;
-            defines.push({ name: 'NORMALMAP', value: texCoord ? 2 : 1 });
+            defines.push({ name: 'NORMALMAP', value: texCoord ?? 0 });
             if (extensions) {
                 const ex = extensions.KHR_texture_transform;
                 if (ex) {
@@ -320,7 +320,7 @@ export class Material extends M {
         if (material.occlusionTexture) {
             const { extensions, texCoord } = material.occlusionTexture;
             this.occlusionTexture = textures[material.occlusionTexture.index];
-            defines.push({ name: 'OCCLUSIONMAP', value: texCoord ? 2 : 1 });
+            defines.push({ name: 'OCCLUSIONMAP', value: texCoord ?? 0 });
             if (extensions) {
                 const ex = extensions.KHR_texture_transform;
                 if (ex) {
@@ -331,7 +331,7 @@ export class Material extends M {
         if (pbrMetallicRoughness && pbrMetallicRoughness.baseColorTexture) {
             const { extensions, texCoord } = pbrMetallicRoughness.baseColorTexture;
             this.baseColorTexture = textures[pbrMetallicRoughness.baseColorTexture.index];
-            defines.push({ name: 'BASECOLORTEXTURE', value: texCoord ? 2 : 1 });
+            defines.push({ name: 'BASECOLORTEXTURE', value: texCoord ?? 0 });
             if (extensions) {
                 const ex = extensions.KHR_texture_transform;
                 if (ex) {
@@ -342,7 +342,7 @@ export class Material extends M {
         if (material.emissiveTexture) {
             const { extensions, texCoord } = material.emissiveTexture;
             this.emissiveTexture = textures[material.emissiveTexture.index];
-            defines.push({ name: 'EMISSIVEMAP', value: texCoord ? 2 : 1 });
+            defines.push({ name: 'EMISSIVEMAP', value: texCoord ?? 0 });
             if (extensions) {
                 const ex = extensions.KHR_texture_transform;
                 if (ex) {
@@ -660,14 +660,27 @@ export class Material extends M {
                 resource: sampler
             },
             {
+                binding: 37,
+                resource: device.createSampler({
+                    mipmapFilter: 'nearest',
+                    magFilter: 'nearest',
+                    minFilter: 'nearest',
+                })
+            },
+            {
                 binding: 24,
                 resource: device.createSampler({
-                    magFilter: 'linear'
+                    mipmapFilter: 'linear',
+                    magFilter: 'linear',
+                    minFilter: 'linear',
                 })
             },
             {
                 binding: 3,
-                resource: this.baseColorTexture?.createView()
+                resource: this.baseColorTexture?.createView({
+                    // baseMipLevel: 3,
+                    // mipLevelCount: 9,
+                })
             },
             {
                 binding: 4,
@@ -766,6 +779,10 @@ export class Material extends M {
                 resource: this.diffuseTransmissionTexture?.createView()
             },
             {
+                binding: 36,
+                resource: this.diffuseTransmissionColorTexture?.createView()
+            },
+            {
                 binding: 23,
                 resource: this.textureMatricesBuffer && {
                     buffer: uniformBuffer6,
@@ -830,5 +847,9 @@ export class Material extends M {
     setColor(gl, name, value) {
         gl.bindBufferBase(gl.UNIFORM_BUFFER, 1, this.UBO);
         this.materialUniformBuffer.update(gl, name, value.elements);
+    }
+
+    setColorWebGPU(gl, name, value) {
+        this.materialUniformBuffer.updateWebGPU(gl, name, value.elements);
     }
 }

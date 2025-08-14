@@ -34,7 +34,7 @@ export const textureEnum = {
     charlieTexture: 18,
     diffuseTransmissionTexture: 20,
     diffuseTransmissionColorTexture: 21,
-    anisotropyTexture: 22
+    anisotropyTexture: 22,
 };
 
 export function setGl(_gl) {
@@ -74,27 +74,27 @@ export function getMatrixType(type) {
 export function getDataType(type) {
     let count;
     switch (type) {
-    case 'MAT2':
-        count = 4;
-        break;
-    case 'MAT3':
-        count = 9;
-        break;
-    case 'MAT4':
-        count = 16;
-        break;
-    case 'VEC4':
-        count = 4;
-        break;
-    case 'VEC3':
-        count = 3;
-        break;
-    case 'VEC2':
-        count = 2;
-        break;
-    case 'SCALAR':
-        count = 1;
-        break;
+        case 'MAT2':
+            count = 4;
+            break;
+        case 'MAT3':
+            count = 9;
+            break;
+        case 'MAT4':
+            count = 16;
+            break;
+        case 'VEC4':
+            count = 4;
+            break;
+        case 'VEC3':
+            count = 3;
+            break;
+        case 'VEC2':
+            count = 2;
+            break;
+        case 'SCALAR':
+            count = 1;
+            break;
     }
     return count;
 }
@@ -102,15 +102,15 @@ export function getDataType(type) {
 export function getComponentType(type) {
     let count;
     switch (glEnum[type]) {
-    case 'FLOAT_VEC4':
-        count = 4;
-        break;
-    case 'FLOAT_VEC3':
-        count = 3;
-        break;
-    case 'FLOAT_VEC2':
-        count = 2;
-        break;
+        case 'FLOAT_VEC4':
+            count = 4;
+            break;
+        case 'FLOAT_VEC3':
+            count = 3;
+            break;
+        case 'FLOAT_VEC2':
+            count = 2;
+            break;
     }
     return count;
 }
@@ -118,30 +118,30 @@ export function getComponentType(type) {
 export function getMethod(type) {
     let method;
     switch (glEnum[type]) {
-    case 'FLOAT_VEC2':
-        method = 'uniform2f';
-        break;
-    case 'FLOAT_VEC4':
-        method = 'uniform4f';
-        break;
-    case 'FLOAT':
-        method = 'uniform1f';
-        break;
-    case 'FLOAT_VEC3':
-        method = 'uniform3f';
-        break;
-    case 'FLOAT_MAT4':
-        method = 'uniformMatrix4fv';
-        break;
-    case 'FLOAT_MAT3':
-        method = 'uniformMatrix3fv';
-        break;
-    case 'FLOAT_MAT2':
-        method = 'uniformMatrix2fv';
-        break;
-    case 'SAMPLER_2D':
-        method = 'uniform1i';
-        break;
+        case 'FLOAT_VEC2':
+            method = 'uniform2f';
+            break;
+        case 'FLOAT_VEC4':
+            method = 'uniform4f';
+            break;
+        case 'FLOAT':
+            method = 'uniform1f';
+            break;
+        case 'FLOAT_VEC3':
+            method = 'uniform3f';
+            break;
+        case 'FLOAT_MAT4':
+            method = 'uniformMatrix4fv';
+            break;
+        case 'FLOAT_MAT3':
+            method = 'uniformMatrix3fv';
+            break;
+        case 'FLOAT_MAT2':
+            method = 'uniformMatrix2fv';
+            break;
+        case 'SAMPLER_2D':
+            method = 'uniform1i';
+            break;
     }
     return method;
 }
@@ -182,18 +182,18 @@ export function interpolation(time, frames) {
 function getCount(type) {
     let arr;
     switch (glEnum[type]) {
-    case 'BYTE':
-    case 'UNSIGNED_BYTE':
-        arr = 1;
-        break;
-    case 'SHORT':
-    case 'UNSIGNED_SHORT':
-        arr = 2;
-        break;
-    case 'UNSIGNED_INT':
-    case 'FLOAT':
-        arr = 4;
-        break;
+        case 'BYTE':
+        case 'UNSIGNED_BYTE':
+            arr = 1;
+            break;
+        case 'SHORT':
+        case 'UNSIGNED_SHORT':
+            arr = 2;
+            break;
+        case 'UNSIGNED_INT':
+        case 'FLOAT':
+            arr = 4;
+            break;
     }
     return arr;
 }
@@ -220,24 +220,24 @@ export function buildArrayWithStride(arrayBuffer, accessor, bufferView) {
 
     let arr;
     switch (glEnum[accessor.componentType]) {
-    case 'BYTE':
-        arr = new Int8Array(arrayBuffer, offset, length);
-        break;
-    case 'UNSIGNED_BYTE':
-        arr = new Uint8Array(arrayBuffer, offset, length);
-        break;
-    case 'SHORT':
-        arr = new Int16Array(arrayBuffer, offset, length);
-        break;
-    case 'UNSIGNED_SHORT':
-        arr = new Uint16Array(arrayBuffer, offset, length);
-        break;
-    case 'UNSIGNED_INT':
-        arr = new Uint32Array(arrayBuffer, offset, length);
-        break;
-    case 'FLOAT':
-        arr = new Float32Array(arrayBuffer, offset, length);
-        break;
+        case 'BYTE':
+            arr = new Int8Array(arrayBuffer, offset, length);
+            break;
+        case 'UNSIGNED_BYTE':
+            arr = new Uint8Array(arrayBuffer, offset, length);
+            break;
+        case 'SHORT':
+            arr = new Int16Array(arrayBuffer, offset, length);
+            break;
+        case 'UNSIGNED_SHORT':
+            arr = new Uint16Array(arrayBuffer, offset, length);
+            break;
+        case 'UNSIGNED_INT':
+            arr = new Uint32Array(arrayBuffer, offset, length);
+            break;
+        case 'FLOAT':
+            arr = new Float32Array(arrayBuffer, offset, length);
+            break;
     }
     if (length !== requiredLength) {
         // buffer is too big need to stride it
@@ -258,24 +258,24 @@ export function buildArrayWithStride(arrayBuffer, accessor, bufferView) {
 export function buildArray(arrayBuffer, type, offset, length) {
     let arr;
     switch (glEnum[type]) {
-    case 'BYTE':
-        arr = new Int8Array(arrayBuffer, offset, length);
-        break;
-    case 'UNSIGNED_BYTE':
-        arr = new Uint8Array(arrayBuffer, offset, length);
-        break;
-    case 'SHORT':
-        arr = new Int16Array(arrayBuffer, offset, length);
-        break;
-    case 'UNSIGNED_SHORT':
-        arr = new Uint16Array(arrayBuffer, offset, length);
-        break;
-    case 'UNSIGNED_INT':
-        arr = new Uint32Array(arrayBuffer, offset, length);
-        break;
-    case 'FLOAT':
-        arr = new Float32Array(arrayBuffer, offset, length);
-        break;
+        case 'BYTE':
+            arr = new Int8Array(arrayBuffer, offset, length);
+            break;
+        case 'UNSIGNED_BYTE':
+            arr = new Uint8Array(arrayBuffer, offset, length);
+            break;
+        case 'SHORT':
+            arr = new Int16Array(arrayBuffer, offset, length);
+            break;
+        case 'UNSIGNED_SHORT':
+            arr = new Uint16Array(arrayBuffer, offset, length);
+            break;
+        case 'UNSIGNED_INT':
+            arr = new Uint32Array(arrayBuffer, offset, length);
+            break;
+        case 'FLOAT':
+            arr = new Float32Array(arrayBuffer, offset, length);
+            break;
     }
     return arr;
 }
@@ -351,7 +351,7 @@ export function canvasToWorld(vec2, projection, width, height) {
     return [v.elements[0], v.elements[1]];
 }
 
-export function calculateProjection(cam) {
+export function calculateProjection2(cam) {
     const { aspect, zoom } = cam;
     let proj;
     if (cam.type === 'perspective' && cam.perspective) {
@@ -363,7 +363,46 @@ export function calculateProjection(cam) {
             cam.orthographic.xmag * zoom,
             cam.orthographic.ymag * zoom,
             cam.orthographic.znear,
-            cam.orthographic.zfar
+            cam.orthographic.zfar,
+        );
+    }
+
+    return proj;
+}
+
+export function calculateProjection(cam) {
+    const { aspect, zoom } = cam;
+    let proj;
+    if (cam.type === 'perspective' && cam.perspective) {
+        const { yfov } = cam.perspective;
+
+        const f = 1.0 / Math.tan(yfov / 2);
+        const nf = 1 / (cam.perspective.znear - cam.perspective.zfar);
+
+        return new Matrix4().set([
+            f / aspect,
+            0,
+            0,
+            0,
+            0,
+            f,
+            0,
+            0,
+            0,
+            0,
+            cam.perspective.zfar * nf,
+            -1,
+            0,
+            0,
+            cam.perspective.znear * cam.perspective.zfar * nf,
+            0,
+        ]);
+    } else if (cam.type === 'orthographic' && cam.orthographic) {
+        proj = new Matrix4().setOrtho(
+            cam.orthographic.xmag * zoom,
+            cam.orthographic.ymag * zoom,
+            cam.orthographic.znear,
+            cam.orthographic.zfar,
         );
     }
 
@@ -421,7 +460,7 @@ export function calculateNormals2(vertex) {
         const faceVertices = [
             new Vector3([vertex[i], vertex[i + 1], vertex[i + 2]]),
             new Vector3([vertex[i + 3], vertex[i + 4], vertex[i + 5]]),
-            new Vector3([vertex[i + 6], vertex[i + 7], vertex[i + 8]])
+            new Vector3([vertex[i + 6], vertex[i + 7], vertex[i + 8]]),
         ];
         const dv1 = faceVertices[1].subtract(faceVertices[0]);
         const dv2 = faceVertices[2].subtract(faceVertices[0]);
@@ -448,7 +487,7 @@ export function calculateNormals(index, vertex) {
     const ns = new Float32Array((vertex.length / 3) * 3);
     for (let i = 0; i < index.length; i += 3) {
         const faceIndexes = [index[i], index[i + 1], index[i + 2]];
-        const faceVertices = faceIndexes.map(ix => vectorFromArray(vertex, ix));
+        const faceVertices = faceIndexes.map((ix) => vectorFromArray(vertex, ix));
 
         const dv1 = faceVertices[1].subtract(faceVertices[0]);
         const dv2 = faceVertices[2].subtract(faceVertices[0]);
@@ -476,8 +515,8 @@ export function calculateBinormals(index, vertex, normal, uv) {
 
     for (let i = 0; i < index.length; i += 3) {
         const faceIndexes = [index[i], index[i + 1], index[i + 2]];
-        const faceVertices = faceIndexes.map(ix => vectorFromArray(vertex, ix));
-        const faceUVs = faceIndexes.map(ix => vectorFromArray(uv, ix, 2));
+        const faceVertices = faceIndexes.map((ix) => vectorFromArray(vertex, ix));
+        const faceUVs = faceIndexes.map((ix) => vectorFromArray(uv, ix, 2));
 
         const dv1 = faceVertices[1].subtract(faceVertices[0]);
         const dv2 = faceVertices[2].subtract(faceVertices[0]);
@@ -491,11 +530,11 @@ export function calculateBinormals(index, vertex, normal, uv) {
         const udir = new Vector3([
             (duv2.elements[1] * dv1.elements[0] - duv1.elements[1] * dv2.elements[0]) * r,
             (duv2.elements[1] * dv1.elements[1] - duv1.elements[1] * dv2.elements[1]) * r,
-            (duv2.elements[1] * dv1.elements[2] - duv1.elements[1] * dv2.elements[2]) * r
+            (duv2.elements[1] * dv1.elements[2] - duv1.elements[1] * dv2.elements[2]) * r,
         ]);
         udir.normalize();
 
-        faceIndexes.forEach(ix => {
+        faceIndexes.forEach((ix) => {
             accumulateVectorInArray(tangent, ix, udir, sign);
         });
     }
@@ -546,18 +585,18 @@ export function getGlEnum(name) {
 export function normalize(array) {
     let fn;
     switch (true) {
-    case array instanceof Uint8Array:
-        fn = c => c / 255;
-        break;
-    case array instanceof Int8Array:
-        fn = c => Math.max(c / 127.0, -1.0);
-        break;
-    case array instanceof Uint16Array:
-        fn = c => c / 65535;
-        break;
-    case array instanceof Int16Array:
-        fn = c => Math.max(c / 32767.0, -1.0);
-        break;
+        case array instanceof Uint8Array:
+            fn = (c) => c / 255;
+            break;
+        case array instanceof Int8Array:
+            fn = (c) => Math.max(c / 127.0, -1.0);
+            break;
+        case array instanceof Uint16Array:
+            fn = (c) => c / 65535;
+            break;
+        case array instanceof Int16Array:
+            fn = (c) => Math.max(c / 32767.0, -1.0);
+            break;
     }
     if (fn) {
         const normalizedArray = new Float32Array(array.length);
@@ -567,5 +606,116 @@ export function normalize(array) {
         return normalizedArray;
     } else {
         return array;
+    }
+}
+
+export async function generateMipmaps(device, texture, width, height, mipLevelCount, { isCube = false } = {}) {
+    const wgsl = `
+    @group(0) @binding(0) var mySampler: sampler;
+    @group(0) @binding(1) var myTexture: texture_2d<f32>;
+
+    struct VSOut {
+      @builtin(position) pos: vec4f,
+      @location(0) uv: vec2f
+    };
+
+    @vertex
+    fn vs_main(@builtin(vertex_index) vi: u32) -> VSOut {
+      var pos = array<vec2f, 6>(
+        vec2f(-1.0, -1.0),
+        vec2f( 1.0, -1.0),
+        vec2f(-1.0,  1.0),
+        vec2f(-1.0,  1.0),
+        vec2f( 1.0, -1.0),
+        vec2f( 1.0,  1.0)
+      );
+      var out: VSOut;
+      out.pos = vec4f(pos[vi], 0.0, 1.0);
+      var  uv = (pos[vi] + vec2f(1.0)) * 0.5;
+      uv.y = 1.0 - uv.y;
+      out.uv  = uv;
+      return out;
+    }
+
+    @fragment
+    fn fs_main(@location(0) uv: vec2f) -> @location(0) vec4f {
+      // sample exactly mip 0 of the bound view (which we create from src mip)
+      return textureSampleLevel(myTexture, mySampler, uv, 0.0);
+    }
+  `;
+
+    const module = device.createShaderModule({ code: wgsl });
+    const pipeline = device.createRenderPipeline({
+        layout: 'auto',
+        vertex: { module, entryPoint: 'vs_main' },
+        fragment: {
+            module,
+            entryPoint: 'fs_main',
+            targets: [{ format: texture.format }], // use the real texture format
+        },
+        primitive: { topology: 'triangle-list' },
+    });
+
+    const genSampler = device.createSampler({
+        magFilter: 'linear',
+        minFilter: 'linear',
+        mipmapFilter: 'nearest',
+        addressModeU: 'clamp-to-edge',
+        addressModeV: 'clamp-to-edge',
+    });
+
+    for (let level = 1; level < mipLevelCount; level++) {
+        const dstWidth = Math.max(1, Math.floor(width / Math.pow(2, level)));
+        const dstHeight = Math.max(1, Math.floor(height / Math.pow(2, level)));
+
+        const faceCount = isCube ? 6 : 1;
+        for (let face = 0; face < faceCount; face++) {
+            const srcView = texture.createView({
+                baseMipLevel: level - 1,
+                mipLevelCount: 1,
+                baseArrayLayer: isCube ? face : 0,
+                arrayLayerCount: isCube ? 1 : undefined,
+                dimension: '2d',
+            });
+
+            const dstView = texture.createView({
+                baseMipLevel: level,
+                mipLevelCount: 1,
+                baseArrayLayer: isCube ? face : 0,
+                arrayLayerCount: isCube ? 1 : undefined,
+                dimension: '2d',
+            });
+
+            const bindGroup = device.createBindGroup({
+                layout: pipeline.getBindGroupLayout(0),
+                entries: [
+                    { binding: 0, resource: genSampler },
+                    { binding: 1, resource: srcView },
+                ],
+            });
+
+            const encoder = device.createCommandEncoder();
+            const pass = encoder.beginRenderPass({
+                colorAttachments: [
+                    {
+                        view: dstView,
+                        clearValue: { r: 0, g: 0, b: 0, a: 1 },
+                        loadOp: 'clear',
+                        storeOp: 'store',
+                    },
+                ],
+            });
+
+            pass.setPipeline(pipeline);
+            pass.setBindGroup(0, bindGroup);
+
+            // ensure viewport equals the destination mip size
+            pass.setViewport(0, 0, dstWidth, dstHeight, 0, 1);
+
+            pass.draw(6);
+            pass.end();
+
+            device.queue.submit([encoder.finish()]);
+        }
     }
 }

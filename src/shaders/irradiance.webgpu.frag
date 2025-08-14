@@ -26,13 +26,15 @@ void main() {
             // spherical to cartesian (in tangent space)
             vec3 tangentSample = vec3(sin(theta) * cos(phi),  sin(theta) * sin(phi), cos(theta));
             // tangent space to world
-            vec3 sampleVec = tangentSample.x * right + tangentSample.y * up + tangentSample.z * N; 
+            vec3 sampleVec = tangentSample.x * right + tangentSample.y * up + tangentSample.z * N;
+            vec3 sampleVecFixed = vec3(sampleVec.z, sampleVec.y, sampleVec.x);
 
-            irradiance += textureLod(samplerCube(environmentMap, baseSampler), sampleVec, 3.0).rgb * cos(theta) * sin(theta);
+            float mip = floor(log2(512.0)) - 3.0;
+            irradiance += textureLod(samplerCube(environmentMap, baseSampler), sampleVecFixed, mip).rgb * cos(theta) * sin(theta);
             nrSamples++;
         }
     }
-    irradiance = irradiance * (1.0 / float(nrSamples)) * (1.0 / PI); // * PI Hack
+    irradiance = PI * irradiance * (1.0 / float(nrSamples));
     
     color = vec4(irradiance, 1.0);
 }

@@ -1,3 +1,4 @@
+import { generateMipmaps } from '../utils';
 import { PostProcessor } from './base';
 
 let gl;
@@ -36,6 +37,10 @@ export class Refraction extends PostProcessor {
             ...(PP.pipeline.pass.colorAttachments.slice(1))
         ];
         PP.renderScene({ isprerefraction: true });
+
+        const mipLevelCount = Math.max(1, Math.floor(Math.log2(Math.max(PP.width, PP.height))) - 2);
+        // @ts-expect-error
+        generateMipmaps(gl.device, this.texture.texture, PP.width, PP.height, mipLevelCount);
     }
 
     buildScreenBuffer(pp) {
@@ -47,7 +52,7 @@ export class Refraction extends PostProcessor {
         return { name: 'REFRACTION' };
     }
     buildScreenBufferWebGPU(pp) {
-        this.texture = pp.createDefaultTexture();
+        this.texture = pp.createDefaultTexture('refractionTexture');
         return { name: 'REFRACTION' };
     }
     attachUniform() {}

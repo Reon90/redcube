@@ -14,11 +14,11 @@ vec2 getUV(int index) {
     if (index == 2) {
         return outUV3;
     }
-    if (index == 0) {
+    if (index == 1) {
         return outUV2;
     }
     #endif
-    if (index == 1) {
+    if (index == 0) {
         return outUV0;
     }
 }
@@ -256,11 +256,11 @@ vec3 calcTransmission(vec3 color, vec3 N, float roughness, vec3 V, float transmi
     vec4 refractS = projection * view * vec4(outPosition + refract(-V, N, refraction_ior) * thickness, 1.0);
     refractS.xy = refractS.xy / refractS.w;
     refractS.xy = refractS.xy * 0.5 + 0.5;
-    const float MAX_REFLECTION_LOD = 10.0;
+    const float MAX_REFLECTION_LOD = 7.0;
     #if defined(WEBGPU)
     refractS.y = 1.0 - refractS.y;
     #endif
-    vec3 baseColor = textureLod2D(colorTexture, refractS.xy, applyIorToRoughness(roughness, 1.0 / refraction_ior) * MAX_REFLECTION_LOD).xyz;
+    vec3 baseColor = textureLod2D2(colorTexture, refractS.xy, applyIorToRoughness(roughness, 1.0 / refraction_ior) * MAX_REFLECTION_LOD).xyz;
 
     #ifdef DISPERSION
         environmentRefraction[i] = baseColor[i];
@@ -318,7 +318,7 @@ float sheenVisibility(vec3 N, vec3 V, vec3 L, float sheenRoughness) {
         (4.0 * NdotV * NdotL)), 0.0, 1.0);
 }
 float E(float x, float y) {
-    return texture2D(Sheen_E, vec2(x,y)).r;
+    return clamp(texture2D(Sheen_E, vec2(x,y)).r, 0.0, 1.0);
 }
 float max3(vec3 v) { return max(max(v.x, v.y), v.z); }
 float pow2(float v) { return v * v; }
@@ -357,7 +357,7 @@ vec3 IBLAmbient(vec3 baseColor, float metallic, vec3 n, float roughness, vec3 vi
     vec3 prefilteredColor = textureLodCube(prefilterMap, R, roughness * MAX_REFLECTION_LOD).rgb;
     vec3 irradiance = textureCube(irradianceMap, n).rgb;
     #endif
-    vec2 envBRDF  = texture2D(brdfLUT, vec2(max(dot(n, viewDir), 0.0), roughness)).rg;
+    vec2 envBRDF  = textureLod2D(brdfLUT, vec2(max(dot(n, viewDir), 0.0), roughness), 0.0).rg;
     vec3 kS = F;
     #if defined IRIDESCENCE
     kS = mix(F, iridescenceFresnel, iridescenceFactor);
@@ -365,7 +365,7 @@ vec3 IBLAmbient(vec3 baseColor, float metallic, vec3 n, float roughness, vec3 vi
     specular = prefilteredColor * (kS * specularWeight * envBRDF.x + envBRDF.y);
 
     #if defined SHEEN
-    float charliebrdf = texture2D(brdfLUT, vec2(max(dot(n, viewDir), 0.0), sheenRoughness)).b;
+    float charliebrdf = textureLod2D(brdfLUT, vec2(max(dot(n, viewDir), 0.0), sheenRoughness), 0.0).b;
     vec3 sheenSample = textureLodCube(charlieMap, R, sheenRoughness * MAX_REFLECTION_LOD).rgb;
     f_sheen += sheenSample * sheenColor * charliebrdf;
     #endif
@@ -375,7 +375,7 @@ vec3 IBLAmbient(vec3 baseColor, float metallic, vec3 n, float roughness, vec3 vi
 
 float specEnv(vec3 N, vec3 V, float metallic, float roughness, vec3 F0, float specularWeight) {
     float F = fresnelSchlickRoughness(max(dot(N, V), 0.0), (F0.x+F0.y+F0.z)/3.0, roughness);
-    vec2 envBRDF  = texture2D(brdfLUT, vec2(max(dot(N, V), 0.0), roughness)).rg;
+    vec2 envBRDF  = textureLod2D(brdfLUT, vec2(max(dot(N, V), 0.0), roughness), 0.0).rg;
     return (F * specularWeight * envBRDF.x + envBRDF.y);
 }
 

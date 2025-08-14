@@ -9,14 +9,20 @@
 #define texture2D(p, uv) texture(sampler2D(p, baseSampler), uv)
 #define textureCube(p, uv) texture(samplerCube(p, unfilteredSampler), uv)
 #define textureLodCube(p, uv, i) textureLod(samplerCube(p, unfilteredSampler), uv, i)
-#define textureLod2D(p, uv, i) textureLod(sampler2D(p, baseSampler), uv, i)
+#define textureLod2D(p, uv, i) textureLod(sampler2D(p, baseSampler2), uv, i)
+#define textureLod2D2(p, uv, i) textureLod(sampler2D(p, unfilteredSampler), uv, i)
 
 #define IBL 1
 #define USE_PBR 1
 #define WEBGPU 1
 
 layout(location = 0) in vec2 outUV0;
-layout(location = 4) in mat3 outTBN;
+
+#ifdef TANGENT
+    layout(location = 4) in mat3 outTBN;
+#else
+    layout(location = 11) in vec3 outNormal;
+#endif
 #ifdef MULTIUV
 layout(location = 1) in vec2 outUV2;
 layout(location = 8) in vec2 outUV3;
@@ -95,6 +101,7 @@ layout(set = 0, binding = 23) uniform TextureMatrices {
 #endif
 
 layout(set = 0, binding = 2) uniform sampler baseSampler;
+layout(set = 0, binding = 37) uniform sampler baseSampler2;
 layout(set = 0, binding = 24) uniform sampler unfilteredSampler;
 #ifdef BASECOLORTEXTURE
 layout(set = 0, binding = 3) uniform texture2D baseColorTexture;
@@ -143,6 +150,7 @@ layout(set = 0, binding = 31) uniform texture2D anisotropyTexture;
 layout(set = 0, binding = 32) uniform texture2D iridescenceThicknessTexture;
 layout(set = 0, binding = 33) uniform texture2D specularColorTexture;
 layout(set = 0, binding = 34) uniform texture2D diffuseTransmissionTexture;
+layout(set = 0, binding = 36) uniform texture2D diffuseTransmissionColorTexture;
 layout(set = 0, binding = 35) uniform textureCube charlieMap;
 
 layout(set = 0, binding = 30) uniform StateUniform {

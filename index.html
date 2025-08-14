@@ -48,7 +48,7 @@
         fetch('https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/model-index.json')
             .then(r => r.json())
             .then(samples => {
-                const name = localStorage.getItem('sample') || 'DamagedHelmet';
+                const name = new URL(location).searchParams.get('model') || localStorage.getItem('sample') || 'DamagedHelmet';
                 const canvas = document.getElementById('canvas');
                 const select = document.createElement('select');
                 select.onchange = () => {

@@ -9,7 +9,7 @@ export class Mesh extends Object3D {
     geometry: Geometry;
     material: Material;
     program: WebGLProgram;
-    defines: Array<string>;
+    defines: Array<{ name: string }>;
     mode: number;
     frontFace: boolean;
     distance: number;
@@ -42,7 +42,7 @@ export class Mesh extends Object3D {
 
     drawWebGPU(WebGPU: WEBGPU, passEncoder, { stateBuffer, renderState, needUpdateView, needUpdateProjection, camera, light }) {
         const { isprerefraction } = renderState;
-        if (this.material.transmissionFactor && isprerefraction) {
+        if (this.defines.find(i => i.name === 'TRANSMISSION') && isprerefraction) {
             return;
         }
         if (this.reflow) {
@@ -53,7 +53,7 @@ export class Mesh extends Object3D {
             this.geometry.uniformBuffer.updateWebGPU(WebGPU, 'model', this.matrixWorld.elements);
             this.geometry.uniformBuffer.updateWebGPU(WebGPU, 'normalMatrix', normalMatrix.elements);
         }
-        stateBuffer.updateWebGPU(WebGPU, 'isTone', 0);
+        stateBuffer.updateWebGPU(WebGPU, 'isTone', isprerefraction ? 0 : 1);
         if (needUpdateView) {
             this.geometry.uniformBuffer.updateWebGPU(WebGPU, 'view', camera.matrixWorldInvert.elements);
             this.geometry.uniformBuffer.updateWebGPU(WebGPU, 'light', light.matrixWorldInvert.elements);
@@ -90,6 +90,7 @@ export class Mesh extends Object3D {
         passEncoder.setBindGroup(0, this.uniformBindGroup1);
         passEncoder.setVertexBuffer(0, this.geometry.verticesWebGPUBuffer);
         if (this.geometry.indicesBuffer) {
+            const type = this.geometry.indexType < 5124 ? 'uint16' : 'uint32';
             passEncoder.setIndexBuffer(this.geometry.indicesWebGPUBuffer, 'uint32');
             passEncoder.drawIndexed(this.geometry.indicesBuffer.length);
         } else {
@@ -114,7 +115,7 @@ export class Mesh extends Object3D {
         }
     ) {
         const { isprepender, isprerefraction } = renderState;
-        if (this.material.transmissionFactor && isprerefraction) {
+        if (this.defines.find(i => i.name === 'TRANSMISSION') && isprerefraction) {
             return;
         }
         gl.useProgram(this.program);

@@ -6,6 +6,18 @@ layout (location = 0) out vec4 color;
 
 const float PI = 3.14159265359;
 
+float V_Ashikhmin(float NdotL, float NdotV) {
+    return clamp(1.0 / (4.0 * (NdotL + NdotV - NdotL * NdotV)), 0.0, 1.0);
+}
+
+float D_Charlie(float sheenRoughness, float NdotH) {
+    sheenRoughness = max(sheenRoughness, 0.000001); //clamp (0,1]
+    float invR = 1.0 / sheenRoughness;
+    float cos2h = NdotH * NdotH;
+    float sin2h = 1.0 - cos2h;
+    return (2.0 + invR) * pow(sin2h, invR * 0.5) / (2.0 * PI);
+}
+
 float GeometrySchlickGGX(float NdotV, float roughness) {
     float a = roughness;
     float k = (a * a) / 2.0;
@@ -38,12 +50,17 @@ vec2 Hammersley(uint i, uint N) {
     return vec2(float(i)/float(N), RadicalInverse_VdC(i));
 }  
 
-vec3 ImportanceSampleGGX(vec2 Xi, vec3 N, float roughness) {
+vec3 ImportanceSampleGGX(vec2 Xi, vec3 N, float roughness, bool isCharlie) {
     float a = roughness*roughness;
 	
     float phi = 2.0 * PI * Xi.x;
     float cosTheta = sqrt((1.0 - Xi.y) / (1.0 + (a*a - 1.0) * Xi.y));
     float sinTheta = sqrt(1.0 - cosTheta*cosTheta);
+
+    if (isCharlie) {
+        sinTheta = pow(Xi.y, a / (2.0*a + 1.0));
+        cosTheta = sqrt(1.0 - sinTheta * sinTheta);
+    }
 	
     // from spherical coordinates to cartesian coordinates
     vec3 H;
@@ -60,7 +77,7 @@ vec3 ImportanceSampleGGX(vec2 Xi, vec3 N, float roughness) {
     return normalize(sampleVec);
 } 
 
-vec2 IntegrateBRDF(float NdotV, float roughness) {
+vec3 IntegrateBRDF(float NdotV, float roughness) {
     vec3 V;
     V.x = sqrt(1.0 - NdotV*NdotV);
     V.y = 0.0;
@@ -68,14 +85,15 @@ vec2 IntegrateBRDF(float NdotV, float roughness) {
 
     float A = 0.0;
     float B = 0.0;
+    float C = 0.0;
 
     vec3 N = vec3(0.0, 0.0, 1.0);
 
     const uint SAMPLE_COUNT = 1024u;
     for(uint i = 0u; i < SAMPLE_COUNT; ++i) {
         vec2 Xi = Hammersley(i, SAMPLE_COUNT);
-        vec3 H  = ImportanceSampleGGX(Xi, N, roughness);
-        vec3 L  = normalize(2.0 * dot(V, H) * H - V);
+        vec3 H  = ImportanceSampleGGX(Xi, N, roughness, false);
+        vec3 L  = normalize(reflect(-V, H));
 
         float NdotL = max(L.z, 0.0);
         float NdotH = max(H.z, 0.0);
@@ -89,13 +107,26 @@ vec2 IntegrateBRDF(float NdotV, float roughness) {
             A += (1.0 - Fc) * G_Vis;
             B += Fc * G_Vis;
         }
+
+        H  = ImportanceSampleGGX(Xi, N, roughness, true);
+        L  = normalize(2.0 * dot(V, H) * H - V);
+        NdotL = max(L.z, 0.0);
+        NdotH = max(H.z, 0.0);
+        VdotH = max(dot(V, H), 0.0);
+        if (NdotL > 0.0) {
+            float sheenDistribution = D_Charlie(roughness, NdotH);
+            float sheenVisibility = V_Ashikhmin(NdotL, NdotV);
+
+            C += sheenVisibility * sheenDistribution * NdotL * VdotH;
+        }
     }
     A /= float(SAMPLE_COUNT);
     B /= float(SAMPLE_COUNT);
-    return vec2(A, B);
+    C = 4.0 * 2.0 * PI * C / float(SAMPLE_COUNT);
+    return vec3(A, B, C);
 }
 
 void main() {		
-    vec2 integratedBRDF = IntegrateBRDF(uv.x, uv.y);
-    color = vec4(integratedBRDF, 0.0, 0.0);
+    vec3 integratedBRDF = IntegrateBRDF(uv.x, uv.y);
+    color = vec4(integratedBRDF, 0.0);
 }

@@ -18,7 +18,9 @@ export class RendererWebGPU extends Renderer {
     render(time = 0) {
         const sec = time / 1000;
 
-        this.animate(sec);
+        if (!(window as any).__FORCE_DETERMINISTIC__) {
+            this.animate(sec);
+        }
 
         if (this.reflow) {
             if (this.PP.hasPrePass) {
@@ -47,18 +49,23 @@ export class RendererWebGPU extends Renderer {
         mesh.geometry.updateWebGPU(WebGPU, geometry);
     }
 
+    updateMaterial(mesh, type, out) {
+        mesh.material.setColorWebGPU(WebGPU, type, out);
+    }
+
     renderScene() {
         let { renderPassDescriptor, context, device } = WebGPU;
 
         if (this.PP.target) {
             renderPassDescriptor = {
                 ...renderPassDescriptor,
+                label: 'g-pass',
                 colorAttachments: this.PP.target,
                 // @ts-expect-error
                 depthStencilAttachment: this.PP.pipeline.pass.depthStencilAttachment
             };
         } else {
-            renderPassDescriptor = {...renderPassDescriptor, colorAttachments: [
+            renderPassDescriptor = {...renderPassDescriptor, label: 'main-pass', colorAttachments: [
                 {
                     // attachment is acquired in render loop.
                     view: context.getCurrentTexture().createView(),
@@ -69,9 +76,12 @@ export class RendererWebGPU extends Renderer {
             ]};
         }
 
-        const commandEncoder = device.createCommandEncoder();
+        const commandEncoder = device.createCommandEncoder({label: 'main-command-encoder'});
         WebGPU.commandEncoder = commandEncoder;
         const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
+        // @ts-ignore
+        //this.env.drawCube(WebGPU, passEncoder);
+
         this.scene.opaqueChildren.forEach(mesh => {
             //if (mesh.visible) {
             passEncoder.setPipeline(mesh.pipeline);

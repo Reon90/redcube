@@ -3,3 +3,5 @@ node_modules
 examples/**
 dist/redcube.js.map
 coverage/
+test-results/
+tests/

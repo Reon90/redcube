@@ -48,7 +48,7 @@ export class PostProcessing {
     vertexBuffer: GPUBuffer;
     bindGroup: GPUBindGroup;
 
-    hasPostPass = true;
+    hasPostPass = false;
     hasPrePass = false;
 
     constructor(processors, renderScene) {
@@ -127,7 +127,7 @@ export class PostProcessing {
         // @ts-expect-error
         this.postprocessors.forEach(postProcessor => postProcessor.postProcessingWebGPU(this));
 
-        const commandEncoder = device.createCommandEncoder();
+        const commandEncoder = device.createCommandEncoder({label: 'compose-command-encoder'});
         const shadowPass = commandEncoder.beginRenderPass({
             colorAttachments: [{
                 // attachment is acquired in render loop.
@@ -169,18 +169,24 @@ export class PostProcessing {
         return { texture, sampler, view: texture.createView() };
     }
 
-    createDefaultTexture(scale = 1, hasMipmap = false) {
+    createDefaultTexture(label: string, scale = 1, hasMipmap = false) {
         const sampler = gl.device.createSampler({
             magFilter: 'linear',
             minFilter: 'linear',
             mipmapFilter: hasMipmap ? 'linear' : undefined
         });
+        const mipLevelCount = Math.max(1, Math.floor(Math.log2(Math.max(this.width, this.height))) - 2);
         const texture = gl.device.createTexture({
+            label,
+            mipLevelCount,
             size: [this.width / scale, this.height / scale, 1],
             usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
-            format: 'rgba16float'
+            format: 'bgra8unorm'
         });
-        return { texture, sampler, view: texture.createView() };
+        return { texture, sampler, view: texture.createView({
+            baseMipLevel: 0,
+            mipLevelCount: 1
+        }) };
     }
 
     createOneChannelTexture(scale = 1) {
@@ -255,6 +261,7 @@ export class PostProcessing {
         });
         const fragmentCode ='diagnostic(off,derivative_uniformity);\n' + convertGLSLtoWGSL(fragment, 'fragment');
         const pipeline = device.createRenderPipeline({
+            label: 'g-pipeline',
             layout: pipelineLayout,
             vertex: {
                 module: device.createShaderModule({
@@ -283,7 +290,7 @@ export class PostProcessing {
                 entryPoint: 'main',
                 targets: [
                     {
-                        format: screen ? 'bgra8unorm' : 'rgba16float'
+                        format: screen ? 'bgra8unorm' : 'bgra8unorm'
                     }
                 ]
             },
@@ -308,11 +315,11 @@ export class PostProcessing {
 
         this.vertexBuffer = this.buildVertex(gl, quadFull);
 
-        this.screenTexture = this.createDefaultTexture();
+        this.screenTexture = this.createDefaultTexture('screenTexture');
         this.normalTexture = this.createByteTexture('normalTexture');
-        this.irradianceTexture = this.createDefaultTexture();
-        this.specTexture = this.createDefaultTexture();
-        this.albedoTexture = this.createDefaultTexture();
+        this.irradianceTexture = this.createDefaultTexture('irradianceTexture');
+        this.specTexture = this.createDefaultTexture('specTexture');
+        this.albedoTexture = this.createDefaultTexture('albedoTexture');
         this.depthTexture = this.createDepthTexture('depthTexture');
         this.preDepthTexture = this.createDepthTexture('preDepthTexture');
         const colorAttachments = [
@@ -328,24 +335,24 @@ export class PostProcessing {
             //     loadOp: 'clear',
             //     clearValue: { r: 0, g: 0, b: 0, a: 1.0 }
             // },
-            {
-                view: this.irradianceTexture.texture.createView(),
-                storeOp: 'store' as GPUStoreOp,
-                loadOp: 'clear',
-                clearValue: { r: 0, g: 0, b: 0, a: 1.0 }
-            },
-            {
-                view: this.albedoTexture.texture.createView(),
-                storeOp: 'store' as GPUStoreOp,
-                loadOp: 'clear',
-                clearValue: { r: 0, g: 0, b: 0, a: 1.0 }
-            },
-            {
-                view: this.specTexture.texture.createView(),
-                storeOp: 'store' as GPUStoreOp,
-                loadOp: 'clear',
-                clearValue: { r: 0, g: 0, b: 0, a: 1.0 }
-            }
+            // {
+            //     view: this.irradianceTexture.texture.createView(),
+            //     storeOp: 'store' as GPUStoreOp,
+            //     loadOp: 'clear',
+            //     clearValue: { r: 0, g: 0, b: 0, a: 1.0 }
+            // },
+            // {
+            //     view: this.albedoTexture.texture.createView(),
+            //     storeOp: 'store' as GPUStoreOp,
+            //     loadOp: 'clear',
+            //     clearValue: { r: 0, g: 0, b: 0, a: 1.0 }
+            // },
+            // {
+            //     view: this.specTexture.texture.createView(),
+            //     storeOp: 'store' as GPUStoreOp,
+            //     loadOp: 'clear',
+            //     clearValue: { r: 0, g: 0, b: 0, a: 1.0 }
+            // }
         ];
 
         // @ts-expect-error
@@ -369,11 +376,11 @@ export class PostProcessing {
                     visibility: GPUShaderStage.FRAGMENT,
                     texture: {}
                 },
-                {
-                    binding: 8,
-                    visibility: GPUShaderStage.FRAGMENT,
-                    texture: {}
-                },
+                // {
+                //     binding: 8,
+                //     visibility: GPUShaderStage.FRAGMENT,
+                //     texture: {}
+                // },
                 {
                     binding: 9,
                     visibility: GPUShaderStage.FRAGMENT,

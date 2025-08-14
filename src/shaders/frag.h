@@ -9,6 +9,7 @@ precision highp float;
 #define textureCube(p, uv) texture(p, uv)
 #define textureLodCube(p, uv, i) textureLod(p, uv, i)
 #define textureLod2D(p, uv, i) textureLod(p, uv, i)
+#define textureLod2D2(p, uv, i) textureLod(p, uv, i)
 
 in vec4 vColor;
 in vec2 outUV0;

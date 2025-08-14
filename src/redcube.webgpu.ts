@@ -13,7 +13,7 @@ import { walk } from './utils';
 import { PostProcessing } from './postprocessing.webgpu';
 import { Refraction } from './postprocessors/refraction';
 
-const FOV = 45; // degrees
+const FOV = 60; // degrees
 
 class RedCube {
     url: string;
@@ -146,9 +146,7 @@ class RedCube {
             this.parse.buildSkin();
             await this.parse.buildMesh();
             this.parse.buildAnimation();
-            if (this.parse.cameras.length === 0) {
-                this.parse.cameras.push(this.camera);
-            }
+            this.parse.cameras.push(this.camera);
 
             this.parse.createSamplersWebGPU(WebGPU);
             this.parse.createTexturesWebGPU(WebGPU);
@@ -161,11 +159,10 @@ class RedCube {
 
             await this.env.createTexture(WebGPU);
             this.env.drawBRDF(WebGPU);
-            //this.env.drawQuad(WebGPU);
+            //this.env.drawQuad(WebGPU, this.parse.scene.meshes[0].material.baseColorTexture);
             this.env.drawMips(WebGPU);
             this.env.drawIrradiance(WebGPU);
             this.env.drawPrefilter(WebGPU);
-            //this.env.drawCube(WebGPU);
             //return
 
             const { renderState, isIBL, isDefaultLight, lights } = this.getState();
@@ -193,7 +190,7 @@ class RedCube {
             if (hasTransmission) {
                 this.PP.addPrepass('refraction');
             }
-            this.PP.add('scattering');
+            //this.PP.add('scattering');
             if (this.PP.hasPostPass || this.PP.hasPrePass) {
                 this.PP.buildScreenBuffer();
             }
@@ -228,7 +225,6 @@ class RedCube {
                     },
                     {
                         binding: 26,
-                        // @ts-expect-error
                         resource: mesh.defines.find(i => i.name === 'TRANSMISSION')
                         // @ts-expect-error
                         ? refraction.texture.texture.createView()
@@ -266,7 +262,7 @@ class RedCube {
                     mesh.geometry.uniformBindGroup1.push(mesh.setSkinWebGPU(WebGPU, this.parse.skins[mesh.skin]));
                 }
 
-                mesh.pipeline = create(WebGPU.device, WebGPU.glslang, WebGPU.wgsl, mesh.material.uniformBindGroup1, mesh.defines);
+                mesh.pipeline = create(WebGPU.device, WebGPU.glslang, WebGPU.wgsl, mesh.material.uniformBindGroup1, mesh.defines, hasTransmission, mesh.mode, mesh.frontFace);
                 mesh.uniformBindGroup1 = WebGPU.device.createBindGroup({
                     layout: mesh.pipeline.getBindGroupLayout(0),
                     entries: [...mesh.geometry.uniformBindGroup1, ...mesh.material.uniformBindGroup1]
@@ -298,6 +294,8 @@ class RedCube {
         this.scene.lights = this.parse.lights;
 
         this.renderer.render();
+        // @ts-ignore
+        window.__TEST_READY__ = true;
 
         cb(this.scene);
     }
@@ -316,10 +314,10 @@ class RedCube {
         const z = this.camera.modelSize;
 
         if (this.camera.props.isInitial) {
-            this.camera.setZ(z * 1.5);
+            this.camera.setZ(z);
         }
         if (this.light.isInitial || this.light.type === 'directional') {
-            this.light.setZ(z * 1.5);
+            this.light.setZ(z);
         }
         this.camera.updateNF();
     }

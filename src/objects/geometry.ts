@@ -57,6 +57,7 @@ export class Geometry {
     SKIN: WebGLBuffer;
     boundingSphere: BoundingSphere;
     vertexAccessor: Map<string, Attr>;
+    indexType: number;
 
     indicesWebGPUBuffer: GPUBuffer;
     verticesWebGPUBuffer: GPUBuffer;
@@ -84,6 +85,7 @@ export class Geometry {
         let indicesBuffer;
         const vertexBuffers = <Attributes>{};
         const indicesAccessor = json.accessors[primitive.indices];
+        this.indexType = indicesAccessor?.componentType;
         const vertexAccessor = new Map();
         for (const a in primitive.attributes) {
             vertexAccessor.set(a, json.accessors[primitive.attributes[a]]);
@@ -470,7 +472,7 @@ export class Geometry {
     }
 
     async updateWebGPU(WebGPU: WEBGPU, geometry) {
-        const { device, commandEncoder } = WebGPU;
+        const { device } = WebGPU;
         const total = 12;
         let k = 0;
         let l = 0;
@@ -508,7 +510,10 @@ export class Geometry {
         });
         new Float32Array(verticesBuffer.getMappedRange()).set(g);
         verticesBuffer.unmap();
+
+        const commandEncoder = device.createCommandEncoder();
         commandEncoder.copyBufferToBuffer(verticesBuffer, 0, this.verticesWebGPUBuffer, 0, g.byteLength);
+        device.queue.submit([commandEncoder.finish()]);
     }
 
     update(gl, geometry) {

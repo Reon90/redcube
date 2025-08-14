@@ -7,13 +7,13 @@ layout(set = 0, binding = 0) uniform Uniforms {
     vec4 index;
     mat4 projection;
     mat4 view[6];
-} uniforms;
+};
 
 
 layout (location = 0) out vec3 outUV;
 
 void main() {
 	outUV = inPosition;
-    mat4 rotView = mat4(mat3(uniforms.view[int(uniforms.index.x)]));
-    gl_Position = uniforms.projection * rotView * vec4(inPosition, 1.0);
+    mat4 rotView = mat4(mat3(view[int(index.x)]));
+    gl_Position = projection * rotView * vec4(inPosition, 1.0);
 }

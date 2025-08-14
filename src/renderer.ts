@@ -258,9 +258,13 @@ export class Renderer {
             out.lerp(vector.elements, vector2.elements, t);
 
             for (const mesh of v.meshes) {
-                mesh.material.setColor(gl, v.type, out);
+                this.updateMaterial(mesh, v.type, out);
             }
         }
+    }
+
+    updateMaterial(mesh, type, out) {
+        mesh.material.setColor(gl, type, out);
     }
 
     animate(sec) {
@@ -318,7 +322,9 @@ export class Renderer {
     render(time = 0) {
         const sec = time / 1000;
 
-        this.animate(sec);
+        if (!(window as any).__FORCE_DETERMINISTIC__) {
+            this.animate(sec);
+        }
 
         if (this.reflow) {
             if (this.PP.hasPrePass) {
@@ -334,7 +340,7 @@ export class Renderer {
             if (this.parse.json.extensions && this.parse.json.extensions.EXT_lights_image_based) {
                 this.env.draw();
             }
-            this.env.draw()
+            //this.env.draw();
 
             this.renderScene();
             this.clean();

@@ -2,7 +2,7 @@ import {
     buildArray,
     getDataType,
     walk,
-    getComponentType,
+    generateMipmaps,
     calculateProjection,
     createProgram,
     calculateOffset,
@@ -586,7 +586,7 @@ export class Parse {
         function getSamplerParam(value) {
             const map = {
                 9729: 'linear',
-                9728: 'nearest',
+                9728: 'linear',
                 10497: 'repeat',
                 33648: 'mirror-repeat',
                 33071: 'clamp-to-edge',
@@ -596,8 +596,9 @@ export class Parse {
         const samplers = this.json.samplers || [{}];
         this.samplers = samplers.map((s) => {
             const sampler = WebGPU.device.createSampler({
+                mipmapFilter: 'linear',
                 magFilter: getSamplerParam(s.minFilter) || 'linear',
-                minFilter: getSamplerParam(s.magFilter) || 'linear',
+                minFilter: getSamplerParam(s.magFilter) || 'nearest',
                 addressModeU: getSamplerParam(s.wrapS) || 'repeat',
                 addressModeV: getSamplerParam(s.wrapT) || 'repeat',
                 addressModeW: getSamplerParam(s.wrapS) || 'repeat',
@@ -723,23 +724,31 @@ export class Parse {
         });
     }
 
-    handleTextureLoadedWebGPU(WebGPU: WEBGPU, { bitmap, sampler }, textureType) {
+    handleTextureLoadedWebGPU(WebGPU: WEBGPU, { bitmap, sampler, srgb, name }, textureType) {
+        if (this.images.get(name)) {
+            return this.images.get(name);
+        }
         const { device } = WebGPU;
         const s = this.samplers[sampler !== undefined ? sampler : 0];
+        const mipLevelCount = Math.max(1, Math.floor(Math.log2(Math.max(bitmap.width, bitmap.height))) - 2);
 
         const tex = device.createTexture({
             label: textureType,
             size: [bitmap.width, bitmap.height, 1],
-            format: 'rgba8unorm',
+            format: srgb ? 'rgba8unorm-srgb' : 'rgba8unorm',
             usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT,
+            mipLevelCount,
         });
         device.queue.copyExternalImageToTexture(
             { source: bitmap },
-            { texture: tex, mipLevel: 0, origin: { x: 0, y: 0, z: 0 } },
+            { premultipliedAlpha: false, texture: tex, mipLevel: 0, origin: { x: 0, y: 0, z: 0 } },
             { width: bitmap.width, height: bitmap.height, depthOrArrayLayers: 1 },
         );
         //@ts-ignore
         tex.sampler = s;
+
+        generateMipmaps(device, tex, bitmap.width, bitmap.height, mipLevelCount);
+        this.images.set(name, tex);
 
         return tex;
     }
@@ -760,6 +769,7 @@ export class Parse {
 
         gl.activeTexture(gl[`TEXTURE${31}`]);
         gl.bindTexture(gl.TEXTURE_2D, t);
+        gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
         gl.pixelStorei(gl.UNPACK_COLORSPACE_CONVERSION_WEBGL, gl.NONE);
         gl.texImage2D(gl.TEXTURE_2D, 0, srgb ? gl.SRGB8_ALPHA8 : gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
         gl.generateMipmap(gl.TEXTURE_2D);

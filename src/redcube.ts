@@ -132,7 +132,7 @@ class RedCube {
 
         this.parse.cameras.push(this.camera);
 
-        this.parse.calculateFov(this.parse.cameras[0].props.isInitial);
+        this.parse.calculateFov(this.camera.props.isInitial);
         const planes = Frustum(this.camera.getViewProjMatrix());
 
         const envData = await this.parse.getEnv(false);
@@ -238,7 +238,7 @@ class RedCube {
 
     glInit() {
         gl = this.canvas.getContext('webgl2', {
-            antialias: this.processors.length === 0
+            antialias: !(window as any).__FORCE_DETERMINISTIC__
         });
         this.gl = gl;
 
@@ -263,6 +263,8 @@ class RedCube {
 
         this.renderer.reflow = true;
         this.renderer.render();
+        // @ts-ignore
+        window.__TEST_READY__ = true;
     }
 
     getState() {

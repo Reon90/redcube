@@ -76,7 +76,7 @@ vec3 x(bool isCharlie) {
     vec3 R = N;
     vec3 V = R;
 
-    const uint SAMPLE_COUNT = 1024u;
+    uint SAMPLE_COUNT = isCharlie ? 64u : 1024u;
     float totalWeight = 0.0;   
     vec3 prefilteredColor = vec3(0.0);     
     for(uint i = 0u; i < SAMPLE_COUNT; ++i) {
@@ -94,9 +94,10 @@ vec3 x(bool isCharlie) {
                 pdf /= 4.0;
             }
 
-            float lod = roughness == 0.0 ? 0.0 : 0.5 * log2( 6.0 * float(128) * float(128) / (float(SAMPLE_COUNT) * pdf));
+            float mip = floor(log2(512.0)) - 1.0;
+            float lod = roughness == 0.0 ? 0.0 : 0.5 * log2( mip * float(512) * float(512) / (float(SAMPLE_COUNT) * pdf));
 
-            prefilteredColor += textureLod( environmentMap, L, lod ).rgb * NdotL;
+            prefilteredColor += textureLod( environmentMap, L, clamp(lod, 0.0, 4.0) ).rgb * NdotL;
             totalWeight += NdotL;
         }
     }

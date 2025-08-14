@@ -24,7 +24,12 @@ layout(location = 1) out vec2 outUV2;
 layout(location = 8) out vec2 outUV3;
 layout(location = 2) out vec3 outPosition;
 layout(location = 3) out vec4 vColor;
-layout(location = 4) out mat3 outTBN;
+
+#ifdef TANGENT
+    layout(location = 4) out mat3 outTBN;
+#else
+    layout(location = 11) out vec3 outNormal;
+#endif
 layout(location = 7) out vec4 outPositionView;
 
 layout(set = 0, binding = 0) uniform Uniforms {

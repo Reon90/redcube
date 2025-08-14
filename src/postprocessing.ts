@@ -179,7 +179,8 @@ export class PostProcessing {
         } else {
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
         }
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, this.width / scale, this.height / scale, 0, gl.RGBA, gl.FLOAT, null);
+        // gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, this.width / scale, this.height / scale, 0, gl.RGBA, gl.FLOAT, null);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, this.width / scale, this.height / scale, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
         return texture;
     }
 
