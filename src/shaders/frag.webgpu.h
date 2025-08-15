@@ -148,6 +148,7 @@ layout(set = 0, binding = 28) uniform texture2D Sheen_E;
 layout(set = 0, binding = 29) uniform texture2D thicknessTexture;
 layout(set = 0, binding = 31) uniform texture2D anisotropyTexture;
 layout(set = 0, binding = 32) uniform texture2D iridescenceThicknessTexture;
+layout(set = 0, binding = 38) uniform texture2D iridescenceTexture;
 layout(set = 0, binding = 33) uniform texture2D specularColorTexture;
 layout(set = 0, binding = 34) uniform texture2D diffuseTransmissionTexture;
 layout(set = 0, binding = 36) uniform texture2D diffuseTransmissionColorTexture;

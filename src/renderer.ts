@@ -1,5 +1,5 @@
 import { Scene, Mesh, Camera, Bone } from './objects/index';
-import { Vector, Vector3, Vector4, Frustum } from './matrix';
+import { Vector, Vector2, Vector3, Vector4, Frustum } from './matrix';
 import { interpolation, walk } from './utils';
 import { Parse } from './parse';
 import { PostProcessing } from './postprocessing.webgpu';
@@ -184,7 +184,9 @@ export class Renderer {
 
         const { component } = v;
         let vectorC;
-        if (component === 3) {
+        if (component === 2) {
+            vectorC = Vector2;
+        } else if (component === 3) {
             vectorC = Vector3;
         } else if (component === 4) {
             vectorC = Vector4;
@@ -254,7 +256,7 @@ export class Renderer {
                 mesh.matrix.setTranslate(out);
             }
         } else {
-            const out = new Vector4();
+            const out = v.component === 2 ? new Vector2() : (v.component === 4 ? new Vector4() : new Vector(new Float32Array(1)));
             out.lerp(vector.elements, vector2.elements, t);
 
             for (const mesh of v.meshes) {
@@ -264,7 +266,15 @@ export class Renderer {
     }
 
     updateMaterial(mesh, type, out) {
-        mesh.material.setColor(gl, type, out);
+        const s = type.split('/');
+        const last = s[s.length - 1];
+
+        if (last === 'offset' || last === 'rotation' || last === 'scale') {
+            const name = s[s.length - 4];
+            mesh.material.setTexture(gl, name, last, out);
+        } else {
+            mesh.material.setColor(gl, s[s.length - 1], out);
+        }
     }
 
     animate(sec) {

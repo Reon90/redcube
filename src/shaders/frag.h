@@ -103,6 +103,7 @@ uniform sampler2D transmissionTexture;
 uniform sampler2D sheenColorTexture;
 uniform sampler2D sheenRoughnessTexture;
 uniform sampler2D iridescenceThicknessTexture;
+uniform sampler2D iridescenceTexture;
 uniform sampler2D clearcoatNormalTexture;
 uniform sampler2D specularTexture;
 uniform sampler2D specularColorTexture;

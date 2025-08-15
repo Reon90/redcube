@@ -35,6 +35,7 @@ export const textureEnum = {
     diffuseTransmissionTexture: 20,
     diffuseTransmissionColorTexture: 21,
     anisotropyTexture: 22,
+    iridescenceTexture: 23
 };
 
 export function setGl(_gl) {

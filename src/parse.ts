@@ -230,7 +230,7 @@ export class Parse {
             this.defines.push({ name: 'BASISU' });
         }
         const defines = [...this.defines];
-        const material = new Material(m, this.textures, defines, this.lights);
+        const material = new Material(m, this.textures, defines);
         if (skin !== undefined) {
             defines.push({
                 name: 'JOINTNUMBER',
@@ -258,7 +258,7 @@ export class Parse {
 
         if (primitive.extensions && primitive.extensions.KHR_materials_variants) {
             const variants = primitive.extensions.KHR_materials_variants.mappings.map((m) => {
-                return { ...m, m: new Material(this.json.materials[m.material], this.textures, [...defines], this.lights) };
+                return { ...m, m: new Material(this.json.materials[m.material], this.textures, [...defines]) };
             });
             mesh.setVariants(variants);
         }
@@ -442,7 +442,7 @@ export class Parse {
                         const mat = this.json.materials[s[2]].name;
                         // @ts-ignore
                         name = this.scene.meshes.find(m => m.material.name === mat).name;
-                        path = s[s.length - 1];
+                        path = s.splice(3).join('/');
                     }
                     const input = animation.parameters !== undefined ? animation.parameters[sampler.input] : sampler.input;
                     const output = animation.parameters !== undefined ? animation.parameters[sampler.output] : sampler.output;
@@ -634,6 +634,7 @@ export class Parse {
                 'specularColorTexture',
                 'thicknessTexture',
                 'iridescenceThicknessTexture',
+                'iridescenceTexture',
                 'diffuseTransmissionTexture',
                 'diffuseTransmissionColorTexture',
                 'anisotropyTexture',

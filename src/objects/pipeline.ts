@@ -50,7 +50,7 @@ export function create(device: GPUDevice, glslang, wgsl, uniformBindGroup1, defi
     ];
 
     uniformBindGroup1.forEach(u => {
-        if ((u.binding > 2 && u.binding < 15) || u.binding === 29 || u.binding === 31 || u.binding === 32 || u.binding === 33 || u.binding === 34 || u.binding === 36) {
+        if ((u.binding > 2 && u.binding < 15) || u.binding === 29 || u.binding === 31 || u.binding === 32 || u.binding === 33 || u.binding === 34 || u.binding === 36 || u.binding === 38) {
             entries.push({
                 binding: u.binding,
                 visibility: GPUShaderStage.FRAGMENT,

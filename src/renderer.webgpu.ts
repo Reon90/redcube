@@ -50,7 +50,15 @@ export class RendererWebGPU extends Renderer {
     }
 
     updateMaterial(mesh, type, out) {
-        mesh.material.setColorWebGPU(WebGPU, type, out);
+        const s = type.split('/');
+        const last = s[s.length - 1];
+
+        if (last === 'offset' || last === 'rotation' || last === 'scale') {
+            const name = s[s.length - 4];
+            mesh.material.setTextureWebGPU(WebGPU, name, last, out);
+        } else {
+            mesh.material.setColorWebGPU(WebGPU, s[s.length - 1], out);
+        }
     }
 
     renderScene() {

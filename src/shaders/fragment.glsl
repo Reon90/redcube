@@ -574,12 +574,18 @@ void main() {
     float transmissionDiffuse = diffuseTransmissionFactor.x;
     float thickness = thicknessFactor.x;
     #ifdef DIFFUSE_TRANSMISSION_MAP
+        #ifdef DIFFUSE_TRANSMISSION_MAP_TEXTURE_TRANSFORM
+            outUV = applyTransform(outUV, textureMatrices[DIFFUSE_TRANSMISSION_MAP_TEXTURE_TRANSFORM]);
+        #endif
         vec4 diffuseTransmissionTextureV = texture2D(diffuseTransmissionTexture, outUV);
         transmissionDiffuse *= diffuseTransmissionTextureV.a;
     #endif
     vec3 attenuationColor = attenuationColorFactor.rgb;
     vec3 tintColor = diffuseTransmissionFactor.yzw;
     #ifdef DIFFUSE_TRANSMISSION_COLOR_MAP
+        #ifdef DIFFUSE_TRANSMISSION_COLOR_MAP_TEXTURE_TRANSFORM
+            outUV = applyTransform(outUV, textureMatrices[DIFFUSE_TRANSMISSION_COLOR_MAP_TEXTURE_TRANSFORM]);
+        #endif
         vec4 diffuseTransmissionColorTextureV = texture2D(diffuseTransmissionColorTexture, outUV);
         tintColor *= diffuseTransmissionColorTextureV.rgb;
     #endif
@@ -615,13 +621,29 @@ void main() {
     #endif
     float iridescenceThickness = iridescence.z;
     #ifdef IRIDESCENCEMAP
+        #ifdef IRIDESCENCEMAP_TEXTURE_TRANSFORM
+            outUV = applyTransform(outUV, textureMatrices[IRIDESCENCEMAP_TEXTURE_TRANSFORM]);
+        #endif
         iridescenceThickness = mix(iridescence.w, iridescence.z, texture2D(iridescenceThicknessTexture, outUV).g);
     #endif
+    float iridescenceFactor = iridescence.y;
+    #ifdef IRIDESCENCE_COLOR
+        #ifdef IRIDESCENCE_COLOR_TEXTURE_TRANSFORM
+            outUV = applyTransform(outUV, textureMatrices[IRIDESCENCE_COLOR_TEXTURE_TRANSFORM]);
+        #endif
+        iridescenceFactor *= texture2D(iridescenceTexture, outUV).r;
+    #endif
     #ifdef TRANSMISSIONMAP
+        #ifdef TRANSMISSIONMAP_TEXTURE_TRANSFORM
+            outUV = applyTransform(outUV, textureMatrices[TRANSMISSIONMAP_TEXTURE_TRANSFORM]);
+        #endif
         float transmissionTextureV = texture2D(transmissionTexture, outUV).r;
         transmission = transmissionTextureV * transmission;
     #endif
     #ifdef THICKNESSMAP
+        #ifdef THICKNESSMAP_TEXTURE_TRANSFORM
+            outUV = applyTransform(outUV, textureMatrices[THICKNESSMAP_TEXTURE_TRANSFORM]);
+        #endif
         float thicknessTextureV = texture2D(thicknessTexture, outUV).g;
         thickness = thicknessTextureV * thickness;
     #endif
@@ -656,10 +678,16 @@ void main() {
     #ifdef SPECULAR
         specularMap = specularColorFactor;
         #ifdef SPECULARCOLORMAP
+        #ifdef SPECULARCOLORMAP_TEXTURE_TRANSFORM
+            outUV = applyTransform(outUV, textureMatrices[SPECULARCOLORMAP_TEXTURE_TRANSFORM]);
+        #endif
         specularMap *= texture2D(specularColorTexture, outUV).rgb;
         #endif
         specularWeight = specularFactor.x;
         #ifdef SPECULARMAP
+        #ifdef SPECULARMAP_TEXTURE_TRANSFORM
+            outUV = applyTransform(outUV, textureMatrices[SPECULARMAP_TEXTURE_TRANSFORM]);
+        #endif
         specularWeight *= texture2D(specularTexture, outUV).a;
         #endif
     #endif
@@ -725,6 +753,9 @@ void main() {
     vec3 anisotropy = anisotropyFactor.xyz;
     anisotropy.yz = vec2(cos(anisotropy.y), sin(anisotropy.y));
     #ifdef ANISOTROPYMAP
+        #ifdef ANISOTROPYMAP_TEXTURE_TRANSFORM
+            outUV = applyTransform(outUV, textureMatrices[ANISOTROPYMAP_TEXTURE_TRANSFORM]);
+        #endif
         vec4 anisotropyTex = texture2D(anisotropyTexture, outUV);
         vec2 direction = anisotropyTex.rg * 2.0 - vec2(1.0);
         direction = mat2(anisotropy.y, anisotropy.z, -anisotropy.z, anisotropy.y) * normalize(direction);
@@ -780,7 +811,7 @@ void main() {
             float NdotV = saturate(dot(n, viewDir));
             vec3 iridescenceF0 = vec3(0.0);
             #if defined IRIDESCENCE
-            vec3 iridescenceFresnel = evalIridescence(1.0, iridescence.y, NdotV, iridescenceThickness, F0);
+            vec3 iridescenceFresnel = evalIridescence(1.0, iridescenceFactor, NdotV, iridescenceThickness, F0);
             iridescenceF0 = Schlick_to_F0(iridescenceFresnel, NdotV);
             vec3 specular = CookTorranceSpecular2(baseColor, metallic, n, H, anisotropicT, anisotropicB, roughness, viewDir, lightDir, anisotropy.x, iridescenceF0, iridescence.x, F0, specularWeight);
             #else
@@ -840,7 +871,7 @@ void main() {
         vec3 cSpecular;
         if (isIBL.x == 1.0) {
             float NdotV = saturate(dot(n, viewDir));
-            vec3 iridescenceFresnel = evalIridescence(1.0, iridescence.y, NdotV, iridescenceThickness, F0);
+            vec3 iridescenceFresnel = evalIridescence(1.0, iridescenceFactor, NdotV, iridescenceThickness, F0);
             vec3 iridescenceF0 = Schlick_to_F0(iridescenceFresnel, NdotV);
             ambient = IBLAmbient(baseColor, metallic, n, roughness, viewDir, transmission, sheenColor, sheenRoughness, iridescenceF0, iridescence.x, F0, specularWeight, anisotropy.x, anisotropicB, f_sheen, aSpecular);
             vec3 placeholder = vec3(0.0);

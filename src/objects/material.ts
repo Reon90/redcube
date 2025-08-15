@@ -33,6 +33,7 @@ interface Uniforms {
     diffuseTransmissionTexture: WebGLUniformLocation;
     diffuseTransmissionColorTexture: WebGLUniformLocation;
     anisotropyTexture: WebGLUniformLocation;
+    iridescenceTexture: WebGLUniformLocation;
 }
 
 const lightEnum = {
@@ -58,10 +59,11 @@ export class Material extends M {
     lightUBO4: WebGLBuffer;
     lightUBO5: WebGLBuffer;
     lightUniformBuffer4: UniformBuffer;
+    matricesMap = new Map<string, number>();
 
     uniformBindGroup1: GPUBindGroupEntry[];
 
-    constructor(m = defaultMaterial, textures, defines, lights) {
+    constructor(m = defaultMaterial, textures, defines) {
         super();
 
         const material = Object.assign({}, m);
@@ -92,7 +94,7 @@ export class Material extends M {
                 if (extensions) {
                     const ex = extensions.KHR_texture_transform;
                     if (ex) {
-                        this.buildTrans(ex, defines, 'CLEARCOATMAP');
+                        this.matricesMap.set('clearcoatTexture', this.buildTrans(ex, defines, 'CLEARCOATMAP'));
                     }
                 }
             }
@@ -103,7 +105,7 @@ export class Material extends M {
                 if (extensions) {
                     const ex = extensions.KHR_texture_transform;
                     if (ex) {
-                        this.buildTrans(ex, defines, 'CLEARCOATNORMALMAP');
+                        this.matricesMap.set('clearcoatNormalTexture', this.buildTrans(ex, defines, 'CLEARCOATNORMALMAP'));
                     }
                 }
             }
@@ -114,7 +116,7 @@ export class Material extends M {
                 if (extensions) {
                     const ex = extensions.KHR_texture_transform;
                     if (ex) {
-                        this.buildTrans(ex, defines, 'CLEARCOATROUGHMAP');
+                        this.matricesMap.set('clearcoatRoughnessTexture', this.buildTrans(ex, defines, 'CLEARCOATROUGHMAP'));
                     }
                 }
             }
@@ -136,7 +138,7 @@ export class Material extends M {
                 if (extensions) {
                     const ex = extensions.KHR_texture_transform;
                     if (ex) {
-                        this.buildTrans(ex, defines, 'SHEENMAP');
+                        this.matricesMap.set('sheenColorTexture', this.buildTrans(ex, defines, 'SHEENMAP'));
                     }
                 }
             }
@@ -147,7 +149,7 @@ export class Material extends M {
                 if (extensions) {
                     const ex = extensions.KHR_texture_transform;
                     if (ex) {
-                        this.buildTrans(ex, defines, 'SHEENROUGHNESSMAP');
+                        this.matricesMap.set('sheenRoughnessTexture', this.buildTrans(ex, defines, 'SHEENROUGHNESSMAP'));
                     }
                 }
             }
@@ -158,8 +160,15 @@ export class Material extends M {
             const { transmissionFactor, transmissionTexture } = material.extensions.KHR_materials_transmission;
             this.transmissionFactor = transmissionFactor;
             if (transmissionTexture) {
+                const { extensions, texCoord } = transmissionTexture;
                 this.transmissionTexture = textures[transmissionTexture.index];
-                defines.push({ name: 'TRANSMISSIONMAP' });
+                defines.push({ name: 'TRANSMISSIONMAP', value: texCoord ?? 0 });
+                if (extensions) {
+                    const ex = extensions.KHR_texture_transform;
+                    if (ex) {
+                        this.matricesMap.set('transmissionTexture', this.buildTrans(ex, defines, 'TRANSMISSIONMAP'));
+                    }
+                }
             }
             defines.push({ name: 'TRANSMISSION' });
         }
@@ -171,8 +180,15 @@ export class Material extends M {
             this.thicknessFactor = thicknessFactor;
             this.ior = 1.5;
             if (thicknessTexture) {
+                const { extensions, texCoord } = thicknessTexture;
                 this.thicknessTexture = textures[thicknessTexture.index];
-                defines.push({ name: 'THICKNESSMAP' });
+                defines.push({ name: 'THICKNESSMAP', value: texCoord ?? 0 });
+                if (extensions) {
+                    const ex = extensions.KHR_texture_transform;
+                    if (ex) {
+                        this.matricesMap.set('thicknessTexture', this.buildTrans(ex, defines, 'THICKNESSMAP'));
+                    }
+                }
             }
             defines.push({ name: 'VOLUME' });
         }
@@ -189,6 +205,12 @@ export class Material extends M {
             if (anisotropyTexture) {
                 this.anisotropyTexture = textures[anisotropyTexture.index];
                 defines.push({ name: 'ANISOTROPYMAP', value: anisotropyTexture.texCoord ?? 0 });
+                if (anisotropyTexture.extensions) {
+                    const ex = anisotropyTexture.extensions.KHR_texture_transform;
+                    if (ex) {
+                        this.matricesMap.set('anisotropyTexture', this.buildTrans(ex, defines, 'ANISOTROPYMAP'));
+                    }
+                }
             }
             defines.push({ name: 'ANISOTROPY' });
         }
@@ -207,10 +229,23 @@ export class Material extends M {
             this.iridescenceThicknessMinimum = iridescenceThicknessMinimum;
             if (iridescenceTexture) {
                 this.iridescenceTexture = textures[iridescenceTexture.index];
+                defines.push({ name: 'IRIDESCENCE_COLOR', value: iridescenceTexture.texCoord ?? 0 });
+                if (iridescenceTexture.extensions) {
+                    const ex = iridescenceTexture.extensions.KHR_texture_transform;
+                    if (ex) {
+                        this.matricesMap.set('iridescenceTexture', this.buildTrans(ex, defines, 'IRIDESCENCE_COLOR'));
+                    }
+                }
             }
             if (iridescenceThicknessTexture) {
                 this.iridescenceThicknessTexture = textures[iridescenceThicknessTexture.index];
                 defines.push({ name: 'IRIDESCENCEMAP', value: iridescenceThicknessTexture.texCoord ?? 0 });
+                if (iridescenceThicknessTexture.extensions) {
+                    const ex = iridescenceThicknessTexture.extensions.KHR_texture_transform;
+                    if (ex) {
+                        this.matricesMap.set('iridescenceThicknessTexture', this.buildTrans(ex, defines, 'IRIDESCENCEMAP'));
+                    }
+                }
             }
             defines.push({ name: 'IRIDESCENCE' });
         }
@@ -220,11 +255,23 @@ export class Material extends M {
             if (diffuseTransmissionTexture) {
                 this.diffuseTransmissionTexture = textures[diffuseTransmissionTexture.index];
                 defines.push({ name: 'DIFFUSE_TRANSMISSION_MAP', value: diffuseTransmissionTexture.texCoord ?? 0 });
+                if (diffuseTransmissionTexture.extensions) {
+                    const ex = diffuseTransmissionTexture.extensions.KHR_texture_transform;
+                    if (ex) {
+                        this.matricesMap.set('diffuseTransmissionTexture', this.buildTrans(ex, defines, 'DIFFUSE_TRANSMISSION_MAP'));
+                    }
+                }
             }
             this.diffuseTransmissionColorFactor = diffuseTransmissionColorFactor ?? [1, 1, 1];
             if (diffuseTransmissionColorTexture) {
                 this.diffuseTransmissionColorTexture = textures[diffuseTransmissionColorTexture.index];
                 defines.push({ name: 'DIFFUSE_TRANSMISSION_COLOR_MAP', value: diffuseTransmissionColorTexture.texCoord ?? 0 });
+                if (diffuseTransmissionColorTexture.extensions) {
+                    const ex = diffuseTransmissionColorTexture.extensions.KHR_texture_transform;
+                    if (ex) {
+                        this.matricesMap.set('diffuseTransmissionColorTexture', this.buildTrans(ex, defines, 'DIFFUSE_TRANSMISSION_COLOR_MAP'));
+                    }
+                }
             }
             defines.push({ name: 'DIFFUSE_TRANSMISSION' });
         }
@@ -241,10 +288,22 @@ export class Material extends M {
             if (specularTexture) {
                 this.specularTexture = textures[specularTexture.index];
                 defines.push({ name: 'SPECULARMAP' });
+                if (specularTexture.extensions) {
+                    const ex = specularTexture.extensions.KHR_texture_transform;
+                    if (ex) {
+                        this.matricesMap.set('specularTexture', this.buildTrans(ex, defines, 'SPECULARMAP'));
+                    }
+                }
             }
             if (specularColorTexture) {
                 this.specularColorTexture = textures[specularColorTexture.index];
                 defines.push({ name: 'SPECULARCOLORMAP' });
+                if (specularColorTexture.extensions) {
+                    const ex = specularColorTexture.extensions.KHR_texture_transform;
+                    if (ex) {
+                        this.matricesMap.set('specularColorTexture', this.buildTrans(ex, defines, 'SPECULARCOLORMAP'));
+                    }
+                }
             }
             defines.push({ name: 'SPECULAR' });
         }
@@ -258,6 +317,7 @@ export class Material extends M {
             clearcoatRoughnessTexture: null,
             sheenRoughnessTexture: null,
             iridescenceThicknessTexture: null,
+            iridescenceTexture: null,
             sheenColorTexture: null,
             clearcoatNormalTexture: null,
             emissiveTexture: null,
@@ -300,7 +360,7 @@ export class Material extends M {
             if (extensions) {
                 const ex = extensions.KHR_texture_transform;
                 if (ex) {
-                    this.buildTrans(ex, defines, 'METALROUGHNESSMAP');
+                    this.matricesMap.set('metallicRoughnessTexture', this.buildTrans(ex, defines, 'METALROUGHNESSMAP'));
                 }
             }
         }
@@ -313,7 +373,7 @@ export class Material extends M {
                 const ex = extensions.KHR_texture_transform;
                 if (ex) {
                     this.normalTextureScale = undefined;
-                    this.buildTrans(ex, defines, 'NORMALMAP');
+                    this.matricesMap.set('normalTexture', this.buildTrans(ex, defines, 'NORMALMAP'));
                 }
             }
         }
@@ -324,7 +384,7 @@ export class Material extends M {
             if (extensions) {
                 const ex = extensions.KHR_texture_transform;
                 if (ex) {
-                    this.buildTrans(ex, defines, 'OCCLUSIONMAP');
+                    this.matricesMap.set('occlusionTexture', this.buildTrans(ex, defines, 'OCCLUSIONMAP'));
                 }
             }
         }
@@ -335,7 +395,7 @@ export class Material extends M {
             if (extensions) {
                 const ex = extensions.KHR_texture_transform;
                 if (ex) {
-                    this.buildTrans(ex, defines, 'BASECOLORTEXTURE');
+                    this.matricesMap.set('baseColorTexture', this.buildTrans(ex, defines, 'BASECOLORTEXTURE'));
                 }
             }
         }
@@ -346,7 +406,7 @@ export class Material extends M {
             if (extensions) {
                 const ex = extensions.KHR_texture_transform;
                 if (ex) {
-                    this.buildTrans(ex, defines, 'EMISSIVEMAP');
+                    this.matricesMap.set('emissiveTexture', this.buildTrans(ex, defines, 'EMISSIVEMAP'));
                 }
             }
         }
@@ -373,11 +433,13 @@ export class Material extends M {
     }
 
     buildTrans(ex, defines, name = '') {
-        if (ex.offset || ex.scale || ex.rotation) {
+        if (ex.offset !== undefined || ex.scale !== undefined || ex.rotation !== undefined) {
             const offset = ex.offset || [0, 0];
             const scale = ex.scale || [1, 1];
             const rotation = ex.rotation || 0;
-            defines.push({ name: `${name}_TEXTURE_TRANSFORM`, value: this.matrices.push(new Matrix4().set([...offset, 0, 0, ...scale, 0, 0, rotation, 0, 0, 0, 0, 0, 0, 0])) - 1 });
+            const i = this.matrices.push(new Matrix4().set([...offset, 0, 0, ...scale, 0, 0, rotation, 0, 0, 0, 0, 0, 0, 0])) - 1;
+            defines.push({ name: `${name}_TEXTURE_TRANSFORM`, value: i });
+            return i;
         }
     }
 
@@ -427,6 +489,10 @@ export class Material extends M {
         if (this.iridescenceThicknessTexture) {
             this.uniforms.iridescenceThicknessTexture = gl.getUniformLocation(program, 'iridescenceThicknessTexture');
             gl.uniform1i(this.uniforms.iridescenceThicknessTexture, textureEnum.iridescenceThicknessTexture);
+        }
+        if (this.iridescenceTexture) {
+            this.uniforms.iridescenceTexture = gl.getUniformLocation(program, 'iridescenceTexture');
+            gl.uniform1i(this.uniforms.iridescenceTexture, textureEnum.iridescenceTexture);
         }
         if (this.anisotropyTexture) {
             this.uniforms.anisotropyTexture = gl.getUniformLocation(program, 'anisotropyTexture');
@@ -635,6 +701,7 @@ export class Material extends M {
                 size: 256 + this.textureMatricesBuffer.store.byteLength,
                 usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
             });
+            this.textureMatricesBuffer.bufferWebGPU = uniformBuffer6;
         }
         const sampler = this.baseColorTexture
             ? this.baseColorTexture.sampler
@@ -771,6 +838,10 @@ export class Material extends M {
                 resource: this.iridescenceThicknessTexture?.createView()
             },
             {
+                binding: 38,
+                resource: this.iridescenceTexture?.createView()
+            },
+            {
                 binding: 33,
                 resource: this.specularColorTexture?.createView()
             },
@@ -847,6 +918,51 @@ export class Material extends M {
     setColor(gl, name, value) {
         gl.bindBufferBase(gl.UNIFORM_BUFFER, 1, this.UBO);
         this.materialUniformBuffer.update(gl, name, value.elements);
+    }
+
+    setTexture(gl, name, type, value) {
+        gl.bindBufferBase(gl.UNIFORM_BUFFER, 1, this.lightUBO5);
+        const i = this.matricesMap.get(name) * 16;
+        if (type === 'offset') {
+            this.textureMatricesBuffer.store[i] = value.elements[0];
+            this.textureMatricesBuffer.store[i + 1] = value.elements[1];
+        }
+
+        if (type === 'scale') {
+            this.textureMatricesBuffer.store[i + 4] = value.elements[0];
+            this.textureMatricesBuffer.store[i + 5] = value.elements[1];
+        }
+
+        if (type === 'rotation') {
+            this.textureMatricesBuffer.store[i + 8] = value.elements[0];
+        }
+        
+        gl.bufferSubData(gl.UNIFORM_BUFFER, 0, this.textureMatricesBuffer.store);
+    }
+
+    setTextureWebGPU(gl, name, type, value) {
+        const i = this.matricesMap.get(name) * 16;
+        if (type === 'offset') {
+            this.textureMatricesBuffer.store[i] = value.elements[0];
+            this.textureMatricesBuffer.store[i + 1] = value.elements[1];
+        }
+
+        if (type === 'scale') {
+            this.textureMatricesBuffer.store[i + 4] = value.elements[0];
+            this.textureMatricesBuffer.store[i + 5] = value.elements[1];
+        }
+
+        if (type === 'rotation') {
+            this.textureMatricesBuffer.store[i + 8] = value.elements[0];
+        }
+        
+        gl.device.queue.writeBuffer(
+            this.textureMatricesBuffer.bufferWebGPU,
+            0,
+            this.textureMatricesBuffer.store.buffer,
+            this.textureMatricesBuffer.store.byteOffset,
+            this.textureMatricesBuffer.store.byteLength
+        );
     }
 
     setColorWebGPU(gl, name, value) {
