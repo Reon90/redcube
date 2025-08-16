@@ -473,7 +473,13 @@ export class Geometry {
 
     async updateWebGPU(WebGPU: WEBGPU, geometry) {
         const { device } = WebGPU;
-        const total = 12;
+        let total = 12;
+        if (this.attributes['COLOR_0']) {
+            total += 4;
+        }
+        if (this.attributes['TEXCOORD_1']) {
+            total += 2;
+        }
         let k = 0;
         let l = 0;
         let m = 0;
@@ -503,17 +509,8 @@ export class Geometry {
             l += 2;
             m += 4;
         }
-        const verticesBuffer = device.createBuffer({
-            size: g.byteLength,
-            usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_SRC,
-            mappedAtCreation: true
-        });
-        new Float32Array(verticesBuffer.getMappedRange()).set(g);
-        verticesBuffer.unmap();
 
-        const commandEncoder = device.createCommandEncoder();
-        commandEncoder.copyBufferToBuffer(verticesBuffer, 0, this.verticesWebGPUBuffer, 0, g.byteLength);
-        device.queue.submit([commandEncoder.finish()]);
+        device.queue.writeBuffer(this.verticesWebGPUBuffer, 0, g.buffer, g.byteOffset, g.byteLength);
     }
 
     update(gl, geometry) {

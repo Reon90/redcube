@@ -476,7 +476,7 @@ export class Parse {
                         }
                     });
 
-                    let component = getDataType(outputAccessor.type) || meshes[0].geometry.targets.length;
+                    let component = path === 'weights' ? meshes[0].geometry.targets.length : getDataType(outputAccessor.type);
                     if (sampler.interpolation === 'CUBICSPLINE') {
                         component = component * 3;
                     }

@@ -85,7 +85,6 @@ export class RendererWebGPU extends Renderer {
         }
 
         const commandEncoder = device.createCommandEncoder({label: 'main-command-encoder'});
-        WebGPU.commandEncoder = commandEncoder;
         const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
         // @ts-ignore
         //this.env.drawCube(WebGPU, passEncoder);
