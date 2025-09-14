@@ -19,8 +19,8 @@ export class Renderer {
     camera: Camera;
     getState: Function;
     reflow: boolean;
-    needUpdateProjection: boolean;
-    needUpdateView: boolean;
+    needUpdateProjection = true;
+    needUpdateView = true;
     env: Env;
     currentTrack: number;
 

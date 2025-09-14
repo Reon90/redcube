@@ -40,7 +40,7 @@ export class Mesh extends Object3D {
         this.material = material;
     }
 
-    drawWebGPU(WebGPU: WEBGPU, passEncoder, { stateBuffer, renderState, needUpdateView, needUpdateProjection, camera, light }) {
+    drawWebGPU(WebGPU: WEBGPU, passEncoder, { renderState, needUpdateView, camera }) {
         const { isprerefraction } = renderState;
         if (this.defines.find(i => i.name === 'TRANSMISSION') && isprerefraction) {
             return;
@@ -53,20 +53,8 @@ export class Mesh extends Object3D {
             this.geometry.uniformBuffer.updateWebGPU(WebGPU, 'model', this.matrixWorld.elements);
             this.geometry.uniformBuffer.updateWebGPU(WebGPU, 'normalMatrix', normalMatrix.elements);
         }
-        stateBuffer.updateWebGPU(WebGPU, 'isTone', isprerefraction ? 0 : 1);
         if (needUpdateView) {
-            this.geometry.uniformBuffer.updateWebGPU(WebGPU, 'view', camera.matrixWorldInvert.elements);
-            this.geometry.uniformBuffer.updateWebGPU(WebGPU, 'light', light.matrixWorldInvert.elements);
-
-            const lightPos = new Float32Array(3);
-            lightPos.set(light.getPosition(), 0);
-
             this.material.materialUniformBuffer.updateWebGPU(WebGPU, 'viewPos', camera.getPosition());
-
-            this.material.lightPosBuffer.updateWebGPU(WebGPU, 'lightPos', lightPos);
-        }
-        if (needUpdateProjection) {
-            this.geometry.uniformBuffer.updateWebGPU(WebGPU, 'projection', camera.projection.elements);
         }
         if (this instanceof SkinnedMesh) {
             if (this.bones.some(bone => bone.reflow)) {

@@ -33,6 +33,11 @@ export function create(device: GPUDevice, glslang, wgsl, uniformBindGroup1, defi
             buffer: {}
         },
         {
+            binding: 39,
+            visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
+            buffer: {}
+        },
+        {
             binding: 1,
             visibility: GPUShaderStage.FRAGMENT,
             buffer: {}
@@ -307,12 +312,14 @@ function getMode(mode) {
     case 1:
         return 'line-list';
     case 2:
-        return 'line-strip';
+        return 'line-list';
     case 3:
         return 'line-strip';
     case 4:
         return 'triangle-list';
-    default:
+    case 5:
+        return 'triangle-strip';
+    case 6:
         return 'triangle-list';
     }
 }

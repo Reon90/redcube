@@ -40,6 +40,8 @@ layout (location = 3) out vec4 specColor;
 layout(set = 0, binding = 0) uniform Matrices {
     mat4 model;
     mat4 normalMatrix;
+};
+layout(set = 0, binding = 39) uniform Matrices2 {
     mat4 view;
     mat4 projection;
     mat4 light;

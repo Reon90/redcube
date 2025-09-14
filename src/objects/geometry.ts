@@ -10,7 +10,9 @@ import {
     calculateNormals,
     calculateNormals2,
     calculateUVs,
-    ArrayBufferMap
+    ArrayBufferMap,
+    fanToTriListIndices,
+    convertLineLoopToLineList
 } from '../utils';
 import { decodeDracoData, getArray } from '../decoder';
 
@@ -153,6 +155,12 @@ export class Geometry {
                     calculateOffset(bufferView.byteOffset, indicesAccessor.byteOffset),
                     getDataType(indicesAccessor.type) * indicesAccessor.count
                 );
+                if (primitive.mode === 6) {
+                    indicesBuffer = fanToTriListIndices(indicesBuffer);
+                }
+                if (primitive.mode === 2) {
+                    indicesBuffer = convertLineLoopToLineList(indicesBuffer);
+                }
             }
             for (const k of vertexAccessor.keys()) {
                 const accessor = vertexAccessor.get(k);
@@ -411,24 +419,20 @@ export class Geometry {
         this.boundingSphere.radius = Math.sqrt(maxRadiusSq);
     }
 
-    createUniforms(matrixWorld, camera, light) {
+    createUniforms(matrixWorld) {
         const normalMatrix = new Matrix4(matrixWorld);
         normalMatrix.invert().transpose();
 
         const uniformBuffer = new UniformBuffer();
         uniformBuffer.add('model', matrixWorld.elements);
         uniformBuffer.add('normalMatrix', normalMatrix.elements);
-        uniformBuffer.add('view', camera.matrixWorldInvert.elements);
-        uniformBuffer.add('projection', camera.projection.elements);
-        uniformBuffer.add('light', light.matrixWorldInvert.elements);
-        uniformBuffer.add('isShadow', 0);
         uniformBuffer.done();
 
         this.uniformBuffer = uniformBuffer;
     }
 
-    updateUniformsWebGPU(WebGPU: WEBGPU) {
-        const matrixSize = this.uniformBuffer.store.byteLength;
+    updateUniformsWebGPU(WebGPU: WEBGPU, buffer) {
+        const matrixSize = buffer.store.byteLength;
         const offset = 256; // uniformBindGroup offset must be 256-byte aligned
         const uniformBufferSize = offset + matrixSize;
 
@@ -437,7 +441,7 @@ export class Geometry {
             size: uniformBufferSize,
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
         });
-        this.uniformBuffer.bufferWebGPU = uniformBuffer;
+        buffer.bufferWebGPU = uniformBuffer;
 
         const uniformBindGroup1 = [
             {
@@ -453,12 +457,12 @@ export class Geometry {
         device.queue.writeBuffer(
             uniformBuffer,
             0,
-            this.uniformBuffer.store.buffer,
-            this.uniformBuffer.store.byteOffset,
-            this.uniformBuffer.store.byteLength
+            buffer.store.buffer,
+            buffer.store.byteOffset,
+            buffer.store.byteLength
         );
 
-        this.uniformBindGroup1 = uniformBindGroup1;
+        return uniformBindGroup1;
     }
 
     updateUniformsWebGl(gl, program) {

@@ -149,7 +149,7 @@ class RedCube {
 
             mesh.setProgram(program);
 
-            mesh.geometry.createUniforms(mesh.matrixWorld, this.camera, this.light);
+            mesh.geometry.createUniforms(mesh.matrixWorld);
             mesh.geometry.updateUniformsWebGl(gl, mesh.program);
             mesh.visible = mesh.isVisible(planes);
 

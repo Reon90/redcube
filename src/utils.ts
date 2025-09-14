@@ -610,7 +610,7 @@ export function normalize(array) {
     }
 }
 
-export async function generateMipmaps(device, texture, width, height, mipLevelCount, { isCube = false } = {}) {
+export async function generateMipmaps(device: GPUDevice, texture, width, height, mipLevelCount, { isCube = false } = {}) {
     const wgsl = `
     @group(0) @binding(0) var mySampler: sampler;
     @group(0) @binding(1) var myTexture: texture_2d<f32>;
@@ -719,4 +719,34 @@ export async function generateMipmaps(device, texture, width, height, mipLevelCo
             device.queue.submit([encoder.finish()]);
         }
     }
+}
+
+export function fanToTriListIndices(
+  fan: Uint16Array | Uint32Array
+): Uint32Array {
+    if (fan.length < 3) return new Uint32Array(0);
+    const use32 = fan instanceof Uint32Array || Math.max(...fan) > 65535;
+    const out = new Uint32Array((fan.length - 2) * 3);
+    const c = fan[0];
+    let o = 0;
+    for (let i = 1; i < fan.length - 1; i++) {
+        out[o++] = c;
+        out[o++] = fan[i];
+        out[o++] = fan[i + 1];
+    }
+    return out;
+}
+
+export function convertLineLoopToLineList(loopIndices) {
+    const n = loopIndices.length;
+    const listIndices = new (loopIndices.constructor)(n * 2);
+
+    for (let i = 0; i < n; i++) {
+        const curr = loopIndices[i];
+        const next = loopIndices[(i + 1) % n]; // wrap around for closing edge
+        listIndices[i * 2]     = curr;
+        listIndices[i * 2 + 1] = next;
+    }
+
+    return listIndices;
 }

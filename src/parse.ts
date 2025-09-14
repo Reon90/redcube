@@ -725,7 +725,7 @@ export class Parse {
         });
     }
 
-    handleTextureLoadedWebGPU(WebGPU: WEBGPU, { bitmap, sampler, srgb, name }, textureType) {
+    handleTextureLoadedWebGPU(WebGPU: WEBGPU, { image: bitmap, sampler, srgb, name }, textureType) {
         if (this.images.get(name)) {
             return this.images.get(name);
         }

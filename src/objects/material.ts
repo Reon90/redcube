@@ -639,30 +639,7 @@ export class Material extends M {
             materialUniformBuffer.done();
             this.materialUniformBuffer = materialUniformBuffer;
         }
-        {
-            const materialUniformBuffer = new UniformBuffer();
-            materialUniformBuffer.add('lightColor', lightColor);
-            materialUniformBuffer.done();
-            this.lightColorBuffer = materialUniformBuffer;
-        }
-        {
-            const materialUniformBuffer = new UniformBuffer();
-            materialUniformBuffer.add('lightPos', lightPos);
-            materialUniformBuffer.done();
-            this.lightPosBuffer = materialUniformBuffer;
-        }
-        {
-            const materialUniformBuffer = new UniformBuffer();
-            materialUniformBuffer.add('spotdir', spotDirs);
-            materialUniformBuffer.done();
-            this.spotdirBuffer = materialUniformBuffer;
-        }
-        {
-            const materialUniformBuffer = new UniformBuffer();
-            materialUniformBuffer.add('lightIntensity', lightProps);
-            materialUniformBuffer.done();
-            this.lightIntensityBuffer = materialUniformBuffer;
-        }
+        
         if (this.matrices.length) {
             const materialUniformBuffer = new UniformBuffer();
             materialUniformBuffer.add('textureMatrices', textureMatrices);
@@ -672,29 +649,13 @@ export class Material extends M {
     }
 
     updateUniformsWebGPU(WebGPU: WEBGPU) {
-        const { device } = WebGPU;
+        const { device, nearestSampler, linearSampler } = WebGPU;
         const uniformBuffer = device.createBuffer({
             size: 256 + this.materialUniformBuffer.store.byteLength,
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
         });
         this.materialUniformBuffer.bufferWebGPU = uniformBuffer;
-        const uniformBuffer2 = device.createBuffer({
-            size: 256 + this.lightColorBuffer.store.byteLength,
-            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
-        });
-        const uniformBuffer3 = device.createBuffer({
-            size: 256 + this.lightPosBuffer.store.byteLength,
-            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
-        });
-        this.lightPosBuffer.bufferWebGPU = uniformBuffer3;
-        const uniformBuffer4 = device.createBuffer({
-            size: 256 + this.spotdirBuffer.store.byteLength,
-            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
-        });
-        const uniformBuffer5 = device.createBuffer({
-            size: 256 + this.lightIntensityBuffer.store.byteLength,
-            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
-        });
+
         let uniformBuffer6;
         if (this.textureMatricesBuffer) {
             uniformBuffer6 = device.createBuffer({
@@ -728,19 +689,11 @@ export class Material extends M {
             },
             {
                 binding: 37,
-                resource: device.createSampler({
-                    mipmapFilter: 'nearest',
-                    magFilter: 'nearest',
-                    minFilter: 'nearest',
-                })
+                resource: nearestSampler
             },
             {
                 binding: 24,
-                resource: device.createSampler({
-                    mipmapFilter: 'linear',
-                    magFilter: 'linear',
-                    minFilter: 'linear',
-                })
+                resource: linearSampler
             },
             {
                 binding: 3,
@@ -793,38 +746,7 @@ export class Material extends M {
                 binding: 14,
                 resource: this.specularTexture?.createView()
             },
-            {
-                binding: 15,
-                resource: {
-                    buffer: uniformBuffer2,
-                    offset: 0,
-                    size: this.lightColorBuffer.store.byteLength
-                }
-            },
-            {
-                binding: 16,
-                resource: {
-                    buffer: uniformBuffer3,
-                    offset: 0,
-                    size: this.lightPosBuffer.store.byteLength
-                }
-            },
-            {
-                binding: 17,
-                resource: {
-                    buffer: uniformBuffer4,
-                    offset: 0,
-                    size: this.spotdirBuffer.store.byteLength
-                }
-            },
-            {
-                binding: 18,
-                resource: {
-                    buffer: uniformBuffer5,
-                    offset: 0,
-                    size: this.lightIntensityBuffer.store.byteLength
-                }
-            },
+            
             {
                 binding: 29,
                 resource: this.thicknessTexture?.createView()
@@ -870,34 +792,7 @@ export class Material extends M {
             this.materialUniformBuffer.store.byteOffset,
             this.materialUniformBuffer.store.byteLength
         );
-        device.queue.writeBuffer(
-            uniformBuffer2,
-            0,
-            this.lightColorBuffer.store.buffer,
-            this.lightColorBuffer.store.byteOffset,
-            this.lightColorBuffer.store.byteLength
-        );
-        device.queue.writeBuffer(
-            uniformBuffer3,
-            0,
-            this.lightPosBuffer.store.buffer,
-            this.lightPosBuffer.store.byteOffset,
-            this.lightPosBuffer.store.byteLength
-        );
-        device.queue.writeBuffer(
-            uniformBuffer4,
-            0,
-            this.spotdirBuffer.store.buffer,
-            this.spotdirBuffer.store.byteOffset,
-            this.spotdirBuffer.store.byteLength
-        );
-        device.queue.writeBuffer(
-            uniformBuffer5,
-            0,
-            this.lightIntensityBuffer.store.buffer,
-            this.lightIntensityBuffer.store.byteOffset,
-            this.lightIntensityBuffer.store.byteLength
-        );
+
         if (this.textureMatricesBuffer) {
             device.queue.writeBuffer(
                 uniformBuffer6,

@@ -23,4 +23,6 @@ interface WEBGPU {
     device: GPUDevice;
     renderPassDescriptor: GPURenderPassDescriptor;
     commandEncoder?: GPUCommandEncoder;
+    nearestSampler?: GPUSampler;
+    linearSampler?: GPUSampler;
 }
