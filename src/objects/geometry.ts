@@ -300,7 +300,8 @@ export class Geometry {
                 (this.attributes['JOINTS_0']?.length ?? 0) +
                 (this.attributes['WEIGHTS_0']?.length ?? 0) +
                 (this.attributes['COLOR_0']?.length ?? 0) +
-                (this.attributes['TEXCOORD_1']?.length ?? 0)
+                (this.attributes['TEXCOORD_1']?.length ?? 0) +
+                (this.attributes['TEXCOORD_2']?.length ?? 0)
         );
         if (this.attributes['WEIGHTS_0']) {
             total += 8;
@@ -311,11 +312,14 @@ export class Geometry {
         if (this.attributes['TEXCOORD_1']) {
             total += 2;
         }
+        if (this.attributes['TEXCOORD_2']) {
+            total += 2;
+        }
         let k = 0;
         let l = 0;
         let m = 0;
         for (let i = 0; i < g.length; i += total) {
-            let j = 12;
+            let j = 8;
             g[i] = this.attributes['POSITION'][k];
             g[i + 1] = this.attributes['POSITION'][k + 1];
             g[i + 2] = this.attributes['POSITION'][k + 2];
@@ -331,17 +335,18 @@ export class Geometry {
                 g[i + 9] = this.attributes['TANGENT'][m + 1];
                 g[i + 10] = this.attributes['TANGENT'][m + 2];
                 g[i + 11] = this.attributes['TANGENT'][m + 3];
+                j += 4;
             }
 
             if (this.attributes['WEIGHTS_0']) {
-                g[i + 12] = this.attributes['JOINTS_0'][m];
-                g[i + 13] = this.attributes['JOINTS_0'][m + 1];
-                g[i + 14] = this.attributes['JOINTS_0'][m + 2];
-                g[i + 15] = this.attributes['JOINTS_0'][m + 3];
-                g[i + 16] = this.attributes['WEIGHTS_0'][m];
-                g[i + 17] = this.attributes['WEIGHTS_0'][m + 1];
-                g[i + 18] = this.attributes['WEIGHTS_0'][m + 2];
-                g[i + 19] = this.attributes['WEIGHTS_0'][m + 3];
+                g[i + j] = this.attributes['JOINTS_0'][m];
+                g[i + j + 1] = this.attributes['JOINTS_0'][m + 1];
+                g[i + j + 2] = this.attributes['JOINTS_0'][m + 2];
+                g[i + j + 3] = this.attributes['JOINTS_0'][m + 3];
+                g[i + j + 4] = this.attributes['WEIGHTS_0'][m];
+                g[i + j + 5] = this.attributes['WEIGHTS_0'][m + 1];
+                g[i + j + 6] = this.attributes['WEIGHTS_0'][m + 2];
+                g[i + j + 7] = this.attributes['WEIGHTS_0'][m + 3];
                 j += 8;
             }
             if (this.attributes['COLOR_0']) {
@@ -354,6 +359,11 @@ export class Geometry {
             if (this.attributes['TEXCOORD_1']) {
                 g[i + 12] = this.attributes['TEXCOORD_1'][l];
                 g[i + 13] = this.attributes['TEXCOORD_1'][l + 1];
+                j += 2;
+            }
+            if (this.attributes['TEXCOORD_2']) {
+                g[i + 14] = this.attributes['TEXCOORD_2'][l];
+                g[i + 15] = this.attributes['TEXCOORD_2'][l + 1];
                 j += 2;
             }
             if (order !== undefined) {
@@ -412,6 +422,9 @@ export class Geometry {
             vertexLayout.push(4);
         }
         if (defines.find(d => d.name === 'MULTIUV')) {
+            vertexLayout.push(2);
+        }
+        if (this.attributes['TEXCOORD_2']) {
             vertexLayout.push(2);
         }
         vertexLayout.push(1);

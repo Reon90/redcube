@@ -779,7 +779,7 @@ export class Material extends M {
     }
 
     setTexture(gl, name, type, value) {
-        gl.bindBufferBase(gl.UNIFORM_BUFFER, 1, this.lightUBO5);
+        gl.bindBufferBase(gl.UNIFORM_BUFFER, 8, this.lightUBO5);
         const i = this.matricesMap.get(name) * 16;
         if (type === 'offset') {
             this.textureMatricesBuffer.store[i] = value.elements[0];
