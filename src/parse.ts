@@ -405,12 +405,10 @@ export class Parse {
                 this.scene.meshes.push(mesh);
                 // @ts-ignore
                 mesh.material.defines.push({ name: 'LIGHTNUMBER', value: this.lights.length });
-                // @ts-ignore
-                mesh.material.defines.push({ name: 'LIGHTINDEX', value: 0 });
             }
             if (mesh instanceof Light) {
                 const i = this.lights.findIndex(l => l === mesh);
-                mesh.parent.children.forEach(m => {
+                walk(mesh.parent, m => {
                     if (m instanceof Mesh) {
                         // @ts-ignore
                         m.material.defines.find(d => d.name === 'LIGHTINDEX').value = i;

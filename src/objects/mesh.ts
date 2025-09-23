@@ -41,14 +41,20 @@ export class Mesh extends Object3D {
         this.material = material;
     }
 
-    drawWebGPU(WebGPU: WEBGPU, passEncoder: GPURenderPassEncoder, i, { renderState }) {
+    drawWebGPU(WebGPU: WEBGPU, passEncoder: GPURenderPassEncoder, i, { renderState, storage2, storage }) {
         const { isprerefraction } = renderState;
         if (this.defines.find(i => i.name === 'TRANSMISSION') && isprerefraction) {
             return;
         }
         if (this.reflow) {
             // matrixWorld changed
-            this.geometry.uniformBuffer.updateWebGPU(WebGPU, 'model', this.matrixWorld.elements);
+            storage2.store.set(this.matrixWorld.elements, i * this.geometry.uniformBuffer.store.length);
+            WebGPU.device.queue.writeBuffer(storage2.bufferWebGPU, 0, storage2.store.buffer, storage2.store.byteOffset, storage2.store.byteLength);
+        }
+        if (this.repaint) {
+            // matrixWorld changed
+            storage.store.set(this.material.materialUniformBuffer.store, i * this.material.materialUniformBuffer.store.length);
+            WebGPU.device.queue.writeBuffer(storage.bufferWebGPU, 0, storage.store.buffer, storage.store.byteOffset, storage.store.byteLength);
         }
         if (this instanceof SkinnedMesh) {
             if (this.bones.some(bone => bone.reflow)) {

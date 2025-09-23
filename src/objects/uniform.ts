@@ -59,7 +59,7 @@ export class UniformBuffer {
         gl.bufferSubData(gl.UNIFORM_BUFFER, offset * Float32Array.BYTES_PER_ELEMENT, buffer);
     }
 
-    updateWebGPU(WebGPU: WEBGPU, name, value) {
+    updateWebGPU(WebGPU: WEBGPU, name, value, skip = false) {
         const { device } = WebGPU;
         if (value.length === undefined) {
             value = new Float32Array([value]);
@@ -70,6 +70,9 @@ export class UniformBuffer {
         }
         const buffer = this.getBuffer(value);
         this.store.set(buffer, offset);
+        if (skip) {
+            return;
+        }
 
         device.queue.writeBuffer(
             this.bufferWebGPU,

@@ -29,6 +29,8 @@ class RedCube {
     stateBuffer = {};
     cameraBuffer: UniformBuffer;
     lightPosBuffer: UniformBuffer;
+    storage2: UniformBuffer;
+    storage: UniformBuffer;
 
     constructor(url, canvas, _pp, envUrl = 'env') {
         if (!url) {
@@ -284,6 +286,10 @@ class RedCube {
             });
             const storageBuffer2 = {store: storage2};
             this.scene.meshes[0].geometry.updateUniformsWebGPU(WebGPU, storageBuffer2, GPUBufferUsage.STORAGE);
+            // @ts-expect-error
+            this.storage2 = storageBuffer2;
+            // @ts-expect-error
+            this.storage = storageBuffer;
 
             const uniformBindGroup1 = [{
                 binding: 0,
@@ -452,12 +458,12 @@ class RedCube {
         this.scene.lights = this.parse.lights;
 
         this.renderer.render();
-        // @ts-ignore
-        window.__TEST_READY__ = true;
 
-        await new Promise(resolve => setTimeout(resolve, 5000));
         const info = getWebGPUMemoryUsage();
         console.log(info);
+
+        // @ts-ignore
+        window.__TEST_READY__ = true;
 
         cb(this.scene);
     }
@@ -522,6 +528,8 @@ class RedCube {
 
     getState() {
         return {
+            storage2: this.storage2,
+            storage: this.storage,
             lightPosBuffer: this.lightPosBuffer,
             cameraBuffer: this.cameraBuffer,
             stateBuffer: this.stateBuffer,

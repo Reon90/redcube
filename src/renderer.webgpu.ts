@@ -62,6 +62,7 @@ export class RendererWebGPU extends Renderer {
             const name = s[s.length - 4];
             mesh.material.setTextureWebGPU(WebGPU, name, last, out);
         } else {
+            mesh.repaint = true;
             mesh.material.setColorWebGPU(WebGPU, s[s.length - 1], out);
         }
     }

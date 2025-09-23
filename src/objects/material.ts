@@ -75,6 +75,9 @@ export class Material extends M {
         this.matrices = [];
         this.diffuseTransmissionColorFactor = [1, 1, 1];
 
+        // @ts-expect-error
+        this.defines.push({ name: 'LIGHTINDEX', value: 0 });
+
         if (!material.pbrMetallicRoughness && material.extensions && material.extensions.KHR_materials_pbrSpecularGlossiness) {
             material.pbrMetallicRoughness = {};
             const SG = material.extensions.KHR_materials_pbrSpecularGlossiness;
@@ -824,6 +827,6 @@ export class Material extends M {
     }
 
     setColorWebGPU(gl, name, value) {
-        this.materialUniformBuffer.updateWebGPU(gl, name, value.elements);
+        this.materialUniformBuffer.updateWebGPU(gl, name, value.elements, true);
     }
 }
