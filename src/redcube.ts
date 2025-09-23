@@ -2,8 +2,8 @@
 
 import { Container } from './container';
 import { Renderer } from './renderer';
-import { Frustum } from './matrix';
-import { Scene, Camera, Light, SkinnedMesh } from './objects/index';
+import { Frustum, Vector3 } from './matrix';
+import { Scene, Camera, Light, SkinnedMesh, UniformBuffer } from './objects/index';
 import { Events } from './events';
 import { Env } from './env';
 import { Parse } from './parse';
@@ -12,6 +12,7 @@ import { Particles } from './particles';
 import { setGl, clearColor, walk } from './utils';
 import { Light as PPLight } from './postprocessors/light';
 import { Refraction } from './postprocessors/refraction';
+import '../webgl-memory';
 
 let gl;
 const FOV = 60; // degrees
@@ -25,6 +26,17 @@ class RedCube {
     renderState = {};
     isIBL = true;
     isDefaultLight = true;
+    stateBuffer: UniformBuffer;
+    cameraBuffer: UniformBuffer;
+    lightPosBuffer: UniformBuffer;
+    storage2: Float32Array;
+    storage: Float32Array;
+
+    lightUBO1: WebGLBuffer;
+    lightUBO2: WebGLBuffer;
+    lightUBO3: WebGLBuffer;
+    lightUBO4: WebGLBuffer;
+    UBO: WebGLBuffer;
 
     constructor(url, canvas, processors = [], envUrl = 'env', mode = 'pbr') {
         if (!url || !canvas) {
@@ -138,18 +150,147 @@ class RedCube {
         const envData = await this.parse.getEnv(false);
         await this.env.createEnvironmentBuffer(envData);
 
+        const { renderState, isIBL, isDefaultLight, lights } = this.getState();
+        const stateBuffer = new UniformBuffer();
+        // @ts-expect-error
+        stateBuffer.add('isTone', renderState.isprerefraction ? 0 : 1);
+        stateBuffer.add('isIBL', isIBL ? 1 : 0);
+        stateBuffer.add('isDefaultLight', isDefaultLight || lights.some(l => !l.isInitial) ? 1 : 0);
+        stateBuffer.done();
+        this.stateBuffer = stateBuffer;
+        const mUBO = gl.createBuffer();
+        gl.bindBuffer(gl.UNIFORM_BUFFER, mUBO);
+        gl.bufferData(gl.UNIFORM_BUFFER, stateBuffer.store, gl.STATIC_DRAW);
+
+        const cameraBuffer = new UniformBuffer();
+        cameraBuffer.add('view', this.camera.matrixWorldInvert.elements);
+        cameraBuffer.add('projection', this.camera.projection.elements);
+        cameraBuffer.add('light', this.light.matrixWorldInvert.elements);
+        cameraBuffer.add('isShadow', 0);
+        cameraBuffer.done();
+        this.cameraBuffer = cameraBuffer;
+        const UBO = gl.createBuffer();
+        gl.bindBuffer(gl.UNIFORM_BUFFER, UBO);
+        gl.bufferData(gl.UNIFORM_BUFFER, cameraBuffer.store, gl.DYNAMIC_DRAW);
+        this.UBO = UBO;
+
+        const lightEnum = {
+            directional: 0,
+            point: 1,
+            spot: 2
+        };
+        const spotDirs = new Float32Array(this.parse.lights.length * 4);
+        const lightPos = new Float32Array(this.parse.lights.length * 4);
+        const lightColor = new Float32Array(this.parse.lights.length * 4);
+        const lightProps = new Float32Array(this.parse.lights.length * 4);
+        this.parse.lights.forEach((light, i) => {
+            spotDirs.set(
+                new Vector3([light.matrixWorld.elements[8], light.matrixWorld.elements[9], light.matrixWorld.elements[10]]).normalize()
+                    .elements,
+                i * 4
+            );
+            lightPos.set(light.getPosition(), i * 4);
+            lightColor.set(light.color.elements, i * 4);
+            lightProps.set([light.intensity, light.spot.innerConeAngle ?? 0, light.spot.outerConeAngle ?? 0, lightEnum[light.type]], i * 4);
+        });
+        const materialUniformBuffer = new UniformBuffer();
+        materialUniformBuffer.add('lightPos', lightPos);
+        materialUniformBuffer.done();
+        this.lightPosBuffer = materialUniformBuffer;
+        
+        const materialUniformBuffer2 = new UniformBuffer();
+        materialUniformBuffer2.add('lightColor', lightColor);
+        materialUniformBuffer2.done();
+    
+        const materialUniformBuffer3 = new UniformBuffer();
+        materialUniformBuffer3.add('spotdir', spotDirs);
+        materialUniformBuffer3.done();
+    
+        const materialUniformBuffer4 = new UniformBuffer();
+        materialUniformBuffer4.add('lightIntensity', lightProps);
+        materialUniformBuffer4.done();
+
+        const UBO2 = gl.createBuffer();
+        gl.bindBuffer(gl.UNIFORM_BUFFER, UBO2);
+        gl.bufferData(gl.UNIFORM_BUFFER, materialUniformBuffer.store, gl.DYNAMIC_DRAW);
+        const UBO3 = gl.createBuffer();
+        gl.bindBuffer(gl.UNIFORM_BUFFER, UBO3);
+        gl.bufferData(gl.UNIFORM_BUFFER, materialUniformBuffer2.store, gl.DYNAMIC_DRAW);
+        const UBO4 = gl.createBuffer();
+        gl.bindBuffer(gl.UNIFORM_BUFFER, UBO4);
+        gl.bufferData(gl.UNIFORM_BUFFER, materialUniformBuffer3.store, gl.DYNAMIC_DRAW);
+        const UBO5 = gl.createBuffer();
+        gl.bindBuffer(gl.UNIFORM_BUFFER, UBO5);
+        gl.bufferData(gl.UNIFORM_BUFFER, materialUniformBuffer4.store, gl.DYNAMIC_DRAW);
+        this.lightUBO1 = UBO2;
+        this.lightUBO2 = UBO3;
+        this.lightUBO3 = UBO4;
+        this.lightUBO4 = UBO5;
+
+        this.scene.meshes.forEach((mesh) => {
+            mesh.geometry.createUniforms(mesh.matrixWorld);
+        });
+        this.scene.meshes.forEach((mesh, i) => {
+            mesh.order = i;
+            mesh.reflow = true;
+            mesh.repaint = true;
+        });
+
+        this.scene.meshes.forEach((mesh) => {
+            mesh.material.createUniforms(this.camera, this.parse.lights);
+        });
+
+        gl.activeTexture(gl[`TEXTURE${31}`]);
+        const texture = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+        gl.texImage2D(
+            gl.TEXTURE_2D, 0, gl.RGBA32F,
+            this.scene.meshes[0].geometry.uniformBuffer.store.length / Float32Array.BYTES_PER_ELEMENT, this.scene.meshes.length, 0,
+            gl.RGBA, gl.FLOAT,
+            null
+        );
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        // @ts-expect-error
+        this.storage2 = {texture};
+
+        gl.activeTexture(gl[`TEXTURE${30}`]);
+        const texture2 = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, texture2);
+        gl.texImage2D(
+            gl.TEXTURE_2D, 0, gl.RGBA32F,
+            this.scene.meshes[0].material.materialUniformBuffer.store.length / Float32Array.BYTES_PER_ELEMENT, this.scene.meshes.length, 0,
+            gl.RGBA, gl.FLOAT,
+            null
+        );
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        // @ts-expect-error
+        this.storage = {texture2};
+
         const hasTransmission = this.parse.json.extensionsUsed && this.parse.json.extensionsUsed.includes('KHR_materials_transmission');
         this.scene.meshes.forEach(mesh => {
-            mesh.geometry.createGeometryForWebGl(gl);
+            mesh.geometry.createGeometryForWebGl(gl, mesh.defines, mesh.order);
 
             const program = this.parse.createProgram(mesh.defines);
-            [mesh.material, ...mesh.variants.map(m => m.m)].forEach(m => m.createUniforms(this.camera, this.parse.lights));
             [mesh.material, ...mesh.variants.map(m => m.m)].forEach(m => m.updateUniformsWebgl(gl, program));
             mesh.material.setHarmonics(this.env.updateUniform(gl, program));
 
             mesh.setProgram(program);
 
-            mesh.geometry.createUniforms(mesh.matrixWorld);
+            gl.bindBufferBase(gl.UNIFORM_BUFFER, 3, this.lightUBO1);
+            gl.bindBufferBase(gl.UNIFORM_BUFFER, 4, this.lightUBO2);
+            gl.bindBufferBase(gl.UNIFORM_BUFFER, 5, this.lightUBO3);
+            gl.bindBufferBase(gl.UNIFORM_BUFFER, 6, this.lightUBO4);
+
+            gl.activeTexture(gl[`TEXTURE${31}`]);
+            let t = gl.getUniformLocation(program, "uTransformTex");
+            gl.uniform1i(t, 31);
+
+            gl.activeTexture(gl[`TEXTURE${30}`]);
+            t = gl.getUniformLocation(program, "uMaterialTex");
+            gl.uniform1i(t, 30);
+
             mesh.geometry.updateUniformsWebGl(gl, mesh.program);
             mesh.visible = mesh.isVisible(planes);
 
@@ -175,6 +316,17 @@ class RedCube {
         this.resize(null);
         this.parse.buildAnimation();
         this.initialDraw();
+
+        const ext = gl.getExtension('GMAN_webgl_memory');
+        if (ext) {
+            // memory info
+            const info = ext.getMemoryInfo();
+            // every texture, it's size, a stack of where it was created and a stack of where it was last updated.
+            const textures = ext.getResourcesInfo(WebGLTexture);
+            // every buffer, it's size, a stack of where it was created and a stack of where it was last updated.
+            const buffers = ext.getResourcesInfo(WebGLBuffer);
+            console.log(info, textures, buffers);
+        }
 
         cb();
     }
@@ -249,8 +401,10 @@ class RedCube {
         setGl(gl);
         this.ioc.register('gl', gl);
 
-        gl.getExtension('EXT_color_buffer_float');
-        gl.getExtension('OES_texture_float_linear');
+        let ext = gl.getExtension('EXT_color_buffer_float');
+        ext = gl.getExtension('OES_texture_float_linear');
+        ext = gl.getExtension('OES_texture_buffer');
+        console.log(ext);
     }
 
     draw() {
@@ -270,6 +424,15 @@ class RedCube {
     getState() {
         const refraction = this.PP.postprocessors.find(p => p instanceof Refraction);
         return {
+            storage: this.storage,
+            storage2: this.storage2,
+            UBO: this.UBO,
+            cameraBuffer: this.cameraBuffer,
+            lightUBO1: this.lightUBO1,
+            lightUBO2: this.lightUBO2,
+            lightUBO3: this.lightUBO3,
+            lightUBO4: this.lightUBO4,
+            lightPosBuffer: this.lightPosBuffer,
             isIBL: this.isIBL,
             isDefaultLight: this.isDefaultLight,
             renderState: this.renderState,

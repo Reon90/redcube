@@ -120,16 +120,16 @@ export class RendererWebGPU extends Renderer {
             s.cameraBuffer.updateWebGPU(WebGPU, 'projection', s.camera.projection.elements);
         }
 
-        this.scene.opaqueChildren.forEach(mesh => {
+        this.scene.opaqueChildren.forEach((mesh) => {
             if (mesh.visible) {
                 passEncoder.setPipeline(mesh.pipeline);
-                mesh.drawWebGPU(WebGPU, passEncoder, this.getState());
+                mesh.drawWebGPU(WebGPU, passEncoder, mesh.order, s);
             }
         });
         this.scene.transparentChildren.forEach(mesh => {
             if (mesh.visible) {
                 passEncoder.setPipeline(mesh.pipeline);
-                mesh.drawWebGPU(WebGPU, passEncoder, s);
+                mesh.drawWebGPU(WebGPU, passEncoder, mesh.order, s);
             }
         });
         passEncoder.end();

@@ -15,6 +15,7 @@ export class Mesh extends Object3D {
     distance: number;
     visible: boolean;
     variants: { m: Material; variants: number[] }[];
+    order: number;
 
     uniformBindGroup1: GPUBindGroup;
     pipeline: GPURenderPipeline;
@@ -40,21 +41,14 @@ export class Mesh extends Object3D {
         this.material = material;
     }
 
-    drawWebGPU(WebGPU: WEBGPU, passEncoder, { renderState, needUpdateView, camera }) {
+    drawWebGPU(WebGPU: WEBGPU, passEncoder: GPURenderPassEncoder, i, { renderState }) {
         const { isprerefraction } = renderState;
         if (this.defines.find(i => i.name === 'TRANSMISSION') && isprerefraction) {
             return;
         }
         if (this.reflow) {
             // matrixWorld changed
-            const normalMatrix = new Matrix4(this.matrixWorld);
-            normalMatrix.invert().transpose();
-
             this.geometry.uniformBuffer.updateWebGPU(WebGPU, 'model', this.matrixWorld.elements);
-            this.geometry.uniformBuffer.updateWebGPU(WebGPU, 'normalMatrix', normalMatrix.elements);
-        }
-        if (needUpdateView) {
-            this.material.materialUniformBuffer.updateWebGPU(WebGPU, 'viewPos', camera.getPosition());
         }
         if (this instanceof SkinnedMesh) {
             if (this.bones.some(bone => bone.reflow)) {
@@ -80,7 +74,7 @@ export class Mesh extends Object3D {
         if (this.geometry.indicesBuffer) {
             const type = this.geometry.indexType < 5124 ? 'uint16' : 'uint32';
             passEncoder.setIndexBuffer(this.geometry.indicesWebGPUBuffer, 'uint32');
-            passEncoder.drawIndexed(this.geometry.indicesBuffer.length);
+            passEncoder.drawIndexed(this.geometry.indicesBuffer.length, 1, 0, 0, i);
         } else {
             passEncoder.draw(this.geometry.attributes.POSITION.length / 3, 1, 0, 0);
         }
@@ -91,15 +85,13 @@ export class Mesh extends Object3D {
         {
             lights,
             camera,
-            light,
-            needUpdateView,
             needUpdateProjection,
             preDepthTexture,
             colorTexture,
             renderState,
             fakeDepth,
             isIBL,
-            isDefaultLight
+            isDefaultLight,
         }
     ) {
         const { isprepender, isprerefraction } = renderState;
@@ -109,20 +101,7 @@ export class Mesh extends Object3D {
         gl.useProgram(this.program);
 
         gl.bindVertexArray(this.geometry.VAO);
-        gl.bindBufferBase(gl.UNIFORM_BUFFER, 0, this.geometry.UBO);
-        if (this.reflow) {
-            // matrixWorld changed
-            const normalMatrix = new Matrix4(this.matrixWorld);
-            normalMatrix.invert().transpose();
 
-            this.geometry.uniformBuffer.update(gl, 'model', this.matrixWorld.elements);
-            this.geometry.uniformBuffer.update(gl, 'normalMatrix', normalMatrix.elements);
-        }
-
-        if (needUpdateView) {
-            this.geometry.uniformBuffer.update(gl, 'view', camera.matrixWorldInvert.elements);
-            this.geometry.uniformBuffer.update(gl, 'light', light.matrixWorldInvert.elements);
-        }
         if (needUpdateProjection) {
             this.geometry.uniformBuffer.update(gl, 'projection', camera.projection.elements);
         }
@@ -141,27 +120,6 @@ export class Mesh extends Object3D {
                 gl.bufferSubData(gl.UNIFORM_BUFFER, 0, matrices);
             }
         }
-        if (this.material.UBO) {
-            gl.bindBufferBase(gl.UNIFORM_BUFFER, 1, this.material.UBO);
-
-            if (needUpdateView) {
-                const lightPos = new Float32Array(lights.length * 4);
-                lights.forEach((light, i) => {
-                    lightPos.set(light.getPosition(), i * 4);
-                });
-
-                this.material.materialUniformBuffer.update(gl, 'viewPos', camera.getPosition());
-
-                gl.bindBufferBase(gl.UNIFORM_BUFFER, 4, this.material.lightUBO2);
-                this.material.lightPosBuffer.update(gl, 'lightPos', lightPos);
-            }
-        }
-        if (this.material.lightUBO1) {
-            gl.bindBufferBase(gl.UNIFORM_BUFFER, 3, this.material.lightUBO1);
-            gl.bindBufferBase(gl.UNIFORM_BUFFER, 4, this.material.lightUBO2);
-            gl.bindBufferBase(gl.UNIFORM_BUFFER, 5, this.material.lightUBO3);
-            gl.bindBufferBase(gl.UNIFORM_BUFFER, 6, this.material.lightUBO4);
-        }
 
         if (this.material.matrices.length) {
             gl.bindBufferBase(gl.UNIFORM_BUFFER, 8, this.material.lightUBO5);
@@ -173,9 +131,9 @@ export class Mesh extends Object3D {
 
         gl.uniform1i(this.material.uniforms.depthTexture, preDepthTexture && !isprepender ? preDepthTexture.index : fakeDepth.index);
         gl.uniform1i(this.material.uniforms.colorTexture, !isprerefraction ? colorTexture.index : fakeDepth.index);
-        gl.uniform2f(gl.getUniformLocation(this.program, 'isTone'), isprerefraction ? 0 : 1, 0);
-        gl.uniform2f(gl.getUniformLocation(this.program, 'isIBL'), isIBL ? 1 : 0, 0);
-        gl.uniform2f(gl.getUniformLocation(this.program, 'isDefaultLight'), isDefaultLight || lights.some(l => !l.isInitial) ? 1 : 0, 0);
+        gl.uniform2f(this.material.uniforms.isTone, isprerefraction ? 0 : 1, 0);
+        gl.uniform2f(this.material.uniforms.isIBL, isIBL ? 1 : 0, 0);
+        gl.uniform2f(this.material.uniforms.isDefaultLight, isDefaultLight || lights.some(l => !l.isInitial) ? 1 : 0, 0);
 
         if (this.material.baseColorTexture) {
             gl.activeTexture(gl[`TEXTURE${0}`]);

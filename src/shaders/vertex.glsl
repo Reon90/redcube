@@ -1,6 +1,13 @@
 #include "./vert.h"
 
 void main() {
+    #if defined(WEBGPU)
+    Transform tr = transforms.data[gl_InstanceIndex];
+    #else
+    Transform tr = fetchTransform(int(uMaterialID));
+    #endif
+    mat4 model = tr.model;
+
     #ifdef JOINTNUMBER
         mat4 skin = inWeight.x * joint[int(inJoint.x)];
         skin += inWeight.y * joint[int(inJoint.y)];
@@ -32,7 +39,7 @@ void main() {
         #endif
         outTBN = mat3(tangentW, bitangentW, normalW);
     #else
-        outNormal = normalize(mat3(normalMatrix) * mat3(skin) * inNormal);
+        outNormal = normalize(mat3(transpose(inverse(model))) * mat3(skin) * inNormal);
     #endif
     outPosition = vec3(model * skin * vec4(inPosition, 1.0));
     outPositionView = projection * light * model * skin * vec4(inPosition, 1.0);
@@ -43,4 +50,9 @@ void main() {
     }
 
     gl_PointSize = 1.0;
+    #if defined(WEBGPU)
+    id = gl_InstanceIndex;
+    #else
+    id = uMaterialID;
+    #endif
 }

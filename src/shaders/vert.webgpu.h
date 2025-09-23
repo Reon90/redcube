@@ -1,6 +1,8 @@
 #version 460
 precision highp float;
 
+#define WEBGPU 1
+
 layout (location = 0) in vec3 inPosition;
 layout (location = 1) in vec2 inUV;
 layout (location = 2) in vec3 inNormal;
@@ -24,6 +26,7 @@ layout(location = 1) out vec2 outUV2;
 layout(location = 8) out vec2 outUV3;
 layout(location = 2) out vec3 outPosition;
 layout(location = 3) out vec4 vColor;
+layout(location = 12) out float id;
 
 #ifdef TANGENT
     layout(location = 4) out mat3 outTBN;
@@ -32,10 +35,13 @@ layout(location = 3) out vec4 vColor;
 #endif
 layout(location = 7) out vec4 outPositionView;
 
-layout(set = 0, binding = 0) uniform Matrices {
+struct Transform {
     mat4 model;
-    mat4 normalMatrix;
 };
+
+layout(set = 0, binding = 0) buffer readonly Matrices {
+    Transform data[];
+} transforms;
 layout(set = 0, binding = 39) uniform Matrices2 {
     mat4 view;
     mat4 projection;

@@ -264,8 +264,44 @@ class RedCube {
             this.scene.meshes[0].geometry.updateUniformsWebGPU(WebGPU, materialUniformBuffer3);
             this.scene.meshes[0].geometry.updateUniformsWebGPU(WebGPU, materialUniformBuffer4);
             
+            this.scene.meshes.forEach((mesh) => {
+                mesh.material.createUniforms(this.camera, this.parse.lights);
+            });
+            const storage = new Float32Array(this.scene.meshes.length * this.scene.meshes[0].material.materialUniformBuffer.store.length);
+            this.scene.meshes.forEach((mesh, i) => {
+                storage.set(mesh.material.materialUniformBuffer.store, i * mesh.material.materialUniformBuffer.store.length);
+            });
+            const storageBuffer = {store: storage};
+            this.scene.meshes[0].geometry.updateUniformsWebGPU(WebGPU, storageBuffer, GPUBufferUsage.STORAGE);
+
+            this.scene.meshes.forEach((mesh) => {
+                mesh.geometry.createUniforms(mesh.matrixWorld);
+            });
+            const storage2 = new Float32Array(this.scene.meshes.length * this.scene.meshes[0].geometry.uniformBuffer.store.length);
+            this.scene.meshes.forEach((mesh, i) => {
+                mesh.order = i;
+                storage2.set(mesh.geometry.uniformBuffer.store, i * mesh.geometry.uniformBuffer.store.length);
+            });
+            const storageBuffer2 = {store: storage2};
+            this.scene.meshes[0].geometry.updateUniformsWebGPU(WebGPU, storageBuffer2, GPUBufferUsage.STORAGE);
 
             const uniformBindGroup1 = [{
+                binding: 0,
+                resource: {
+                    // @ts-expect-error
+                    buffer: storageBuffer2.bufferWebGPU,
+                    offset: 0,
+                    size: storageBuffer2.store.byteLength
+                }
+            }, {
+                binding: 1,
+                resource: {
+                    // @ts-expect-error
+                    buffer: storageBuffer.bufferWebGPU,
+                    offset: 0,
+                    size: storageBuffer.store.byteLength
+                }
+            }, {
                 binding: 39,
                 resource: {
                     buffer: cameraBuffer.bufferWebGPU,
@@ -308,12 +344,12 @@ class RedCube {
             let pipeline;
             let prevProgramHash;
             let uniformBindGroup2;
-            this.scene.meshes.forEach(mesh => {
-                mesh.geometry.createGeometryForWebGPU(WebGPU);
-                mesh.geometry.createUniforms(mesh.matrixWorld);
-                mesh.geometry.uniformBindGroup1 = mesh.geometry.updateUniformsWebGPU(WebGPU, mesh.geometry.uniformBuffer);
+            let group;
 
-                mesh.material.createUniforms(this.camera, this.parse.lights);
+            this.scene.meshes.forEach((mesh) => {
+                mesh.geometry.createGeometryForWebGPU(WebGPU);
+                mesh.geometry.uniformBindGroup1 = [];
+
                 mesh.material.updateUniformsWebGPU(WebGPU);
                 mesh.material.uniformBindGroup1.push(
                     {
@@ -381,13 +417,14 @@ class RedCube {
                     uniformBindGroup2 = mesh.material.uniformBindGroup1;
                     prevProgramHash = programHash;
                     pipeline = create(WebGPU.device, WebGPU.glslang, WebGPU.wgsl, uniformBindGroup2, mesh.defines, hasTransmission, mesh.mode, mesh.frontFace);
+                    group = WebGPU.device.createBindGroup({
+                        layout: pipeline.getBindGroupLayout(0),
+                        entries: [...uniformBindGroup1, ...mesh.geometry.uniformBindGroup1, ...uniformBindGroup2]
+                    });
                 }
 
                 mesh.pipeline = pipeline;
-                mesh.uniformBindGroup1 = WebGPU.device.createBindGroup({
-                    layout: mesh.pipeline.getBindGroupLayout(0),
-                    entries: [...uniformBindGroup1, ...mesh.geometry.uniformBindGroup1, ...uniformBindGroup2]
-                });
+                mesh.uniformBindGroup1 = group;
             });
 
             // if (this.parse.cameras.length === 0) {

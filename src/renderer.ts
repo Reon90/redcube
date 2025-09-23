@@ -273,6 +273,7 @@ export class Renderer {
             const name = s[s.length - 4];
             mesh.material.setTexture(gl, name, last, out);
         } else {
+            mesh.repaint = true;
             mesh.material.setColor(gl, s[s.length - 1], out);
         }
     }
@@ -379,6 +380,56 @@ export class Renderer {
                 mesh.visible = mesh.isVisible(planes);
             });
         }
+
+        const s = this.getState();
+        if (s.needUpdateView) {
+            gl.bindBufferBase(gl.UNIFORM_BUFFER, 1, s.UBO);
+            s.cameraBuffer.update(gl, 'view', s.camera.matrixWorldInvert.elements);
+            s.cameraBuffer.update(gl, 'light', s.light.matrixWorldInvert.elements);
+
+            gl.bindBufferBase(gl.UNIFORM_BUFFER, 3, s.lightUBO1);
+            const lightPos = new Float32Array(3);
+            lightPos.set(s.light.getPosition(), 0);
+            s.lightPosBuffer.update(gl, 'lightPos', lightPos);
+        }
+        if (s.needUpdateProjection) {
+            gl.bindBufferBase(gl.UNIFORM_BUFFER, 1, s.UBO);
+            s.cameraBuffer.update(gl, 'projection', s.camera.projection.elements);
+        }
+        this.scene.meshes.forEach((mesh, i) => {
+            if (mesh.reflow) {
+                gl.activeTexture(gl[`TEXTURE${31}`]);
+                gl.bindTexture(gl.TEXTURE_2D, s.storage2.texture);
+                gl.texSubImage2D(
+                    gl.TEXTURE_2D,
+                    0, // Mipmap level
+                    0, // xoffset
+                    i, // yoffset
+                    this.scene.meshes[0].geometry.uniformBuffer.store.length / Float32Array.BYTES_PER_ELEMENT,
+                    1,
+                    gl.RGBA,
+                    gl.FLOAT,
+                    mesh.matrixWorld.elements
+                );
+                mesh.reflow = false;
+            }
+            if (mesh.repaint) {
+                gl.activeTexture(gl[`TEXTURE${30}`]);
+                gl.bindTexture(gl.TEXTURE_2D, s.storage.texture2);
+                gl.texSubImage2D(
+                    gl.TEXTURE_2D,
+                    0, // Mipmap level
+                    0, // xoffset
+                    i, // yoffset
+                    this.scene.meshes[0].material.materialUniformBuffer.store.length / Float32Array.BYTES_PER_ELEMENT,
+                    1,
+                    gl.RGBA,
+                    gl.FLOAT,
+                    mesh.material.materialUniformBuffer.store
+                );
+                mesh.repaint = false;
+            }
+        });
 
         this.scene.opaqueChildren.forEach(mesh => {
             if (mesh.visible) {

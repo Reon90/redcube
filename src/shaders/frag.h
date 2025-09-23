@@ -11,12 +11,15 @@ precision highp float;
 #define textureLod2D(p, uv, i) textureLod(p, uv, i)
 #define textureLod2D2(p, uv, i) textureLod(p, uv, i)
 
+uniform sampler2D uMaterialTex;
+
 in vec4 vColor;
 in vec2 outUV0;
 in vec2 outUV2;
 in vec2 outUV3;
 in vec3 outPosition;
 in vec4 outPositionView;
+in float id;
 #ifdef TANGENT
     in mat3 outTBN;
 #else
@@ -29,9 +32,8 @@ layout (location = 2) out vec4 irradianceColor;
 layout (location = 3) out vec4 albedoColor;
 layout (location = 4) out vec4 specColor;
 
-uniform Material {
+struct Material {
     vec4 baseColorFactor;
-    vec3 viewPos;
     vec3 specularFactor;
     vec3 specularColorFactor;
     vec3 emissiveFactor;
@@ -54,13 +56,43 @@ uniform Material {
     vec4 diffuseTransmissionFactor;
     vec4 dispersionFactor;
 };
-uniform Matrices {
-    mat4 model;
-    mat4 normalMatrix;
+
+Material fetchMaterial(int id) {
+    Material m;
+    int row = id;
+    m.baseColorFactor         = texelFetch(uMaterialTex, ivec2(0, row), 0);
+    m.specularFactor          = texelFetch(uMaterialTex, ivec2(1, row), 0).xyz;
+    m.specularColorFactor     = texelFetch(uMaterialTex, ivec2(2, row), 0).xyz;
+    m.emissiveFactor          = texelFetch(uMaterialTex, ivec2(3, row), 0).xyz;
+    m.glossinessFactor        = texelFetch(uMaterialTex, ivec2(4, row), 0);
+    m.metallicFactor          = texelFetch(uMaterialTex, ivec2(5, row), 0);
+    m.roughnessFactor         = texelFetch(uMaterialTex, ivec2(6, row), 0);
+    m.clearcoatFactor         = texelFetch(uMaterialTex, ivec2(7, row), 0);
+    m.clearcoatRoughnessFactor= texelFetch(uMaterialTex, ivec2(8, row), 0);
+    m.sheenColorFactor        = texelFetch(uMaterialTex, ivec2(9, row), 0);
+    m.sheenRoughnessFactor    = texelFetch(uMaterialTex, ivec2(10, row), 0);
+    m.transmissionFactor      = texelFetch(uMaterialTex, ivec2(11, row), 0);
+    m.ior                     = texelFetch(uMaterialTex, ivec2(12, row), 0);
+    m.normalTextureScale      = texelFetch(uMaterialTex, ivec2(13, row), 0);
+    m.attenuationColorFactor  = texelFetch(uMaterialTex, ivec2(14, row), 0);
+    m.attenuationDistance     = texelFetch(uMaterialTex, ivec2(15, row), 0);
+    m.thicknessFactor         = texelFetch(uMaterialTex, ivec2(16, row), 0);
+    m.emissiveStrength        = texelFetch(uMaterialTex, ivec2(17, row), 0);
+    m.anisotropyFactor        = texelFetch(uMaterialTex, ivec2(18, row), 0);
+    m.iridescence             = texelFetch(uMaterialTex, ivec2(19, row), 0);
+    m.diffuseTransmissionFactor= texelFetch(uMaterialTex, ivec2(20, row), 0);
+    m.dispersionFactor        = texelFetch(uMaterialTex, ivec2(21, row), 0);
+    return m;
+}
+
+uniform Matrices2 {
     mat4 view;
     mat4 projection;
     mat4 light;
     vec4 isShadow;
+};
+uniform LightPos {
+    vec4 lightPos[LIGHTNUMBER];
 };
 uniform LightColor {
     vec4 lightColor[LIGHTNUMBER];
@@ -71,14 +103,12 @@ uniform Spotdir {
 uniform LightIntensity {
     vec4 lightIntensity[LIGHTNUMBER];
 };
-uniform LightPos {
-    vec4 lightPos[LIGHTNUMBER];
-};
 #if defined MATRICES
 uniform TextureMatrices {
     mat4 textureMatrices[MATRICES];
 };
 #endif
+#ifdef SPHERICAL_HARMONICS
 uniform SphericalHarmonics {
     vec4 vSphericalL00;
     vec4 vSphericalL1_1;
@@ -91,6 +121,7 @@ uniform SphericalHarmonics {
     vec4 vSphericalL22;
     mat4 rotationMatrix;
 };
+#endif
 
 uniform sampler2D baseColorTexture;
 uniform sampler2D metallicRoughnessTexture;

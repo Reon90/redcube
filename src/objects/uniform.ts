@@ -43,7 +43,7 @@ export class UniformBuffer {
         this.offset += Math.max(buffer.length, 4);
     }
 
-    update(gl, name, value) {
+    update(gl, name, value, skip = false) {
         if (value.length === undefined) {
             value = new Float32Array([value]);
         }
@@ -53,6 +53,9 @@ export class UniformBuffer {
         }
         const buffer = this.getBuffer(value);
         this.store.set(buffer, offset);
+        if (skip) {
+            return;
+        }
         gl.bufferSubData(gl.UNIFORM_BUFFER, offset * Float32Array.BYTES_PER_ELEMENT, buffer);
     }
 

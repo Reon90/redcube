@@ -1,6 +1,6 @@
 import path from 'path';
 import CopyPlugin from 'copy-webpack-plugin';
-const libraryName = 'redcube.webgpu';
+const libraryName = 'redcube';
 
 const __dirname = import.meta.dirname;
 

@@ -34,6 +34,9 @@ interface Uniforms {
     diffuseTransmissionColorTexture: WebGLUniformLocation;
     anisotropyTexture: WebGLUniformLocation;
     iridescenceTexture: WebGLUniformLocation;
+    isTone: WebGLUniformLocation;
+    isIBL: WebGLUniformLocation;
+    isDefaultLight: WebGLUniformLocation;
 }
 
 const lightEnum = {
@@ -334,7 +337,10 @@ export class Material extends M {
             depthTexture: null,
             diffuseTransmissionTexture: null,
             diffuseTransmissionColorTexture: null,
-            anisotropyTexture: null
+            anisotropyTexture: null,
+            isTone: null,
+            isIBL: null,
+            isDefaultLight: null
         };
         const { pbrMetallicRoughness } = material;
         if (pbrMetallicRoughness) {
@@ -450,6 +456,10 @@ export class Material extends M {
     updateUniformsWebgl(gl, program) {
         gl.useProgram(program);
 
+        this.uniforms.isTone = gl.getUniformLocation(program, 'isTone');
+        this.uniforms.isIBL = gl.getUniformLocation(program, 'isIBL');
+        this.uniforms.isDefaultLight = gl.getUniformLocation(program, 'isDefaultLight');
+
         if (this.baseColorTexture) {
             this.uniforms.baseColorTexture = gl.getUniformLocation(program, 'baseColorTexture');
             gl.uniform1i(this.uniforms.baseColorTexture, textureEnum.baseColorTexture);
@@ -542,44 +552,20 @@ export class Material extends M {
         gl.uniform1i(this.uniforms.Sheen_E, textureEnum.Sheen_E);
 
         {
-            const mIndex = gl.getUniformBlockIndex(program, 'Material');
-            gl.uniformBlockBinding(program, mIndex, 1);
-            const mUBO = gl.createBuffer();
-            gl.bindBuffer(gl.UNIFORM_BUFFER, mUBO);
-            gl.bufferData(gl.UNIFORM_BUFFER, this.materialUniformBuffer.store, gl.STATIC_DRAW);
-            this.UBO = mUBO;
-        }
-        {
             const mIndex = gl.getUniformBlockIndex(program, 'LightColor');
-            gl.uniformBlockBinding(program, mIndex, 3);
-            const mUBO = gl.createBuffer();
-            gl.bindBuffer(gl.UNIFORM_BUFFER, mUBO);
-            gl.bufferData(gl.UNIFORM_BUFFER, this.lightColorBuffer.store, gl.STATIC_DRAW);
-            this.lightUBO1 = mUBO;
+            gl.uniformBlockBinding(program, mIndex, 4);
         }
         {
             const mIndex = gl.getUniformBlockIndex(program, 'LightPos');
-            gl.uniformBlockBinding(program, mIndex, 4);
-            const mUBO = gl.createBuffer();
-            gl.bindBuffer(gl.UNIFORM_BUFFER, mUBO);
-            gl.bufferData(gl.UNIFORM_BUFFER, this.lightPosBuffer.store, gl.STATIC_DRAW);
-            this.lightUBO2 = mUBO;
+            gl.uniformBlockBinding(program, mIndex, 3);
         }
         {
             const mIndex = gl.getUniformBlockIndex(program, 'Spotdir');
             gl.uniformBlockBinding(program, mIndex, 5);
-            const mUBO = gl.createBuffer();
-            gl.bindBuffer(gl.UNIFORM_BUFFER, mUBO);
-            gl.bufferData(gl.UNIFORM_BUFFER, this.spotdirBuffer.store, gl.STATIC_DRAW);
-            this.lightUBO3 = mUBO;
         }
         {
             const mIndex = gl.getUniformBlockIndex(program, 'LightIntensity');
             gl.uniformBlockBinding(program, mIndex, 6);
-            const mUBO = gl.createBuffer();
-            gl.bindBuffer(gl.UNIFORM_BUFFER, mUBO);
-            gl.bufferData(gl.UNIFORM_BUFFER, this.lightIntensityBuffer.store, gl.STATIC_DRAW);
-            this.lightUBO4 = mUBO;
         }
         if (this.matrices.length) {
             const mIndex = gl.getUniformBlockIndex(program, 'TextureMatrices');
@@ -614,7 +600,6 @@ export class Material extends M {
         {
             const materialUniformBuffer = new UniformBuffer();
             materialUniformBuffer.add('baseColorFactor', this.baseColorFactor ?? [0.8, 0.8, 0.8, 1.0]);
-            materialUniformBuffer.add('viewPos', camera.getPosition());
             materialUniformBuffer.add('specularFactor', this.specularFactor ?? 1);
             materialUniformBuffer.add('specularColorFactor', this.specularColorFactor ?? [1, 1, 1]);
             materialUniformBuffer.add('emissiveFactor', this.emissiveFactor ?? [0, 0, 0]);
@@ -650,11 +635,6 @@ export class Material extends M {
 
     updateUniformsWebGPU(WebGPU: WEBGPU) {
         const { device, nearestSampler, linearSampler } = WebGPU;
-        const uniformBuffer = device.createBuffer({
-            size: 256 + this.materialUniformBuffer.store.byteLength,
-            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
-        });
-        this.materialUniformBuffer.bufferWebGPU = uniformBuffer;
 
         let uniformBuffer6;
         if (this.textureMatricesBuffer) {
@@ -675,14 +655,6 @@ export class Material extends M {
             });
 
         const uniformBindGroup1 = [
-            {
-                binding: 1,
-                resource: {
-                    buffer: uniformBuffer,
-                    offset: 0,
-                    size: this.materialUniformBuffer.store.byteLength
-                }
-            },
             {
                 binding: 2,
                 resource: sampler
@@ -785,14 +757,6 @@ export class Material extends M {
             },
         ];
 
-        device.queue.writeBuffer(
-            uniformBuffer,
-            0,
-            this.materialUniformBuffer.store.buffer,
-            this.materialUniformBuffer.store.byteOffset,
-            this.materialUniformBuffer.store.byteLength
-        );
-
         if (this.textureMatricesBuffer) {
             device.queue.writeBuffer(
                 uniformBuffer6,
@@ -811,8 +775,7 @@ export class Material extends M {
     }
 
     setColor(gl, name, value) {
-        gl.bindBufferBase(gl.UNIFORM_BUFFER, 1, this.UBO);
-        this.materialUniformBuffer.update(gl, name, value.elements);
+        this.materialUniformBuffer.update(gl, name, value.elements, true);
     }
 
     setTexture(gl, name, type, value) {

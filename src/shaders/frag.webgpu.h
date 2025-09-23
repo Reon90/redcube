@@ -30,6 +30,7 @@ layout(location = 8) in vec2 outUV3;
 layout(location = 2) in vec3 outPosition;
 layout(location = 3) in vec4 vColor;
 layout(location = 7) in vec4 outPositionView;
+layout(location = 12) in float id;
 
 layout(location = 0) out vec4 color;
 // layout (location = 1) out vec4 normalColor;
@@ -39,7 +40,6 @@ layout (location = 3) out vec4 specColor;
 
 layout(set = 0, binding = 0) uniform Matrices {
     mat4 model;
-    mat4 normalMatrix;
 };
 layout(set = 0, binding = 39) uniform Matrices2 {
     mat4 view;
@@ -47,9 +47,8 @@ layout(set = 0, binding = 39) uniform Matrices2 {
     mat4 light;
     vec4 isShadow;
 };
-layout(set = 0, binding = 1) uniform Uniforms {
+struct Material {
     vec4 baseColorFactor;
-    vec3 viewPos;
     vec3 specularFactor;
     vec3 specularColorFactor;
     vec3 emissiveFactor;
@@ -72,6 +71,10 @@ layout(set = 0, binding = 1) uniform Uniforms {
     vec4 diffuseTransmissionFactor;
     vec4 dispersionFactor;
 };
+layout(set = 0, binding = 1) buffer Uniforms {
+    Material data[];
+} materials;
+
 layout(set = 0, binding = 27) uniform SphericalHarmonics {
     vec4 vSphericalL00;
     vec4 vSphericalL1_1;

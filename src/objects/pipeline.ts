@@ -29,8 +29,10 @@ export function create(device: GPUDevice, glslang, wgsl, uniformBindGroup1, defi
     const entries: GPUBindGroupLayoutEntry[] = [
         {
             binding: 0,
-            visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
-            buffer: {}
+            visibility: GPUShaderStage.VERTEX,
+            buffer: {
+                type: 'read-only-storage'
+            }
         },
         {
             binding: 39,
@@ -40,7 +42,9 @@ export function create(device: GPUDevice, glslang, wgsl, uniformBindGroup1, defi
         {
             binding: 1,
             visibility: GPUShaderStage.FRAGMENT,
-            buffer: {}
+            buffer: {
+                type: 'storage'
+            }
         },
         {
             binding: 2,

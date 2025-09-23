@@ -242,11 +242,11 @@ float fresnelSchlickRoughness(float cosTheta, float F0, float roughness) {
 vec3 fresnelSchlickRoughness(float cosTheta, vec3 F0, float roughness) {
     return F0 + (max(vec3(1.0 - roughness), F0) - F0) * pow(1.0 - cosTheta, 5.0);
 }
-vec3 calcTransmission(vec3 color, vec3 N, float roughness, vec3 V, float transmission, float thickness) {
-    float refraction_ior = 1.0 / ior.x;
+vec3 calcTransmission(float ior, vec3 color, vec3 N, float roughness, vec3 V, float transmission, float thickness) {
+    float refraction_ior = 1.0 / ior;
     vec3 environmentRefraction = vec3(0.0);
     #ifdef DISPERSION
-    float realIOR = 1.0 / ior.x;
+    float realIOR = 1.0 / ior;
     float iorDispersionSpread = 0.04 * dispersionFactor.x * (realIOR - 1.0);
     vec3 iors = vec3(realIOR - iorDispersionSpread, refraction_ior, realIOR + iorDispersionSpread);
     for (int i = 0; i < 3; i++) {
@@ -272,6 +272,7 @@ vec3 calcTransmission(vec3 color, vec3 N, float roughness, vec3 V, float transmi
     return transmission * environmentRefraction * color;
 }
 
+#ifdef SPHERICAL_HARMONICS
 vec3 computeEnvironmentIrradiance(vec3 normal) {
     return vSphericalL00.xyz
         + vSphericalL1_1.xyz * (normal.y)
@@ -283,6 +284,7 @@ vec3 computeEnvironmentIrradiance(vec3 normal) {
         + vSphericalL21.xyz * (normal.z * normal.x)
         + vSphericalL22.xyz * (normal.x * normal.x - (normal.y * normal.y));
 }
+#endif
 float sheenDistribution(float sheenRoughness, vec3 N, vec3 H) {
     float NdotH = max(dot(N, H), 0.0);
     float alphaG = max(sheenRoughness * sheenRoughness, 0.01);
@@ -521,6 +523,37 @@ vec3 computeColorAtDistanceInMedia(vec3 color, float distance) {
 }
 
 void main() {
+    mat4 inverseViewMatrix = inverse(view);
+    vec3 viewPos = inverseViewMatrix[3].xyz;
+
+    #if defined(WEBGPU)
+    Material mat = materials.data[int(id)];
+    #else
+    Material mat = fetchMaterial(int(id));
+    #endif
+    vec4 baseColorFactor = mat.baseColorFactor;
+    vec3 specularFactor = mat.specularFactor;
+    vec3 specularColorFactor = mat.specularColorFactor;
+    vec3 emissiveFactor = mat.emissiveFactor;
+    vec4 glossinessFactor = mat.glossinessFactor;
+    vec4 metallicFactor = mat.metallicFactor;
+    vec4 roughnessFactor = mat.roughnessFactor;
+    vec4 clearcoatFactor = mat.clearcoatFactor;
+    vec4 clearcoatRoughnessFactor = mat.clearcoatRoughnessFactor;;
+    vec4 sheenColorFactor = mat.sheenColorFactor;
+    vec4 sheenRoughnessFactor = mat.sheenRoughnessFactor;
+    vec4 transmissionFactor = mat.transmissionFactor;
+    vec4 ior = mat.ior;
+    vec4 normalTextureScale = mat.normalTextureScale;;
+    vec4 attenuationColorFactor = mat.attenuationColorFactor; 
+    vec4 attenuationDistance = mat.attenuationDistance;
+    vec4 thicknessFactor = mat.thicknessFactor;
+    vec4 emissiveStrength = mat.emissiveStrength;
+    vec4 anisotropyFactor = mat.anisotropyFactor;
+    vec4 iridescence = mat.iridescence;
+    vec4 diffuseTransmissionFactor = mat.diffuseTransmissionFactor;
+    vec4 dispersionFactor = mat.dispersionFactor;
+
     vec2 outUV = outUV0;
     #ifdef BASECOLORTEXTURE
         outUV = getUV(BASECOLORTEXTURE);
@@ -780,7 +813,7 @@ void main() {
         vec3 f_transmission = transmittance;
         vec3 f_transmission2 = transmittance;
         #else
-        vec3 f_transmission = cocaLambert(computeColorAtDistanceInMedia(attenuationColor.rgb, attenuationDistance.x), thickness) * calcTransmission(baseColor, n, roughness, viewDir, transmission, thickness);
+        vec3 f_transmission = cocaLambert(computeColorAtDistanceInMedia(attenuationColor.rgb, attenuationDistance.x), thickness) * calcTransmission(ior.x, baseColor, n, roughness, viewDir, transmission, thickness);
         #endif
 
         if (isDefaultLight.x == 1.0) {

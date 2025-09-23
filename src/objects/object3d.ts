@@ -9,6 +9,7 @@ export class Object3D {
     matrixWorld: Matrix4;
     parent: Object3D;
     reflow: boolean;
+    repaint: boolean;
 
     constructor(name, parent) {
         this.uuid = Math.floor(Date.now() * Math.random());
