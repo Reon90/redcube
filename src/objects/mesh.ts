@@ -82,7 +82,7 @@ export class Mesh extends Object3D {
             passEncoder.setIndexBuffer(this.geometry.indicesWebGPUBuffer, 'uint32');
             passEncoder.drawIndexed(this.geometry.indicesBuffer.length, 1, 0, 0, i);
         } else {
-            passEncoder.draw(this.geometry.attributes.POSITION.length / 3, 1, 0, 0);
+            passEncoder.draw(this.geometry.attributes.POSITION.length / 3, 1, 0, i);
         }
     }
 

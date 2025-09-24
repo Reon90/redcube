@@ -242,12 +242,12 @@ float fresnelSchlickRoughness(float cosTheta, float F0, float roughness) {
 vec3 fresnelSchlickRoughness(float cosTheta, vec3 F0, float roughness) {
     return F0 + (max(vec3(1.0 - roughness), F0) - F0) * pow(1.0 - cosTheta, 5.0);
 }
-vec3 calcTransmission(float ior, vec3 color, vec3 N, float roughness, vec3 V, float transmission, float thickness) {
+vec3 calcTransmission(float dispersionFactor, float ior, vec3 color, vec3 N, float roughness, vec3 V, float transmission, float thickness) {
     float refraction_ior = 1.0 / ior;
     vec3 environmentRefraction = vec3(0.0);
     #ifdef DISPERSION
     float realIOR = 1.0 / ior;
-    float iorDispersionSpread = 0.04 * dispersionFactor.x * (realIOR - 1.0);
+    float iorDispersionSpread = 0.04 * dispersionFactor * (realIOR - 1.0);
     vec3 iors = vec3(realIOR - iorDispersionSpread, refraction_ior, realIOR + iorDispersionSpread);
     for (int i = 0; i < 3; i++) {
         refraction_ior = iors[i];
@@ -813,7 +813,7 @@ void main() {
         vec3 f_transmission = transmittance;
         vec3 f_transmission2 = transmittance;
         #else
-        vec3 f_transmission = cocaLambert(computeColorAtDistanceInMedia(attenuationColor.rgb, attenuationDistance.x), thickness) * calcTransmission(ior.x, baseColor, n, roughness, viewDir, transmission, thickness);
+        vec3 f_transmission = cocaLambert(computeColorAtDistanceInMedia(attenuationColor.rgb, attenuationDistance.x), thickness) * calcTransmission(dispersionFactor.x, ior.x, baseColor, n, roughness, viewDir, transmission, thickness);
         #endif
 
         if (isDefaultLight.x == 1.0) {

@@ -319,13 +319,15 @@ export class Geometry {
         let l = 0;
         let m = 0;
         for (let i = 0; i < g.length; i += total) {
-            let j = 8;
+            let j = 12;
             g[i] = this.attributes['POSITION'][k];
             g[i + 1] = this.attributes['POSITION'][k + 1];
             g[i + 2] = this.attributes['POSITION'][k + 2];
 
-            g[i + 3] = this.attributes['TEXCOORD_0'][l];
-            g[i + 4] = this.attributes['TEXCOORD_0'][l + 1];
+            if (this.attributes['TEXCOORD_0']) {
+                g[i + 3] = this.attributes['TEXCOORD_0'][l];
+                g[i + 4] = this.attributes['TEXCOORD_0'][l + 1];
+            }
             
             g[i + 5] = this.attributes['NORMAL'][k];
             g[i + 6] = this.attributes['NORMAL'][k + 1];
@@ -335,18 +337,17 @@ export class Geometry {
                 g[i + 9] = this.attributes['TANGENT'][m + 1];
                 g[i + 10] = this.attributes['TANGENT'][m + 2];
                 g[i + 11] = this.attributes['TANGENT'][m + 3];
-                j += 4;
             }
 
             if (this.attributes['WEIGHTS_0']) {
-                g[i + j] = this.attributes['JOINTS_0'][m];
-                g[i + j + 1] = this.attributes['JOINTS_0'][m + 1];
-                g[i + j + 2] = this.attributes['JOINTS_0'][m + 2];
-                g[i + j + 3] = this.attributes['JOINTS_0'][m + 3];
-                g[i + j + 4] = this.attributes['WEIGHTS_0'][m];
-                g[i + j + 5] = this.attributes['WEIGHTS_0'][m + 1];
-                g[i + j + 6] = this.attributes['WEIGHTS_0'][m + 2];
-                g[i + j + 7] = this.attributes['WEIGHTS_0'][m + 3];
+                g[i + 12] = this.attributes['JOINTS_0'][m];
+                g[i + 13] = this.attributes['JOINTS_0'][m + 1];
+                g[i + 14] = this.attributes['JOINTS_0'][m + 2];
+                g[i + 15] = this.attributes['JOINTS_0'][m + 3];
+                g[i + 16] = this.attributes['WEIGHTS_0'][m];
+                g[i + 17] = this.attributes['WEIGHTS_0'][m + 1];
+                g[i + 18] = this.attributes['WEIGHTS_0'][m + 2];
+                g[i + 19] = this.attributes['WEIGHTS_0'][m + 3];
                 j += 8;
             }
             if (this.attributes['COLOR_0']) {
@@ -433,7 +434,7 @@ export class Geometry {
 
         let offset = 0;
         for (const k in GeometryEnum) {
-            if (k in this.attributes) {
+            if (k in this.attributes || k === 'TANGENT' || k === 'TEXCOORD_0') {
                 const index = GeometryEnum[k];
                 gl.enableVertexAttribArray(index[0]);
                 gl.vertexAttribPointer(index[0], index[1], gl.FLOAT, false, cubeVertexSize, Float32Array.BYTES_PER_ELEMENT * offset);

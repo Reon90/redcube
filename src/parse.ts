@@ -243,6 +243,9 @@ export class Parse {
         if (primitive.attributes['TEXCOORD_1'] !== undefined || primitive.attributes['TEXCOORD_2'] !== undefined) {
             defines.push({ name: 'MULTIUV' });
         }
+        if (primitive.attributes['TEXCOORD_2'] !== undefined) {
+            defines.push({ name: 'MULTIUV2' });
+        }
         if (primitive.attributes['COLOR_0']) {
             defines.push({ name: 'COLOR' });
         }

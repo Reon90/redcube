@@ -184,6 +184,9 @@ export function create(device: GPUDevice, glslang, wgsl, uniformBindGroup1, defi
     if (defines.find(d => d.name === 'MULTIUV')) {
         vertexLayout.push(2);
     }
+    if (defines.find(d => d.name === 'MULTIUV2')) {
+        vertexLayout.push(2);
+    }
     const cubeVertexSize = Float32Array.BYTES_PER_ELEMENT * vertexLayout.reduce((a, b) => a + b, 0); // Byte size of one cube vertex.
     const buffers = [
         {
@@ -241,9 +244,11 @@ export function create(device: GPUDevice, glslang, wgsl, uniformBindGroup1, defi
             offset: Float32Array.BYTES_PER_ELEMENT * (vertexLayout[0] + vertexLayout[1] + vertexLayout[2] + vertexLayout[3]),
             format: 'float32x2' as GPUVertexFormat
         });
+    }
+    if (defines.find(d => d.name === 'MULTIUV2')) {
         buffers[0].attributes.push({
             shaderLocation: 8,
-            offset: Float32Array.BYTES_PER_ELEMENT * (vertexLayout[0] + vertexLayout[1] + vertexLayout[2] + vertexLayout[3]),
+            offset: Float32Array.BYTES_PER_ELEMENT * (vertexLayout[0] + vertexLayout[1] + vertexLayout[2] + vertexLayout[3] + vertexLayout[4]),
             format: 'float32x2' as GPUVertexFormat
         });
     }

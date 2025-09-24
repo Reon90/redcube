@@ -108,7 +108,7 @@ export class RendererWebGPU extends Renderer {
         // @ts-ignore
         //this.env.drawCube(WebGPU, passEncoder);
 
-        s.stateBuffer.updateWebGPU(WebGPU, 'isTone', s.isprerefraction ? 0 : 1);
+        s.stateBuffer.updateWebGPU(WebGPU, 'isTone', s.renderState.isprerefraction ? 0 : 1);
         if (s.needUpdateView) {
             s.cameraBuffer.updateWebGPU(WebGPU, 'view', s.camera.matrixWorldInvert.elements);
             s.cameraBuffer.updateWebGPU(WebGPU, 'light', s.light.matrixWorldInvert.elements);

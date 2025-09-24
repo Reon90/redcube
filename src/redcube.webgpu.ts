@@ -420,14 +420,15 @@ class RedCube {
                 // @ts-expect-error
                 const programHash = mesh.material.defines.map((define) => `${define.name}${define.value ?? 1}`).join('');
                 if (programHash !== prevProgramHash) {
-                    uniformBindGroup2 = mesh.material.uniformBindGroup1;
                     prevProgramHash = programHash;
-                    pipeline = create(WebGPU.device, WebGPU.glslang, WebGPU.wgsl, uniformBindGroup2, mesh.defines, hasTransmission, mesh.mode, mesh.frontFace);
-                    group = WebGPU.device.createBindGroup({
-                        layout: pipeline.getBindGroupLayout(0),
-                        entries: [...uniformBindGroup1, ...mesh.geometry.uniformBindGroup1, ...uniformBindGroup2]
-                    });
+                    pipeline = create(WebGPU.device, WebGPU.glslang, WebGPU.wgsl, mesh.material.uniformBindGroup1, mesh.defines, hasTransmission, mesh.mode, mesh.frontFace);
+                    
                 }
+                uniformBindGroup2 = mesh.material.uniformBindGroup1;
+                group = WebGPU.device.createBindGroup({
+                    layout: pipeline.getBindGroupLayout(0),
+                    entries: [...uniformBindGroup1, ...mesh.geometry.uniformBindGroup1, ...uniformBindGroup2]
+                });
 
                 mesh.pipeline = pipeline;
                 mesh.uniformBindGroup1 = group;
