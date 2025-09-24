@@ -139,16 +139,18 @@ export class RendererWebGPU extends Renderer {
         device.queue.submit([commandEncoder.finish()]);
         
 
-        const timings = await this.profiler.endFrame();
-        console.table({
-            frame: timings.frameIndex,
-            cpuEncodeMs: timings.cpuEncodeMs.toFixed(3),
-            gpuTotalMs: timings.gpuTotalMs?.toFixed(3),
-        });
-        timings.passes.forEach(p => {
-            if (p.durationMs !== undefined) {
-                console.log(`${p.label} (${p.kind}): ${p.durationMs.toFixed(3)} ms`);
-            }
-        });
+        if (false) {
+            const timings = await this.profiler.endFrame();
+            console.table({
+                frame: timings.frameIndex,
+                cpuEncodeMs: timings.cpuEncodeMs.toFixed(3),
+                gpuTotalMs: timings.gpuTotalMs?.toFixed(3),
+            });
+            timings.passes.forEach(p => {
+                if (p.durationMs !== undefined) {
+                    console.log(`${p.label} (${p.kind}): ${p.durationMs.toFixed(3)} ms`);
+                }
+            });
+        }
     }
 }

@@ -489,6 +489,8 @@ export class Env {
                 const tex = loadHDR(device, parseHDR(buffer), 1);
 
                 this.Sheen_E = tex;
+                // @ts-expect-error
+                this.Sheen_E.view = tex.createView();
                 return tex;
             });
     }
@@ -610,6 +612,8 @@ export class Env {
             usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
             format: 'rgba16float',
         });
+        // @ts-expect-error
+        this.bdrfTexture.view = this.bdrfTexture.createView();
 
         const commandEncoder = device.createCommandEncoder();
         const [pass, colorTexture] = this.buildPass(WebGPU, FULL_SIZE);
@@ -1058,6 +1062,10 @@ export class Env {
             usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
             format: 'rgba16float',
         });
+        // @ts-expect-error
+        this.irradianceTexture.view = this.irradianceTexture.createView({
+                            dimension: 'cube'
+                        });
 
         for (let i = 0; i < 6; i++) {
             this.drawWebGPU2(WebGPU, IRRADIANCE_SIZE, IRRADIANCE_SIZE, i, 0);
@@ -1074,6 +1082,10 @@ export class Env {
             usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
             format: 'rgba16float',
         });
+        // @ts-expect-error
+        this.prefilterTexture.view = this.prefilterTexture.createView({
+                            dimension: 'cube'
+                        });
         this.charlieTexture = device.createTexture({
             label: 'charlieTexture',
             mipLevelCount,
@@ -1081,6 +1093,10 @@ export class Env {
             usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
             format: 'rgba16float',
         });
+        // @ts-expect-error
+        this.charlieTexture.view = this.charlieTexture.createView({
+                            dimension: 'cube'
+                        });
 
         for (let mip = 0; mip < mipLevelCount; ++mip) {
             const mipWidth = RADIANCE_SIZE * Math.pow(0.5, mip);

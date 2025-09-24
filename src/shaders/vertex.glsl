@@ -27,6 +27,8 @@ void main() {
     outUV0 = inUV;
     #ifdef MULTIUV
     outUV2 = inUV2;
+    #endif
+    #ifdef MULTIUV2
     outUV3 = inUV3;
     #endif
     #ifdef TANGENT

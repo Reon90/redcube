@@ -90,6 +90,7 @@ export class PostProcessing {
                 postProcessor.setGL(gl);
             });
             this.fakeDepth = this.createNoiceTexture(1);
+            this.fakeDepth.view = this.fakeDepth.texture.createView();
         }
     }
 

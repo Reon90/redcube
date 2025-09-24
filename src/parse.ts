@@ -748,6 +748,8 @@ export class Parse {
         );
         //@ts-ignore
         tex.sampler = s;
+        //@ts-ignore
+        tex.view = tex.createView();
 
         generateMipmaps(device, tex, bitmap.width, bitmap.height, mipLevelCount);
         this.images.set(name, tex);

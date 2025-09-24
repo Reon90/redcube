@@ -649,13 +649,7 @@ export class Material extends M {
         }
         const sampler = this.baseColorTexture
             ? this.baseColorTexture.sampler
-            : device.createSampler({
-                magFilter: 'linear',
-                minFilter: 'linear',
-                addressModeU: 'repeat',
-                addressModeV: 'repeat',
-                addressModeW: 'repeat'
-            });
+            : linearSampler
 
         const uniformBindGroup1 = [
             {
@@ -672,83 +666,80 @@ export class Material extends M {
             },
             {
                 binding: 3,
-                resource: this.baseColorTexture?.createView({
-                    // baseMipLevel: 3,
-                    // mipLevelCount: 9,
-                })
+                resource: this.baseColorTexture?.view
             },
             {
                 binding: 4,
-                resource: this.metallicRoughnessTexture?.createView()
+                resource: this.metallicRoughnessTexture?.view
             },
             {
                 binding: 5,
-                resource: this.normalTexture?.createView()
+                resource: this.normalTexture?.view
             },
             {
                 binding: 6,
-                resource: this.emissiveTexture?.createView()
+                resource: this.emissiveTexture?.view
             },
             {
                 binding: 7,
-                resource: this.occlusionTexture?.createView()
+                resource: this.occlusionTexture?.view
             },
             {
                 binding: 8,
-                resource: this.clearcoatTexture?.createView()
+                resource: this.clearcoatTexture?.view
             },
             {
                 binding: 9,
-                resource: this.clearcoatRoughnessTexture?.createView()
+                resource: this.clearcoatRoughnessTexture?.view
             },
             {
                 binding: 10,
-                resource: this.transmissionTexture?.createView()
+                resource: this.transmissionTexture?.view
             },
             {
                 binding: 11,
-                resource: this.sheenColorTexture?.createView()
+                resource: this.sheenColorTexture?.view
             },
             {
                 binding: 12,
-                resource: this.sheenRoughnessTexture?.createView()
+                resource: this.sheenRoughnessTexture?.view
             },
             {
                 binding: 13,
-                resource: this.clearcoatNormalTexture?.createView()
+                resource: this.clearcoatNormalTexture?.view
             },
             {
                 binding: 14,
-                resource: this.specularTexture?.createView()
+                resource: this.specularTexture?.view
             },
             
             {
                 binding: 29,
-                resource: this.thicknessTexture?.createView()
+                resource: this.thicknessTexture?.view
             },
             {
                 binding: 31,
-                resource: this.anisotropyTexture?.createView()
+                resource: this.anisotropyTexture?.view
             },
             {
                 binding: 32,
-                resource: this.iridescenceThicknessTexture?.createView()
+                resource: this.iridescenceThicknessTexture?.view
             },
             {
                 binding: 38,
-                resource: this.iridescenceTexture?.createView()
+                resource: this.iridescenceTexture?.view
             },
             {
                 binding: 33,
-                resource: this.specularColorTexture?.createView()
+                resource: this.specularColorTexture?.view
             },
             {
                 binding: 34,
-                resource: this.diffuseTransmissionTexture?.createView()
+                resource: this.diffuseTransmissionTexture?.view
             },
             {
                 binding: 36,
-                resource: this.diffuseTransmissionColorTexture?.createView()
+                resource: this.diffuseTransmissionColorTexture?.view
             },
             {
                 binding: 23,

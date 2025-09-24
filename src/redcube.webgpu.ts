@@ -170,11 +170,17 @@ class RedCube {
                 mipmapFilter: 'nearest',
                 magFilter: 'nearest',
                 minFilter: 'nearest',
+                addressModeU: 'repeat',
+                addressModeV: 'repeat',
+                addressModeW: 'repeat'
             });
             WebGPU.linearSampler = WebGPU.device.createSampler({
                 mipmapFilter: 'linear',
                 magFilter: 'linear',
                 minFilter: 'linear',
+                addressModeU: 'repeat',
+                addressModeV: 'repeat',
+                addressModeW: 'repeat'
             });
 
             await this.env.createTexture(WebGPU);
@@ -347,12 +353,16 @@ class RedCube {
                 }
             },];
 
-            let pipeline;
-            let prevProgramHash;
-            let uniformBindGroup2;
-            let group;
+            const prevProgramHash = new Map();
+            const uniformBindGroup2 = [];
 
-            this.scene.meshes.forEach((mesh) => {
+            const s = {
+                            buffer: uniformBuffer,
+                            offset: 0,
+                            size: stateBuffer.store.byteLength
+                        };
+
+            this.scene.meshes.forEach((mesh, i) => {
                 mesh.geometry.createGeometryForWebGPU(WebGPU);
                 mesh.geometry.uniformBindGroup1 = [];
 
@@ -360,44 +370,39 @@ class RedCube {
                 mesh.material.uniformBindGroup1.push(
                     {
                         binding: 19,
-                        resource: this.env.prefilterTexture?.createView({
-                            dimension: 'cube'
-                        })
+                        // @ts-expect-error
+                        resource: this.env.prefilterTexture?.view
                     },
                     {
                         binding: 20,
-                        resource: this.env.irradianceTexture?.createView({
-                            dimension: 'cube'
-                        })
+                        // @ts-expect-error
+                        resource: this.env.irradianceTexture?.view
                     },
                     {
                         binding: 21,
-                        resource: this.env.bdrfTexture?.createView()
+                        // @ts-expect-error
+                        resource: this.env.bdrfTexture?.view
                     },
                     {
                         binding: 28,
-                        resource: this.env.Sheen_E?.createView()
+                        // @ts-expect-error
+                        resource: this.env.Sheen_E?.view
                     },
                     {
                         binding: 26,
                         resource: mesh.defines.find(i => i.name === 'TRANSMISSION')
                         // @ts-expect-error
                         ? refraction.texture.texture.createView()
-                        : this.PP.fakeDepth.texture.createView()
+                        : this.PP.fakeDepth.view
                     },
                     {
                         binding: 35,
-                        resource: this.env.charlieTexture?.createView({
-                            dimension: 'cube'
-                        })
+                        // @ts-expect-error
+                        resource: this.env.charlieTexture?.view
                     },
                     {
                         binding: 30,
-                        resource: {
-                            buffer: uniformBuffer,
-                            offset: 0,
-                            size: stateBuffer.store.byteLength
-                        }
+                        resource: s
                     }
                 );
                 if (this.env.uniformBuffer) {
@@ -419,19 +424,20 @@ class RedCube {
 
                 // @ts-expect-error
                 const programHash = mesh.material.defines.map((define) => `${define.name}${define.value ?? 1}`).join('');
-                if (programHash !== prevProgramHash) {
-                    prevProgramHash = programHash;
-                    pipeline = create(WebGPU.device, WebGPU.glslang, WebGPU.wgsl, mesh.material.uniformBindGroup1, mesh.defines, hasTransmission, mesh.mode, mesh.frontFace);
-                    
+                if (!prevProgramHash.has(programHash)) {
+                    prevProgramHash.set(programHash, create(WebGPU.device, WebGPU.glslang, WebGPU.wgsl, mesh.material.uniformBindGroup1, mesh.defines, hasTransmission, mesh.mode, mesh.frontFace));
                 }
-                uniformBindGroup2 = mesh.material.uniformBindGroup1;
-                group = WebGPU.device.createBindGroup({
-                    layout: pipeline.getBindGroupLayout(0),
-                    entries: [...uniformBindGroup1, ...mesh.geometry.uniformBindGroup1, ...uniformBindGroup2]
-                });
+                let group = check(uniformBindGroup2, mesh.material.uniformBindGroup1);
+                if (!group) {
+                    group = {k: mesh.material.uniformBindGroup1, v: WebGPU.device.createBindGroup({
+                        layout: prevProgramHash.get(programHash).getBindGroupLayout(0),
+                        entries: [...uniformBindGroup1, ...mesh.geometry.uniformBindGroup1, ...mesh.material.uniformBindGroup1]
+                    })};
+                    uniformBindGroup2.push(group);
+                }
 
-                mesh.pipeline = pipeline;
-                mesh.uniformBindGroup1 = group;
+                mesh.pipeline = prevProgramHash.get(programHash);
+                mesh.uniformBindGroup1 = group.v;
             });
 
             // if (this.parse.cameras.length === 0) {
@@ -544,6 +550,17 @@ class RedCube {
             needUpdateProjection: this.renderer.needUpdateProjection
         };
     }
+}
+
+function check(source, candidate) {
+    return source.find(item => {
+        for (let i = 0; i < candidate.length; i++) {
+            if (item.k[i].binding !== candidate[i].binding || item.k[i].resource !== candidate[i].resource) {
+                return false;
+            }
+        }
+        return true;
+    });
 }
 
 export { RedCube };

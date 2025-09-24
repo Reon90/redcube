@@ -18,6 +18,8 @@ layout (location = 6) in vec4 inColor;
 #endif
 #ifdef MULTIUV
 layout (location = 7) in vec2 inUV2;
+#endif
+#ifdef MULTIUV2
 layout (location = 8) in vec2 inUV3;
 #endif
 
