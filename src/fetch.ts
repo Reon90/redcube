@@ -56,35 +56,11 @@ function IsValid(data: ArrayBufferView): boolean {
 }
 
 export function fetchJSON(url): Promise<GlTf> {
-    if (typeof window !== 'undefined') {
-        return window.fetch(url).then(r => r.json());
-    } else {
-        return new Promise(resolve => {
-            fs.readFile(url, 'utf8', (err, data) => {
-                if (err) {
-                    throw err;
-                } else {
-                    resolve(JSON.parse(data));
-                }
-            });
-        });
-    }
+    return fetch(url).then(r => r.json());
 }
 
 export function fetchBinary(url): Promise<ArrayBuffer> {
-    if (typeof window !== 'undefined') {
-        return window.fetch(url).then(r => r.arrayBuffer());
-    } else {
-        return new Promise(resolve => {
-            fs.readFile(url, (err, data) => {
-                if (err) {
-                    throw err;
-                } else {
-                    resolve(new Uint8Array(data).buffer);
-                }
-            });
-        });
-    }
+    return fetch(url).then(r => r.arrayBuffer());
 }
 
 export function fetchImage(isbitmap, s, { bufferView, mimeType, uri }, { url, name }, sampler): Promise<any> {
@@ -139,19 +115,13 @@ export function fetchImage(isbitmap, s, { bufferView, mimeType, uri }, { url, na
             }
         });
     } else {
-        return new Promise(resolve => {
-            fs.readFile(url, (err, data) => {
-                if (err) {
-                    throw err;
-                } else {
-                    resolve({
-                        sampler,
-                        url,
-                        name,
-                        image: new Uint8Array(data).buffer
-                    });
-                }
-            });
-        });
+        return fetch(url)
+            .then(r => r.arrayBuffer())
+            .then(b => ({
+                sampler,
+                mimeType,
+                name,
+                image: b
+            }));
     }
 }

@@ -1,14 +1,16 @@
-const path = require('path');
+import path from 'path';
 const libraryName = 'redcube.node';
-const nodeExternals = require('webpack-node-externals');
+import nodeExternals from 'webpack-node-externals';
 
-module.exports = {
+const __dirname = import.meta.dirname;
+
+export default {
     mode: 'development',
-    target: 'node',
+    target: 'node20',
     externals: [nodeExternals()],
     entry: path.join(__dirname, `/src/${libraryName}.ts`),
     output: {
-        filename: `${libraryName}.js`,
+        filename: `${libraryName}.cjs`,
         chunkFilename: '[name].js',
         path: path.join(__dirname, '/dist'),
         library: libraryName,
@@ -27,7 +29,7 @@ module.exports = {
                 use: 'ts-loader'
             },
             {
-                test: /\.(glsl|vert|frag)$/,
+                test: /\.(glsl|vert|frag|h)$/,
                 type: 'asset/source'
             },
             {
