@@ -17,6 +17,7 @@ declare module '*.h' {
 }
 
 interface WEBGPU {
+    features: GPUSupportedFeatures,
     glslang: any;
     wgsl: any;
     context: GPUCanvasContext;

@@ -743,11 +743,7 @@ export class Material extends M {
             },
             {
                 binding: 23,
-                resource: this.textureMatricesBuffer && {
-                    buffer: uniformBuffer6,
-                    offset: 0,
-                    size: this.textureMatricesBuffer.store.byteLength
-                }
+                resource: this.textureMatricesBuffer && uniformBuffer6
             },
         ];
 

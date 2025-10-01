@@ -343,11 +343,7 @@ export class Env {
         const entries = [
             {
                 binding: 0,
-                resource: {
-                    buffer: u,
-                    offset: 0,
-                    size: matrixSize,
-                },
+                resource: u,
             },
             {
                 binding: 1,
@@ -692,11 +688,7 @@ export class Env {
         const entries = [
             {
                 binding: 0,
-                resource: {
-                    buffer: u,
-                    offset: 0,
-                    size: matrixSize,
-                },
+                resource: u,
             },
             {
                 binding: 1,
@@ -806,11 +798,7 @@ export class Env {
         const entries = [
             {
                 binding: 0,
-                resource: {
-                    buffer: u,
-                    offset: 0,
-                    size: matrixSize,
-                },
+                resource: u,
             },
             {
                 binding: 1,
@@ -924,11 +912,7 @@ export class Env {
         const entries = [
             {
                 binding: 0,
-                resource: {
-                    buffer: u,
-                    offset: 0,
-                    size: matrixSize,
-                },
+                resource: u,
             },
             {
                 binding: 1,
@@ -1010,6 +994,9 @@ export class Env {
             }
             if (layer === 3) {
                 i = 2;
+            }
+            if (!this.envData.specularImages[mip]) {
+                return;
             }
             const data = this.envData.specularImages[mip][i];
 

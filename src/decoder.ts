@@ -1,14 +1,15 @@
 export let decoderModule;
 export const DecoderModule = () =>
-    new Promise(resolve => {
+    new Promise(async resolve => {
         const dracoDecoderType = {
             onModuleLoaded(module) {
                 decoderModule = module;
                 resolve(decoderModule);
             }
         };
+        const m = await import(/*webpackChunkName: "draco3d"*/ 'draco3d');
         // @ts-ignore
-        import(/*webpackChunkName: "draco3d"*/ '../draco_decoder_nodejs').then(draco3d => draco3d.default(dracoDecoderType));
+        m.createDecoderModule(dracoDecoderType);
     });
 
 export function decodeDracoData(rawBuffer, decoder, offset, length) {

@@ -496,11 +496,7 @@ export class Geometry {
         const uniformBindGroup1 = [
             {
                 binding: 0,
-                resource: {
-                    buffer: uniformBuffer,
-                    offset: 0,
-                    size: matrixSize
-                }
+                resource: uniformBuffer
             }
         ];
 

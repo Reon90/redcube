@@ -88,7 +88,7 @@ class RedCube {
             }
         };
 
-        return { glslang, wgsl, context, device, renderPassDescriptor };
+        return { glslang, wgsl, context, device, renderPassDescriptor, features: adapter.features };
     }
 
     get camera(): Camera {
@@ -299,68 +299,34 @@ class RedCube {
 
             const uniformBindGroup1 = [{
                 binding: 0,
-                resource: {
-                    // @ts-expect-error
-                    buffer: storageBuffer2.bufferWebGPU,
-                    offset: 0,
-                    size: storageBuffer2.store.byteLength
-                }
+                // @ts-expect-error
+                resource: storageBuffer2.bufferWebGPU
             }, {
                 binding: 1,
-                resource: {
-                    // @ts-expect-error
-                    buffer: storageBuffer.bufferWebGPU,
-                    offset: 0,
-                    size: storageBuffer.store.byteLength
-                }
+                // @ts-expect-error
+                resource: storageBuffer.bufferWebGPU
             }, {
                 binding: 39,
-                resource: {
-                    buffer: cameraBuffer.bufferWebGPU,
-                    offset: 0,
-                    size: cameraBuffer.store.byteLength
-                }
+                resource: cameraBuffer.bufferWebGPU
             }, {
                 binding: 16,
-                resource: {
-                    buffer: materialUniformBuffer.bufferWebGPU,
-                    offset: 0,
-                    size: materialUniformBuffer.store.byteLength
-                }
+                resource: materialUniformBuffer.bufferWebGPU
             }, {
                 binding: 15,
-                resource: {
-                    buffer: materialUniformBuffer2.bufferWebGPU,
-                    offset: 0,
-                    size: materialUniformBuffer2.store.byteLength
-                }
+                resource: materialUniformBuffer2.bufferWebGPU
             },
             
             {
                 binding: 17,
-                resource: {
-                    buffer: materialUniformBuffer3.bufferWebGPU,
-                    offset: 0,
-                    size: materialUniformBuffer3.store.byteLength
-                }
+                resource: materialUniformBuffer3.bufferWebGPU
             },
             {
                 binding: 18,
-                resource: {
-                    buffer: materialUniformBuffer4.bufferWebGPU,
-                    offset: 0,
-                    size: materialUniformBuffer4.store.byteLength
-                }
+                resource: materialUniformBuffer4.bufferWebGPU
             },];
 
             const prevProgramHash = new Map();
             const uniformBindGroup2 = [];
-
-            const s = {
-                            buffer: uniformBuffer,
-                            offset: 0,
-                            size: stateBuffer.store.byteLength
-                        };
 
             this.scene.meshes.forEach((mesh, i) => {
                 mesh.geometry.createGeometryForWebGPU(WebGPU);
@@ -402,17 +368,13 @@ class RedCube {
                     },
                     {
                         binding: 30,
-                        resource: s
+                        resource: uniformBuffer
                     }
                 );
                 if (this.env.uniformBuffer) {
                     mesh.material.uniformBindGroup1.push({
                         binding: 27,
-                        resource: {
-                            buffer: this.env.uniformBuffer.bufferWebGPU,
-                            offset: 0,
-                            size: this.env.uniformBuffer.store.byteLength
-                        }
+                        resource: this.env.uniformBuffer.bufferWebGPU
                     });
                 }
                 if (mesh instanceof SkinnedMesh) {

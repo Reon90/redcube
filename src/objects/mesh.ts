@@ -340,11 +340,7 @@ export class SkinnedMesh extends Mesh {
 
         const uniformBindGroup1 = {
             binding: 22,
-            resource: {
-                buffer: uniformBuffer,
-                offset: 0,
-                size: matrixSize
-            }
+            resource: uniformBuffer
         };
 
         device.queue.writeBuffer(uniformBuffer, 0, matrices.buffer, matrices.byteOffset, matrices.byteLength);

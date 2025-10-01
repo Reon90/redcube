@@ -32,9 +32,9 @@
             if (!navigator.gpu) {
                 document.write('<h1>WebGPU is not supported on your platform so far.</h1>');
             }
-            document.write('<script src="./dist/redcube.webgpu.js"><\/script>');
+            document.write('<script src="./redcube.webgpu.js"><\/script>');
         } else {
-            document.write('<script src="./dist/redcube.js"><\/script>');
+            document.write('<script src="./redcube.js"><\/script>');
         }
     </script>
 </head>
@@ -53,6 +53,7 @@
                 const select = document.createElement('select');
                 select.onchange = () => {
                     localStorage.setItem('sample', select.value);
+                    localStorage.removeItem('variant');
                     window.location.reload();
                 }
                 samples.forEach((it) => {
@@ -63,6 +64,36 @@
                 });
                 select.value = name;
                 selector.appendChild(select);
+
+                const model = samples.find(s => s.name === name);
+                let url;
+                if (model.variants['glTF-Binary']) {
+                    url = name + '/glTF-Binary/' + name + '.glb';
+                }
+                if (model.variants.glTF) {
+                    url = name + '/glTF/' + name + '.gltf';
+                }
+                if (localStorage.getItem('variant')) {
+                    url = name + '/' + localStorage.getItem('variant');
+                }
+
+                {
+                    const select = document.createElement('select');
+                    select.onchange = () => {
+                        localStorage.setItem('variant', select.value);
+                        window.location.reload();
+                    }
+                    Object.entries(model.variants).forEach(([k,v]) => {
+                        const option = document.createElement('option');
+                        option.innerHTML = k;
+                        option.value = k+'/'+v;
+                        select.appendChild(option);
+                    });
+                    if (localStorage.getItem('variant')) {
+                        select.value = localStorage.getItem('variant');
+                    }
+                    selector.appendChild(select);
+                }
                 // ['bloom', 'ssao', 'shadow', 'light'].forEach(name => {
                 //     const label = document.createElement('label');
                 //     label.style.padding = '0 0 0 10px';
@@ -132,15 +163,6 @@
                     });
                     select.value = mode;
                     selector.appendChild(select);
-                }
-
-                const model = samples.find(s => s.name === name);
-                let url;
-                if (model.variants['glTF-Binary']) {
-                    url = name + '/glTF-Binary/' + name + '.glb';
-                }
-                if (model.variants.glTF) {
-                    url = name + '/glTF/' + name + '.gltf';
                 }
 
                 //https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/

@@ -682,10 +682,17 @@ export class Parse {
             t.name = name;
         });
         if (hasBasisu) {
-            const m = await import(/*webpackChunkName: "libktx"*/ '../libktx');
+            await import(/*webpackChunkName: "libktx"*/ '../libktx');
             // @ts-ignore
-            m.default({ preinitializedWebGLContext: gl }).then((module) => {
-                const transcoderConfig = {
+            LIBKTX({ preinitializedWebGLContext: gl }).then((module) => {
+                const transcoderConfig = gl.device ? {
+                    astcSupported: gl.features.has('texture-compression-astc'),
+                    etc1Supported: gl.features.has('texture-compression-etc2'),
+                    etc2Supported: gl.features.has('texture-compression-etc2'),
+                    bptcSupported: gl.features.has('texture-compression-bc'),
+                    dxtSupported: false,
+                    pvrtcSupported: false
+                } : {
                     astcSupported: gl.getExtension('WEBGL_compressed_texture_astc'),
                     etc1Supported: gl.getExtension('WEBGL_compressed_texture_etc1'),
                     etc2Supported: gl.getExtension('WEBGL_compressed_texture_etc'),
