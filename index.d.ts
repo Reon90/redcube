@@ -16,6 +16,11 @@ declare module '*.h' {
     export default content;
 }
 
+declare module '*.hdr' {
+    const content: string;
+    export default content;
+}
+
 interface WEBGPU {
     features: GPUSupportedFeatures,
     glslang: any;

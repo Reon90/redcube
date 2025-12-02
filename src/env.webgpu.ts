@@ -11,8 +11,7 @@ import bdrf from './shaders/bdrf.webgpu.frag';
 import quad from './shaders/quad.webgpu.glsl';
 import { cubeVertex, quadFull } from './vertex';
 import { UniformBuffer } from './objects/uniform';
-//@ts-ignore
-import Sheen_E from '../src/images/Sheen_E.hdr';
+import Sheen_E from './images/Sheen_E.hdr';
 import { SphericalHarmonics, SphericalPolynomial } from './SH';
 
 interface Texture extends WebGLTexture {
@@ -1051,8 +1050,8 @@ export class Env {
         });
         // @ts-expect-error
         this.irradianceTexture.view = this.irradianceTexture.createView({
-                            dimension: 'cube'
-                        });
+            dimension: 'cube'
+        });
 
         for (let i = 0; i < 6; i++) {
             this.drawWebGPU2(WebGPU, IRRADIANCE_SIZE, IRRADIANCE_SIZE, i, 0);
@@ -1071,8 +1070,8 @@ export class Env {
         });
         // @ts-expect-error
         this.prefilterTexture.view = this.prefilterTexture.createView({
-                            dimension: 'cube'
-                        });
+            dimension: 'cube'
+        });
         this.charlieTexture = device.createTexture({
             label: 'charlieTexture',
             mipLevelCount,
@@ -1082,8 +1081,8 @@ export class Env {
         });
         // @ts-expect-error
         this.charlieTexture.view = this.charlieTexture.createView({
-                            dimension: 'cube'
-                        });
+            dimension: 'cube'
+        });
 
         for (let mip = 0; mip < mipLevelCount; ++mip) {
             const mipWidth = RADIANCE_SIZE * Math.pow(0.5, mip);

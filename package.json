@@ -5,9 +5,8 @@
   "main": "dist/redcube",
   "type": "module",
   "scripts": {
-    "client": "webpack serve --port 8000",
-    "server": "webpack --config webpack.server.js",
-    "prod": "rm -rf ./dist && webpack --mode production",
+    "build": "node esbuild.config.js",
+    "serve": "node esbuild.config.js --serve",
     "lint": "eslint --fix --ext .ts ./src/ || true && prettier --write \"src/**/*.ts\"",
     "test": "playwright test"
   },
@@ -17,7 +16,8 @@
     "@typescript-eslint/eslint-plugin": "^8.48.0",
     "@typescript-eslint/parser": "^8.48.0",
     "@webgpu/types": "^0.1.66",
-    "copy-webpack-plugin": "^13.0.1",
+    "esbuild": "^0.27.0",
+    "esbuild-plugin-copy": "^2.1.1",
     "eslint": "^9.39.1",
     "eslint-plugin-unused-imports": "^4.3.0",
     "fs-extra": "^11.3.2",
@@ -25,16 +25,12 @@
     "pixelmatch": "^7.1.0",
     "playwright": "^1.57.0",
     "pngjs": "^7.0.0",
-    "prettier": "^3.6.2",
+    "prettier": "^3.7.3",
     "source-map-support": "^0.5.21",
     "ts-jest": "^29.4.5",
     "ts-loader": "^9.5.4",
     "ts-node": "^10.9.2",
-    "typescript": "^5.9.3",
-    "webpack": "^5.103.0",
-    "webpack-cli": "^6.0.1",
-    "webpack-dev-server": "^5.2.2",
-    "webpack-node-externals": "^3.0.0"
+    "typescript": "^5.9.3"
   },
   "repository": {
     "type": "git",
@@ -56,6 +52,7 @@
   "homepage": "https://github.com/Reon90/redcube",
   "dependencies": {
     "draco3d": "^1.5.7",
+    "esbuild-copy-files-plugin": "^1.2.1",
     "parse-hdr": "^1.0.0"
   }
 }
