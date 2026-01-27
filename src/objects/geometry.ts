@@ -11,7 +11,8 @@ import {
     calculateNormals2,
     calculateUVs,
     fanToTriListIndices,
-    convertLineLoopToLineList
+    convertLineLoopToLineList,
+    toFloat32Normalized
 } from '../utils';
 import { decodeDracoData, getArray } from '../decoder';
 
@@ -318,6 +319,10 @@ export class Geometry {
         let k = 0;
         let l = 0;
         let m = 0;
+        this.attributes['NORMAL'] = toFloat32Normalized(this.attributes['NORMAL']);
+        if (this.attributes['COLOR_0']) {
+            this.attributes['COLOR_0'] = toFloat32Normalized(this.attributes['COLOR_0']);
+        }
         for (let i = 0; i < g.length; i += total) {
             let j = 12;
             g[i] = this.attributes['POSITION'][k];

@@ -2,6 +2,7 @@ node_modules
 .DS_Store
 examples/**
 dist/redcube.js.map
+dist/redcube.webgpu.js.map
 coverage/
 test-results/
 tests/

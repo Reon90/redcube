@@ -263,7 +263,7 @@ var redcube = (() => {
         l[p2] = m.value;
         return l;
       };
-      $jscomp.IS_SYMBOL_NATIVE = "function" === typeof Symbol && "symbol" === typeof Symbol("x");
+      $jscomp.IS_SYMBOL_NATIVE = "function" === typeof Symbol && "symbol" === typeof /* @__PURE__ */ Symbol("x");
       $jscomp.TRUST_ES6_POLYFILLS = !$jscomp.ISOLATE_POLYFILLS || $jscomp.IS_SYMBOL_NATIVE;
       $jscomp.polyfills = {};
       $jscomp.propertyToPolyfillSymbol = {};
@@ -1827,7 +1827,7 @@ var redcube = (() => {
         k[n] = l.value;
         return k;
       };
-      $jscomp.IS_SYMBOL_NATIVE = "function" === typeof Symbol && "symbol" === typeof Symbol("x");
+      $jscomp.IS_SYMBOL_NATIVE = "function" === typeof Symbol && "symbol" === typeof /* @__PURE__ */ Symbol("x");
       $jscomp.TRUST_ES6_POLYFILLS = !$jscomp.ISOLATE_POLYFILLS || $jscomp.IS_SYMBOL_NATIVE;
       $jscomp.polyfills = {};
       $jscomp.propertyToPolyfillSymbol = {};
@@ -12497,6 +12497,45 @@ var redcube = (() => {
     }
     return listIndices;
   }
+  function toFloat32Normalized(typedArray) {
+    const ctor = typedArray.constructor;
+    const { length } = typedArray;
+    const out = new Float32Array(length);
+    let scale, clampMin = -Infinity;
+    switch (ctor) {
+      case Uint8Array:
+        scale = 1 / 255;
+        break;
+      case Uint16Array:
+        scale = 1 / 65535;
+        break;
+      case Uint32Array:
+        scale = 1 / 4294967295;
+        break;
+      case Int8Array:
+        scale = 1 / 127;
+        clampMin = -1;
+        break;
+      case Int16Array:
+        scale = 1 / 32767;
+        clampMin = -1;
+        break;
+      case Int32Array:
+        scale = 1 / 2147483647;
+        clampMin = -1;
+        break;
+      default:
+        return typedArray;
+    }
+    for (let i = 0; i < length; i++) {
+      let v = typedArray[i] * scale;
+      if (v < clampMin) {
+        v = clampMin;
+      }
+      out[i] = v;
+    }
+    return out;
+  }
 
   // src/objects/mesh.ts
   var Mesh = class extends Object3D {
@@ -15354,7 +15393,7 @@ var redcube = (() => {
   }
 
   // src/shaders/vertex.glsl
-  var vertex_default = '#include "./vert.h"\r\n\r\nvoid main() {\r\n    #if defined(WEBGPU)\r\n    Transform tr = transforms.data[gl_InstanceIndex];\r\n    #else\r\n    Transform tr = fetchTransform(int(uMaterialID));\r\n    #endif\r\n    mat4 model = tr.model;\r\n\r\n    #ifdef JOINTNUMBER\r\n        mat4 skin = inWeight.x * joint[int(inJoint.x)];\r\n        skin += inWeight.y * joint[int(inJoint.y)];\r\n        skin += inWeight.z * joint[int(inJoint.z)];\r\n        skin += inWeight.w * joint[int(inJoint.w)];\r\n    #else\r\n        mat4 skin = mat4(1.0);\r\n    #endif\r\n\r\n    #ifdef COLOR\r\n    #ifdef COLOR_255\r\n        vColor = inColor / 255.0;\r\n    #else\r\n        vColor = inColor;\r\n    #endif\r\n    #endif\r\n    outUV0 = inUV;\r\n    #ifdef MULTIUV\r\n    outUV2 = inUV2;\r\n    #endif\r\n    #ifdef MULTIUV2\r\n    outUV3 = inUV3;\r\n    #endif\r\n    #ifdef TANGENT\r\n        vec3 normalW = normalize(vec3(model * vec4(inNormal.xyz, 0.0)));\r\n        vec3 tangentW = normalize(vec3(model * vec4(inTangent.xyz, 0.0)));\r\n        vec3 bitangentW = cross(normalW, tangentW) * inTangent.w;\r\n        #ifdef USERIGHTHANDEDSYSTEM\r\n        tangentW *= 1.0; // invertX\r\n        bitangentW *= -1.0; // invertY\r\n        #endif\r\n        outTBN = mat3(tangentW, bitangentW, normalW);\r\n    #else\r\n        outNormal = normalize(mat3(transpose(inverse(model))) * mat3(skin) * inNormal);\r\n    #endif\r\n    outPosition = vec3(model * skin * vec4(inPosition, 1.0));\r\n    outPositionView = projection * light * model * skin * vec4(inPosition, 1.0);\r\n    if (isShadow.x == 1.0) {\r\n        gl_Position = projection * light * model * skin * vec4(inPosition, 1.0);\r\n    } else {\r\n        gl_Position = projection * view * model * skin * vec4(inPosition, 1.0);\r\n    }\r\n\r\n    gl_PointSize = 1.0;\r\n    #if defined(WEBGPU)\r\n    id = gl_InstanceIndex;\r\n    #else\r\n    id = uMaterialID;\r\n    #endif\r\n}\r\n';
+  var vertex_default = '#include "./vert.h"\r\n\r\nvoid main() {\r\n    #if defined(WEBGPU)\r\n    Transform tr = transforms.data[gl_InstanceIndex];\r\n    #else\r\n    Transform tr = fetchTransform(int(uMaterialID));\r\n    #endif\r\n    mat4 model = tr.model;\r\n\r\n    #ifdef JOINTNUMBER\r\n        mat4 skin = inWeight.x * joint[int(inJoint.x)];\r\n        skin += inWeight.y * joint[int(inJoint.y)];\r\n        skin += inWeight.z * joint[int(inJoint.z)];\r\n        skin += inWeight.w * joint[int(inJoint.w)];\r\n    #else\r\n        mat4 skin = mat4(1.0);\r\n    #endif\r\n\r\n    #ifdef COLOR\r\n    vColor = inColor;\r\n    #endif\r\n    outUV0 = inUV;\r\n    #ifdef MULTIUV\r\n    outUV2 = inUV2;\r\n    #endif\r\n    #ifdef MULTIUV2\r\n    outUV3 = inUV3;\r\n    #endif\r\n    #ifdef TANGENT\r\n        vec3 normalW = normalize(vec3(model * vec4(inNormal.xyz, 0.0)));\r\n        vec3 tangentW = normalize(vec3(model * vec4(inTangent.xyz, 0.0)));\r\n        vec3 bitangentW = cross(normalW, tangentW) * inTangent.w;\r\n        #ifdef USERIGHTHANDEDSYSTEM\r\n        tangentW *= 1.0; // invertX\r\n        bitangentW *= -1.0; // invertY\r\n        #endif\r\n        outTBN = mat3(tangentW, bitangentW, normalW);\r\n    #else\r\n        outNormal = normalize(mat3(transpose(inverse(model))) * mat3(skin) * inNormal);\r\n    #endif\r\n    outPosition = vec3(model * skin * vec4(inPosition, 1.0));\r\n    outPositionView = projection * light * model * skin * vec4(inPosition, 1.0);\r\n    if (isShadow.x == 1.0) {\r\n        gl_Position = projection * light * model * skin * vec4(inPosition, 1.0);\r\n    } else {\r\n        gl_Position = projection * view * model * skin * vec4(inPosition, 1.0);\r\n    }\r\n\r\n    gl_PointSize = 1.0;\r\n    #if defined(WEBGPU)\r\n    id = gl_InstanceIndex;\r\n    #else\r\n    id = uMaterialID;\r\n    #endif\r\n}\r\n';
 
   // src/shaders/fragment.glsl
   var fragment_default = `#include "./frag.h"\r
@@ -16622,6 +16661,10 @@ void main() {\r
       let k = 0;
       let l = 0;
       let m = 0;
+      this.attributes["NORMAL"] = toFloat32Normalized(this.attributes["NORMAL"]);
+      if (this.attributes["COLOR_0"]) {
+        this.attributes["COLOR_0"] = toFloat32Normalized(this.attributes["COLOR_0"]);
+      }
       for (let i = 0; i < g.length; i += total) {
         let j = 12;
         g[i] = this.attributes["POSITION"][k];
@@ -17013,9 +17056,6 @@ ${defineStr}`));
       }
       const mesh = skin !== void 0 ? new SkinnedMesh(name, parent) : new Mesh(name, parent);
       const geometry = new Geometry(this.json, this.arrayBuffer, weights, this.draco, primitive);
-      if (geometry.attributes.COLOR_0 && geometry.attributes.COLOR_0.constructor !== Float32Array) {
-        defines.push({ name: "COLOR_255" });
-      }
       if (primitive.attributes.TANGENT === void 0) {
         defines.push({ name: "USERIGHTHANDEDSYSTEM" });
       }

@@ -750,3 +750,49 @@ export function convertLineLoopToLineList(loopIndices) {
 
     return listIndices;
 }
+
+export function toFloat32Normalized(typedArray) {
+    const ctor = typedArray.constructor;
+    const { length } = typedArray;
+    const out = new Float32Array(length);
+
+    let scale, clampMin = -Infinity;
+
+    switch (ctor) {
+    case Uint8Array:
+        scale = 1 / 255;
+        break;
+    case Uint16Array:
+        scale = 1 / 65535;
+        break;
+    case Uint32Array:
+        scale = 1 / 4294967295;
+        break;
+
+    case Int8Array:
+        scale = 1 / 127;
+        clampMin = -1;
+        break;
+    case Int16Array:
+        scale = 1 / 32767;
+        clampMin = -1;
+        break;
+    case Int32Array:
+        scale = 1 / 2147483647;
+        clampMin = -1;
+        break;
+
+    default:
+        return typedArray;
+    }
+
+    for (let i = 0; i < length; i++) {
+        let v = typedArray[i] * scale;
+        if (v < clampMin) {
+            v = clampMin;
+        }
+        out[i] = v;
+    }
+
+    return out;
+}

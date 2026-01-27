@@ -252,9 +252,6 @@ export class Parse {
 
         const mesh = skin !== undefined ? new SkinnedMesh(name, parent) : new Mesh(name, parent);
         const geometry = new Geometry(this.json, this.arrayBuffer, weights, this.draco, primitive);
-        if (geometry.attributes.COLOR_0 && geometry.attributes.COLOR_0.constructor !== Float32Array) {
-            defines.push({ name: 'COLOR_255' });
-        }
         if (primitive.attributes.TANGENT === undefined) {
             defines.push({ name: 'USERIGHTHANDEDSYSTEM' });
         }

@@ -18,11 +18,7 @@ void main() {
     #endif
 
     #ifdef COLOR
-    #ifdef COLOR_255
-        vColor = inColor / 255.0;
-    #else
-        vColor = inColor;
-    #endif
+    vColor = inColor;
     #endif
     outUV0 = inUV;
     #ifdef MULTIUV
