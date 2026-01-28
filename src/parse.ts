@@ -301,6 +301,9 @@ export class Parse {
 
             this.cameras.push(child);
         } else if (el.extensions && el.extensions.KHR_lights_punctual) {
+            if (this.lights.find((l) => l.id === el.name)) {
+                return;
+            }
             const light = this.json.extensions.KHR_lights_punctual.lights[el.extensions.KHR_lights_punctual.light];
             light.isInitial = false;
 
@@ -416,8 +419,7 @@ export class Parse {
                 const i = this.lights.findIndex(l => l === mesh);
                 walk(mesh.parent, m => {
                     if (m instanceof Mesh) {
-                        // @ts-ignore
-                        m.material.defines.find(d => d.name === 'LIGHTINDEX').value = i;
+                        m.material.lights[m.material.lights.findIndex(l => l === -1)] = i;
                     }
                 });
             }

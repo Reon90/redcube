@@ -12653,6 +12653,7 @@ var redcube = (() => {
       gl14.uniform2f(this.material.uniforms.isTone, isprerefraction ? 0 : 1, 0);
       gl14.uniform2f(this.material.uniforms.isIBL, isIBL ? 1 : 0, 0);
       gl14.uniform2f(this.material.uniforms.isDefaultLight, isDefaultLight || lights.some((l) => !l.isInitial) ? 1 : 0, 0);
+      gl14.uniform4i(this.material.uniforms.lights, ...this.material.lights);
       if (this.material.baseColorTexture) {
         gl14.activeTexture(gl14[`TEXTURE${0}`]);
         gl14.bindTexture(gl14.TEXTURE_2D, this.material.baseColorTexture);
@@ -13153,6 +13154,7 @@ var redcube = (() => {
     lightIntensityUniform;
     textureMatricesUniform;
     matricesMap = /* @__PURE__ */ new Map();
+    lights = [-1, -1, -1, -1];
     uniformBindGroup1;
     constructor(m = defaultMaterial, textures, defines) {
       super();
@@ -13161,7 +13163,6 @@ var redcube = (() => {
       this.name = material.name;
       this.matrices = [];
       this.diffuseTransmissionColorFactor = [1, 1, 1];
-      this.defines.push({ name: "LIGHTINDEX", value: 0 });
       if (!material.pbrMetallicRoughness && material.extensions && material.extensions.KHR_materials_pbrSpecularGlossiness) {
         material.pbrMetallicRoughness = {};
         const SG = material.extensions.KHR_materials_pbrSpecularGlossiness;
@@ -13528,6 +13529,7 @@ var redcube = (() => {
       this.uniforms.isTone = gl14.getUniformLocation(program, "isTone");
       this.uniforms.isIBL = gl14.getUniformLocation(program, "isIBL");
       this.uniforms.isDefaultLight = gl14.getUniformLocation(program, "isDefaultLight");
+      this.uniforms.lights = gl14.getUniformLocation(program, "lights");
       if (this.baseColorTexture) {
         this.uniforms.baseColorTexture = gl14.getUniformLocation(program, "baseColorTexture");
         gl14.uniform1i(this.uniforms.baseColorTexture, textureEnum.baseColorTexture);
@@ -14410,12 +14412,11 @@ var redcube = (() => {
         s.cameraBuffer.update(gl3, "projection", s.camera.projection.elements);
       }
       gl3.bindBufferBase(gl3.UNIFORM_BUFFER, 4, s.lightColorUniform);
+      gl3.bufferSubData(gl3.UNIFORM_BUFFER, 0, s.lightColorBuffer.store);
       s.lights.forEach((light, i) => {
         const offset = i * 4 * Float32Array.BYTES_PER_ELEMENT;
         if (light.visible === false) {
           gl3.bufferSubData(gl3.UNIFORM_BUFFER, offset, new Float32Array([0, 0, 0, 0]));
-        } else {
-          gl3.bufferSubData(gl3.UNIFORM_BUFFER, 0, s.lightColorBuffer.store);
         }
       });
       this.scene.meshes.forEach((mesh, i) => {
@@ -16224,8 +16225,9 @@ void main() {\r
         #endif\r
 \r
         if (isDefaultLight.x == 1.0) {\r
-            int i = LIGHTINDEX;\r
-        //for (int i = 0; i < LIGHTNUMBER; ++i) {\r
+        for (int j = 0; j < 4; j++) {\r
+            if (lights[j] < 0) continue;\r
+            int i = lights[j];\r
             vec3 lightDir = normalize(lightPos[i].xyz - outPosition);\r
             float NdotL = max(dot(n, lightDir), 0.0);\r
             vec3 H = normalize(viewDir + lightDir);\r
@@ -16278,9 +16280,9 @@ void main() {\r
             albedoSheenScaling = min(1.0 - max3(sheenColor) * E(max(dot(viewDir, n), 0.0), sheenRoughness), 1.0 - max3(sheenColor) * E(max(dot(lightDir, n), 0.0), sheenRoughness));\r
             #endif\r
 \r
-            Lo += (specular * NdotL);\r
+            Lo += (specular * NdotL * radiance);\r
             //#ifdef CLEARCOAT\r
-            Lo = Lo * radiance * clearcoatFresnel + f_clearcoat * clearcoatBlendFactor;\r
+            Lo = Lo * clearcoatFresnel + f_clearcoat * clearcoatBlendFactor;\r
             //#endif\r
             vec3 diffuseLobe = vec3(diffuse);\r
 \r
@@ -16301,7 +16303,7 @@ void main() {\r
             #endif\r
 \r
             finalDiffuse += diffuseLobe;\r
-        //}\r
+        }\r
         }\r
 \r
         vec3 ambient = vec3(0.0);\r
@@ -16412,7 +16414,7 @@ void main() {\r
 `;
 
   // src/shaders/frag.h
-  var frag_default = "#version 300 es\r\nprecision highp float;\r\n\r\n// #ifdef DIFFUSE_TRANSMISSION\r\n//     #define SCATTERING 1\r\n// #endif\r\n\r\n#define texture2D(p, uv) texture(p, uv)\r\n#define textureCube(p, uv) texture(p, uv)\r\n#define textureLodCube(p, uv, i) textureLod(p, uv, i)\r\n#define textureLod2D(p, uv, i) textureLod(p, uv, i)\r\n#define textureLod2D2(p, uv, i) textureLod(p, uv, i)\r\n\r\nuniform sampler2D uMaterialTex;\r\n\r\nin vec4 vColor;\r\nin vec2 outUV0;\r\nin vec2 outUV2;\r\nin vec2 outUV3;\r\nin vec3 outPosition;\r\nin vec4 outPositionView;\r\nin float id;\r\n#ifdef TANGENT\r\n    in mat3 outTBN;\r\n#else\r\n    in vec3 outNormal;\r\n#endif\r\n\r\nlayout (location = 0) out vec4 color;\r\nlayout (location = 1) out vec4 normalColor;\r\nlayout (location = 2) out vec4 irradianceColor;\r\nlayout (location = 3) out vec4 albedoColor;\r\nlayout (location = 4) out vec4 specColor;\r\n\r\nstruct Material {\r\n    vec4 baseColorFactor;\r\n    vec3 specularFactor;\r\n    vec3 specularColorFactor;\r\n    vec3 emissiveFactor;\r\n    vec4 glossinessFactor;\r\n    vec4 metallicFactor;\r\n    vec4 roughnessFactor;\r\n    vec4 clearcoatFactor;\r\n    vec4 clearcoatRoughnessFactor;\r\n    vec4 sheenColorFactor;\r\n    vec4 sheenRoughnessFactor;\r\n    vec4 transmissionFactor;\r\n    vec4 ior;\r\n    vec4 normalTextureScale;\r\n    vec4 attenuationColorFactor; \r\n    vec4 attenuationDistance; \r\n    vec4 thicknessFactor;\r\n    vec4 emissiveStrength;\r\n    vec4 anisotropyFactor;\r\n    vec4 iridescence;\r\n    vec4 diffuseTransmissionFactor;\r\n    vec4 dispersionFactor;\r\n};\r\n\r\nMaterial fetchMaterial(int id) {\r\n    Material m;\r\n    int row = id;\r\n    m.baseColorFactor         = texelFetch(uMaterialTex, ivec2(0, row), 0);\r\n    m.specularFactor          = texelFetch(uMaterialTex, ivec2(1, row), 0).xyz;\r\n    m.specularColorFactor     = texelFetch(uMaterialTex, ivec2(2, row), 0).xyz;\r\n    m.emissiveFactor          = texelFetch(uMaterialTex, ivec2(3, row), 0).xyz;\r\n    m.glossinessFactor        = texelFetch(uMaterialTex, ivec2(4, row), 0);\r\n    m.metallicFactor          = texelFetch(uMaterialTex, ivec2(5, row), 0);\r\n    m.roughnessFactor         = texelFetch(uMaterialTex, ivec2(6, row), 0);\r\n    m.clearcoatFactor         = texelFetch(uMaterialTex, ivec2(7, row), 0);\r\n    m.clearcoatRoughnessFactor= texelFetch(uMaterialTex, ivec2(8, row), 0);\r\n    m.sheenColorFactor        = texelFetch(uMaterialTex, ivec2(9, row), 0);\r\n    m.sheenRoughnessFactor    = texelFetch(uMaterialTex, ivec2(10, row), 0);\r\n    m.transmissionFactor      = texelFetch(uMaterialTex, ivec2(11, row), 0);\r\n    m.ior                     = texelFetch(uMaterialTex, ivec2(12, row), 0);\r\n    m.normalTextureScale      = texelFetch(uMaterialTex, ivec2(13, row), 0);\r\n    m.attenuationColorFactor  = texelFetch(uMaterialTex, ivec2(14, row), 0);\r\n    m.attenuationDistance     = texelFetch(uMaterialTex, ivec2(15, row), 0);\r\n    m.thicknessFactor         = texelFetch(uMaterialTex, ivec2(16, row), 0);\r\n    m.emissiveStrength        = texelFetch(uMaterialTex, ivec2(17, row), 0);\r\n    m.anisotropyFactor        = texelFetch(uMaterialTex, ivec2(18, row), 0);\r\n    m.iridescence             = texelFetch(uMaterialTex, ivec2(19, row), 0);\r\n    m.diffuseTransmissionFactor= texelFetch(uMaterialTex, ivec2(20, row), 0);\r\n    m.dispersionFactor        = texelFetch(uMaterialTex, ivec2(21, row), 0);\r\n    return m;\r\n}\r\n\r\nuniform Matrices2 {\r\n    mat4 view;\r\n    mat4 projection;\r\n    mat4 light;\r\n    vec4 isShadow;\r\n};\r\nuniform LightPos {\r\n    vec4 lightPos[LIGHTNUMBER];\r\n};\r\nuniform LightColor {\r\n    vec4 lightColor[LIGHTNUMBER];\r\n};\r\nuniform Spotdir {\r\n    vec4 spotdir[LIGHTNUMBER];\r\n};\r\nuniform LightIntensity {\r\n    vec4 lightIntensity[LIGHTNUMBER];\r\n};\r\n#if defined MATRICES\r\nuniform TextureMatrices {\r\n    mat4 textureMatrices[MATRICES];\r\n};\r\n#endif\r\n#ifdef SPHERICAL_HARMONICS\r\nuniform SphericalHarmonics {\r\n    vec4 vSphericalL00;\r\n    vec4 vSphericalL1_1;\r\n    vec4 vSphericalL10;\r\n    vec4 vSphericalL11;\r\n    vec4 vSphericalL2_2;\r\n    vec4 vSphericalL2_1;\r\n    vec4 vSphericalL20;\r\n    vec4 vSphericalL21;\r\n    vec4 vSphericalL22;\r\n    mat4 rotationMatrix;\r\n};\r\n#endif\r\n\r\nuniform sampler2D baseColorTexture;\r\nuniform sampler2D metallicRoughnessTexture;\r\nuniform sampler2D normalTexture;\r\nuniform sampler2D emissiveTexture;\r\nuniform sampler2D occlusionTexture;\r\nuniform sampler2D clearcoatTexture;\r\nuniform sampler2D clearcoatRoughnessTexture;\r\nuniform sampler2D transmissionTexture;\r\nuniform sampler2D sheenColorTexture;\r\nuniform sampler2D sheenRoughnessTexture;\r\nuniform sampler2D iridescenceThicknessTexture;\r\nuniform sampler2D iridescenceTexture;\r\nuniform sampler2D clearcoatNormalTexture;\r\nuniform sampler2D specularTexture;\r\nuniform sampler2D specularColorTexture;\r\nuniform sampler2D thicknessTexture;\r\nuniform sampler2D diffuseTransmissionTexture;\r\nuniform sampler2D diffuseTransmissionColorTexture;\r\nuniform sampler2D anisotropyTexture;\r\n\r\nuniform samplerCube prefilterMap;\r\nuniform samplerCube charlieMap;\r\nuniform sampler2D brdfLUT;  \r\nuniform samplerCube irradianceMap;\r\nuniform sampler2D depthTexture;\r\nuniform sampler2D colorTexture;\r\nuniform vec2 isTone;\r\nuniform vec2 isIBL;\r\nuniform vec2 isDefaultLight;\r\nuniform sampler2D Sheen_E;\r\n";
+  var frag_default = "#version 300 es\r\nprecision highp float;\r\n\r\n// #ifdef DIFFUSE_TRANSMISSION\r\n//     #define SCATTERING 1\r\n// #endif\r\n\r\n#define texture2D(p, uv) texture(p, uv)\r\n#define textureCube(p, uv) texture(p, uv)\r\n#define textureLodCube(p, uv, i) textureLod(p, uv, i)\r\n#define textureLod2D(p, uv, i) textureLod(p, uv, i)\r\n#define textureLod2D2(p, uv, i) textureLod(p, uv, i)\r\n\r\nuniform sampler2D uMaterialTex;\r\n\r\nin vec4 vColor;\r\nin vec2 outUV0;\r\nin vec2 outUV2;\r\nin vec2 outUV3;\r\nin vec3 outPosition;\r\nin vec4 outPositionView;\r\nin float id;\r\n#ifdef TANGENT\r\n    in mat3 outTBN;\r\n#else\r\n    in vec3 outNormal;\r\n#endif\r\n\r\nlayout (location = 0) out vec4 color;\r\nlayout (location = 1) out vec4 normalColor;\r\nlayout (location = 2) out vec4 irradianceColor;\r\nlayout (location = 3) out vec4 albedoColor;\r\nlayout (location = 4) out vec4 specColor;\r\n\r\nstruct Material {\r\n    vec4 baseColorFactor;\r\n    vec3 specularFactor;\r\n    vec3 specularColorFactor;\r\n    vec3 emissiveFactor;\r\n    vec4 glossinessFactor;\r\n    vec4 metallicFactor;\r\n    vec4 roughnessFactor;\r\n    vec4 clearcoatFactor;\r\n    vec4 clearcoatRoughnessFactor;\r\n    vec4 sheenColorFactor;\r\n    vec4 sheenRoughnessFactor;\r\n    vec4 transmissionFactor;\r\n    vec4 ior;\r\n    vec4 normalTextureScale;\r\n    vec4 attenuationColorFactor; \r\n    vec4 attenuationDistance; \r\n    vec4 thicknessFactor;\r\n    vec4 emissiveStrength;\r\n    vec4 anisotropyFactor;\r\n    vec4 iridescence;\r\n    vec4 diffuseTransmissionFactor;\r\n    vec4 dispersionFactor;\r\n};\r\n\r\nMaterial fetchMaterial(int id) {\r\n    Material m;\r\n    int row = id;\r\n    m.baseColorFactor         = texelFetch(uMaterialTex, ivec2(0, row), 0);\r\n    m.specularFactor          = texelFetch(uMaterialTex, ivec2(1, row), 0).xyz;\r\n    m.specularColorFactor     = texelFetch(uMaterialTex, ivec2(2, row), 0).xyz;\r\n    m.emissiveFactor          = texelFetch(uMaterialTex, ivec2(3, row), 0).xyz;\r\n    m.glossinessFactor        = texelFetch(uMaterialTex, ivec2(4, row), 0);\r\n    m.metallicFactor          = texelFetch(uMaterialTex, ivec2(5, row), 0);\r\n    m.roughnessFactor         = texelFetch(uMaterialTex, ivec2(6, row), 0);\r\n    m.clearcoatFactor         = texelFetch(uMaterialTex, ivec2(7, row), 0);\r\n    m.clearcoatRoughnessFactor= texelFetch(uMaterialTex, ivec2(8, row), 0);\r\n    m.sheenColorFactor        = texelFetch(uMaterialTex, ivec2(9, row), 0);\r\n    m.sheenRoughnessFactor    = texelFetch(uMaterialTex, ivec2(10, row), 0);\r\n    m.transmissionFactor      = texelFetch(uMaterialTex, ivec2(11, row), 0);\r\n    m.ior                     = texelFetch(uMaterialTex, ivec2(12, row), 0);\r\n    m.normalTextureScale      = texelFetch(uMaterialTex, ivec2(13, row), 0);\r\n    m.attenuationColorFactor  = texelFetch(uMaterialTex, ivec2(14, row), 0);\r\n    m.attenuationDistance     = texelFetch(uMaterialTex, ivec2(15, row), 0);\r\n    m.thicknessFactor         = texelFetch(uMaterialTex, ivec2(16, row), 0);\r\n    m.emissiveStrength        = texelFetch(uMaterialTex, ivec2(17, row), 0);\r\n    m.anisotropyFactor        = texelFetch(uMaterialTex, ivec2(18, row), 0);\r\n    m.iridescence             = texelFetch(uMaterialTex, ivec2(19, row), 0);\r\n    m.diffuseTransmissionFactor= texelFetch(uMaterialTex, ivec2(20, row), 0);\r\n    m.dispersionFactor        = texelFetch(uMaterialTex, ivec2(21, row), 0);\r\n    return m;\r\n}\r\n\r\nuniform Matrices2 {\r\n    mat4 view;\r\n    mat4 projection;\r\n    mat4 light;\r\n    vec4 isShadow;\r\n};\r\nuniform LightPos {\r\n    vec4 lightPos[LIGHTNUMBER];\r\n};\r\nuniform LightColor {\r\n    vec4 lightColor[LIGHTNUMBER];\r\n};\r\nuniform Spotdir {\r\n    vec4 spotdir[LIGHTNUMBER];\r\n};\r\nuniform LightIntensity {\r\n    vec4 lightIntensity[LIGHTNUMBER];\r\n};\r\n#if defined MATRICES\r\nuniform TextureMatrices {\r\n    mat4 textureMatrices[MATRICES];\r\n};\r\n#endif\r\n#ifdef SPHERICAL_HARMONICS\r\nuniform SphericalHarmonics {\r\n    vec4 vSphericalL00;\r\n    vec4 vSphericalL1_1;\r\n    vec4 vSphericalL10;\r\n    vec4 vSphericalL11;\r\n    vec4 vSphericalL2_2;\r\n    vec4 vSphericalL2_1;\r\n    vec4 vSphericalL20;\r\n    vec4 vSphericalL21;\r\n    vec4 vSphericalL22;\r\n    mat4 rotationMatrix;\r\n};\r\n#endif\r\n\r\nuniform sampler2D baseColorTexture;\r\nuniform sampler2D metallicRoughnessTexture;\r\nuniform sampler2D normalTexture;\r\nuniform sampler2D emissiveTexture;\r\nuniform sampler2D occlusionTexture;\r\nuniform sampler2D clearcoatTexture;\r\nuniform sampler2D clearcoatRoughnessTexture;\r\nuniform sampler2D transmissionTexture;\r\nuniform sampler2D sheenColorTexture;\r\nuniform sampler2D sheenRoughnessTexture;\r\nuniform sampler2D iridescenceThicknessTexture;\r\nuniform sampler2D iridescenceTexture;\r\nuniform sampler2D clearcoatNormalTexture;\r\nuniform sampler2D specularTexture;\r\nuniform sampler2D specularColorTexture;\r\nuniform sampler2D thicknessTexture;\r\nuniform sampler2D diffuseTransmissionTexture;\r\nuniform sampler2D diffuseTransmissionColorTexture;\r\nuniform sampler2D anisotropyTexture;\r\n\r\nuniform samplerCube prefilterMap;\r\nuniform samplerCube charlieMap;\r\nuniform sampler2D brdfLUT;  \r\nuniform samplerCube irradianceMap;\r\nuniform sampler2D depthTexture;\r\nuniform sampler2D colorTexture;\r\nuniform vec2 isTone;\r\nuniform vec2 isIBL;\r\nuniform vec2 isDefaultLight;\r\nuniform sampler2D Sheen_E;\r\nuniform ivec4 lights;\r\n";
 
   // src/shaders/vert.h
   var vert_default = "#version 300 es\r\nprecision highp float;\r\n\r\nlayout (location = 0) in vec3 inPosition;\r\nlayout (location = 1) in vec3 inNormal;\r\nlayout (location = 2) in vec2 inUV;\r\nlayout (location = 4) in vec4 inJoint;\r\nlayout (location = 5) in vec4 inWeight;\r\nlayout (location = 3) in vec4 inTangent;\r\nlayout (location = 6) in vec4 inColor;\r\nlayout (location = 7) in vec2 inUV2;\r\nlayout (location = 8) in vec2 inUV3;\r\nlayout (location = 9) in float uMaterialID;\r\n\r\nuniform sampler2D uTransformTex;\r\n\r\nout vec4 vColor;\r\nout vec2 outUV0;\r\nout vec2 outUV2;\r\nout vec2 outUV3;\r\nout vec3 outPosition;\r\nout vec4 outPositionView;\r\nout float id;\r\n#ifdef TANGENT\r\n    out mat3 outTBN;\r\n#else\r\n    out vec3 outNormal;\r\n#endif\r\n\r\nstruct Transform {\r\n    mat4 model;\r\n};\r\nTransform fetchTransform(int id) {\r\n    Transform t;\r\n\r\n    // 8 texels across (0..7)\r\n    t.model[0] = texelFetch(uTransformTex, ivec2(0, id), 0);\r\n    t.model[1] = texelFetch(uTransformTex, ivec2(1, id), 0);\r\n    t.model[2] = texelFetch(uTransformTex, ivec2(2, id), 0);\r\n    t.model[3] = texelFetch(uTransformTex, ivec2(3, id), 0);\r\n\r\n    return t;\r\n}\r\nuniform Matrices2 {\r\n    mat4 view;\r\n    mat4 projection;\r\n    mat4 light;\r\n    vec4 isShadow;\r\n};\r\n#ifdef JOINTNUMBER\r\nuniform Skin {\r\n    mat4 joint[JOINTNUMBER];\r\n};\r\n#endif";
@@ -17108,6 +17110,9 @@ ${defineStr}`));
         child.setProjection(proj);
         this.cameras.push(child);
       } else if (el.extensions && el.extensions.KHR_lights_punctual) {
+        if (this.lights.find((l) => l.id === el.name)) {
+          return;
+        }
         const light = this.json.extensions.KHR_lights_punctual.lights[el.extensions.KHR_lights_punctual.light];
         light.isInitial = false;
         child = new Light(light, name, parent);
@@ -17208,7 +17213,7 @@ ${defineStr}`));
           const i = this.lights.findIndex((l) => l === mesh);
           walk(mesh.parent, (m) => {
             if (m instanceof Mesh) {
-              m.material.defines.find((d) => d.name === "LIGHTINDEX").value = i;
+              m.material.lights[m.material.lights.findIndex((l) => l === -1)] = i;
             }
           });
         }

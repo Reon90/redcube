@@ -817,8 +817,9 @@ void main() {
         #endif
 
         if (isDefaultLight.x == 1.0) {
-            int i = LIGHTINDEX;
-        //for (int i = 0; i < LIGHTNUMBER; ++i) {
+        for (int j = 0; j < 4; j++) {
+            if (lights[j] < 0) continue;
+            int i = lights[j];
             vec3 lightDir = normalize(lightPos[i].xyz - outPosition);
             float NdotL = max(dot(n, lightDir), 0.0);
             vec3 H = normalize(viewDir + lightDir);
@@ -871,9 +872,9 @@ void main() {
             albedoSheenScaling = min(1.0 - max3(sheenColor) * E(max(dot(viewDir, n), 0.0), sheenRoughness), 1.0 - max3(sheenColor) * E(max(dot(lightDir, n), 0.0), sheenRoughness));
             #endif
 
-            Lo += (specular * NdotL);
+            Lo += (specular * NdotL * radiance);
             //#ifdef CLEARCOAT
-            Lo = Lo * radiance * clearcoatFresnel + f_clearcoat * clearcoatBlendFactor;
+            Lo = Lo * clearcoatFresnel + f_clearcoat * clearcoatBlendFactor;
             //#endif
             vec3 diffuseLobe = vec3(diffuse);
 
@@ -894,7 +895,7 @@ void main() {
             #endif
 
             finalDiffuse += diffuseLobe;
-        //}
+        }
         }
 
         vec3 ambient = vec3(0.0);

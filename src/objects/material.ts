@@ -59,6 +59,7 @@ export class Material extends M {
     lightIntensityUniform: WebGLBuffer;
     textureMatricesUniform: WebGLBuffer;
     matricesMap = new Map<string, number>();
+    lights = [-1, -1, -1, -1];
 
     uniformBindGroup1: GPUBindGroupEntry[];
 
@@ -70,9 +71,6 @@ export class Material extends M {
         this.name = material.name;
         this.matrices = [];
         this.diffuseTransmissionColorFactor = [1, 1, 1];
-
-        // @ts-expect-error
-        this.defines.push({ name: 'LIGHTINDEX', value: 0 });
 
         if (!material.pbrMetallicRoughness && material.extensions && material.extensions.KHR_materials_pbrSpecularGlossiness) {
             material.pbrMetallicRoughness = {};
@@ -458,6 +456,7 @@ export class Material extends M {
         this.uniforms.isTone = gl.getUniformLocation(program, 'isTone');
         this.uniforms.isIBL = gl.getUniformLocation(program, 'isIBL');
         this.uniforms.isDefaultLight = gl.getUniformLocation(program, 'isDefaultLight');
+        this.uniforms.lights = gl.getUniformLocation(program, 'lights');
 
         if (this.baseColorTexture) {
             this.uniforms.baseColorTexture = gl.getUniformLocation(program, 'baseColorTexture');

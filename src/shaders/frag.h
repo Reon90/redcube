@@ -153,3 +153,4 @@ uniform vec2 isTone;
 uniform vec2 isIBL;
 uniform vec2 isDefaultLight;
 uniform sampler2D Sheen_E;
+uniform ivec4 lights;

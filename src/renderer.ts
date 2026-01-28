@@ -401,12 +401,11 @@ export class Renderer {
             s.cameraBuffer.update(gl, 'projection', s.camera.projection.elements);
         }
         gl.bindBufferBase(gl.UNIFORM_BUFFER, 4, s.lightColorUniform);
+        gl.bufferSubData(gl.UNIFORM_BUFFER, 0, s.lightColorBuffer.store);
         s.lights.forEach((light, i) => {
             const offset = i * 4 * Float32Array.BYTES_PER_ELEMENT;
             if (light.visible === false) {
                 gl.bufferSubData(gl.UNIFORM_BUFFER, offset, new Float32Array([0, 0, 0, 0]));
-            } else {
-                gl.bufferSubData(gl.UNIFORM_BUFFER, 0, s.lightColorBuffer.store);
             }
         });
         this.scene.meshes.forEach((mesh, i) => {
