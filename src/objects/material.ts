@@ -53,15 +53,11 @@ export class Material extends M {
     defines: Array<{ name: string }>;
     matrices: Matrix4[];
     uniformBuffer: GPUBuffer;
-    lightUBO1: WebGLBuffer;
-    lightUniformBuffer1: UniformBuffer;
-    lightUBO2: WebGLBuffer;
-    lightUniformBuffer2: UniformBuffer;
-    lightUBO3: WebGLBuffer;
-    lightUniformBuffer3: UniformBuffer;
-    lightUBO4: WebGLBuffer;
-    lightUBO5: WebGLBuffer;
-    lightUniformBuffer4: UniformBuffer;
+    lightPosUniform: WebGLBuffer;
+    lightColorUniform: WebGLBuffer;
+    spotdirUniform: WebGLBuffer;
+    lightIntensityUniform: WebGLBuffer;
+    textureMatricesUniform: WebGLBuffer;
     matricesMap = new Map<string, number>();
 
     uniformBindGroup1: GPUBindGroupEntry[];
@@ -573,10 +569,10 @@ export class Material extends M {
         if (this.matrices.length) {
             const mIndex = gl.getUniformBlockIndex(program, 'TextureMatrices');
             gl.uniformBlockBinding(program, mIndex, 8);
-            const mUBO = gl.createBuffer();
-            gl.bindBuffer(gl.UNIFORM_BUFFER, mUBO);
+            const textureMatricesUniform = gl.createBuffer();
+            gl.bindBuffer(gl.UNIFORM_BUFFER, textureMatricesUniform);
             gl.bufferData(gl.UNIFORM_BUFFER, this.textureMatricesBuffer.store, gl.STATIC_DRAW);
-            this.lightUBO5 = mUBO;
+            this.textureMatricesUniform = textureMatricesUniform;
         }
     }
 
@@ -649,7 +645,7 @@ export class Material extends M {
         }
         const sampler = this.baseColorTexture
             ? this.baseColorTexture.sampler
-            : linearSampler
+            : linearSampler;
 
         const uniformBindGroup1 = [
             {
@@ -769,7 +765,7 @@ export class Material extends M {
     }
 
     setTexture(gl, name, type, value) {
-        gl.bindBufferBase(gl.UNIFORM_BUFFER, 8, this.lightUBO5);
+        gl.bindBufferBase(gl.UNIFORM_BUFFER, 8, this.textureMatricesUniform);
         const i = this.matricesMap.get(name) * 16;
         if (type === 'offset') {
             this.textureMatricesBuffer.store[i] = value.elements[0];

@@ -3,7 +3,6 @@ import { Object3D } from './object3d';
 import { Geometry } from './geometry';
 import { Material } from './material';
 import { ArrayBufferMap } from '../utils';
-import glEnum from '../glEnum';
 
 export class Mesh extends Object3D {
     geometry: Geometry;
@@ -13,7 +12,6 @@ export class Mesh extends Object3D {
     mode: number;
     frontFace: boolean;
     distance: number;
-    visible: boolean;
     variants: { m: Material; variants: number[] }[];
     order: number;
 
@@ -78,7 +76,7 @@ export class Mesh extends Object3D {
         passEncoder.setBindGroup(0, this.uniformBindGroup1);
         passEncoder.setVertexBuffer(0, this.geometry.verticesWebGPUBuffer);
         if (this.geometry.indicesBuffer) {
-            const type = this.geometry.indexType < 5124 ? 'uint16' : 'uint32';
+            // const type = this.geometry.indexType < 5124 ? 'uint16' : 'uint32';
             passEncoder.setIndexBuffer(this.geometry.indicesWebGPUBuffer, 'uint32');
             passEncoder.drawIndexed(this.geometry.indicesBuffer.length, 1, 0, 0, i);
         } else {
@@ -128,7 +126,7 @@ export class Mesh extends Object3D {
         }
 
         if (this.material.matrices.length) {
-            gl.bindBufferBase(gl.UNIFORM_BUFFER, 8, this.material.lightUBO5);
+            gl.bindBufferBase(gl.UNIFORM_BUFFER, 8, this.material.textureMatricesUniform);
         }
 
         if (this.material.sphericalHarmonics) {

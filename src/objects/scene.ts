@@ -17,6 +17,7 @@ export class Scene {
     cameras: Array<Camera>;
     lights: Array<Light>;
     variants: { name: string }[];
+    visible = true;
 
     constructor() {
         this.opaqueChildren = [];

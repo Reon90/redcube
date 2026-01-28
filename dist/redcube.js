@@ -11328,6 +11328,7 @@ var redcube = (() => {
     cameras;
     lights;
     variants;
+    visible = true;
     constructor() {
       this.opaqueChildren = [];
       this.transparentChildren = [];
@@ -11351,6 +11352,7 @@ var redcube = (() => {
     parent;
     reflow;
     repaint;
+    visible = true;
     constructor(name, parent) {
       this.uuid = Math.floor(Date.now() * Math.random());
       this.name = name;
@@ -12546,7 +12548,6 @@ var redcube = (() => {
     mode;
     frontFace;
     distance;
-    visible;
     variants;
     order;
     uniformBindGroup1;
@@ -12601,7 +12602,6 @@ var redcube = (() => {
       passEncoder.setBindGroup(0, this.uniformBindGroup1);
       passEncoder.setVertexBuffer(0, this.geometry.verticesWebGPUBuffer);
       if (this.geometry.indicesBuffer) {
-        const type = this.geometry.indexType < 5124 ? "uint16" : "uint32";
         passEncoder.setIndexBuffer(this.geometry.indicesWebGPUBuffer, "uint32");
         passEncoder.drawIndexed(this.geometry.indicesBuffer.length, 1, 0, 0, i);
       } else {
@@ -12643,7 +12643,7 @@ var redcube = (() => {
         }
       }
       if (this.material.matrices.length) {
-        gl14.bindBufferBase(gl14.UNIFORM_BUFFER, 8, this.material.lightUBO5);
+        gl14.bindBufferBase(gl14.UNIFORM_BUFFER, 8, this.material.textureMatricesUniform);
       }
       if (this.material.sphericalHarmonics) {
         gl14.bindBufferBase(gl14.UNIFORM_BUFFER, 7, this.material.sphericalHarmonics);
@@ -13147,15 +13147,11 @@ var redcube = (() => {
     defines;
     matrices;
     uniformBuffer;
-    lightUBO1;
-    lightUniformBuffer1;
-    lightUBO2;
-    lightUniformBuffer2;
-    lightUBO3;
-    lightUniformBuffer3;
-    lightUBO4;
-    lightUBO5;
-    lightUniformBuffer4;
+    lightPosUniform;
+    lightColorUniform;
+    spotdirUniform;
+    lightIntensityUniform;
+    textureMatricesUniform;
     matricesMap = /* @__PURE__ */ new Map();
     uniformBindGroup1;
     constructor(m = defaultMaterial, textures, defines) {
@@ -13639,10 +13635,10 @@ var redcube = (() => {
       if (this.matrices.length) {
         const mIndex = gl14.getUniformBlockIndex(program, "TextureMatrices");
         gl14.uniformBlockBinding(program, mIndex, 8);
-        const mUBO = gl14.createBuffer();
-        gl14.bindBuffer(gl14.UNIFORM_BUFFER, mUBO);
+        const textureMatricesUniform = gl14.createBuffer();
+        gl14.bindBuffer(gl14.UNIFORM_BUFFER, textureMatricesUniform);
         gl14.bufferData(gl14.UNIFORM_BUFFER, this.textureMatricesBuffer.store, gl14.STATIC_DRAW);
-        this.lightUBO5 = mUBO;
+        this.textureMatricesUniform = textureMatricesUniform;
       }
     }
     createUniforms(camera, lights) {
@@ -13820,7 +13816,7 @@ var redcube = (() => {
       this.materialUniformBuffer.update(gl14, name, value.elements, true);
     }
     setTexture(gl14, name, type, value) {
-      gl14.bindBufferBase(gl14.UNIFORM_BUFFER, 8, this.lightUBO5);
+      gl14.bindBufferBase(gl14.UNIFORM_BUFFER, 8, this.textureMatricesUniform);
       const i = this.matricesMap.get(name) * 16;
       if (type === "offset") {
         this.textureMatricesBuffer.store[i] = value.elements[0];
@@ -14168,6 +14164,10 @@ var redcube = (() => {
         for (const mesh of v.meshes) {
           mesh.matrix.setTranslate(vector);
         }
+      } else if (v.type === "visible") {
+        for (const mesh of v.meshes) {
+          mesh.visible = vector.elements[0] !== 0;
+        }
       }
     }
     spline(sec, v) {
@@ -14389,10 +14389,10 @@ var redcube = (() => {
       requestAnimationFrame(this.render.bind(this));
     }
     renderScene() {
-      if (this.needUpdateView) {
+      if (this.needUpdateView || this.reflow) {
         const planes = Frustum(this.camera.getViewProjMatrix());
         this.scene.meshes.forEach((mesh) => {
-          mesh.visible = mesh.isVisible(planes);
+          mesh.visible = mesh.parent.visible && mesh.isVisible(planes);
         });
       }
       const s = this.getState();
@@ -14400,7 +14400,7 @@ var redcube = (() => {
         gl3.bindBufferBase(gl3.UNIFORM_BUFFER, 1, s.UBO);
         s.cameraBuffer.update(gl3, "view", s.camera.matrixWorldInvert.elements);
         s.cameraBuffer.update(gl3, "light", s.light.matrixWorldInvert.elements);
-        gl3.bindBufferBase(gl3.UNIFORM_BUFFER, 3, s.lightUBO1);
+        gl3.bindBufferBase(gl3.UNIFORM_BUFFER, 3, s.lightPosUniform);
         const lightPos = new Float32Array(3);
         lightPos.set(s.light.getPosition(), 0);
         s.lightPosBuffer.update(gl3, "lightPos", lightPos);
@@ -14409,6 +14409,15 @@ var redcube = (() => {
         gl3.bindBufferBase(gl3.UNIFORM_BUFFER, 1, s.UBO);
         s.cameraBuffer.update(gl3, "projection", s.camera.projection.elements);
       }
+      gl3.bindBufferBase(gl3.UNIFORM_BUFFER, 4, s.lightColorUniform);
+      s.lights.forEach((light, i) => {
+        const offset = i * 4 * Float32Array.BYTES_PER_ELEMENT;
+        if (light.visible === false) {
+          gl3.bufferSubData(gl3.UNIFORM_BUFFER, offset, new Float32Array([0, 0, 0, 0]));
+        } else {
+          gl3.bufferSubData(gl3.UNIFORM_BUFFER, 0, s.lightColorBuffer.store);
+        }
+      });
       this.scene.meshes.forEach((mesh, i) => {
         if (mesh.reflow) {
           gl3.activeTexture(gl3[`TEXTURE${31}`]);
@@ -17080,6 +17089,7 @@ ${defineStr}`));
       }
       mesh.updateMatrix();
       mesh.calculateBounding();
+      mesh.visible = parent.visible;
       return mesh;
     }
     buildNode(parent, name) {
@@ -17115,6 +17125,10 @@ ${defineStr}`));
         child.setMatrix(el.matrix);
       }
       child.updateMatrix();
+      child.visible = parent.visible;
+      if (el.extensions && el.extensions.KHR_node_visibility) {
+        child.visible = el.extensions.KHR_node_visibility.visible;
+      }
       child.id = el.name;
       parent.children.push(child);
       parent = child;
@@ -17214,12 +17228,18 @@ ${defineStr}`));
           if (sampler) {
             const { target } = channel;
             let name = target.node;
-            let path = target.path;
+            let { path } = target;
             if (name === void 0) {
               const s = target.extensions.KHR_animation_pointer.pointer.split("/");
-              const mat = this.json.materials[s[2]].name;
-              name = this.scene.meshes.find((m) => m.material.name === mat).name;
-              path = s.splice(3).join("/");
+              if (s[1] === "materials") {
+                const mat = this.json.materials[s[2]].name;
+                name = this.scene.meshes.find((m) => m.material.name === mat).name;
+                path = s.splice(3).join("/");
+              }
+              if (s[1] === "nodes") {
+                name = this.json.nodes[s[2]].name;
+                path = s[5];
+              }
             }
             const input = animation.parameters !== void 0 ? animation.parameters[sampler.input] : sampler.input;
             const output = animation.parameters !== void 0 ? animation.parameters[sampler.output] : sampler.output;
@@ -17241,7 +17261,7 @@ ${defineStr}`));
             );
             const meshes = [];
             walk(this.scene, (node) => {
-              if (node.name === name) {
+              if (node.name === name || node.id === name) {
                 if (path === "weights" && node instanceof Object3D) {
                   meshes.push(...node.children);
                 } else {
@@ -19661,12 +19681,13 @@ ${defineStr}`));
     stateBuffer;
     cameraBuffer;
     lightPosBuffer;
+    lightColorBuffer;
     storage2;
     storage;
-    lightUBO1;
-    lightUBO2;
-    lightUBO3;
-    lightUBO4;
+    lightPosUniform;
+    lightColorUniform;
+    spotdirUniform;
+    lightIntensityUniform;
     UBO;
     constructor(url, canvas, processors = [], envUrl = "env", mode = "pbr") {
       if (!url || !canvas) {
@@ -19764,7 +19785,6 @@ ${defineStr}`));
       this.parse.createTexturesWebGL();
       this.parse.cameras.push(this.camera);
       this.parse.calculateFov(this.camera.props.isInitial);
-      const planes = Frustum(this.camera.getViewProjMatrix());
       const envData = await this.parse.getEnv(false);
       await this.env.createEnvironmentBuffer(envData);
       const { renderState, isIBL, isDefaultLight, lights } = this.getState();
@@ -19806,35 +19826,36 @@ ${defineStr}`));
         lightColor.set(light.color.elements, i * 4);
         lightProps.set([light.intensity, light.spot.innerConeAngle ?? 0, light.spot.outerConeAngle ?? 0, lightEnum2[light.type]], i * 4);
       });
-      const materialUniformBuffer = new UniformBuffer();
-      materialUniformBuffer.add("lightPos", lightPos);
-      materialUniformBuffer.done();
-      this.lightPosBuffer = materialUniformBuffer;
-      const materialUniformBuffer2 = new UniformBuffer();
-      materialUniformBuffer2.add("lightColor", lightColor);
-      materialUniformBuffer2.done();
-      const materialUniformBuffer3 = new UniformBuffer();
-      materialUniformBuffer3.add("spotdir", spotDirs);
-      materialUniformBuffer3.done();
-      const materialUniformBuffer4 = new UniformBuffer();
-      materialUniformBuffer4.add("lightIntensity", lightProps);
-      materialUniformBuffer4.done();
-      const UBO2 = gl13.createBuffer();
-      gl13.bindBuffer(gl13.UNIFORM_BUFFER, UBO2);
-      gl13.bufferData(gl13.UNIFORM_BUFFER, materialUniformBuffer.store, gl13.DYNAMIC_DRAW);
-      const UBO3 = gl13.createBuffer();
-      gl13.bindBuffer(gl13.UNIFORM_BUFFER, UBO3);
-      gl13.bufferData(gl13.UNIFORM_BUFFER, materialUniformBuffer2.store, gl13.DYNAMIC_DRAW);
-      const UBO4 = gl13.createBuffer();
-      gl13.bindBuffer(gl13.UNIFORM_BUFFER, UBO4);
-      gl13.bufferData(gl13.UNIFORM_BUFFER, materialUniformBuffer3.store, gl13.DYNAMIC_DRAW);
-      const UBO5 = gl13.createBuffer();
-      gl13.bindBuffer(gl13.UNIFORM_BUFFER, UBO5);
-      gl13.bufferData(gl13.UNIFORM_BUFFER, materialUniformBuffer4.store, gl13.DYNAMIC_DRAW);
-      this.lightUBO1 = UBO2;
-      this.lightUBO2 = UBO3;
-      this.lightUBO3 = UBO4;
-      this.lightUBO4 = UBO5;
+      const lightPosBuffer = new UniformBuffer();
+      lightPosBuffer.add("lightPos", lightPos);
+      lightPosBuffer.done();
+      this.lightPosBuffer = lightPosBuffer;
+      const lightColorBuffer = new UniformBuffer();
+      lightColorBuffer.add("lightColor", lightColor);
+      lightColorBuffer.done();
+      this.lightColorBuffer = lightColorBuffer;
+      const spotdirBuffer = new UniformBuffer();
+      spotdirBuffer.add("spotdir", spotDirs);
+      spotdirBuffer.done();
+      const lightIntensityBuffer = new UniformBuffer();
+      lightIntensityBuffer.add("lightIntensity", lightProps);
+      lightIntensityBuffer.done();
+      const lightPosUniform = gl13.createBuffer();
+      gl13.bindBuffer(gl13.UNIFORM_BUFFER, lightPosUniform);
+      gl13.bufferData(gl13.UNIFORM_BUFFER, lightPosBuffer.store, gl13.DYNAMIC_DRAW);
+      const lightColorUniform = gl13.createBuffer();
+      gl13.bindBuffer(gl13.UNIFORM_BUFFER, lightColorUniform);
+      gl13.bufferData(gl13.UNIFORM_BUFFER, lightColorBuffer.store, gl13.DYNAMIC_DRAW);
+      const spotdirUniform = gl13.createBuffer();
+      gl13.bindBuffer(gl13.UNIFORM_BUFFER, spotdirUniform);
+      gl13.bufferData(gl13.UNIFORM_BUFFER, spotdirBuffer.store, gl13.DYNAMIC_DRAW);
+      const lightIntensityUniform = gl13.createBuffer();
+      gl13.bindBuffer(gl13.UNIFORM_BUFFER, lightIntensityUniform);
+      gl13.bufferData(gl13.UNIFORM_BUFFER, lightIntensityBuffer.store, gl13.DYNAMIC_DRAW);
+      this.lightPosUniform = lightPosUniform;
+      this.lightColorUniform = lightColorUniform;
+      this.spotdirUniform = spotdirUniform;
+      this.lightIntensityUniform = lightIntensityUniform;
       this.scene.meshes.forEach((mesh) => {
         mesh.geometry.createUniforms(mesh.matrixWorld);
       });
@@ -19887,10 +19908,10 @@ ${defineStr}`));
         [mesh.material, ...mesh.variants.map((m) => m.m)].forEach((m) => m.updateUniformsWebgl(gl13, program));
         mesh.material.setHarmonics(this.env.updateUniform(gl13, program));
         mesh.setProgram(program);
-        gl13.bindBufferBase(gl13.UNIFORM_BUFFER, 3, this.lightUBO1);
-        gl13.bindBufferBase(gl13.UNIFORM_BUFFER, 4, this.lightUBO2);
-        gl13.bindBufferBase(gl13.UNIFORM_BUFFER, 5, this.lightUBO3);
-        gl13.bindBufferBase(gl13.UNIFORM_BUFFER, 6, this.lightUBO4);
+        gl13.bindBufferBase(gl13.UNIFORM_BUFFER, 3, this.lightPosUniform);
+        gl13.bindBufferBase(gl13.UNIFORM_BUFFER, 4, this.lightColorUniform);
+        gl13.bindBufferBase(gl13.UNIFORM_BUFFER, 5, this.spotdirUniform);
+        gl13.bindBufferBase(gl13.UNIFORM_BUFFER, 6, this.lightIntensityUniform);
         gl13.activeTexture(gl13[`TEXTURE${31}`]);
         let t = gl13.getUniformLocation(program, "uTransformTex");
         gl13.uniform1i(t, 31);
@@ -19898,7 +19919,6 @@ ${defineStr}`));
         t = gl13.getUniformLocation(program, "uMaterialTex");
         gl13.uniform1i(t, 30);
         mesh.geometry.updateUniformsWebGl(gl13, mesh.program);
-        mesh.visible = mesh.isVisible(planes);
         if (mesh instanceof SkinnedMesh) {
           for (const join of this.parse.skins[mesh.skin].jointNames) {
             walk(this.scene, this.buildBones.bind(this, join, this.parse.skins[mesh.skin]));
@@ -20009,11 +20029,12 @@ ${defineStr}`));
         storage2: this.storage2,
         UBO: this.UBO,
         cameraBuffer: this.cameraBuffer,
-        lightUBO1: this.lightUBO1,
-        lightUBO2: this.lightUBO2,
-        lightUBO3: this.lightUBO3,
-        lightUBO4: this.lightUBO4,
+        lightPosUniform: this.lightPosUniform,
+        lightColorUniform: this.lightColorUniform,
+        spotdirUniform: this.spotdirUniform,
+        lightIntensityUniform: this.lightIntensityUniform,
         lightPosBuffer: this.lightPosBuffer,
+        lightColorBuffer: this.lightColorBuffer,
         isIBL: this.isIBL,
         isDefaultLight: this.isDefaultLight,
         renderState: this.renderState,

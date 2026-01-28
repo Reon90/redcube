@@ -277,6 +277,7 @@ export class Parse {
         }
         mesh.updateMatrix();
         mesh.calculateBounding();
+        mesh.visible = parent.visible;
 
         return mesh;
     }
@@ -319,6 +320,11 @@ export class Parse {
             child.setMatrix(el.matrix);
         }
         child.updateMatrix();
+
+        child.visible = parent.visible;
+        if (el.extensions && el.extensions.KHR_node_visibility) {
+            child.visible = el.extensions.KHR_node_visibility.visible;
+        }
 
         child.id = el.name;
         parent.children.push(child);
@@ -434,13 +440,19 @@ export class Parse {
                 if (sampler) {
                     const { target } = channel;
                     let name = target.node;
-                    let path = target.path;
+                    let { path } = target;
                     if (name === undefined) {
                         const s = target.extensions.KHR_animation_pointer.pointer.split('/');
-                        const mat = this.json.materials[s[2]].name;
-                        // @ts-ignore
-                        name = this.scene.meshes.find(m => m.material.name === mat).name;
-                        path = s.splice(3).join('/');
+                        if (s[1] === 'materials') {
+                            const mat = this.json.materials[s[2]].name;
+                            // @ts-ignore
+                            name = this.scene.meshes.find(m => m.material.name === mat).name;
+                            path = s.splice(3).join('/');
+                        }
+                        if (s[1] === 'nodes') {
+                            name = this.json.nodes[s[2]].name;
+                            path = s[5];
+                        }
                     }
                     const input = animation.parameters !== undefined ? animation.parameters[sampler.input] : sampler.input;
                     const output = animation.parameters !== undefined ? animation.parameters[sampler.output] : sampler.output;
@@ -465,7 +477,7 @@ export class Parse {
 
                     const meshes = [];
                     walk(this.scene, (node) => {
-                        if (node.name === name) {
+                        if (node.name === name || node.id === name) {
                             if (path === 'weights' && node instanceof Object3D) {
                                 meshes.push(...node.children);
                             } else {

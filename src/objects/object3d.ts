@@ -10,6 +10,7 @@ export class Object3D {
     parent: Object3D;
     reflow: boolean;
     repaint: boolean;
+    visible = true;
 
     constructor(name, parent) {
         this.uuid = Math.floor(Date.now() * Math.random());

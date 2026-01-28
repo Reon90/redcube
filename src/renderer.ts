@@ -98,6 +98,10 @@ export class Renderer {
             for (const mesh of v.meshes) {
                 mesh.matrix.setTranslate(vector);
             }
+        } else if (v.type === 'visible') {
+            for (const mesh of v.meshes) {
+                mesh.visible = vector.elements[0] !== 0;
+            }
         }
     }
 
@@ -373,11 +377,11 @@ export class Renderer {
     }
 
     renderScene() {
-        if (this.needUpdateView) {
+        if (this.needUpdateView || this.reflow) {
             const planes = Frustum(this.camera.getViewProjMatrix());
 
             this.scene.meshes.forEach(mesh => {
-                mesh.visible = mesh.isVisible(planes);
+                mesh.visible = mesh.parent.visible && mesh.isVisible(planes);
             });
         }
 
@@ -387,7 +391,7 @@ export class Renderer {
             s.cameraBuffer.update(gl, 'view', s.camera.matrixWorldInvert.elements);
             s.cameraBuffer.update(gl, 'light', s.light.matrixWorldInvert.elements);
 
-            gl.bindBufferBase(gl.UNIFORM_BUFFER, 3, s.lightUBO1);
+            gl.bindBufferBase(gl.UNIFORM_BUFFER, 3, s.lightPosUniform);
             const lightPos = new Float32Array(3);
             lightPos.set(s.light.getPosition(), 0);
             s.lightPosBuffer.update(gl, 'lightPos', lightPos);
@@ -396,6 +400,15 @@ export class Renderer {
             gl.bindBufferBase(gl.UNIFORM_BUFFER, 1, s.UBO);
             s.cameraBuffer.update(gl, 'projection', s.camera.projection.elements);
         }
+        gl.bindBufferBase(gl.UNIFORM_BUFFER, 4, s.lightColorUniform);
+        s.lights.forEach((light, i) => {
+            const offset = i * 4 * Float32Array.BYTES_PER_ELEMENT;
+            if (light.visible === false) {
+                gl.bufferSubData(gl.UNIFORM_BUFFER, offset, new Float32Array([0, 0, 0, 0]));
+            } else {
+                gl.bufferSubData(gl.UNIFORM_BUFFER, 0, s.lightColorBuffer.store);
+            }
+        });
         this.scene.meshes.forEach((mesh, i) => {
             if (mesh.reflow) {
                 gl.activeTexture(gl[`TEXTURE${31}`]);

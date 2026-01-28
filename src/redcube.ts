@@ -2,7 +2,7 @@
 
 import { Container } from './container';
 import { Renderer } from './renderer';
-import { Frustum, Vector3 } from './matrix';
+import { Vector3 } from './matrix';
 import { Scene, Camera, Light, SkinnedMesh, UniformBuffer } from './objects/index';
 import { Events } from './events';
 import { Env } from './env';
@@ -29,13 +29,14 @@ class RedCube {
     stateBuffer: UniformBuffer;
     cameraBuffer: UniformBuffer;
     lightPosBuffer: UniformBuffer;
+    lightColorBuffer: UniformBuffer;
     storage2: Float32Array;
     storage: Float32Array;
 
-    lightUBO1: WebGLBuffer;
-    lightUBO2: WebGLBuffer;
-    lightUBO3: WebGLBuffer;
-    lightUBO4: WebGLBuffer;
+    lightPosUniform: WebGLBuffer;
+    lightColorUniform: WebGLBuffer;
+    spotdirUniform: WebGLBuffer;
+    lightIntensityUniform: WebGLBuffer;
     UBO: WebGLBuffer;
 
     constructor(url, canvas, processors = [], envUrl = 'env', mode = 'pbr') {
@@ -145,7 +146,6 @@ class RedCube {
         this.parse.cameras.push(this.camera);
 
         this.parse.calculateFov(this.camera.props.isInitial);
-        const planes = Frustum(this.camera.getViewProjMatrix());
 
         const envData = await this.parse.getEnv(false);
         await this.env.createEnvironmentBuffer(envData);
@@ -193,39 +193,40 @@ class RedCube {
             lightColor.set(light.color.elements, i * 4);
             lightProps.set([light.intensity, light.spot.innerConeAngle ?? 0, light.spot.outerConeAngle ?? 0, lightEnum[light.type]], i * 4);
         });
-        const materialUniformBuffer = new UniformBuffer();
-        materialUniformBuffer.add('lightPos', lightPos);
-        materialUniformBuffer.done();
-        this.lightPosBuffer = materialUniformBuffer;
+        const lightPosBuffer = new UniformBuffer();
+        lightPosBuffer.add('lightPos', lightPos);
+        lightPosBuffer.done();
+        this.lightPosBuffer = lightPosBuffer;
         
-        const materialUniformBuffer2 = new UniformBuffer();
-        materialUniformBuffer2.add('lightColor', lightColor);
-        materialUniformBuffer2.done();
+        const lightColorBuffer = new UniformBuffer();
+        lightColorBuffer.add('lightColor', lightColor);
+        lightColorBuffer.done();
+        this.lightColorBuffer = lightColorBuffer;
     
-        const materialUniformBuffer3 = new UniformBuffer();
-        materialUniformBuffer3.add('spotdir', spotDirs);
-        materialUniformBuffer3.done();
+        const spotdirBuffer = new UniformBuffer();
+        spotdirBuffer.add('spotdir', spotDirs);
+        spotdirBuffer.done();
     
-        const materialUniformBuffer4 = new UniformBuffer();
-        materialUniformBuffer4.add('lightIntensity', lightProps);
-        materialUniformBuffer4.done();
+        const lightIntensityBuffer = new UniformBuffer();
+        lightIntensityBuffer.add('lightIntensity', lightProps);
+        lightIntensityBuffer.done();
 
-        const UBO2 = gl.createBuffer();
-        gl.bindBuffer(gl.UNIFORM_BUFFER, UBO2);
-        gl.bufferData(gl.UNIFORM_BUFFER, materialUniformBuffer.store, gl.DYNAMIC_DRAW);
-        const UBO3 = gl.createBuffer();
-        gl.bindBuffer(gl.UNIFORM_BUFFER, UBO3);
-        gl.bufferData(gl.UNIFORM_BUFFER, materialUniformBuffer2.store, gl.DYNAMIC_DRAW);
-        const UBO4 = gl.createBuffer();
-        gl.bindBuffer(gl.UNIFORM_BUFFER, UBO4);
-        gl.bufferData(gl.UNIFORM_BUFFER, materialUniformBuffer3.store, gl.DYNAMIC_DRAW);
-        const UBO5 = gl.createBuffer();
-        gl.bindBuffer(gl.UNIFORM_BUFFER, UBO5);
-        gl.bufferData(gl.UNIFORM_BUFFER, materialUniformBuffer4.store, gl.DYNAMIC_DRAW);
-        this.lightUBO1 = UBO2;
-        this.lightUBO2 = UBO3;
-        this.lightUBO3 = UBO4;
-        this.lightUBO4 = UBO5;
+        const lightPosUniform = gl.createBuffer();
+        gl.bindBuffer(gl.UNIFORM_BUFFER, lightPosUniform);
+        gl.bufferData(gl.UNIFORM_BUFFER, lightPosBuffer.store, gl.DYNAMIC_DRAW);
+        const lightColorUniform = gl.createBuffer();
+        gl.bindBuffer(gl.UNIFORM_BUFFER, lightColorUniform);
+        gl.bufferData(gl.UNIFORM_BUFFER, lightColorBuffer.store, gl.DYNAMIC_DRAW);
+        const spotdirUniform = gl.createBuffer();
+        gl.bindBuffer(gl.UNIFORM_BUFFER, spotdirUniform);
+        gl.bufferData(gl.UNIFORM_BUFFER, spotdirBuffer.store, gl.DYNAMIC_DRAW);
+        const lightIntensityUniform = gl.createBuffer();
+        gl.bindBuffer(gl.UNIFORM_BUFFER, lightIntensityUniform);
+        gl.bufferData(gl.UNIFORM_BUFFER, lightIntensityBuffer.store, gl.DYNAMIC_DRAW);
+        this.lightPosUniform = lightPosUniform;
+        this.lightColorUniform = lightColorUniform;
+        this.spotdirUniform = spotdirUniform;
+        this.lightIntensityUniform = lightIntensityUniform;
 
         this.scene.meshes.forEach((mesh) => {
             mesh.geometry.createUniforms(mesh.matrixWorld);
@@ -278,21 +279,20 @@ class RedCube {
 
             mesh.setProgram(program);
 
-            gl.bindBufferBase(gl.UNIFORM_BUFFER, 3, this.lightUBO1);
-            gl.bindBufferBase(gl.UNIFORM_BUFFER, 4, this.lightUBO2);
-            gl.bindBufferBase(gl.UNIFORM_BUFFER, 5, this.lightUBO3);
-            gl.bindBufferBase(gl.UNIFORM_BUFFER, 6, this.lightUBO4);
+            gl.bindBufferBase(gl.UNIFORM_BUFFER, 3, this.lightPosUniform);
+            gl.bindBufferBase(gl.UNIFORM_BUFFER, 4, this.lightColorUniform);
+            gl.bindBufferBase(gl.UNIFORM_BUFFER, 5, this.spotdirUniform);
+            gl.bindBufferBase(gl.UNIFORM_BUFFER, 6, this.lightIntensityUniform);
 
             gl.activeTexture(gl[`TEXTURE${31}`]);
-            let t = gl.getUniformLocation(program, "uTransformTex");
+            let t = gl.getUniformLocation(program, 'uTransformTex');
             gl.uniform1i(t, 31);
 
             gl.activeTexture(gl[`TEXTURE${30}`]);
-            t = gl.getUniformLocation(program, "uMaterialTex");
+            t = gl.getUniformLocation(program, 'uMaterialTex');
             gl.uniform1i(t, 30);
 
             mesh.geometry.updateUniformsWebGl(gl, mesh.program);
-            mesh.visible = mesh.isVisible(planes);
 
             if (mesh instanceof SkinnedMesh) {
                 for (const join of this.parse.skins[mesh.skin].jointNames) {
@@ -304,7 +304,7 @@ class RedCube {
         if (hasTransmission) {
             this.PP.addPrepass('refraction');
         }
-       //this.PP.add('scattering');
+        // this.PP.add('scattering');
 
         if (this.PP.postprocessors.some(p => p instanceof PPLight)) {
             this.Particles.build();
@@ -428,11 +428,12 @@ class RedCube {
             storage2: this.storage2,
             UBO: this.UBO,
             cameraBuffer: this.cameraBuffer,
-            lightUBO1: this.lightUBO1,
-            lightUBO2: this.lightUBO2,
-            lightUBO3: this.lightUBO3,
-            lightUBO4: this.lightUBO4,
+            lightPosUniform: this.lightPosUniform,
+            lightColorUniform: this.lightColorUniform,
+            spotdirUniform: this.spotdirUniform,
+            lightIntensityUniform: this.lightIntensityUniform,
             lightPosBuffer: this.lightPosBuffer,
+            lightColorBuffer: this.lightColorBuffer,
             isIBL: this.isIBL,
             isDefaultLight: this.isDefaultLight,
             renderState: this.renderState,
