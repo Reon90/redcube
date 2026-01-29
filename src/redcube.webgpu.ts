@@ -487,12 +487,20 @@ class RedCube {
         this.renderer.reflow = true;
     }
 
-    setVariant() {
-        console.warn('Not implemented');
+    setVariant(variant) {
+        this.scene.meshes.forEach(mesh => {
+            if (variant && mesh.variants.length) {
+                mesh.material = mesh.variants.find(v => v.variants.includes(Number(variant))).m;
+                mesh.repaint = true;
+            }
+        });
+        this.renderer.reflow = true;
+        this.renderer.needUpdateView = true;
+        this.renderer.needUpdateProjection = true;
     }
 
     draw() {
-        console.warn('Not implemented');
+        this.renderer.reflow = true;
     }
 
     getState() {

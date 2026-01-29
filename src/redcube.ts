@@ -125,6 +125,7 @@ class RedCube {
         this.scene.meshes.forEach(mesh => {
             if (variant && mesh.variants.length) {
                 mesh.material = mesh.variants.find(v => v.variants.includes(Number(variant))).m;
+                mesh.repaint = true;
             }
         });
         this.renderer.reflow = true;
@@ -238,7 +239,7 @@ class RedCube {
         });
 
         this.scene.meshes.forEach((mesh) => {
-            mesh.material.createUniforms(this.camera, this.parse.lights);
+            [mesh.material, ...mesh.variants.map(m => m.m)].forEach(m => m.createUniforms(this.camera, this.parse.lights));
         });
 
         gl.activeTexture(gl[`TEXTURE${31}`]);

@@ -9,6 +9,11 @@ const float specularPower = 32.0;
 const float gamma = 2.2;
 
 
+float saturate(float a) {
+	if (a > 1.0) return 1.0;
+	if (a < 0.0) return 0.0;
+	return a;
+}
 vec2 getUV(int index) {
     #ifdef MULTIUV
     if (index == 2) {
@@ -209,8 +214,8 @@ float GeometrySmith(vec3 N, vec3 V, vec3 L, vec3 anisotropicT, vec3 anisotropicB
 }
 #else
 float DistributionGGX(vec3 N, vec3 H, float roughness) {
-    float NdotH = max(dot(N, H), 0.01);
-    float a = max(roughness*roughness, 0.01);
+    float NdotH = saturate(dot(N, H));
+    float a = max(roughness*roughness, 0.04);
     float alphaRoughnessSq = a * a;
     float f = (NdotH * NdotH) * (alphaRoughnessSq - 1.0) + 1.0;
     return alphaRoughnessSq / (PI * f * f);
@@ -227,8 +232,8 @@ float GeometrySchlickGGX(float cosTheta, float roughness) {
 }
 
 float GeometrySmith(vec3 N, vec3 V, vec3 L, float roughness) {
-    float NdotV = max(dot(N, V), 0.0);
-    float NdotL = max(dot(N, L), 0.0);
+    float NdotV = saturate(dot(N, V));
+    float NdotL = saturate(dot(N, L));
     float ggx2 = GeometrySchlickGGX(NdotV, roughness);
     float ggx1 = GeometrySchlickGGX(NdotL, roughness);
 
@@ -286,7 +291,7 @@ vec3 computeEnvironmentIrradiance(vec3 normal) {
 }
 #endif
 float sheenDistribution(float sheenRoughness, vec3 N, vec3 H) {
-    float NdotH = max(dot(N, H), 0.0);
+    float NdotH = saturate(dot(N, H));
     float alphaG = max(sheenRoughness * sheenRoughness, 0.01);
     float invR = 1.0 / alphaG;
     float cos2h = NdotH * NdotH;
@@ -310,8 +315,8 @@ float lambdaSheen(float cosTheta, float alphaG) {
     }
 }
 float sheenVisibility(vec3 N, vec3 V, vec3 L, float sheenRoughness) {
-    float NdotL = max(dot(N, L), 0.0);
-    float NdotV = max(dot(N, V), 0.0);
+    float NdotL = saturate(dot(N, L));
+    float NdotV = saturate(dot(N, V));
 
     sheenRoughness = max(sheenRoughness, 0.000001); //clamp (0,1]
     float alphaG = sheenRoughness * sheenRoughness;
@@ -332,7 +337,7 @@ vec3 IBLAmbient(vec3 baseColor, float metallic, vec3 n, float roughness, vec3 vi
     n = normalize(mix(Normal, n, a));
     #endif
     
-    vec3 F = fresnelSchlickRoughness(max(dot(n, viewDir), 0.0), F0, roughness);
+    vec3 F = fresnelSchlickRoughness(saturate(dot(n, viewDir)), F0, roughness);
 
     vec3 kD = vec3(1.0) - F * specularWeight;
     #if defined SPECULARGLOSSINESSMAP
@@ -359,7 +364,7 @@ vec3 IBLAmbient(vec3 baseColor, float metallic, vec3 n, float roughness, vec3 vi
     vec3 prefilteredColor = textureLodCube(prefilterMap, R, roughness * MAX_REFLECTION_LOD).rgb;
     vec3 irradiance = textureCube(irradianceMap, n).rgb;
     #endif
-    vec2 envBRDF  = textureLod2D(brdfLUT, vec2(max(dot(n, viewDir), 0.0), roughness), 0.0).rg;
+    vec2 envBRDF  = textureLod2D(brdfLUT, vec2(saturate(dot(n, viewDir)), roughness), 0.0).rg;
     vec3 kS = F;
     #if defined IRIDESCENCE
     kS = mix(F, iridescenceFresnel, iridescenceFactor);
@@ -367,7 +372,7 @@ vec3 IBLAmbient(vec3 baseColor, float metallic, vec3 n, float roughness, vec3 vi
     specular = prefilteredColor * (kS * specularWeight * envBRDF.x + envBRDF.y);
 
     #if defined SHEEN
-    float charliebrdf = textureLod2D(brdfLUT, vec2(max(dot(n, viewDir), 0.0), sheenRoughness), 0.0).b;
+    float charliebrdf = textureLod2D(brdfLUT, vec2(saturate(dot(n, viewDir)), sheenRoughness), 0.0).b;
     vec3 sheenSample = textureLodCube(charlieMap, R, sheenRoughness * MAX_REFLECTION_LOD).rgb;
     f_sheen += sheenSample * sheenColor * charliebrdf;
     #endif
@@ -376,8 +381,8 @@ vec3 IBLAmbient(vec3 baseColor, float metallic, vec3 n, float roughness, vec3 vi
 }
 
 float specEnv(vec3 N, vec3 V, float metallic, float roughness, vec3 F0, float specularWeight) {
-    float F = fresnelSchlickRoughness(max(dot(N, V), 0.0), (F0.x+F0.y+F0.z)/3.0, roughness);
-    vec2 envBRDF  = textureLod2D(brdfLUT, vec2(max(dot(N, V), 0.0), roughness), 0.0).rg;
+    float F = fresnelSchlickRoughness(saturate(dot(N, V)), (F0.x+F0.y+F0.z)/3.0, roughness);
+    vec2 envBRDF  = textureLod2D(brdfLUT, vec2(saturate(dot(N, V)), roughness), 0.0).rg;
     return (F * specularWeight * envBRDF.x + envBRDF.y);
 }
 
@@ -388,10 +393,10 @@ vec3 CookTorranceSpecular2(vec3 baseColor, float metallic, vec3 n, vec3 H, vec3 
     float ab = max(roughness, 0.001);
     float D = DistributionGGX(n, H, anisotropicT, anisotropicB, at, ab);
     float G = GeometrySmith(n, viewDir, lightDir, anisotropicT, anisotropicB, at, ab);
-    vec3 F = mix(fresnelSchlick(max(dot(viewDir, H), 0.0), F0), iridescenceFresnel, iridescenceFactor);
+    vec3 F = mix(fresnelSchlick(saturate(dot(viewDir, H)), F0), iridescenceFresnel, iridescenceFactor);
 
     vec3 nominator = D * G * F * specularWeight;
-    float denominator = 4.0 * max(dot(n, viewDir), 0.0) * max(dot(n, lightDir), 0.0);
+    float denominator = 4.0 * saturate(dot(n, viewDir)) * max(dot(n, lightDir), 0.0);
     return D * G * F;
 }
 vec3 CookTorranceSpecular(vec3 baseColor, float metallic, vec3 n, vec3 H, vec3 anisotropicT, vec3 anisotropicB, float roughness, vec3 viewDir, vec3 lightDir, float anisotropy, vec3 F0, float specularWeight) {
@@ -400,37 +405,37 @@ vec3 CookTorranceSpecular(vec3 baseColor, float metallic, vec3 n, vec3 H, vec3 a
     float ab = max(roughness, 0.001);
     float D = DistributionGGX(n, H, anisotropicT, anisotropicB, at, ab);
     float G = GeometrySmith(n, viewDir, lightDir, anisotropicT, anisotropicB, at, ab);
-    vec3 F = fresnelSchlick(max(dot(viewDir, H), 0.0), F0); 
+    vec3 F = fresnelSchlick(saturate(dot(viewDir, H)), F0); 
 
     vec3 nominator = D * G * F * specularWeight;
-    float denominator = 4.0 * max(dot(n, viewDir), 0.0) * max(dot(n, lightDir), 0.0);
+    float denominator = 4.0 * saturate(dot(n, viewDir)) * saturate(dot(n, lightDir));
     return D * G * F;
 }
 #else
 vec3 CookTorranceSpecular2(vec3 baseColor, float metallic, vec3 n, vec3 H, vec3 anisotropicT, vec3 anisotropicB, float roughness, vec3 viewDir, vec3 lightDir, float anisotropy, vec3 iridescenceFresnel, float iridescenceFactor, vec3 F0, float specularWeight) {
     float D = DistributionGGX(n, H, roughness);
     float G = GeometrySmith(n, viewDir, lightDir, roughness);
-    vec3 F = mix(fresnelSchlick(max(dot(viewDir, H), 0.0), F0), iridescenceFresnel, iridescenceFactor);
+    vec3 F = mix(fresnelSchlick(saturate(dot(viewDir, H)), F0), iridescenceFresnel, iridescenceFactor);
 
     vec3 nominator = D * G * F * specularWeight;
-    float denominator = 4.0 * max(dot(n, viewDir), 0.0) * max(dot(n, lightDir), 0.0);
+    float denominator = 4.0 * saturate(dot(n, viewDir)) * saturate(dot(n, lightDir));
     return nominator / max(denominator, 0.001);
 }
 vec3 CookTorranceSpecular(vec3 baseColor, float metallic, vec3 n, vec3 H, vec3 anisotropicT, vec3 anisotropicB, float roughness, vec3 viewDir, vec3 lightDir, float anisotropy, vec3 F0, float specularWeight) {
     float D = DistributionGGX(n, H, roughness);
     float G = GeometrySmith(n, viewDir, lightDir, roughness);
-    vec3 F = fresnelSchlick(max(dot(viewDir, H), 0.0), F0); 
+    vec3 F = fresnelSchlick(saturate(dot(viewDir, H)), F0); 
 
     vec3 nominator = D * G * F * specularWeight;
-    float denominator = 4.0 * max(dot(n, viewDir), 0.0) * max(dot(n, lightDir), 0.0);
+    float denominator = 4.0 * saturate(dot(n, viewDir)) * saturate(dot(n, lightDir));
     return nominator / max(denominator, 0.001);
 }
 #endif
 
 vec3 LambertDiffuse(vec3 baseColor, float metallic, vec3 n, vec3 H, float roughness, vec3 viewDir, vec3 lightDir, vec3 F0, float specularWeight) {
-    float NdotL = max(dot(n, lightDir), 0.0);
+    float NdotL = saturate(dot(n, lightDir));
 
-    vec3 F = fresnelSchlick(max(dot(H, viewDir), 0.0), F0);    
+    vec3 F = fresnelSchlick(saturate(dot(H, viewDir)), F0);    
 
     vec3 kD = vec3(1.0) - F * specularWeight;
     #if defined SPECULARGLOSSINESSMAP
@@ -440,13 +445,8 @@ vec3 LambertDiffuse(vec3 baseColor, float metallic, vec3 n, vec3 H, float roughn
     return baseColor * kD / PI;
 }
 
-float saturate(float a) {
-	if (a > 1.0) return 1.0;
-	if (a < 0.0) return 0.0;
-	return a;
-}
 vec3 ImprovedOrenNayarDiffuse(vec3 baseColor, float metallic, vec3 N, vec3 H, float a, vec3 V, vec3 L, vec3 F0, vec3 iridescenceFresnel, float iridescenceFactor, float specularWeight) {
-    vec3 F = fresnelSchlick(max(dot(H, V), 0.0), F0);
+    vec3 F = fresnelSchlick(saturate(dot(H, V)), F0);
     vec3 kD = vec3(1.0) - F * specularWeight;
     #if defined SPECULARGLOSSINESSMAP
     #else
@@ -821,7 +821,7 @@ void main() {
             if (lights[j] < 0) continue;
             int i = lights[j];
             vec3 lightDir = normalize(lightPos[i].xyz - outPosition);
-            float NdotL = max(dot(n, lightDir), 0.0);
+            float NdotL = saturate(dot(n, lightDir));
             vec3 H = normalize(viewDir + lightDir);
 
             vec3 radiance = lightColor[i].xyz * lightIntensity[i].x;
@@ -869,7 +869,7 @@ void main() {
             #endif
             #if defined SHEEN
             f_sheen = NdotL * (sheenColor * sheenDistribution(sheenRoughness, n, H) * sheenVisibility(n, viewDir, lightDir, sheenRoughness));
-            albedoSheenScaling = min(1.0 - max3(sheenColor) * E(max(dot(viewDir, n), 0.0), sheenRoughness), 1.0 - max3(sheenColor) * E(max(dot(lightDir, n), 0.0), sheenRoughness));
+            albedoSheenScaling = min(1.0 - max3(sheenColor) * E(saturate(dot(viewDir, n)), sheenRoughness), 1.0 - max3(sheenColor) * E(saturate(dot(lightDir, n)), sheenRoughness));
             #endif
 
             Lo += (specular * NdotL * radiance);
@@ -953,11 +953,11 @@ void main() {
         vec3 lightDir = normalize(lightPos[0].xyz - outPosition);
         vec3 ambient = ambientStrength * lightColor[0].xyz;
 
-        float diff = max(dot(n, lightDir), 0.0);
+        float diff = saturate(dot(n, lightDir));
         vec3 diffuse = diff * lightColor[0].XYZ;
 
         vec3 reflectDir = reflect(-lightDir, n);
-        float spec = pow(max(dot(viewDir, reflectDir), 0.0), specularPower);
+        float spec = pow(saturate(dot(viewDir, reflectDir)), specularPower);
         vec3 specular = specularStrength * spec * lightColor[0].xyz;
 
         color = vec4(baseColor.rgb * (ambient + diffuse + specular) * shadow, alpha);
