@@ -1,4 +1,4 @@
-import { Scene, Mesh, Camera, Bone } from './objects/index';
+import { Scene, Mesh, Camera, Bone, Light } from './objects/index';
 import { Vector, Vector2, Vector3, Vector4, Frustum } from './matrix';
 import { interpolation, walk } from './utils';
 import { Parse } from './parse';
@@ -323,6 +323,10 @@ export class Renderer {
                             node.reflow = true;
                         }
 
+                        if (node instanceof Light) {
+                            this.needUpdateView = true;
+                        }
+
                         if (node instanceof Camera && node === this.camera) {
                             this.needUpdateView = true;
                         }
@@ -392,9 +396,10 @@ export class Renderer {
             s.cameraBuffer.update(gl, 'light', s.light.matrixWorldInvert.elements);
 
             gl.bindBufferBase(gl.UNIFORM_BUFFER, 3, s.lightPosUniform);
-            const lightPos = new Float32Array(3);
-            lightPos.set(s.light.getPosition(), 0);
-            s.lightPosBuffer.update(gl, 'lightPos', lightPos);
+            this.parse.lights.forEach((light, i) => {
+                s.lightPosBuffer.store.set(light.getPosition(), i * 4);
+            });
+            gl.bufferSubData(gl.UNIFORM_BUFFER, 0, s.lightPosBuffer.store);
         }
         if (s.needUpdateProjection) {
             gl.bindBufferBase(gl.UNIFORM_BUFFER, 1, s.UBO);

@@ -14350,6 +14350,9 @@ var redcube = (() => {
               if (node instanceof Mesh) {
                 node.reflow = true;
               }
+              if (node instanceof Light) {
+                this.needUpdateView = true;
+              }
               if (node instanceof Camera && node === this.camera) {
                 this.needUpdateView = true;
               }
@@ -14403,9 +14406,10 @@ var redcube = (() => {
         s.cameraBuffer.update(gl3, "view", s.camera.matrixWorldInvert.elements);
         s.cameraBuffer.update(gl3, "light", s.light.matrixWorldInvert.elements);
         gl3.bindBufferBase(gl3.UNIFORM_BUFFER, 3, s.lightPosUniform);
-        const lightPos = new Float32Array(3);
-        lightPos.set(s.light.getPosition(), 0);
-        s.lightPosBuffer.update(gl3, "lightPos", lightPos);
+        this.parse.lights.forEach((light, i) => {
+          s.lightPosBuffer.store.set(light.getPosition(), i * 4);
+        });
+        gl3.bufferSubData(gl3.UNIFORM_BUFFER, 0, s.lightPosBuffer.store);
       }
       if (s.needUpdateProjection) {
         gl3.bindBufferBase(gl3.UNIFORM_BUFFER, 1, s.UBO);
@@ -17216,6 +17220,11 @@ ${defineStr}`));
               m.material.lights[m.material.lights.findIndex((l) => l === -1)] = i;
             }
           });
+        }
+      });
+      this.scene.meshes.forEach((m) => {
+        if (m.material.lights[0] === -1) {
+          m.material.lights[0] = 0;
         }
       });
       this.scene.opaqueChildren.sort((a, b) => a.distance - b.distance);

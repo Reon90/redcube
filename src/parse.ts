@@ -424,6 +424,11 @@ export class Parse {
                 });
             }
         });
+        this.scene.meshes.forEach(m => {
+            if (m.material.lights[0] === -1) {
+                m.material.lights[0] = 0;
+            }
+        });
 
         this.scene.opaqueChildren.sort((a, b) => a.distance - b.distance);
         this.scene.transparentChildren.sort((a, b) => a.distance - b.distance);
