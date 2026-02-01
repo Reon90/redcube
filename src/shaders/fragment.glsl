@@ -7,6 +7,7 @@ const float ambientStrength = 0.1;
 const float specularStrength = 2.5;
 const float specularPower = 32.0;
 const float gamma = 2.2;
+const float exposure = 0.5;
 
 vec3 toneMapACES(vec3 x) {
     const float a = 2.51;
@@ -812,7 +813,6 @@ void main() {
         vec3 f_sheen = vec3(0.0);
         float albedoSheenScaling = 1.0;
         vec3 Lo = vec3(0.0);
-        float exposure = 0.01;
 
         #ifdef DIFFUSE_TRANSMISSION
         float translucencyIntensity = transmissionDiffuse;
@@ -832,12 +832,11 @@ void main() {
             float NdotL = saturate(dot(n, lightDir));
             vec3 H = normalize(viewDir + lightDir);
 
-            exposure = max(exposure, 1.0 / lightIntensity[i].x);
             vec3 radiance = lightColor[i].xyz * lightIntensity[i].x * (1.0 / PI);
-            float distance = dot(lightPos[i].xyz - outPosition, lightPos[i].xyz - outPosition);
+            float distance = length(lightPos[i].xyz - outPosition);
             float attenuation = 1.0 / (distance * distance);
             if (lightIntensity[i].w == 1.0) { // point
-                vec3 irradiance = lightColor[i].xyz * attenuation;
+                vec3 irradiance = lightColor[i].xyz * lightIntensity[i].x * attenuation;
                 radiance = irradiance * (1.0 / PI);
             }
             if (lightIntensity[i].w == 2.0) { // spot
