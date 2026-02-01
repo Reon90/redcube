@@ -382,18 +382,12 @@ export class Parse {
         if (this.json.extensions && this.json.extensions.KHR_materials_variants) {
             this.scene.variants = this.json.extensions.KHR_materials_variants.variants;
         }
+
         this.json.scenes[this.json.scene !== undefined ? this.json.scene : 0].nodes.forEach((n) => {
-            if (this.json.nodes[n].extensions) {
+            if (this.json.nodes[n].extensions !== undefined) {
                 this.buildNode(this.scene, n);
             }
-        });
-
-        if (this.lights.length === 0 && this.light) {
-            this.lights.push(this.light);
-        }
-
-        this.json.scenes[this.json.scene !== undefined ? this.json.scene : 0].nodes.forEach((n) => {
-            if (this.json.nodes[n].children && this.json.nodes[n].children.length && !this.json.nodes[n].extensions) {
+            if (this.json.nodes[n].children && this.json.nodes[n].children.length) {
                 this.buildNode(this.scene, n);
             }
             if (this.json.nodes[n].mesh !== undefined) {
@@ -403,6 +397,9 @@ export class Parse {
                 this.buildNode(this.scene, n);
             }
         });
+        if (this.lights.length === 0 && this.light) {
+            this.lights.push(this.light);
+        }
 
         walk(this.scene, (mesh) => {
             if (mesh instanceof Mesh) {
@@ -414,12 +411,19 @@ export class Parse {
                 this.scene.meshes.push(mesh);
                 // @ts-ignore
                 mesh.material.defines.push({ name: 'LIGHTNUMBER', value: this.lights.length });
-            }
-            if (mesh instanceof Light) {
-                const i = this.lights.findIndex(l => l === mesh);
-                walk(mesh.parent, m => {
-                    if (m instanceof Mesh) {
-                        m.material.lights[m.material.lights.findIndex(l => l === -1)] = i;
+
+                this.lights.forEach((light, i) => {
+                    if (light.visible) {
+                        if (light.type === 'directional') {
+                            mesh.material.lights[mesh.material.lights.findIndex(l => l === -1)] = i;
+                        } else {
+                            const p = mesh.getPosition();
+                            const distance = new Vector3(light.getPosition()).distanceToSquared(p[0], p[1], p[2]);
+                            const attenuation = Math.max(Math.min(1.0 - Math.pow(distance / light.range, 4.0), 1.0), 0.0) / Math.pow(distance, 2.0);
+                            if (attenuation > 0) {
+                                mesh.material.lights[mesh.material.lights.findIndex(l => l === -1)] = i;
+                            }
+                        }
                     }
                 });
             }

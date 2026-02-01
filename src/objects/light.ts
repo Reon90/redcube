@@ -13,16 +13,18 @@ export class Light extends Object3D {
     intensity: number;
     isInitial: boolean;
     spot: Spot;
+    range: number;
 
     constructor(props, name?, parent?) {
         super(name, parent);
 
-        const { type, color = [1, 1, 1], intensity, isInitial, spot = {} } = props;
+        const { type, color = [1, 1, 1], intensity, isInitial, spot = {}, range = -1 } = props;
         this.type = type;
         this.color = new Vector3(color);
         this.intensity = intensity;
         this.isInitial = isInitial;
         this.spot = spot;
+        this.range = range;
 
         this.matrixWorldInvert = new Matrix4();
     }

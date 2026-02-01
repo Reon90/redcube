@@ -12980,14 +12980,16 @@ var redcube = (() => {
     intensity;
     isInitial;
     spot;
+    range;
     constructor(props, name, parent) {
       super(name, parent);
-      const { type, color = [1, 1, 1], intensity, isInitial, spot = {} } = props;
+      const { type, color = [1, 1, 1], intensity, isInitial, spot = {}, range: range2 = -1 } = props;
       this.type = type;
       this.color = new Vector3(color);
       this.intensity = intensity;
       this.isInitial = isInitial;
       this.spot = spot;
+      this.range = range2;
       this.matrixWorldInvert = new Matrix4();
     }
     setMatrixWorld(matrix) {
@@ -15420,7 +15422,14 @@ const float specularStrength = 2.5;\r
 const float specularPower = 32.0;\r
 const float gamma = 2.2;\r
 \r
-\r
+vec3 toneMapACES(vec3 x) {\r
+    const float a = 2.51;\r
+    const float b = 0.03;\r
+    const float c = 2.43;\r
+    const float d = 0.59;\r
+    const float e = 0.14;\r
+    return clamp((x*(a*x+b))/(x*(c*x+d)+e), 0.0, 1.0);\r
+}\r
 float saturate(float a) {\r
 	if (a > 1.0) return 1.0;\r
 	if (a < 0.0) return 0.0;\r
@@ -16217,6 +16226,7 @@ void main() {\r
         vec3 f_sheen = vec3(0.0);\r
         float albedoSheenScaling = 1.0;\r
         vec3 Lo = vec3(0.0);\r
+        float exposure = 0.01;\r
 \r
         #ifdef DIFFUSE_TRANSMISSION\r
         float translucencyIntensity = transmissionDiffuse;\r
@@ -16236,12 +16246,13 @@ void main() {\r
             float NdotL = saturate(dot(n, lightDir));\r
             vec3 H = normalize(viewDir + lightDir);\r
 \r
-            vec3 radiance = lightColor[i].xyz * lightIntensity[i].x;\r
+            exposure = max(exposure, 1.0 / lightIntensity[i].x);\r
+            vec3 radiance = lightColor[i].xyz * lightIntensity[i].x * (1.0 / PI);\r
             float distance = dot(lightPos[i].xyz - outPosition, lightPos[i].xyz - outPosition);\r
             float attenuation = 1.0 / (distance * distance);\r
-            // radiance = radiance * attenuation;\r
             if (lightIntensity[i].w == 1.0) { // point\r
-                radiance = radiance * attenuation;\r
+                vec3 irradiance = lightColor[i].xyz * attenuation;\r
+                radiance = irradiance * (1.0 / PI);\r
             }\r
             if (lightIntensity[i].w == 2.0) { // spot\r
                 float lightAngleScale = 1.0 / max(0.001, cos(lightIntensity[i].y) - cos(lightIntensity[i].z));\r
@@ -16383,7 +16394,8 @@ void main() {\r
         vec3 retColor = (X * (6.2 * X + 0.5)) / (X * (6.2 * X + 1.7) + 0.06);\r
         color.rgb = retColor * retColor;\r
         #else\r
-        // color.rgb = color.rgb / (color.rgb + vec3(1.0));\r
+        color.rgb = vec3(1.0) - exp(-color.rgb * exposure);\r
+        color.rgb = toneMapACES(color.rgb);\r
         color.rgb = pow(color.rgb, vec3(1.0 / gamma));\r
         #endif\r
     }\r
@@ -17185,15 +17197,10 @@ ${defineStr}`));
         this.scene.variants = this.json.extensions.KHR_materials_variants.variants;
       }
       this.json.scenes[this.json.scene !== void 0 ? this.json.scene : 0].nodes.forEach((n) => {
-        if (this.json.nodes[n].extensions) {
+        if (this.json.nodes[n].extensions !== void 0) {
           this.buildNode(this.scene, n);
         }
-      });
-      if (this.lights.length === 0 && this.light) {
-        this.lights.push(this.light);
-      }
-      this.json.scenes[this.json.scene !== void 0 ? this.json.scene : 0].nodes.forEach((n) => {
-        if (this.json.nodes[n].children && this.json.nodes[n].children.length && !this.json.nodes[n].extensions) {
+        if (this.json.nodes[n].children && this.json.nodes[n].children.length) {
           this.buildNode(this.scene, n);
         }
         if (this.json.nodes[n].mesh !== void 0) {
@@ -17203,6 +17210,9 @@ ${defineStr}`));
           this.buildNode(this.scene, n);
         }
       });
+      if (this.lights.length === 0 && this.light) {
+        this.lights.push(this.light);
+      }
       walk(this.scene, (mesh) => {
         if (mesh instanceof Mesh) {
           if (mesh.material.alpha) {
@@ -17212,12 +17222,18 @@ ${defineStr}`));
           }
           this.scene.meshes.push(mesh);
           mesh.material.defines.push({ name: "LIGHTNUMBER", value: this.lights.length });
-        }
-        if (mesh instanceof Light) {
-          const i = this.lights.findIndex((l) => l === mesh);
-          walk(mesh.parent, (m) => {
-            if (m instanceof Mesh) {
-              m.material.lights[m.material.lights.findIndex((l) => l === -1)] = i;
+          this.lights.forEach((light, i) => {
+            if (light.visible) {
+              if (light.type === "directional") {
+                mesh.material.lights[mesh.material.lights.findIndex((l) => l === -1)] = i;
+              } else {
+                const p2 = mesh.getPosition();
+                const distance = new Vector3(light.getPosition()).distanceToSquared(p2[0], p2[1], p2[2]);
+                const attenuation = Math.max(Math.min(1 - Math.pow(distance / light.range, 4), 1), 0) / Math.pow(distance, 2);
+                if (attenuation > 0) {
+                  mesh.material.lights[mesh.material.lights.findIndex((l) => l === -1)] = i;
+                }
+              }
             }
           });
         }
