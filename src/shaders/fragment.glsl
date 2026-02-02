@@ -7,8 +7,26 @@ const float ambientStrength = 0.1;
 const float specularStrength = 2.5;
 const float specularPower = 32.0;
 const float gamma = 2.2;
-const float exposure = 0.5;
+const float exposure = 0.7;
 
+vec3 PBRNeutralToneMapping( vec3 color ) {
+  const float startCompression = 0.8 - 0.04;
+  const float desaturation = 0.15;
+
+  float x = min(color.r, min(color.g, color.b));
+  float offset = x < 0.08 ? x - 6.25 * x * x : 0.04;
+  color -= offset;
+
+  float peak = max(color.r, max(color.g, color.b));
+  if (peak < startCompression) return color;
+
+  const float d = 1. - startCompression;
+  float newPeak = 1. - d * d / (peak + d - startCompression);
+  color *= newPeak / peak;
+
+  float g = 1. - 1. / (desaturation * (peak - newPeak) + 1.);
+  return mix(color, newPeak * vec3(1, 1, 1), g);
+}
 vec3 toneMapACES(vec3 x) {
     const float a = 2.51;
     const float b = 0.03;
@@ -333,7 +351,7 @@ float sheenVisibility(vec3 N, vec3 V, vec3 L, float sheenRoughness) {
         (4.0 * NdotV * NdotL)), 0.0, 1.0);
 }
 float E(float x, float y) {
-    return clamp(texture2D(Sheen_E, vec2(x,y)).r, 0.0, 1.0);
+    return clamp(textureLod2D(Sheen_E, vec2(x,y), 0.0).r, 0.0, 1.0);
 }
 float max3(vec3 v) { return max(max(v.x, v.y), v.z); }
 float pow2(float v) { return v * v; }
@@ -539,6 +557,7 @@ void main() {
     #else
     Material mat = fetchMaterial(int(id));
     #endif
+    ivec4 lights = ivec4(mat.lights);
     vec4 baseColorFactor = mat.baseColorFactor;
     vec3 specularFactor = mat.specularFactor;
     vec3 specularColorFactor = mat.specularColorFactor;
@@ -810,8 +829,6 @@ void main() {
 
     #ifdef USE_PBR
         vec3 finalDiffuse = vec3(0.0);
-        vec3 f_sheen = vec3(0.0);
-        float albedoSheenScaling = 1.0;
         vec3 Lo = vec3(0.0);
 
         #ifdef DIFFUSE_TRANSMISSION
@@ -876,8 +893,12 @@ void main() {
                 diffuse = baseColor * (1.0 - max(max(specularMap.r, specularMap.g), specularMap.b));
             #endif
             #if defined SHEEN
-            f_sheen = NdotL * (sheenColor * sheenDistribution(sheenRoughness, n, H) * sheenVisibility(n, viewDir, lightDir, sheenRoughness));
-            albedoSheenScaling = min(1.0 - max3(sheenColor) * E(saturate(dot(viewDir, n)), sheenRoughness), 1.0 - max3(sheenColor) * E(saturate(dot(lightDir, n)), sheenRoughness));
+            vec3 f_sheen = NdotL * (sheenColor * sheenDistribution(sheenRoughness, n, H) * sheenVisibility(n, viewDir, lightDir, sheenRoughness));
+            float VN = saturate(dot(viewDir, n));
+            float LN = saturate(dot(lightDir, n));
+            float albedoSheenScaling = min(1.0 - max3(sheenColor) * E(VN, sheenRoughness), 1.0 - max3(sheenColor) * E(LN, sheenRoughness));
+            
+            Lo = f_sheen + Lo * albedoSheenScaling;
             #endif
 
             Lo += (specular * NdotL * radiance);
@@ -911,11 +932,15 @@ void main() {
         vec3 clearcoatFresnel = vec3(1.0);
         vec3 aSpecular;
         vec3 cSpecular;
+        vec3 f_sheen = vec3(0.0);
+        float albedoSheenScaling = 1.0;
         if (isIBL.x == 1.0) {
             float NdotV = saturate(dot(n, viewDir));
             vec3 iridescenceFresnel = evalIridescence(1.0, iridescenceFactor, NdotV, iridescenceThickness, F0);
             vec3 iridescenceF0 = Schlick_to_F0(iridescenceFresnel, NdotV);
             ambient = IBLAmbient(baseColor, metallic, n, roughness, viewDir, transmission, sheenColor, sheenRoughness, iridescenceF0, iridescence.x, F0, specularWeight, anisotropy.x, anisotropicB, f_sheen, aSpecular);
+            float VN = saturate(dot(viewDir, n));
+            albedoSheenScaling = 1.0 - max3(sheenColor) * E(VN, sheenRoughness);
             vec3 placeholder = vec3(0.0);
             ambientClearcoat = IBLAmbient(vec3(0.0), 0.0, clearcoatNormal, clearcoatRoughness, viewDir, transmission, sheenColor, sheenRoughness, iridescenceF0, iridescence.x, F0, specularWeight, anisotropy.x, anisotropicB, placeholder, cSpecular) * clearcoatBlendFactor;
             #ifdef DIFFUSE_TRANSMISSION
@@ -980,7 +1005,7 @@ void main() {
         color.rgb = retColor * retColor;
         #else
         color.rgb = vec3(1.0) - exp(-color.rgb * exposure);
-        color.rgb = toneMapACES(color.rgb);
+        color.rgb = PBRNeutralToneMapping(color.rgb);
         color.rgb = pow(color.rgb, vec3(1.0 / gamma));
         #endif
     }

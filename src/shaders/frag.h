@@ -55,6 +55,7 @@ struct Material {
     vec4 iridescence;
     vec4 diffuseTransmissionFactor;
     vec4 dispersionFactor;
+    ivec4 lights;
 };
 
 Material fetchMaterial(int id) {
@@ -82,6 +83,7 @@ Material fetchMaterial(int id) {
     m.iridescence             = texelFetch(uMaterialTex, ivec2(19, row), 0);
     m.diffuseTransmissionFactor= texelFetch(uMaterialTex, ivec2(20, row), 0);
     m.dispersionFactor        = texelFetch(uMaterialTex, ivec2(21, row), 0);
+    m.lights                  = ivec4(texelFetch(uMaterialTex, ivec2(22, row), 0));
     return m;
 }
 
@@ -153,4 +155,3 @@ uniform vec2 isTone;
 uniform vec2 isIBL;
 uniform vec2 isDefaultLight;
 uniform sampler2D Sheen_E;
-uniform ivec4 lights;

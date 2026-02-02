@@ -250,30 +250,31 @@ class RedCube {
                 lightColor.set(light.color.elements, i * 4);
                 lightProps.set([light.intensity, light.spot.innerConeAngle ?? 0, light.spot.outerConeAngle ?? 0, lightEnum[light.type]], i * 4);
             });
-            const materialUniformBuffer = new UniformBuffer();
-            materialUniformBuffer.add('lightPos', lightPos);
-            materialUniformBuffer.done();
-            this.lightPosBuffer = materialUniformBuffer;
+            const lightPosBuffer = new UniformBuffer();
+            lightPosBuffer.add('lightPos', lightPos);
+            lightPosBuffer.done();
+            this.lightPosBuffer = lightPosBuffer;
             
-            const materialUniformBuffer2 = new UniformBuffer();
-            materialUniformBuffer2.add('lightColor', lightColor);
-            materialUniformBuffer2.done();
+            const lightColorBuffer = new UniformBuffer();
+            lightColorBuffer.add('lightColor', lightColor);
+            lightColorBuffer.done();
+            this.lightColorBuffer = lightColorBuffer;
         
-            const materialUniformBuffer3 = new UniformBuffer();
-            materialUniformBuffer3.add('spotdir', spotDirs);
-            materialUniformBuffer3.done();
+            const spotdirBuffer = new UniformBuffer();
+            spotdirBuffer.add('spotdir', spotDirs);
+            spotdirBuffer.done();
         
-            const materialUniformBuffer4 = new UniformBuffer();
-            materialUniformBuffer4.add('lightIntensity', lightProps);
-            materialUniformBuffer4.done();
+            const lightIntensityBuffer = new UniformBuffer();
+            lightIntensityBuffer.add('lightIntensity', lightProps);
+            lightIntensityBuffer.done();
     
-            this.scene.meshes[0].geometry.updateUniformsWebGPU(WebGPU, materialUniformBuffer);
-            this.scene.meshes[0].geometry.updateUniformsWebGPU(WebGPU, materialUniformBuffer2);
-            this.scene.meshes[0].geometry.updateUniformsWebGPU(WebGPU, materialUniformBuffer3);
-            this.scene.meshes[0].geometry.updateUniformsWebGPU(WebGPU, materialUniformBuffer4);
+            this.scene.meshes[0].geometry.updateUniformsWebGPU(WebGPU, lightPosBuffer);
+            this.scene.meshes[0].geometry.updateUniformsWebGPU(WebGPU, lightColorBuffer);
+            this.scene.meshes[0].geometry.updateUniformsWebGPU(WebGPU, spotdirBuffer);
+            this.scene.meshes[0].geometry.updateUniformsWebGPU(WebGPU, lightIntensityBuffer);
             
             this.scene.meshes.forEach((mesh) => {
-                mesh.material.createUniforms(this.camera, this.parse.lights);
+                [mesh.material, ...mesh.variants.map(m => m.m)].forEach(m => m.createUniforms(this.camera, this.parse.lights));
             });
             const storage = new Float32Array(this.scene.meshes.length * this.scene.meshes[0].material.materialUniformBuffer.store.length);
             this.scene.meshes.forEach((mesh, i) => {
@@ -310,19 +311,19 @@ class RedCube {
                 resource: cameraBuffer.bufferWebGPU
             }, {
                 binding: 16,
-                resource: materialUniformBuffer.bufferWebGPU
+                resource: lightPosBuffer.bufferWebGPU
             }, {
                 binding: 15,
-                resource: materialUniformBuffer2.bufferWebGPU
+                resource: lightColorBuffer.bufferWebGPU
             },
             
             {
                 binding: 17,
-                resource: materialUniformBuffer3.bufferWebGPU
+                resource: spotdirBuffer.bufferWebGPU
             },
             {
                 binding: 18,
-                resource: materialUniformBuffer4.bufferWebGPU
+                resource: lightIntensityBuffer.bufferWebGPU
             },];
 
             const prevProgramHash = new Map();
@@ -505,13 +506,14 @@ class RedCube {
 
     getState() {
         return {
+            lightColorBuffer: this.lightColorBuffer,
             storage2: this.storage2,
             storage: this.storage,
             lightPosBuffer: this.lightPosBuffer,
             cameraBuffer: this.cameraBuffer,
             stateBuffer: this.stateBuffer,
             renderState: this.renderState,
-            lights: [],
+            lights: this.parse.lights,
             isIBL: this.isIBL,
             isDefaultLight: this.isDefaultLight,
             camera: this.camera,

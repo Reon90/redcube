@@ -456,7 +456,6 @@ export class Material extends M {
         this.uniforms.isTone = gl.getUniformLocation(program, 'isTone');
         this.uniforms.isIBL = gl.getUniformLocation(program, 'isIBL');
         this.uniforms.isDefaultLight = gl.getUniformLocation(program, 'isDefaultLight');
-        this.uniforms.lights = gl.getUniformLocation(program, 'lights');
 
         if (this.baseColorTexture) {
             this.uniforms.baseColorTexture = gl.getUniformLocation(program, 'baseColorTexture');
@@ -619,6 +618,7 @@ export class Material extends M {
             materialUniformBuffer.add('iridescence', [this.iridescenceFactor ?? 0, this.iridescenceIOR ?? 1.3, this.iridescenceThicknessMaximum ?? 400, this.iridescenceThicknessMinimum ?? 100]);
             materialUniformBuffer.add('diffuseTransmissionFactor', [this.diffuseTransmissionFactor ?? 0, ...this.diffuseTransmissionColorFactor]);
             materialUniformBuffer.add('dispersionFactor', [this.dispersion ?? 0]);
+            materialUniformBuffer.add('lights', [...this.lights]);
             materialUniformBuffer.done();
             this.materialUniformBuffer = materialUniformBuffer;
         }

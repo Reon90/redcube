@@ -19,7 +19,7 @@ const nodeBuiltIns = {
   },
 };
 
-const libraryName = 'redcube';
+const libraryName = 'redcube.webgpu';
 const isWatch = process.argv.includes('--watch');
 const isServe = process.argv.includes('--serve');
 

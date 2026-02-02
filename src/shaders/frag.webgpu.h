@@ -70,6 +70,7 @@ struct Material {
     vec4 iridescence;
     vec4 diffuseTransmissionFactor;
     vec4 dispersionFactor;
+    vec4 lights;
 };
 layout(set = 0, binding = 1) buffer Uniforms {
     Material data[];

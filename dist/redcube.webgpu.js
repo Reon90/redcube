@@ -15200,6 +15200,7 @@ var redcube = (() => {
     cameras;
     lights;
     variants;
+    visible = true;
     constructor() {
       this.opaqueChildren = [];
       this.transparentChildren = [];
@@ -15223,6 +15224,7 @@ var redcube = (() => {
     parent;
     reflow;
     repaint;
+    visible = true;
     constructor(name, parent) {
       this.uuid = Math.floor(Date.now() * Math.random());
       this.name = name;
@@ -16403,7 +16405,6 @@ var redcube = (() => {
     mode;
     frontFace;
     distance;
-    visible;
     variants;
     order;
     uniformBindGroup1;
@@ -16458,7 +16459,6 @@ var redcube = (() => {
       passEncoder.setBindGroup(0, this.uniformBindGroup1);
       passEncoder.setVertexBuffer(0, this.geometry.verticesWebGPUBuffer);
       if (this.geometry.indicesBuffer) {
-        const type = this.geometry.indexType < 5124 ? "uint16" : "uint32";
         passEncoder.setIndexBuffer(this.geometry.indicesWebGPUBuffer, "uint32");
         passEncoder.drawIndexed(this.geometry.indicesBuffer.length, 1, 0, 0, i);
       } else {
@@ -16500,7 +16500,7 @@ var redcube = (() => {
         }
       }
       if (this.material.matrices.length) {
-        gl11.bindBufferBase(gl11.UNIFORM_BUFFER, 8, this.material.lightUBO5);
+        gl11.bindBufferBase(gl11.UNIFORM_BUFFER, 8, this.material.textureMatricesUniform);
       }
       if (this.material.sphericalHarmonics) {
         gl11.bindBufferBase(gl11.UNIFORM_BUFFER, 7, this.material.sphericalHarmonics);
@@ -16836,14 +16836,16 @@ var redcube = (() => {
     intensity;
     isInitial;
     spot;
+    range;
     constructor(props, name, parent) {
       super(name, parent);
-      const { type, color = [1, 1, 1], intensity, isInitial, spot = {} } = props;
+      const { type, color = [1, 1, 1], intensity, isInitial, spot = {}, range: range2 = -1 } = props;
       this.type = type;
       this.color = new Vector3(color);
       this.intensity = intensity;
       this.isInitial = isInitial;
       this.spot = spot;
+      this.range = range2;
       this.matrixWorldInvert = new Matrix4();
     }
     setMatrixWorld(matrix) {
@@ -17004,16 +17006,13 @@ var redcube = (() => {
     defines;
     matrices;
     uniformBuffer;
-    lightUBO1;
-    lightUniformBuffer1;
-    lightUBO2;
-    lightUniformBuffer2;
-    lightUBO3;
-    lightUniformBuffer3;
-    lightUBO4;
-    lightUBO5;
-    lightUniformBuffer4;
+    lightPosUniform;
+    lightColorUniform;
+    spotdirUniform;
+    lightIntensityUniform;
+    textureMatricesUniform;
     matricesMap = /* @__PURE__ */ new Map();
+    lights = [-1, -1, -1, -1];
     uniformBindGroup1;
     constructor(m = defaultMaterial, textures, defines) {
       super();
@@ -17022,7 +17021,6 @@ var redcube = (() => {
       this.name = material.name;
       this.matrices = [];
       this.diffuseTransmissionColorFactor = [1, 1, 1];
-      this.defines.push({ name: "LIGHTINDEX", value: 0 });
       if (!material.pbrMetallicRoughness && material.extensions && material.extensions.KHR_materials_pbrSpecularGlossiness) {
         material.pbrMetallicRoughness = {};
         const SG = material.extensions.KHR_materials_pbrSpecularGlossiness;
@@ -17496,10 +17494,10 @@ var redcube = (() => {
       if (this.matrices.length) {
         const mIndex = gl11.getUniformBlockIndex(program, "TextureMatrices");
         gl11.uniformBlockBinding(program, mIndex, 8);
-        const mUBO = gl11.createBuffer();
-        gl11.bindBuffer(gl11.UNIFORM_BUFFER, mUBO);
+        const textureMatricesUniform = gl11.createBuffer();
+        gl11.bindBuffer(gl11.UNIFORM_BUFFER, textureMatricesUniform);
         gl11.bufferData(gl11.UNIFORM_BUFFER, this.textureMatricesBuffer.store, gl11.STATIC_DRAW);
-        this.lightUBO5 = mUBO;
+        this.textureMatricesUniform = textureMatricesUniform;
       }
     }
     createUniforms(camera, lights) {
@@ -17544,6 +17542,7 @@ var redcube = (() => {
         materialUniformBuffer.add("iridescence", [this.iridescenceFactor ?? 0, this.iridescenceIOR ?? 1.3, this.iridescenceThicknessMaximum ?? 400, this.iridescenceThicknessMinimum ?? 100]);
         materialUniformBuffer.add("diffuseTransmissionFactor", [this.diffuseTransmissionFactor ?? 0, ...this.diffuseTransmissionColorFactor]);
         materialUniformBuffer.add("dispersionFactor", [this.dispersion ?? 0]);
+        materialUniformBuffer.add("lights", [...this.lights]);
         materialUniformBuffer.done();
         this.materialUniformBuffer = materialUniformBuffer;
       }
@@ -17677,7 +17676,7 @@ var redcube = (() => {
       this.materialUniformBuffer.update(gl11, name, value.elements, true);
     }
     setTexture(gl11, name, type, value) {
-      gl11.bindBufferBase(gl11.UNIFORM_BUFFER, 8, this.lightUBO5);
+      gl11.bindBufferBase(gl11.UNIFORM_BUFFER, 8, this.textureMatricesUniform);
       const i = this.matricesMap.get(name) * 16;
       if (type === "offset") {
         this.textureMatricesBuffer.store[i] = value.elements[0];
@@ -19204,8 +19203,39 @@ const float ambientStrength = 0.1;\r
 const float specularStrength = 2.5;\r
 const float specularPower = 32.0;\r
 const float gamma = 2.2;\r
+const float exposure = 0.7;\r
 \r
+vec3 PBRNeutralToneMapping( vec3 color ) {\r
+  const float startCompression = 0.8 - 0.04;\r
+  const float desaturation = 0.15;\r
 \r
+  float x = min(color.r, min(color.g, color.b));\r
+  float offset = x < 0.08 ? x - 6.25 * x * x : 0.04;\r
+  color -= offset;\r
+\r
+  float peak = max(color.r, max(color.g, color.b));\r
+  if (peak < startCompression) return color;\r
+\r
+  const float d = 1. - startCompression;\r
+  float newPeak = 1. - d * d / (peak + d - startCompression);\r
+  color *= newPeak / peak;\r
+\r
+  float g = 1. - 1. / (desaturation * (peak - newPeak) + 1.);\r
+  return mix(color, newPeak * vec3(1, 1, 1), g);\r
+}\r
+vec3 toneMapACES(vec3 x) {\r
+    const float a = 2.51;\r
+    const float b = 0.03;\r
+    const float c = 2.43;\r
+    const float d = 0.59;\r
+    const float e = 0.14;\r
+    return clamp((x*(a*x+b))/(x*(c*x+d)+e), 0.0, 1.0);\r
+}\r
+float saturate(float a) {\r
+	if (a > 1.0) return 1.0;\r
+	if (a < 0.0) return 0.0;\r
+	return a;\r
+}\r
 vec2 getUV(int index) {\r
     #ifdef MULTIUV\r
     if (index == 2) {\r
@@ -19406,8 +19436,8 @@ float GeometrySmith(vec3 N, vec3 V, vec3 L, vec3 anisotropicT, vec3 anisotropicB
 }\r
 #else\r
 float DistributionGGX(vec3 N, vec3 H, float roughness) {\r
-    float NdotH = max(dot(N, H), 0.01);\r
-    float a = max(roughness*roughness, 0.01);\r
+    float NdotH = saturate(dot(N, H));\r
+    float a = max(roughness*roughness, 0.04);\r
     float alphaRoughnessSq = a * a;\r
     float f = (NdotH * NdotH) * (alphaRoughnessSq - 1.0) + 1.0;\r
     return alphaRoughnessSq / (PI * f * f);\r
@@ -19424,8 +19454,8 @@ float GeometrySchlickGGX(float cosTheta, float roughness) {\r
 }\r
 \r
 float GeometrySmith(vec3 N, vec3 V, vec3 L, float roughness) {\r
-    float NdotV = max(dot(N, V), 0.0);\r
-    float NdotL = max(dot(N, L), 0.0);\r
+    float NdotV = saturate(dot(N, V));\r
+    float NdotL = saturate(dot(N, L));\r
     float ggx2 = GeometrySchlickGGX(NdotV, roughness);\r
     float ggx1 = GeometrySchlickGGX(NdotL, roughness);\r
 \r
@@ -19483,7 +19513,7 @@ vec3 computeEnvironmentIrradiance(vec3 normal) {\r
 }\r
 #endif\r
 float sheenDistribution(float sheenRoughness, vec3 N, vec3 H) {\r
-    float NdotH = max(dot(N, H), 0.0);\r
+    float NdotH = saturate(dot(N, H));\r
     float alphaG = max(sheenRoughness * sheenRoughness, 0.01);\r
     float invR = 1.0 / alphaG;\r
     float cos2h = NdotH * NdotH;\r
@@ -19507,8 +19537,8 @@ float lambdaSheen(float cosTheta, float alphaG) {\r
     }\r
 }\r
 float sheenVisibility(vec3 N, vec3 V, vec3 L, float sheenRoughness) {\r
-    float NdotL = max(dot(N, L), 0.0);\r
-    float NdotV = max(dot(N, V), 0.0);\r
+    float NdotL = saturate(dot(N, L));\r
+    float NdotV = saturate(dot(N, V));\r
 \r
     sheenRoughness = max(sheenRoughness, 0.000001); //clamp (0,1]\r
     float alphaG = sheenRoughness * sheenRoughness;\r
@@ -19517,7 +19547,7 @@ float sheenVisibility(vec3 N, vec3 V, vec3 L, float sheenRoughness) {\r
         (4.0 * NdotV * NdotL)), 0.0, 1.0);\r
 }\r
 float E(float x, float y) {\r
-    return clamp(texture2D(Sheen_E, vec2(x,y)).r, 0.0, 1.0);\r
+    return clamp(textureLod2D(Sheen_E, vec2(x,y), 0.0).r, 0.0, 1.0);\r
 }\r
 float max3(vec3 v) { return max(max(v.x, v.y), v.z); }\r
 float pow2(float v) { return v * v; }\r
@@ -19529,7 +19559,7 @@ vec3 IBLAmbient(vec3 baseColor, float metallic, vec3 n, float roughness, vec3 vi
     n = normalize(mix(Normal, n, a));\r
     #endif\r
     \r
-    vec3 F = fresnelSchlickRoughness(max(dot(n, viewDir), 0.0), F0, roughness);\r
+    vec3 F = fresnelSchlickRoughness(saturate(dot(n, viewDir)), F0, roughness);\r
 \r
     vec3 kD = vec3(1.0) - F * specularWeight;\r
     #if defined SPECULARGLOSSINESSMAP\r
@@ -19556,7 +19586,7 @@ vec3 IBLAmbient(vec3 baseColor, float metallic, vec3 n, float roughness, vec3 vi
     vec3 prefilteredColor = textureLodCube(prefilterMap, R, roughness * MAX_REFLECTION_LOD).rgb;\r
     vec3 irradiance = textureCube(irradianceMap, n).rgb;\r
     #endif\r
-    vec2 envBRDF  = textureLod2D(brdfLUT, vec2(max(dot(n, viewDir), 0.0), roughness), 0.0).rg;\r
+    vec2 envBRDF  = textureLod2D(brdfLUT, vec2(saturate(dot(n, viewDir)), roughness), 0.0).rg;\r
     vec3 kS = F;\r
     #if defined IRIDESCENCE\r
     kS = mix(F, iridescenceFresnel, iridescenceFactor);\r
@@ -19564,7 +19594,7 @@ vec3 IBLAmbient(vec3 baseColor, float metallic, vec3 n, float roughness, vec3 vi
     specular = prefilteredColor * (kS * specularWeight * envBRDF.x + envBRDF.y);\r
 \r
     #if defined SHEEN\r
-    float charliebrdf = textureLod2D(brdfLUT, vec2(max(dot(n, viewDir), 0.0), sheenRoughness), 0.0).b;\r
+    float charliebrdf = textureLod2D(brdfLUT, vec2(saturate(dot(n, viewDir)), sheenRoughness), 0.0).b;\r
     vec3 sheenSample = textureLodCube(charlieMap, R, sheenRoughness * MAX_REFLECTION_LOD).rgb;\r
     f_sheen += sheenSample * sheenColor * charliebrdf;\r
     #endif\r
@@ -19573,8 +19603,8 @@ vec3 IBLAmbient(vec3 baseColor, float metallic, vec3 n, float roughness, vec3 vi
 }\r
 \r
 float specEnv(vec3 N, vec3 V, float metallic, float roughness, vec3 F0, float specularWeight) {\r
-    float F = fresnelSchlickRoughness(max(dot(N, V), 0.0), (F0.x+F0.y+F0.z)/3.0, roughness);\r
-    vec2 envBRDF  = textureLod2D(brdfLUT, vec2(max(dot(N, V), 0.0), roughness), 0.0).rg;\r
+    float F = fresnelSchlickRoughness(saturate(dot(N, V)), (F0.x+F0.y+F0.z)/3.0, roughness);\r
+    vec2 envBRDF  = textureLod2D(brdfLUT, vec2(saturate(dot(N, V)), roughness), 0.0).rg;\r
     return (F * specularWeight * envBRDF.x + envBRDF.y);\r
 }\r
 \r
@@ -19585,10 +19615,10 @@ vec3 CookTorranceSpecular2(vec3 baseColor, float metallic, vec3 n, vec3 H, vec3 
     float ab = max(roughness, 0.001);\r
     float D = DistributionGGX(n, H, anisotropicT, anisotropicB, at, ab);\r
     float G = GeometrySmith(n, viewDir, lightDir, anisotropicT, anisotropicB, at, ab);\r
-    vec3 F = mix(fresnelSchlick(max(dot(viewDir, H), 0.0), F0), iridescenceFresnel, iridescenceFactor);\r
+    vec3 F = mix(fresnelSchlick(saturate(dot(viewDir, H)), F0), iridescenceFresnel, iridescenceFactor);\r
 \r
     vec3 nominator = D * G * F * specularWeight;\r
-    float denominator = 4.0 * max(dot(n, viewDir), 0.0) * max(dot(n, lightDir), 0.0);\r
+    float denominator = 4.0 * saturate(dot(n, viewDir)) * max(dot(n, lightDir), 0.0);\r
     return D * G * F;\r
 }\r
 vec3 CookTorranceSpecular(vec3 baseColor, float metallic, vec3 n, vec3 H, vec3 anisotropicT, vec3 anisotropicB, float roughness, vec3 viewDir, vec3 lightDir, float anisotropy, vec3 F0, float specularWeight) {\r
@@ -19597,37 +19627,37 @@ vec3 CookTorranceSpecular(vec3 baseColor, float metallic, vec3 n, vec3 H, vec3 a
     float ab = max(roughness, 0.001);\r
     float D = DistributionGGX(n, H, anisotropicT, anisotropicB, at, ab);\r
     float G = GeometrySmith(n, viewDir, lightDir, anisotropicT, anisotropicB, at, ab);\r
-    vec3 F = fresnelSchlick(max(dot(viewDir, H), 0.0), F0); \r
+    vec3 F = fresnelSchlick(saturate(dot(viewDir, H)), F0); \r
 \r
     vec3 nominator = D * G * F * specularWeight;\r
-    float denominator = 4.0 * max(dot(n, viewDir), 0.0) * max(dot(n, lightDir), 0.0);\r
+    float denominator = 4.0 * saturate(dot(n, viewDir)) * saturate(dot(n, lightDir));\r
     return D * G * F;\r
 }\r
 #else\r
 vec3 CookTorranceSpecular2(vec3 baseColor, float metallic, vec3 n, vec3 H, vec3 anisotropicT, vec3 anisotropicB, float roughness, vec3 viewDir, vec3 lightDir, float anisotropy, vec3 iridescenceFresnel, float iridescenceFactor, vec3 F0, float specularWeight) {\r
     float D = DistributionGGX(n, H, roughness);\r
     float G = GeometrySmith(n, viewDir, lightDir, roughness);\r
-    vec3 F = mix(fresnelSchlick(max(dot(viewDir, H), 0.0), F0), iridescenceFresnel, iridescenceFactor);\r
+    vec3 F = mix(fresnelSchlick(saturate(dot(viewDir, H)), F0), iridescenceFresnel, iridescenceFactor);\r
 \r
     vec3 nominator = D * G * F * specularWeight;\r
-    float denominator = 4.0 * max(dot(n, viewDir), 0.0) * max(dot(n, lightDir), 0.0);\r
+    float denominator = 4.0 * saturate(dot(n, viewDir)) * saturate(dot(n, lightDir));\r
     return nominator / max(denominator, 0.001);\r
 }\r
 vec3 CookTorranceSpecular(vec3 baseColor, float metallic, vec3 n, vec3 H, vec3 anisotropicT, vec3 anisotropicB, float roughness, vec3 viewDir, vec3 lightDir, float anisotropy, vec3 F0, float specularWeight) {\r
     float D = DistributionGGX(n, H, roughness);\r
     float G = GeometrySmith(n, viewDir, lightDir, roughness);\r
-    vec3 F = fresnelSchlick(max(dot(viewDir, H), 0.0), F0); \r
+    vec3 F = fresnelSchlick(saturate(dot(viewDir, H)), F0); \r
 \r
     vec3 nominator = D * G * F * specularWeight;\r
-    float denominator = 4.0 * max(dot(n, viewDir), 0.0) * max(dot(n, lightDir), 0.0);\r
+    float denominator = 4.0 * saturate(dot(n, viewDir)) * saturate(dot(n, lightDir));\r
     return nominator / max(denominator, 0.001);\r
 }\r
 #endif\r
 \r
 vec3 LambertDiffuse(vec3 baseColor, float metallic, vec3 n, vec3 H, float roughness, vec3 viewDir, vec3 lightDir, vec3 F0, float specularWeight) {\r
-    float NdotL = max(dot(n, lightDir), 0.0);\r
+    float NdotL = saturate(dot(n, lightDir));\r
 \r
-    vec3 F = fresnelSchlick(max(dot(H, viewDir), 0.0), F0);    \r
+    vec3 F = fresnelSchlick(saturate(dot(H, viewDir)), F0);    \r
 \r
     vec3 kD = vec3(1.0) - F * specularWeight;\r
     #if defined SPECULARGLOSSINESSMAP\r
@@ -19637,13 +19667,8 @@ vec3 LambertDiffuse(vec3 baseColor, float metallic, vec3 n, vec3 H, float roughn
     return baseColor * kD / PI;\r
 }\r
 \r
-float saturate(float a) {\r
-	if (a > 1.0) return 1.0;\r
-	if (a < 0.0) return 0.0;\r
-	return a;\r
-}\r
 vec3 ImprovedOrenNayarDiffuse(vec3 baseColor, float metallic, vec3 N, vec3 H, float a, vec3 V, vec3 L, vec3 F0, vec3 iridescenceFresnel, float iridescenceFactor, float specularWeight) {\r
-    vec3 F = fresnelSchlick(max(dot(H, V), 0.0), F0);\r
+    vec3 F = fresnelSchlick(saturate(dot(H, V)), F0);\r
     vec3 kD = vec3(1.0) - F * specularWeight;\r
     #if defined SPECULARGLOSSINESSMAP\r
     #else\r
@@ -19728,6 +19753,7 @@ void main() {\r
     #else\r
     Material mat = fetchMaterial(int(id));\r
     #endif\r
+    ivec4 lights = ivec4(mat.lights);\r
     vec4 baseColorFactor = mat.baseColorFactor;\r
     vec3 specularFactor = mat.specularFactor;\r
     vec3 specularColorFactor = mat.specularColorFactor;\r
@@ -19999,8 +20025,6 @@ void main() {\r
 \r
     #ifdef USE_PBR\r
         vec3 finalDiffuse = vec3(0.0);\r
-        vec3 f_sheen = vec3(0.0);\r
-        float albedoSheenScaling = 1.0;\r
         vec3 Lo = vec3(0.0);\r
 \r
         #ifdef DIFFUSE_TRANSMISSION\r
@@ -20014,18 +20038,19 @@ void main() {\r
         #endif\r
 \r
         if (isDefaultLight.x == 1.0) {\r
-            int i = LIGHTINDEX;\r
-        //for (int i = 0; i < LIGHTNUMBER; ++i) {\r
+        for (int j = 0; j < 4; j++) {\r
+            if (lights[j] < 0) continue;\r
+            int i = lights[j];\r
             vec3 lightDir = normalize(lightPos[i].xyz - outPosition);\r
-            float NdotL = max(dot(n, lightDir), 0.0);\r
+            float NdotL = saturate(dot(n, lightDir));\r
             vec3 H = normalize(viewDir + lightDir);\r
 \r
-            vec3 radiance = lightColor[i].xyz * lightIntensity[i].x;\r
-            float distance = dot(lightPos[i].xyz - outPosition, lightPos[i].xyz - outPosition);\r
+            vec3 radiance = lightColor[i].xyz * lightIntensity[i].x * (1.0 / PI);\r
+            float distance = length(lightPos[i].xyz - outPosition);\r
             float attenuation = 1.0 / (distance * distance);\r
-            // radiance = radiance * attenuation;\r
             if (lightIntensity[i].w == 1.0) { // point\r
-                radiance = radiance * attenuation;\r
+                vec3 irradiance = lightColor[i].xyz * lightIntensity[i].x * attenuation;\r
+                radiance = irradiance * (1.0 / PI);\r
             }\r
             if (lightIntensity[i].w == 2.0) { // spot\r
                 float lightAngleScale = 1.0 / max(0.001, cos(lightIntensity[i].y) - cos(lightIntensity[i].z));\r
@@ -20064,13 +20089,17 @@ void main() {\r
                 diffuse = baseColor * (1.0 - max(max(specularMap.r, specularMap.g), specularMap.b));\r
             #endif\r
             #if defined SHEEN\r
-            f_sheen = NdotL * (sheenColor * sheenDistribution(sheenRoughness, n, H) * sheenVisibility(n, viewDir, lightDir, sheenRoughness));\r
-            albedoSheenScaling = min(1.0 - max3(sheenColor) * E(max(dot(viewDir, n), 0.0), sheenRoughness), 1.0 - max3(sheenColor) * E(max(dot(lightDir, n), 0.0), sheenRoughness));\r
+            vec3 f_sheen = NdotL * (sheenColor * sheenDistribution(sheenRoughness, n, H) * sheenVisibility(n, viewDir, lightDir, sheenRoughness));\r
+            float VN = saturate(dot(viewDir, n));\r
+            float LN = saturate(dot(lightDir, n));\r
+            float albedoSheenScaling = min(1.0 - max3(sheenColor) * E(VN, sheenRoughness), 1.0 - max3(sheenColor) * E(LN, sheenRoughness));\r
+            \r
+            Lo = f_sheen + Lo * albedoSheenScaling;\r
             #endif\r
 \r
-            Lo += (specular * NdotL);\r
+            Lo += (specular * NdotL * radiance);\r
             //#ifdef CLEARCOAT\r
-            Lo = Lo * radiance * clearcoatFresnel + f_clearcoat * clearcoatBlendFactor;\r
+            Lo = Lo * clearcoatFresnel + f_clearcoat * clearcoatBlendFactor;\r
             //#endif\r
             vec3 diffuseLobe = vec3(diffuse);\r
 \r
@@ -20091,7 +20120,7 @@ void main() {\r
             #endif\r
 \r
             finalDiffuse += diffuseLobe;\r
-        //}\r
+        }\r
         }\r
 \r
         vec3 ambient = vec3(0.0);\r
@@ -20099,11 +20128,15 @@ void main() {\r
         vec3 clearcoatFresnel = vec3(1.0);\r
         vec3 aSpecular;\r
         vec3 cSpecular;\r
+        vec3 f_sheen = vec3(0.0);\r
+        float albedoSheenScaling = 1.0;\r
         if (isIBL.x == 1.0) {\r
             float NdotV = saturate(dot(n, viewDir));\r
             vec3 iridescenceFresnel = evalIridescence(1.0, iridescenceFactor, NdotV, iridescenceThickness, F0);\r
             vec3 iridescenceF0 = Schlick_to_F0(iridescenceFresnel, NdotV);\r
             ambient = IBLAmbient(baseColor, metallic, n, roughness, viewDir, transmission, sheenColor, sheenRoughness, iridescenceF0, iridescence.x, F0, specularWeight, anisotropy.x, anisotropicB, f_sheen, aSpecular);\r
+            float VN = saturate(dot(viewDir, n));\r
+            albedoSheenScaling = 1.0 - max3(sheenColor) * E(VN, sheenRoughness);\r
             vec3 placeholder = vec3(0.0);\r
             ambientClearcoat = IBLAmbient(vec3(0.0), 0.0, clearcoatNormal, clearcoatRoughness, viewDir, transmission, sheenColor, sheenRoughness, iridescenceF0, iridescence.x, F0, specularWeight, anisotropy.x, anisotropicB, placeholder, cSpecular) * clearcoatBlendFactor;\r
             #ifdef DIFFUSE_TRANSMISSION\r
@@ -20149,11 +20182,11 @@ void main() {\r
         vec3 lightDir = normalize(lightPos[0].xyz - outPosition);\r
         vec3 ambient = ambientStrength * lightColor[0].xyz;\r
 \r
-        float diff = max(dot(n, lightDir), 0.0);\r
+        float diff = saturate(dot(n, lightDir));\r
         vec3 diffuse = diff * lightColor[0].XYZ;\r
 \r
         vec3 reflectDir = reflect(-lightDir, n);\r
-        float spec = pow(max(dot(viewDir, reflectDir), 0.0), specularPower);\r
+        float spec = pow(saturate(dot(viewDir, reflectDir)), specularPower);\r
         vec3 specular = specularStrength * spec * lightColor[0].xyz;\r
 \r
         color = vec4(baseColor.rgb * (ambient + diffuse + specular) * shadow, alpha);\r
@@ -20167,7 +20200,8 @@ void main() {\r
         vec3 retColor = (X * (6.2 * X + 0.5)) / (X * (6.2 * X + 1.7) + 0.06);\r
         color.rgb = retColor * retColor;\r
         #else\r
-        // color.rgb = color.rgb / (color.rgb + vec3(1.0));\r
+        color.rgb = vec3(1.0) - exp(-color.rgb * exposure);\r
+        color.rgb = PBRNeutralToneMapping(color.rgb);\r
         color.rgb = pow(color.rgb, vec3(1.0 / gamma));\r
         #endif\r
     }\r
@@ -20202,7 +20236,7 @@ void main() {\r
 `;
 
   // src/shaders/frag.h
-  var frag_default = "#version 300 es\r\nprecision highp float;\r\n\r\n// #ifdef DIFFUSE_TRANSMISSION\r\n//     #define SCATTERING 1\r\n// #endif\r\n\r\n#define texture2D(p, uv) texture(p, uv)\r\n#define textureCube(p, uv) texture(p, uv)\r\n#define textureLodCube(p, uv, i) textureLod(p, uv, i)\r\n#define textureLod2D(p, uv, i) textureLod(p, uv, i)\r\n#define textureLod2D2(p, uv, i) textureLod(p, uv, i)\r\n\r\nuniform sampler2D uMaterialTex;\r\n\r\nin vec4 vColor;\r\nin vec2 outUV0;\r\nin vec2 outUV2;\r\nin vec2 outUV3;\r\nin vec3 outPosition;\r\nin vec4 outPositionView;\r\nin float id;\r\n#ifdef TANGENT\r\n    in mat3 outTBN;\r\n#else\r\n    in vec3 outNormal;\r\n#endif\r\n\r\nlayout (location = 0) out vec4 color;\r\nlayout (location = 1) out vec4 normalColor;\r\nlayout (location = 2) out vec4 irradianceColor;\r\nlayout (location = 3) out vec4 albedoColor;\r\nlayout (location = 4) out vec4 specColor;\r\n\r\nstruct Material {\r\n    vec4 baseColorFactor;\r\n    vec3 specularFactor;\r\n    vec3 specularColorFactor;\r\n    vec3 emissiveFactor;\r\n    vec4 glossinessFactor;\r\n    vec4 metallicFactor;\r\n    vec4 roughnessFactor;\r\n    vec4 clearcoatFactor;\r\n    vec4 clearcoatRoughnessFactor;\r\n    vec4 sheenColorFactor;\r\n    vec4 sheenRoughnessFactor;\r\n    vec4 transmissionFactor;\r\n    vec4 ior;\r\n    vec4 normalTextureScale;\r\n    vec4 attenuationColorFactor; \r\n    vec4 attenuationDistance; \r\n    vec4 thicknessFactor;\r\n    vec4 emissiveStrength;\r\n    vec4 anisotropyFactor;\r\n    vec4 iridescence;\r\n    vec4 diffuseTransmissionFactor;\r\n    vec4 dispersionFactor;\r\n};\r\n\r\nMaterial fetchMaterial(int id) {\r\n    Material m;\r\n    int row = id;\r\n    m.baseColorFactor         = texelFetch(uMaterialTex, ivec2(0, row), 0);\r\n    m.specularFactor          = texelFetch(uMaterialTex, ivec2(1, row), 0).xyz;\r\n    m.specularColorFactor     = texelFetch(uMaterialTex, ivec2(2, row), 0).xyz;\r\n    m.emissiveFactor          = texelFetch(uMaterialTex, ivec2(3, row), 0).xyz;\r\n    m.glossinessFactor        = texelFetch(uMaterialTex, ivec2(4, row), 0);\r\n    m.metallicFactor          = texelFetch(uMaterialTex, ivec2(5, row), 0);\r\n    m.roughnessFactor         = texelFetch(uMaterialTex, ivec2(6, row), 0);\r\n    m.clearcoatFactor         = texelFetch(uMaterialTex, ivec2(7, row), 0);\r\n    m.clearcoatRoughnessFactor= texelFetch(uMaterialTex, ivec2(8, row), 0);\r\n    m.sheenColorFactor        = texelFetch(uMaterialTex, ivec2(9, row), 0);\r\n    m.sheenRoughnessFactor    = texelFetch(uMaterialTex, ivec2(10, row), 0);\r\n    m.transmissionFactor      = texelFetch(uMaterialTex, ivec2(11, row), 0);\r\n    m.ior                     = texelFetch(uMaterialTex, ivec2(12, row), 0);\r\n    m.normalTextureScale      = texelFetch(uMaterialTex, ivec2(13, row), 0);\r\n    m.attenuationColorFactor  = texelFetch(uMaterialTex, ivec2(14, row), 0);\r\n    m.attenuationDistance     = texelFetch(uMaterialTex, ivec2(15, row), 0);\r\n    m.thicknessFactor         = texelFetch(uMaterialTex, ivec2(16, row), 0);\r\n    m.emissiveStrength        = texelFetch(uMaterialTex, ivec2(17, row), 0);\r\n    m.anisotropyFactor        = texelFetch(uMaterialTex, ivec2(18, row), 0);\r\n    m.iridescence             = texelFetch(uMaterialTex, ivec2(19, row), 0);\r\n    m.diffuseTransmissionFactor= texelFetch(uMaterialTex, ivec2(20, row), 0);\r\n    m.dispersionFactor        = texelFetch(uMaterialTex, ivec2(21, row), 0);\r\n    return m;\r\n}\r\n\r\nuniform Matrices2 {\r\n    mat4 view;\r\n    mat4 projection;\r\n    mat4 light;\r\n    vec4 isShadow;\r\n};\r\nuniform LightPos {\r\n    vec4 lightPos[LIGHTNUMBER];\r\n};\r\nuniform LightColor {\r\n    vec4 lightColor[LIGHTNUMBER];\r\n};\r\nuniform Spotdir {\r\n    vec4 spotdir[LIGHTNUMBER];\r\n};\r\nuniform LightIntensity {\r\n    vec4 lightIntensity[LIGHTNUMBER];\r\n};\r\n#if defined MATRICES\r\nuniform TextureMatrices {\r\n    mat4 textureMatrices[MATRICES];\r\n};\r\n#endif\r\n#ifdef SPHERICAL_HARMONICS\r\nuniform SphericalHarmonics {\r\n    vec4 vSphericalL00;\r\n    vec4 vSphericalL1_1;\r\n    vec4 vSphericalL10;\r\n    vec4 vSphericalL11;\r\n    vec4 vSphericalL2_2;\r\n    vec4 vSphericalL2_1;\r\n    vec4 vSphericalL20;\r\n    vec4 vSphericalL21;\r\n    vec4 vSphericalL22;\r\n    mat4 rotationMatrix;\r\n};\r\n#endif\r\n\r\nuniform sampler2D baseColorTexture;\r\nuniform sampler2D metallicRoughnessTexture;\r\nuniform sampler2D normalTexture;\r\nuniform sampler2D emissiveTexture;\r\nuniform sampler2D occlusionTexture;\r\nuniform sampler2D clearcoatTexture;\r\nuniform sampler2D clearcoatRoughnessTexture;\r\nuniform sampler2D transmissionTexture;\r\nuniform sampler2D sheenColorTexture;\r\nuniform sampler2D sheenRoughnessTexture;\r\nuniform sampler2D iridescenceThicknessTexture;\r\nuniform sampler2D iridescenceTexture;\r\nuniform sampler2D clearcoatNormalTexture;\r\nuniform sampler2D specularTexture;\r\nuniform sampler2D specularColorTexture;\r\nuniform sampler2D thicknessTexture;\r\nuniform sampler2D diffuseTransmissionTexture;\r\nuniform sampler2D diffuseTransmissionColorTexture;\r\nuniform sampler2D anisotropyTexture;\r\n\r\nuniform samplerCube prefilterMap;\r\nuniform samplerCube charlieMap;\r\nuniform sampler2D brdfLUT;  \r\nuniform samplerCube irradianceMap;\r\nuniform sampler2D depthTexture;\r\nuniform sampler2D colorTexture;\r\nuniform vec2 isTone;\r\nuniform vec2 isIBL;\r\nuniform vec2 isDefaultLight;\r\nuniform sampler2D Sheen_E;\r\n";
+  var frag_default = "#version 300 es\r\nprecision highp float;\r\n\r\n// #ifdef DIFFUSE_TRANSMISSION\r\n//     #define SCATTERING 1\r\n// #endif\r\n\r\n#define texture2D(p, uv) texture(p, uv)\r\n#define textureCube(p, uv) texture(p, uv)\r\n#define textureLodCube(p, uv, i) textureLod(p, uv, i)\r\n#define textureLod2D(p, uv, i) textureLod(p, uv, i)\r\n#define textureLod2D2(p, uv, i) textureLod(p, uv, i)\r\n\r\nuniform sampler2D uMaterialTex;\r\n\r\nin vec4 vColor;\r\nin vec2 outUV0;\r\nin vec2 outUV2;\r\nin vec2 outUV3;\r\nin vec3 outPosition;\r\nin vec4 outPositionView;\r\nin float id;\r\n#ifdef TANGENT\r\n    in mat3 outTBN;\r\n#else\r\n    in vec3 outNormal;\r\n#endif\r\n\r\nlayout (location = 0) out vec4 color;\r\nlayout (location = 1) out vec4 normalColor;\r\nlayout (location = 2) out vec4 irradianceColor;\r\nlayout (location = 3) out vec4 albedoColor;\r\nlayout (location = 4) out vec4 specColor;\r\n\r\nstruct Material {\r\n    vec4 baseColorFactor;\r\n    vec3 specularFactor;\r\n    vec3 specularColorFactor;\r\n    vec3 emissiveFactor;\r\n    vec4 glossinessFactor;\r\n    vec4 metallicFactor;\r\n    vec4 roughnessFactor;\r\n    vec4 clearcoatFactor;\r\n    vec4 clearcoatRoughnessFactor;\r\n    vec4 sheenColorFactor;\r\n    vec4 sheenRoughnessFactor;\r\n    vec4 transmissionFactor;\r\n    vec4 ior;\r\n    vec4 normalTextureScale;\r\n    vec4 attenuationColorFactor; \r\n    vec4 attenuationDistance; \r\n    vec4 thicknessFactor;\r\n    vec4 emissiveStrength;\r\n    vec4 anisotropyFactor;\r\n    vec4 iridescence;\r\n    vec4 diffuseTransmissionFactor;\r\n    vec4 dispersionFactor;\r\n    ivec4 lights;\r\n};\r\n\r\nMaterial fetchMaterial(int id) {\r\n    Material m;\r\n    int row = id;\r\n    m.baseColorFactor         = texelFetch(uMaterialTex, ivec2(0, row), 0);\r\n    m.specularFactor          = texelFetch(uMaterialTex, ivec2(1, row), 0).xyz;\r\n    m.specularColorFactor     = texelFetch(uMaterialTex, ivec2(2, row), 0).xyz;\r\n    m.emissiveFactor          = texelFetch(uMaterialTex, ivec2(3, row), 0).xyz;\r\n    m.glossinessFactor        = texelFetch(uMaterialTex, ivec2(4, row), 0);\r\n    m.metallicFactor          = texelFetch(uMaterialTex, ivec2(5, row), 0);\r\n    m.roughnessFactor         = texelFetch(uMaterialTex, ivec2(6, row), 0);\r\n    m.clearcoatFactor         = texelFetch(uMaterialTex, ivec2(7, row), 0);\r\n    m.clearcoatRoughnessFactor= texelFetch(uMaterialTex, ivec2(8, row), 0);\r\n    m.sheenColorFactor        = texelFetch(uMaterialTex, ivec2(9, row), 0);\r\n    m.sheenRoughnessFactor    = texelFetch(uMaterialTex, ivec2(10, row), 0);\r\n    m.transmissionFactor      = texelFetch(uMaterialTex, ivec2(11, row), 0);\r\n    m.ior                     = texelFetch(uMaterialTex, ivec2(12, row), 0);\r\n    m.normalTextureScale      = texelFetch(uMaterialTex, ivec2(13, row), 0);\r\n    m.attenuationColorFactor  = texelFetch(uMaterialTex, ivec2(14, row), 0);\r\n    m.attenuationDistance     = texelFetch(uMaterialTex, ivec2(15, row), 0);\r\n    m.thicknessFactor         = texelFetch(uMaterialTex, ivec2(16, row), 0);\r\n    m.emissiveStrength        = texelFetch(uMaterialTex, ivec2(17, row), 0);\r\n    m.anisotropyFactor        = texelFetch(uMaterialTex, ivec2(18, row), 0);\r\n    m.iridescence             = texelFetch(uMaterialTex, ivec2(19, row), 0);\r\n    m.diffuseTransmissionFactor= texelFetch(uMaterialTex, ivec2(20, row), 0);\r\n    m.dispersionFactor        = texelFetch(uMaterialTex, ivec2(21, row), 0);\r\n    m.lights                  = ivec4(texelFetch(uMaterialTex, ivec2(22, row), 0));\r\n    return m;\r\n}\r\n\r\nuniform Matrices2 {\r\n    mat4 view;\r\n    mat4 projection;\r\n    mat4 light;\r\n    vec4 isShadow;\r\n};\r\nuniform LightPos {\r\n    vec4 lightPos[LIGHTNUMBER];\r\n};\r\nuniform LightColor {\r\n    vec4 lightColor[LIGHTNUMBER];\r\n};\r\nuniform Spotdir {\r\n    vec4 spotdir[LIGHTNUMBER];\r\n};\r\nuniform LightIntensity {\r\n    vec4 lightIntensity[LIGHTNUMBER];\r\n};\r\n#if defined MATRICES\r\nuniform TextureMatrices {\r\n    mat4 textureMatrices[MATRICES];\r\n};\r\n#endif\r\n#ifdef SPHERICAL_HARMONICS\r\nuniform SphericalHarmonics {\r\n    vec4 vSphericalL00;\r\n    vec4 vSphericalL1_1;\r\n    vec4 vSphericalL10;\r\n    vec4 vSphericalL11;\r\n    vec4 vSphericalL2_2;\r\n    vec4 vSphericalL2_1;\r\n    vec4 vSphericalL20;\r\n    vec4 vSphericalL21;\r\n    vec4 vSphericalL22;\r\n    mat4 rotationMatrix;\r\n};\r\n#endif\r\n\r\nuniform sampler2D baseColorTexture;\r\nuniform sampler2D metallicRoughnessTexture;\r\nuniform sampler2D normalTexture;\r\nuniform sampler2D emissiveTexture;\r\nuniform sampler2D occlusionTexture;\r\nuniform sampler2D clearcoatTexture;\r\nuniform sampler2D clearcoatRoughnessTexture;\r\nuniform sampler2D transmissionTexture;\r\nuniform sampler2D sheenColorTexture;\r\nuniform sampler2D sheenRoughnessTexture;\r\nuniform sampler2D iridescenceThicknessTexture;\r\nuniform sampler2D iridescenceTexture;\r\nuniform sampler2D clearcoatNormalTexture;\r\nuniform sampler2D specularTexture;\r\nuniform sampler2D specularColorTexture;\r\nuniform sampler2D thicknessTexture;\r\nuniform sampler2D diffuseTransmissionTexture;\r\nuniform sampler2D diffuseTransmissionColorTexture;\r\nuniform sampler2D anisotropyTexture;\r\n\r\nuniform samplerCube prefilterMap;\r\nuniform samplerCube charlieMap;\r\nuniform sampler2D brdfLUT;  \r\nuniform samplerCube irradianceMap;\r\nuniform sampler2D depthTexture;\r\nuniform sampler2D colorTexture;\r\nuniform vec2 isTone;\r\nuniform vec2 isIBL;\r\nuniform vec2 isDefaultLight;\r\nuniform sampler2D Sheen_E;\r\n";
 
   // src/shaders/vert.h
   var vert_default = "#version 300 es\r\nprecision highp float;\r\n\r\nlayout (location = 0) in vec3 inPosition;\r\nlayout (location = 1) in vec3 inNormal;\r\nlayout (location = 2) in vec2 inUV;\r\nlayout (location = 4) in vec4 inJoint;\r\nlayout (location = 5) in vec4 inWeight;\r\nlayout (location = 3) in vec4 inTangent;\r\nlayout (location = 6) in vec4 inColor;\r\nlayout (location = 7) in vec2 inUV2;\r\nlayout (location = 8) in vec2 inUV3;\r\nlayout (location = 9) in float uMaterialID;\r\n\r\nuniform sampler2D uTransformTex;\r\n\r\nout vec4 vColor;\r\nout vec2 outUV0;\r\nout vec2 outUV2;\r\nout vec2 outUV3;\r\nout vec3 outPosition;\r\nout vec4 outPositionView;\r\nout float id;\r\n#ifdef TANGENT\r\n    out mat3 outTBN;\r\n#else\r\n    out vec3 outNormal;\r\n#endif\r\n\r\nstruct Transform {\r\n    mat4 model;\r\n};\r\nTransform fetchTransform(int id) {\r\n    Transform t;\r\n\r\n    // 8 texels across (0..7)\r\n    t.model[0] = texelFetch(uTransformTex, ivec2(0, id), 0);\r\n    t.model[1] = texelFetch(uTransformTex, ivec2(1, id), 0);\r\n    t.model[2] = texelFetch(uTransformTex, ivec2(2, id), 0);\r\n    t.model[3] = texelFetch(uTransformTex, ivec2(3, id), 0);\r\n\r\n    return t;\r\n}\r\nuniform Matrices2 {\r\n    mat4 view;\r\n    mat4 projection;\r\n    mat4 light;\r\n    vec4 isShadow;\r\n};\r\n#ifdef JOINTNUMBER\r\nuniform Skin {\r\n    mat4 joint[JOINTNUMBER];\r\n};\r\n#endif";
@@ -20879,6 +20913,7 @@ ${defineStr}`));
       }
       mesh.updateMatrix();
       mesh.calculateBounding();
+      mesh.visible = parent.visible;
       return mesh;
     }
     buildNode(parent, name) {
@@ -20897,6 +20932,9 @@ ${defineStr}`));
         child.setProjection(proj);
         this.cameras.push(child);
       } else if (el.extensions && el.extensions.KHR_lights_punctual) {
+        if (this.lights.find((l) => l.id === el.name)) {
+          return;
+        }
         const light = this.json.extensions.KHR_lights_punctual.lights[el.extensions.KHR_lights_punctual.light];
         light.isInitial = false;
         child = new Light(light, name, parent);
@@ -20914,6 +20952,10 @@ ${defineStr}`));
         child.setMatrix(el.matrix);
       }
       child.updateMatrix();
+      child.visible = parent.visible;
+      if (el.extensions && el.extensions.KHR_node_visibility) {
+        child.visible = el.extensions.KHR_node_visibility.visible;
+      }
       child.id = el.name;
       parent.children.push(child);
       parent = child;
@@ -20961,15 +21003,10 @@ ${defineStr}`));
         this.scene.variants = this.json.extensions.KHR_materials_variants.variants;
       }
       this.json.scenes[this.json.scene !== void 0 ? this.json.scene : 0].nodes.forEach((n) => {
-        if (this.json.nodes[n].extensions) {
+        if (this.json.nodes[n].extensions !== void 0) {
           this.buildNode(this.scene, n);
         }
-      });
-      if (this.lights.length === 0 && this.light) {
-        this.lights.push(this.light);
-      }
-      this.json.scenes[this.json.scene !== void 0 ? this.json.scene : 0].nodes.forEach((n) => {
-        if (this.json.nodes[n].children && this.json.nodes[n].children.length && !this.json.nodes[n].extensions) {
+        if (this.json.nodes[n].children && this.json.nodes[n].children.length) {
           this.buildNode(this.scene, n);
         }
         if (this.json.nodes[n].mesh !== void 0) {
@@ -20979,6 +21016,9 @@ ${defineStr}`));
           this.buildNode(this.scene, n);
         }
       });
+      if (this.lights.length === 0 && this.light) {
+        this.lights.push(this.light);
+      }
       walk(this.scene, (mesh) => {
         if (mesh instanceof Mesh) {
           if (mesh.material.alpha) {
@@ -20988,14 +21028,25 @@ ${defineStr}`));
           }
           this.scene.meshes.push(mesh);
           mesh.material.defines.push({ name: "LIGHTNUMBER", value: this.lights.length });
-        }
-        if (mesh instanceof Light) {
-          const i = this.lights.findIndex((l) => l === mesh);
-          walk(mesh.parent, (m) => {
-            if (m instanceof Mesh) {
-              m.material.defines.find((d) => d.name === "LIGHTINDEX").value = i;
+          this.lights.forEach((light, i) => {
+            if (light.visible) {
+              if (light.type === "directional") {
+                mesh.material.lights[mesh.material.lights.findIndex((l) => l === -1)] = i;
+              } else {
+                const p = mesh.getPosition();
+                const distance = new Vector3(light.getPosition()).distanceToSquared(p[0], p[1], p[2]);
+                const attenuation = Math.max(Math.min(1 - Math.pow(distance / light.range, 4), 1), 0) / Math.pow(distance, 2);
+                if (attenuation > 0) {
+                  mesh.material.lights[mesh.material.lights.findIndex((l) => l === -1)] = i;
+                }
+              }
             }
           });
+        }
+      });
+      this.scene.meshes.forEach((m) => {
+        if (m.material.lights[0] === -1) {
+          m.material.lights[0] = 0;
         }
       });
       this.scene.opaqueChildren.sort((a, b) => a.distance - b.distance);
@@ -21013,12 +21064,18 @@ ${defineStr}`));
           if (sampler) {
             const { target } = channel;
             let name = target.node;
-            let path = target.path;
+            let { path } = target;
             if (name === void 0) {
               const s = target.extensions.KHR_animation_pointer.pointer.split("/");
-              const mat = this.json.materials[s[2]].name;
-              name = this.scene.meshes.find((m) => m.material.name === mat).name;
-              path = s.splice(3).join("/");
+              if (s[1] === "materials") {
+                const mat = this.json.materials[s[2]].name;
+                name = this.scene.meshes.find((m) => m.material.name === mat).name;
+                path = s.splice(3).join("/");
+              }
+              if (s[1] === "nodes") {
+                name = this.json.nodes[s[2]].name;
+                path = s[5];
+              }
             }
             const input = animation.parameters !== void 0 ? animation.parameters[sampler.input] : sampler.input;
             const output = animation.parameters !== void 0 ? animation.parameters[sampler.output] : sampler.output;
@@ -21040,7 +21097,7 @@ ${defineStr}`));
             );
             const meshes = [];
             walk(this.scene, (node) => {
-              if (node.name === name) {
+              if (node.name === name || node.id === name) {
                 if (path === "weights" && node instanceof Object3D) {
                   meshes.push(...node.children);
                 } else {
@@ -21717,6 +21774,10 @@ ${defineStr}`));
         for (const mesh of v.meshes) {
           mesh.matrix.setTranslate(vector);
         }
+      } else if (v.type === "visible") {
+        for (const mesh of v.meshes) {
+          mesh.visible = vector.elements[0] !== 0;
+        }
       }
     }
     spline(sec, v) {
@@ -21897,6 +21958,9 @@ ${defineStr}`));
               if (node instanceof Mesh) {
                 node.reflow = true;
               }
+              if (node instanceof Light) {
+                this.needUpdateView = true;
+              }
               if (node instanceof Camera && node === this.camera) {
                 this.needUpdateView = true;
               }
@@ -21938,10 +22002,10 @@ ${defineStr}`));
       requestAnimationFrame(this.render.bind(this));
     }
     renderScene() {
-      if (this.needUpdateView) {
+      if (this.needUpdateView || this.reflow) {
         const planes = Frustum(this.camera.getViewProjMatrix());
         this.scene.meshes.forEach((mesh) => {
-          mesh.visible = mesh.isVisible(planes);
+          mesh.visible = mesh.parent.visible && mesh.isVisible(planes);
         });
       }
       const s = this.getState();
@@ -21949,15 +22013,24 @@ ${defineStr}`));
         gl4.bindBufferBase(gl4.UNIFORM_BUFFER, 1, s.UBO);
         s.cameraBuffer.update(gl4, "view", s.camera.matrixWorldInvert.elements);
         s.cameraBuffer.update(gl4, "light", s.light.matrixWorldInvert.elements);
-        gl4.bindBufferBase(gl4.UNIFORM_BUFFER, 3, s.lightUBO1);
-        const lightPos = new Float32Array(3);
-        lightPos.set(s.light.getPosition(), 0);
-        s.lightPosBuffer.update(gl4, "lightPos", lightPos);
+        gl4.bindBufferBase(gl4.UNIFORM_BUFFER, 3, s.lightPosUniform);
+        this.parse.lights.forEach((light, i) => {
+          s.lightPosBuffer.store.set(light.getPosition(), i * 4);
+        });
+        gl4.bufferSubData(gl4.UNIFORM_BUFFER, 0, s.lightPosBuffer.store);
       }
       if (s.needUpdateProjection) {
         gl4.bindBufferBase(gl4.UNIFORM_BUFFER, 1, s.UBO);
         s.cameraBuffer.update(gl4, "projection", s.camera.projection.elements);
       }
+      gl4.bindBufferBase(gl4.UNIFORM_BUFFER, 4, s.lightColorUniform);
+      gl4.bufferSubData(gl4.UNIFORM_BUFFER, 0, s.lightColorBuffer.store);
+      s.lights.forEach((light, i) => {
+        const offset = i * 4 * Float32Array.BYTES_PER_ELEMENT;
+        if (light.visible === false) {
+          gl4.bufferSubData(gl4.UNIFORM_BUFFER, offset, new Float32Array([0, 0, 0, 0]));
+        }
+      });
       this.scene.meshes.forEach((mesh, i) => {
         if (mesh.reflow) {
           gl4.activeTexture(gl4[`TEXTURE${31}`]);
@@ -22079,10 +22152,10 @@ ${defineStr}`));
     async renderScene() {
       let { renderPassDescriptor, context, device } = WebGPU;
       const s = this.getState();
-      if (s.needUpdateView) {
+      if (s.needUpdateView || this.reflow) {
         const planes = Frustum(s.camera.getViewProjMatrix());
         this.scene.meshes.forEach((mesh) => {
-          mesh.visible = mesh.isVisible(planes);
+          mesh.visible = mesh.parent.visible && mesh.isVisible(planes);
         });
         this.scene.opaqueChildren.sort((a, b) => a.distance - b.distance);
         this.scene.transparentChildren.sort((a, b) => a.distance - b.distance);
@@ -22113,13 +22186,39 @@ ${defineStr}`));
       if (s.needUpdateView) {
         s.cameraBuffer.updateWebGPU(WebGPU, "view", s.camera.matrixWorldInvert.elements);
         s.cameraBuffer.updateWebGPU(WebGPU, "light", s.light.matrixWorldInvert.elements);
-        const lightPos = new Float32Array(3);
-        lightPos.set(s.light.getPosition(), 0);
-        s.lightPosBuffer.updateWebGPU(WebGPU, "lightPos", lightPos);
+        this.parse.lights.forEach((light, i) => {
+          s.lightPosBuffer.store.set(light.getPosition(), i * 4);
+        });
+        device.queue.writeBuffer(
+          s.lightPosBuffer.bufferWebGPU,
+          0,
+          s.lightPosBuffer.store.buffer,
+          s.lightPosBuffer.store.byteOffset,
+          s.lightPosBuffer.store.byteLength
+        );
       }
       if (s.needUpdateProjection) {
         s.cameraBuffer.updateWebGPU(WebGPU, "projection", s.camera.projection.elements);
       }
+      device.queue.writeBuffer(
+        s.lightColorBuffer.bufferWebGPU,
+        0,
+        s.lightColorBuffer.store.buffer,
+        s.lightColorBuffer.store.byteOffset,
+        s.lightColorBuffer.store.byteLength
+      );
+      s.lights.forEach((light, i) => {
+        const offset = i * 4 * Float32Array.BYTES_PER_ELEMENT;
+        if (light.visible === false) {
+          device.queue.writeBuffer(
+            s.lightColorBuffer.bufferWebGPU,
+            offset,
+            new Float32Array([0, 0, 0, 0]).buffer,
+            0,
+            16
+          );
+        }
+      });
       this.scene.opaqueChildren.forEach((mesh) => {
         if (mesh.visible) {
           passEncoder.setPipeline(mesh.pipeline);
@@ -22152,7 +22251,7 @@ ${defineStr}`));
   };
 
   // src/shaders/frag.webgpu.h
-  var frag_webgpu_default = "#version 460\r\n\r\n#extension GL_EXT_samplerless_texture_functions:require\r\n\r\n// #ifdef DIFFUSE_TRANSMISSION\r\n//     #define SCATTERING 1\r\n// #endif\r\n\r\n#define texture2D(p, uv) texture(sampler2D(p, baseSampler), uv)\r\n#define textureCube(p, uv) texture(samplerCube(p, unfilteredSampler), uv)\r\n#define textureLodCube(p, uv, i) textureLod(samplerCube(p, unfilteredSampler), uv, i)\r\n#define textureLod2D(p, uv, i) textureLod(sampler2D(p, baseSampler2), uv, i)\r\n#define textureLod2D2(p, uv, i) textureLod(sampler2D(p, unfilteredSampler), uv, i)\r\n\r\n#define IBL 1\r\n#define USE_PBR 1\r\n#define WEBGPU 1\r\n\r\nlayout(location = 0) in vec2 outUV0;\r\n\r\n#ifdef TANGENT\r\n    layout(location = 4) in mat3 outTBN;\r\n#else\r\n    layout(location = 11) in vec3 outNormal;\r\n#endif\r\n#ifdef MULTIUV\r\nlayout(location = 1) in vec2 outUV2;\r\nlayout(location = 8) in vec2 outUV3;\r\n#endif\r\nlayout(location = 2) in vec3 outPosition;\r\nlayout(location = 3) in vec4 vColor;\r\nlayout(location = 7) in vec4 outPositionView;\r\nlayout(location = 12) in float id;\r\n\r\nlayout(location = 0) out vec4 color;\r\n// layout (location = 1) out vec4 normalColor;\r\nlayout (location = 1) out vec4 irradianceColor;\r\nlayout (location = 2) out vec4 albedoColor;\r\nlayout (location = 3) out vec4 specColor;\r\n\r\nlayout(set = 0, binding = 0) uniform Matrices {\r\n    mat4 model;\r\n};\r\nlayout(set = 0, binding = 39) uniform Matrices2 {\r\n    mat4 view;\r\n    mat4 projection;\r\n    mat4 light;\r\n    vec4 isShadow;\r\n};\r\nstruct Material {\r\n    vec4 baseColorFactor;\r\n    vec3 specularFactor;\r\n    vec3 specularColorFactor;\r\n    vec3 emissiveFactor;\r\n    vec4 glossinessFactor;\r\n    vec4 metallicFactor;\r\n    vec4 roughnessFactor;\r\n    vec4 clearcoatFactor;\r\n    vec4 clearcoatRoughnessFactor;\r\n    vec4 sheenColorFactor;\r\n    vec4 sheenRoughnessFactor;\r\n    vec4 transmissionFactor;\r\n    vec4 ior;\r\n    vec4 normalTextureScale;\r\n    vec4 attenuationColorFactor; \r\n    vec4 attenuationDistance; \r\n    vec4 thicknessFactor;\r\n    vec4 emissiveStrength;\r\n    vec4 anisotropyFactor;\r\n    vec4 iridescence;\r\n    vec4 diffuseTransmissionFactor;\r\n    vec4 dispersionFactor;\r\n};\r\nlayout(set = 0, binding = 1) buffer Uniforms {\r\n    Material data[];\r\n} materials;\r\n\r\nlayout(set = 0, binding = 27) uniform SphericalHarmonics {\r\n    vec4 vSphericalL00;\r\n    vec4 vSphericalL1_1;\r\n    vec4 vSphericalL10;\r\n    vec4 vSphericalL11;\r\n    vec4 vSphericalL2_2;\r\n    vec4 vSphericalL2_1;\r\n    vec4 vSphericalL20;\r\n    vec4 vSphericalL21;\r\n    vec4 vSphericalL22;\r\n    mat4 rotationMatrix;\r\n};\r\nlayout(set = 0, binding = 15) uniform LightColor {\r\n    vec4 lightColor[LIGHTNUMBER];\r\n};\r\nlayout(set = 0, binding = 17) uniform Spotdir {\r\n    vec4 spotdir[LIGHTNUMBER];\r\n};\r\nlayout(set = 0, binding = 18) uniform LightIntensity {\r\n    vec4 lightIntensity[LIGHTNUMBER];\r\n};\r\nlayout(set = 0, binding = 16) uniform LightPos {\r\n    vec4 lightPos[LIGHTNUMBER];\r\n};\r\n#if defined MATRICES\r\nlayout(set = 0, binding = 23) uniform TextureMatrices {\r\n    mat4 textureMatrices[MATRICES];\r\n};\r\n#endif\r\n\r\nlayout(set = 0, binding = 2) uniform sampler baseSampler;\r\nlayout(set = 0, binding = 37) uniform sampler baseSampler2;\r\nlayout(set = 0, binding = 24) uniform sampler unfilteredSampler;\r\n#ifdef BASECOLORTEXTURE\r\nlayout(set = 0, binding = 3) uniform texture2D baseColorTexture;\r\n#endif\r\n#ifdef METALROUGHNESSMAP\r\nlayout(set = 0, binding = 4) uniform texture2D metallicRoughnessTexture;\r\n#endif\r\n#ifdef NORMALMAP\r\nlayout(set = 0, binding = 5) uniform texture2D normalTexture;\r\n#endif\r\n#ifdef EMISSIVEMAP\r\nlayout(set = 0, binding = 6) uniform texture2D emissiveTexture;\r\n#endif\r\n#ifdef OCCLUSIONMAP\r\nlayout(set = 0, binding = 7) uniform texture2D occlusionTexture;\r\n#endif\r\n#ifdef CLEARCOATMAP\r\nlayout(set = 0, binding = 8) uniform texture2D clearcoatTexture;\r\n#endif\r\n#ifdef CLEARCOATROUGHMAP\r\nlayout(set = 0, binding = 9) uniform texture2D clearcoatRoughnessTexture;\r\n#endif\r\n#ifdef TRANSMISSIONMAP\r\nlayout(set = 0, binding = 10) uniform texture2D transmissionTexture;\r\n#endif\r\n#ifdef SHEENMAP\r\nlayout(set = 0, binding = 11) uniform texture2D sheenColorTexture;\r\nlayout(set = 0, binding = 12) uniform texture2D sheenRoughnessTexture;\r\n#endif\r\n#ifdef CLEARCOATNORMALMAP\r\nlayout(set = 0, binding = 13) uniform texture2D clearcoatNormalTexture;\r\n#endif\r\n#ifdef SPECULARMAP\r\nlayout(set = 0, binding = 14) uniform texture2D specularTexture;\r\n#endif\r\nlayout(set = 0, binding = 19) uniform textureCube prefilterMap;\r\nlayout(set = 0, binding = 20) uniform textureCube irradianceMap;\r\nlayout(set = 0, binding = 21) uniform texture2D brdfLUT;\r\n#ifdef SHADOWMAP\r\nlayout(set = 0, binding = 25) uniform texture2D depthTexture;\r\n#endif\r\nlayout(set = 0, binding = 26) uniform texture2D colorTexture;\r\nlayout(set = 0, binding = 28) uniform texture2D Sheen_E;\r\nlayout(set = 0, binding = 29) uniform texture2D thicknessTexture;\r\nlayout(set = 0, binding = 31) uniform texture2D anisotropyTexture;\r\nlayout(set = 0, binding = 32) uniform texture2D iridescenceThicknessTexture;\r\nlayout(set = 0, binding = 38) uniform texture2D iridescenceTexture;\r\nlayout(set = 0, binding = 33) uniform texture2D specularColorTexture;\r\nlayout(set = 0, binding = 34) uniform texture2D diffuseTransmissionTexture;\r\nlayout(set = 0, binding = 36) uniform texture2D diffuseTransmissionColorTexture;\r\nlayout(set = 0, binding = 35) uniform textureCube charlieMap;\r\n\r\nlayout(set = 0, binding = 30) uniform StateUniform {\r\n    vec4 isTone;\r\n    vec4 isIBL;\r\n    vec4 isDefaultLight;\r\n};\r\n";
+  var frag_webgpu_default = "#version 460\r\n\r\n#extension GL_EXT_samplerless_texture_functions:require\r\n\r\n// #ifdef DIFFUSE_TRANSMISSION\r\n//     #define SCATTERING 1\r\n// #endif\r\n\r\n#define texture2D(p, uv) texture(sampler2D(p, baseSampler), uv)\r\n#define textureCube(p, uv) texture(samplerCube(p, unfilteredSampler), uv)\r\n#define textureLodCube(p, uv, i) textureLod(samplerCube(p, unfilteredSampler), uv, i)\r\n#define textureLod2D(p, uv, i) textureLod(sampler2D(p, baseSampler2), uv, i)\r\n#define textureLod2D2(p, uv, i) textureLod(sampler2D(p, unfilteredSampler), uv, i)\r\n\r\n#define IBL 1\r\n#define USE_PBR 1\r\n#define WEBGPU 1\r\n\r\nlayout(location = 0) in vec2 outUV0;\r\n\r\n#ifdef TANGENT\r\n    layout(location = 4) in mat3 outTBN;\r\n#else\r\n    layout(location = 11) in vec3 outNormal;\r\n#endif\r\n#ifdef MULTIUV\r\nlayout(location = 1) in vec2 outUV2;\r\nlayout(location = 8) in vec2 outUV3;\r\n#endif\r\nlayout(location = 2) in vec3 outPosition;\r\nlayout(location = 3) in vec4 vColor;\r\nlayout(location = 7) in vec4 outPositionView;\r\nlayout(location = 12) in float id;\r\n\r\nlayout(location = 0) out vec4 color;\r\n// layout (location = 1) out vec4 normalColor;\r\nlayout (location = 1) out vec4 irradianceColor;\r\nlayout (location = 2) out vec4 albedoColor;\r\nlayout (location = 3) out vec4 specColor;\r\n\r\nlayout(set = 0, binding = 0) uniform Matrices {\r\n    mat4 model;\r\n};\r\nlayout(set = 0, binding = 39) uniform Matrices2 {\r\n    mat4 view;\r\n    mat4 projection;\r\n    mat4 light;\r\n    vec4 isShadow;\r\n};\r\nstruct Material {\r\n    vec4 baseColorFactor;\r\n    vec3 specularFactor;\r\n    vec3 specularColorFactor;\r\n    vec3 emissiveFactor;\r\n    vec4 glossinessFactor;\r\n    vec4 metallicFactor;\r\n    vec4 roughnessFactor;\r\n    vec4 clearcoatFactor;\r\n    vec4 clearcoatRoughnessFactor;\r\n    vec4 sheenColorFactor;\r\n    vec4 sheenRoughnessFactor;\r\n    vec4 transmissionFactor;\r\n    vec4 ior;\r\n    vec4 normalTextureScale;\r\n    vec4 attenuationColorFactor; \r\n    vec4 attenuationDistance; \r\n    vec4 thicknessFactor;\r\n    vec4 emissiveStrength;\r\n    vec4 anisotropyFactor;\r\n    vec4 iridescence;\r\n    vec4 diffuseTransmissionFactor;\r\n    vec4 dispersionFactor;\r\n    vec4 lights;\r\n};\r\nlayout(set = 0, binding = 1) buffer Uniforms {\r\n    Material data[];\r\n} materials;\r\n\r\nlayout(set = 0, binding = 27) uniform SphericalHarmonics {\r\n    vec4 vSphericalL00;\r\n    vec4 vSphericalL1_1;\r\n    vec4 vSphericalL10;\r\n    vec4 vSphericalL11;\r\n    vec4 vSphericalL2_2;\r\n    vec4 vSphericalL2_1;\r\n    vec4 vSphericalL20;\r\n    vec4 vSphericalL21;\r\n    vec4 vSphericalL22;\r\n    mat4 rotationMatrix;\r\n};\r\nlayout(set = 0, binding = 15) uniform LightColor {\r\n    vec4 lightColor[LIGHTNUMBER];\r\n};\r\nlayout(set = 0, binding = 17) uniform Spotdir {\r\n    vec4 spotdir[LIGHTNUMBER];\r\n};\r\nlayout(set = 0, binding = 18) uniform LightIntensity {\r\n    vec4 lightIntensity[LIGHTNUMBER];\r\n};\r\nlayout(set = 0, binding = 16) uniform LightPos {\r\n    vec4 lightPos[LIGHTNUMBER];\r\n};\r\n#if defined MATRICES\r\nlayout(set = 0, binding = 23) uniform TextureMatrices {\r\n    mat4 textureMatrices[MATRICES];\r\n};\r\n#endif\r\n\r\nlayout(set = 0, binding = 2) uniform sampler baseSampler;\r\nlayout(set = 0, binding = 37) uniform sampler baseSampler2;\r\nlayout(set = 0, binding = 24) uniform sampler unfilteredSampler;\r\n#ifdef BASECOLORTEXTURE\r\nlayout(set = 0, binding = 3) uniform texture2D baseColorTexture;\r\n#endif\r\n#ifdef METALROUGHNESSMAP\r\nlayout(set = 0, binding = 4) uniform texture2D metallicRoughnessTexture;\r\n#endif\r\n#ifdef NORMALMAP\r\nlayout(set = 0, binding = 5) uniform texture2D normalTexture;\r\n#endif\r\n#ifdef EMISSIVEMAP\r\nlayout(set = 0, binding = 6) uniform texture2D emissiveTexture;\r\n#endif\r\n#ifdef OCCLUSIONMAP\r\nlayout(set = 0, binding = 7) uniform texture2D occlusionTexture;\r\n#endif\r\n#ifdef CLEARCOATMAP\r\nlayout(set = 0, binding = 8) uniform texture2D clearcoatTexture;\r\n#endif\r\n#ifdef CLEARCOATROUGHMAP\r\nlayout(set = 0, binding = 9) uniform texture2D clearcoatRoughnessTexture;\r\n#endif\r\n#ifdef TRANSMISSIONMAP\r\nlayout(set = 0, binding = 10) uniform texture2D transmissionTexture;\r\n#endif\r\n#ifdef SHEENMAP\r\nlayout(set = 0, binding = 11) uniform texture2D sheenColorTexture;\r\nlayout(set = 0, binding = 12) uniform texture2D sheenRoughnessTexture;\r\n#endif\r\n#ifdef CLEARCOATNORMALMAP\r\nlayout(set = 0, binding = 13) uniform texture2D clearcoatNormalTexture;\r\n#endif\r\n#ifdef SPECULARMAP\r\nlayout(set = 0, binding = 14) uniform texture2D specularTexture;\r\n#endif\r\nlayout(set = 0, binding = 19) uniform textureCube prefilterMap;\r\nlayout(set = 0, binding = 20) uniform textureCube irradianceMap;\r\nlayout(set = 0, binding = 21) uniform texture2D brdfLUT;\r\n#ifdef SHADOWMAP\r\nlayout(set = 0, binding = 25) uniform texture2D depthTexture;\r\n#endif\r\nlayout(set = 0, binding = 26) uniform texture2D colorTexture;\r\nlayout(set = 0, binding = 28) uniform texture2D Sheen_E;\r\nlayout(set = 0, binding = 29) uniform texture2D thicknessTexture;\r\nlayout(set = 0, binding = 31) uniform texture2D anisotropyTexture;\r\nlayout(set = 0, binding = 32) uniform texture2D iridescenceThicknessTexture;\r\nlayout(set = 0, binding = 38) uniform texture2D iridescenceTexture;\r\nlayout(set = 0, binding = 33) uniform texture2D specularColorTexture;\r\nlayout(set = 0, binding = 34) uniform texture2D diffuseTransmissionTexture;\r\nlayout(set = 0, binding = 36) uniform texture2D diffuseTransmissionColorTexture;\r\nlayout(set = 0, binding = 35) uniform textureCube charlieMap;\r\n\r\nlayout(set = 0, binding = 30) uniform StateUniform {\r\n    vec4 isTone;\r\n    vec4 isIBL;\r\n    vec4 isDefaultLight;\r\n};\r\n";
 
   // src/shaders/vert.webgpu.h
   var vert_webgpu_default = "#version 460\r\nprecision highp float;\r\n\r\n#define WEBGPU 1\r\n\r\nlayout (location = 0) in vec3 inPosition;\r\nlayout (location = 1) in vec2 inUV;\r\nlayout (location = 2) in vec3 inNormal;\r\n#ifdef JOINTNUMBER\r\nlayout (location = 4) in vec4 inJoint;\r\nlayout (location = 5) in vec4 inWeight;\r\n#endif\r\n#ifdef TANGENT\r\nlayout (location = 3) in vec4 inTangent;\r\n#endif\r\n#ifdef COLOR\r\nlayout (location = 6) in vec4 inColor;\r\n#endif\r\n#ifdef MULTIUV\r\nlayout (location = 7) in vec2 inUV2;\r\n#endif\r\n#ifdef MULTIUV2\r\nlayout (location = 8) in vec2 inUV3;\r\n#endif\r\n\r\nlayout(location = 0) out vec2 outUV0;\r\nlayout(location = 1) out vec2 outUV2;\r\nlayout(location = 8) out vec2 outUV3;\r\nlayout(location = 2) out vec3 outPosition;\r\nlayout(location = 3) out vec4 vColor;\r\nlayout(location = 12) out float id;\r\n\r\n#ifdef TANGENT\r\n    layout(location = 4) out mat3 outTBN;\r\n#else\r\n    layout(location = 11) out vec3 outNormal;\r\n#endif\r\nlayout(location = 7) out vec4 outPositionView;\r\n\r\nstruct Transform {\r\n    mat4 model;\r\n};\r\n\r\nlayout(set = 0, binding = 0) buffer readonly Matrices {\r\n    Transform data[];\r\n} transforms;\r\nlayout(set = 0, binding = 39) uniform Matrices2 {\r\n    mat4 view;\r\n    mat4 projection;\r\n    mat4 light;\r\n    vec4 isShadow;\r\n};\r\n\r\n#ifdef JOINTNUMBER\r\nlayout(set = 0, binding = 22) uniform Skin {\r\n    mat4 joint[JOINTNUMBER];\r\n};\r\n#endif";
@@ -25292,25 +25391,26 @@ ${defineStr}`)];
           lightColor.set(light.color.elements, i * 4);
           lightProps.set([light.intensity, light.spot.innerConeAngle ?? 0, light.spot.outerConeAngle ?? 0, lightEnum2[light.type]], i * 4);
         });
-        const materialUniformBuffer = new UniformBuffer();
-        materialUniformBuffer.add("lightPos", lightPos);
-        materialUniformBuffer.done();
-        this.lightPosBuffer = materialUniformBuffer;
-        const materialUniformBuffer2 = new UniformBuffer();
-        materialUniformBuffer2.add("lightColor", lightColor);
-        materialUniformBuffer2.done();
-        const materialUniformBuffer3 = new UniformBuffer();
-        materialUniformBuffer3.add("spotdir", spotDirs);
-        materialUniformBuffer3.done();
-        const materialUniformBuffer4 = new UniformBuffer();
-        materialUniformBuffer4.add("lightIntensity", lightProps);
-        materialUniformBuffer4.done();
-        this.scene.meshes[0].geometry.updateUniformsWebGPU(WebGPU2, materialUniformBuffer);
-        this.scene.meshes[0].geometry.updateUniformsWebGPU(WebGPU2, materialUniformBuffer2);
-        this.scene.meshes[0].geometry.updateUniformsWebGPU(WebGPU2, materialUniformBuffer3);
-        this.scene.meshes[0].geometry.updateUniformsWebGPU(WebGPU2, materialUniformBuffer4);
+        const lightPosBuffer = new UniformBuffer();
+        lightPosBuffer.add("lightPos", lightPos);
+        lightPosBuffer.done();
+        this.lightPosBuffer = lightPosBuffer;
+        const lightColorBuffer = new UniformBuffer();
+        lightColorBuffer.add("lightColor", lightColor);
+        lightColorBuffer.done();
+        this.lightColorBuffer = lightColorBuffer;
+        const spotdirBuffer = new UniformBuffer();
+        spotdirBuffer.add("spotdir", spotDirs);
+        spotdirBuffer.done();
+        const lightIntensityBuffer = new UniformBuffer();
+        lightIntensityBuffer.add("lightIntensity", lightProps);
+        lightIntensityBuffer.done();
+        this.scene.meshes[0].geometry.updateUniformsWebGPU(WebGPU2, lightPosBuffer);
+        this.scene.meshes[0].geometry.updateUniformsWebGPU(WebGPU2, lightColorBuffer);
+        this.scene.meshes[0].geometry.updateUniformsWebGPU(WebGPU2, spotdirBuffer);
+        this.scene.meshes[0].geometry.updateUniformsWebGPU(WebGPU2, lightIntensityBuffer);
         this.scene.meshes.forEach((mesh) => {
-          mesh.material.createUniforms(this.camera, this.parse.lights);
+          [mesh.material, ...mesh.variants.map((m) => m.m)].forEach((m) => m.createUniforms(this.camera, this.parse.lights));
         });
         const storage = new Float32Array(this.scene.meshes.length * this.scene.meshes[0].material.materialUniformBuffer.store.length);
         this.scene.meshes.forEach((mesh, i) => {
@@ -25347,19 +25447,19 @@ ${defineStr}`)];
           },
           {
             binding: 16,
-            resource: materialUniformBuffer.bufferWebGPU
+            resource: lightPosBuffer.bufferWebGPU
           },
           {
             binding: 15,
-            resource: materialUniformBuffer2.bufferWebGPU
+            resource: lightColorBuffer.bufferWebGPU
           },
           {
             binding: 17,
-            resource: materialUniformBuffer3.bufferWebGPU
+            resource: spotdirBuffer.bufferWebGPU
           },
           {
             binding: 18,
-            resource: materialUniformBuffer4.bufferWebGPU
+            resource: lightIntensityBuffer.bufferWebGPU
           }
         ];
         const prevProgramHash = /* @__PURE__ */ new Map();
@@ -25485,21 +25585,30 @@ ${defineStr}`)];
       }
       this.renderer.reflow = true;
     }
-    setVariant() {
-      console.warn("Not implemented");
+    setVariant(variant) {
+      this.scene.meshes.forEach((mesh) => {
+        if (variant && mesh.variants.length) {
+          mesh.material = mesh.variants.find((v) => v.variants.includes(Number(variant))).m;
+          mesh.repaint = true;
+        }
+      });
+      this.renderer.reflow = true;
+      this.renderer.needUpdateView = true;
+      this.renderer.needUpdateProjection = true;
     }
     draw() {
-      console.warn("Not implemented");
+      this.renderer.reflow = true;
     }
     getState() {
       return {
+        lightColorBuffer: this.lightColorBuffer,
         storage2: this.storage2,
         storage: this.storage,
         lightPosBuffer: this.lightPosBuffer,
         cameraBuffer: this.cameraBuffer,
         stateBuffer: this.stateBuffer,
         renderState: this.renderState,
-        lights: [],
+        lights: this.parse.lights,
         isIBL: this.isIBL,
         isDefaultLight: this.isDefaultLight,
         camera: this.camera,

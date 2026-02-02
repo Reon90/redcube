@@ -138,7 +138,6 @@ export class Mesh extends Object3D {
         gl.uniform2f(this.material.uniforms.isTone, isprerefraction ? 0 : 1, 0);
         gl.uniform2f(this.material.uniforms.isIBL, isIBL ? 1 : 0, 0);
         gl.uniform2f(this.material.uniforms.isDefaultLight, isDefaultLight || lights.some(l => !l.isInitial) ? 1 : 0, 0);
-        gl.uniform4i(this.material.uniforms.lights, ...this.material.lights);
 
         if (this.material.baseColorTexture) {
             gl.activeTexture(gl[`TEXTURE${0}`]);

@@ -71,11 +71,11 @@ export class RendererWebGPU extends Renderer {
         let { renderPassDescriptor, context, device } = WebGPU;
 
         const s = this.getState();
-        if (s.needUpdateView) {
+        if (s.needUpdateView || this.reflow) {
             const planes = Frustum(s.camera.getViewProjMatrix());
 
             this.scene.meshes.forEach(mesh => {
-                mesh.visible = mesh.isVisible(planes);
+                mesh.visible = mesh.parent.visible && mesh.isVisible(planes);
             });
 
             this.scene.opaqueChildren.sort((a, b) => a.distance - b.distance);
@@ -113,13 +113,40 @@ export class RendererWebGPU extends Renderer {
             s.cameraBuffer.updateWebGPU(WebGPU, 'view', s.camera.matrixWorldInvert.elements);
             s.cameraBuffer.updateWebGPU(WebGPU, 'light', s.light.matrixWorldInvert.elements);
 
-            const lightPos = new Float32Array(3);
-            lightPos.set(s.light.getPosition(), 0);
-            s.lightPosBuffer.updateWebGPU(WebGPU, 'lightPos', lightPos);
+            this.parse.lights.forEach((light, i) => {
+                s.lightPosBuffer.store.set(light.getPosition(), i * 4);
+            });
+            device.queue.writeBuffer(
+                s.lightPosBuffer.bufferWebGPU,
+                0,
+                s.lightPosBuffer.store.buffer,
+                s.lightPosBuffer.store.byteOffset,
+                s.lightPosBuffer.store.byteLength
+            );
         }
         if (s.needUpdateProjection) {
             s.cameraBuffer.updateWebGPU(WebGPU, 'projection', s.camera.projection.elements);
         }
+
+        device.queue.writeBuffer(
+            s.lightColorBuffer.bufferWebGPU,
+            0,
+            s.lightColorBuffer.store.buffer,
+            s.lightColorBuffer.store.byteOffset,
+            s.lightColorBuffer.store.byteLength
+        );
+        s.lights.forEach((light, i) => {
+            const offset = i * 4 * Float32Array.BYTES_PER_ELEMENT;
+            if (light.visible === false) {
+                device.queue.writeBuffer(
+                    s.lightColorBuffer.bufferWebGPU,
+                    offset,
+                    new Float32Array([0, 0, 0, 0]).buffer,
+                    0,
+                    16
+                );
+            }
+        });
 
         this.scene.opaqueChildren.forEach((mesh) => {
             if (mesh.visible) {
