@@ -28,7 +28,7 @@
     </style>
     <script>
         const url = new URL(location);
-        if (url.searchParams.get('webgpu')) {
+        if (url.searchParams.get('webgpu') === '1') {
             if (!navigator.gpu) {
                 document.write('<h1>WebGPU is not supported on your platform so far.</h1>');
             }

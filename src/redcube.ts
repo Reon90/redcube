@@ -151,17 +151,17 @@ class RedCube {
         const envData = await this.parse.getEnv(false);
         await this.env.createEnvironmentBuffer(envData);
 
-        const { renderState, isIBL, isDefaultLight, lights } = this.getState();
-        const stateBuffer = new UniformBuffer();
-        // @ts-expect-error
-        stateBuffer.add('isTone', renderState.isprerefraction ? 0 : 1);
-        stateBuffer.add('isIBL', isIBL ? 1 : 0);
-        stateBuffer.add('isDefaultLight', isDefaultLight || lights.some(l => !l.isInitial) ? 1 : 0);
-        stateBuffer.done();
-        this.stateBuffer = stateBuffer;
-        const mUBO = gl.createBuffer();
-        gl.bindBuffer(gl.UNIFORM_BUFFER, mUBO);
-        gl.bufferData(gl.UNIFORM_BUFFER, stateBuffer.store, gl.STATIC_DRAW);
+        // const { renderState, isIBL, isDefaultLight, lights } = this.getState();
+        // const stateBuffer = new UniformBuffer();
+        // // @ts-expect-error
+        // stateBuffer.add('isTone', renderState.isprerefraction ? 0 : 1);
+        // stateBuffer.add('isIBL', isIBL ? 1 : 0);
+        // stateBuffer.add('isDefaultLight', isDefaultLight || lights.some(l => !l.isInitial) ? 1 : 0);
+        // stateBuffer.done();
+        // this.stateBuffer = stateBuffer;
+        // const mUBO = gl.createBuffer();
+        // gl.bindBuffer(gl.UNIFORM_BUFFER, mUBO);
+        // gl.bufferData(gl.UNIFORM_BUFFER, stateBuffer.store, gl.STATIC_DRAW);
 
         const cameraBuffer = new UniformBuffer();
         cameraBuffer.add('view', this.camera.matrixWorldInvert.elements);
@@ -239,7 +239,7 @@ class RedCube {
         });
 
         this.scene.meshes.forEach((mesh) => {
-            [mesh.material, ...mesh.variants.map(m => m.m)].forEach(m => m.createUniforms(this.camera, this.parse.lights));
+            [mesh.material, ...mesh.variants.map(m => m.m)].forEach(m => m.createUniforms(true, this.parse.lights));
         });
 
         gl.activeTexture(gl[`TEXTURE${31}`]);

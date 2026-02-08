@@ -106,7 +106,7 @@ export class RendererWebGPU extends Renderer {
         const commandEncoder = device.createCommandEncoder({label: 'main-command-encoder'});
         const passEncoder = this.profiler.beginTimedRenderPass(commandEncoder, renderPassDescriptor, 'main-pass');
         // @ts-ignore
-        //this.env.drawCube(WebGPU, passEncoder);
+        // this.env.drawQuad(WebGPU, passEncoder);
 
         s.stateBuffer.updateWebGPU(WebGPU, 'isTone', s.renderState.isprerefraction ? 0 : 1);
         if (s.needUpdateView) {

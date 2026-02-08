@@ -664,6 +664,7 @@ export class Parse {
                 'baseColorTexture',
                 'sheenColorTexture',
                 'emissiveTexture',
+                'diffuseTransmissionColorTexture',
                 //@ts-ignore
                 mesh.defines.find((d) => d.name === 'SPECULARGLOSSINESSMAP') && 'metallicRoughnessTexture',
             ];
@@ -784,14 +785,14 @@ export class Parse {
         return tex;
     }
 
-    handleTextureLoaded({ image, name, mimeType, sampler, srgb }) {
+    handleTextureLoaded({ image, name, mimeType, sampler, srgb = false }) {
         const s = this.samplers[sampler !== undefined ? sampler : 0];
         if (mimeType) {
             image.sampler = s;
             return image;
         }
-        if (this.images.get(name)) {
-            return this.images.get(name);
+        if (this.images.has(name + srgb)) {
+            return this.images.get(name + srgb);
         }
         const t = gl.createTexture();
         t.name = name;
@@ -804,7 +805,7 @@ export class Parse {
         gl.pixelStorei(gl.UNPACK_COLORSPACE_CONVERSION_WEBGL, gl.NONE);
         gl.texImage2D(gl.TEXTURE_2D, 0, srgb ? gl.SRGB8_ALPHA8 : gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
         gl.generateMipmap(gl.TEXTURE_2D);
-        this.images.set(name, t);
+        this.images.set(name + srgb, t);
 
         return t;
     }

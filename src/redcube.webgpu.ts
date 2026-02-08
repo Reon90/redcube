@@ -170,9 +170,9 @@ class RedCube {
                 mipmapFilter: 'nearest',
                 magFilter: 'nearest',
                 minFilter: 'nearest',
-                addressModeU: 'repeat',
-                addressModeV: 'repeat',
-                addressModeW: 'repeat'
+                addressModeU: 'clamp-to-edge',
+                addressModeV: 'clamp-to-edge',
+                addressModeW: 'clamp-to-edge'
             });
             WebGPU.linearSampler = WebGPU.device.createSampler({
                 mipmapFilter: 'linear',
@@ -274,7 +274,7 @@ class RedCube {
             this.scene.meshes[0].geometry.updateUniformsWebGPU(WebGPU, lightIntensityBuffer);
             
             this.scene.meshes.forEach((mesh) => {
-                [mesh.material, ...mesh.variants.map(m => m.m)].forEach(m => m.createUniforms(this.camera, this.parse.lights));
+                [mesh.material, ...mesh.variants.map(m => m.m)].forEach(m => m.createUniforms(false, this.parse.lights));
             });
             const storage = new Float32Array(this.scene.meshes.length * this.scene.meshes[0].material.materialUniformBuffer.store.length);
             this.scene.meshes.forEach((mesh, i) => {

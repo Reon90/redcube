@@ -562,24 +562,25 @@ void main() {
     vec3 specularFactor = mat.specularFactor;
     vec3 specularColorFactor = mat.specularColorFactor;
     vec3 emissiveFactor = mat.emissiveFactor;
-    vec4 glossinessFactor = mat.glossinessFactor;
-    vec4 metallicFactor = mat.metallicFactor;
-    vec4 roughnessFactor = mat.roughnessFactor;
-    vec4 clearcoatFactor = mat.clearcoatFactor;
-    vec4 clearcoatRoughnessFactor = mat.clearcoatRoughnessFactor;;
-    vec4 sheenColorFactor = mat.sheenColorFactor;
-    vec4 sheenRoughnessFactor = mat.sheenRoughnessFactor;
-    vec4 transmissionFactor = mat.transmissionFactor;
-    vec4 ior = mat.ior;
-    vec4 normalTextureScale = mat.normalTextureScale;;
-    vec4 attenuationColorFactor = mat.attenuationColorFactor; 
-    vec4 attenuationDistance = mat.attenuationDistance;
-    vec4 thicknessFactor = mat.thicknessFactor;
-    vec4 emissiveStrength = mat.emissiveStrength;
-    vec4 anisotropyFactor = mat.anisotropyFactor;
+    float glossinessFactor = mat.glossinessFactor;
+    float metallic = mat.metallicFactor;
+    float roughness = mat.roughnessFactor;
+    float clearcoatBlendFactor = mat.clearcoatFactor;
+    float clearcoatRoughness = mat.clearcoatRoughnessFactor;;
+    vec3 sheenColor = mat.sheenColorFactor;
+    float sheenRoughness = mat.sheenRoughnessFactor;
+    float transmission = mat.transmissionFactor;
+    float ior = mat.ior;
+    float normalTextureScale = mat.normalTextureScale;
+    vec3 attenuationColorFactor = mat.attenuationColorFactor; 
+    float attenuationDistance = mat.attenuationDistance;
+    float thickness = mat.thicknessFactor;
+    float emissiveStrength = mat.emissiveStrength;
+    vec2 anisotropyFactor = mat.anisotropyFactor;
     vec4 iridescence = mat.iridescence;
-    vec4 diffuseTransmissionFactor = mat.diffuseTransmissionFactor;
-    vec4 dispersionFactor = mat.dispersionFactor;
+    float transmissionDiffuse = mat.diffuseTransmissionFactor.x;
+    vec3 tintColor = mat.diffuseTransmissionFactor.yzw;
+    float dispersionFactor = mat.dispersionFactor;
 
     vec2 outUV = outUV0;
     #ifdef BASECOLORTEXTURE
@@ -622,17 +623,7 @@ void main() {
         #endif
         ao = texture2D(occlusionTexture, outUV).r;
     #endif
-
-    float roughness = roughnessFactor.x;
-    float metallic = metallicFactor.x;
-    float clearcoatRoughness = clearcoatRoughnessFactor.x;
-    float clearcoat = clearcoatFactor.x;
-    float clearcoatBlendFactor = clearcoat;
-    vec3 sheenColor = sheenColorFactor.xyz;
-    float sheenRoughness = sheenRoughnessFactor.x;
-    float transmission = transmissionFactor.x;
-    float transmissionDiffuse = diffuseTransmissionFactor.x;
-    float thickness = thicknessFactor.x;
+    
     #ifdef DIFFUSE_TRANSMISSION_MAP
         #ifdef DIFFUSE_TRANSMISSION_MAP_TEXTURE_TRANSFORM
             outUV = applyTransform(outUV, textureMatrices[DIFFUSE_TRANSMISSION_MAP_TEXTURE_TRANSFORM]);
@@ -641,7 +632,7 @@ void main() {
         transmissionDiffuse *= diffuseTransmissionTextureV.a;
     #endif
     vec3 attenuationColor = attenuationColorFactor.rgb;
-    vec3 tintColor = diffuseTransmissionFactor.yzw;
+    
     #ifdef DIFFUSE_TRANSMISSION_COLOR_MAP
         #ifdef DIFFUSE_TRANSMISSION_COLOR_MAP_TEXTURE_TRANSFORM
             outUV = applyTransform(outUV, textureMatrices[DIFFUSE_TRANSMISSION_COLOR_MAP_TEXTURE_TRANSFORM]);
@@ -654,7 +645,7 @@ void main() {
         #ifdef CLEARCOATMAP_TEXTURE_TRANSFORM
             outUV = applyTransform(outUV, textureMatrices[CLEARCOATMAP_TEXTURE_TRANSFORM]);
         #endif
-        clearcoatBlendFactor = texture2D(clearcoatTexture, outUV).r * clearcoat;
+        clearcoatBlendFactor = texture2D(clearcoatTexture, outUV).r * clearcoatBlendFactor;
     #endif
     #ifdef CLEARCOATROUGHMAP
         outUV = getUV(CLEARCOATROUGHMAP);
@@ -720,7 +711,7 @@ void main() {
             roughness = 1.0 - texture2D(metallicRoughnessTexture, outUV).a;
             specularMap = texture2D(metallicRoughnessTexture, outUV).rgb;
         #else
-            roughness = glossinessFactor.x;
+            roughness = glossinessFactor;
             specularMap = specularFactor;
         #endif
     #else
@@ -753,7 +744,7 @@ void main() {
     #endif
     vec3 F0 = mix(vec3(0.04), baseColor, metallic);
     #if defined(IOR) && defined(VOLUME)
-    F0 = vec3(pow(( ior.x - 1.0) /  (ior.x + 1.0), 2.0));
+    F0 = vec3(pow(( ior - 1.0) /  (ior + 1.0), 2.0));
     #endif
     #if defined SPECULAR
     F0 = mix(min(F0 * specularMap, vec3(1.0)), baseColor, metallic);
@@ -769,7 +760,7 @@ void main() {
                 outUV = applyTransform(outUV, textureMatrices[NORMALMAP_TEXTURE_TRANSFORM]);
             #endif
             vec3 n = texture2D(normalTexture, outUV).rgb;
-            n = normalize(outTBN * (2.0 * n - 1.0) * vec3(normalTextureScale.x, normalTextureScale.x, 1.0));
+            n = normalize(outTBN * (2.0 * n - 1.0) * vec3(normalTextureScale, normalTextureScale, 1.0));
         #else
             vec3 n = normalize(outTBN[2].xyz);
         #endif
@@ -810,7 +801,7 @@ void main() {
 
     vec3 anisotropicT = vec3(0.0);
     vec3 anisotropicB = vec3(0.0);
-    vec3 anisotropy = anisotropyFactor.xyz;
+    vec3 anisotropy = vec3(anisotropyFactor.xy, 0.0);
     anisotropy.yz = vec2(cos(anisotropy.y), sin(anisotropy.y));
     #ifdef ANISOTROPYMAP
         #ifdef ANISOTROPYMAP_TEXTURE_TRANSFORM
@@ -838,10 +829,10 @@ void main() {
         vec3 f_transmission = transmittance;
         vec3 f_transmission2 = transmittance;
         #else
-        vec3 f_transmission = cocaLambert(computeColorAtDistanceInMedia(attenuationColor.rgb, attenuationDistance.x), thickness) * calcTransmission(dispersionFactor.x, ior.x, baseColor, n, roughness, viewDir, transmission, thickness);
+        vec3 f_transmission = cocaLambert(computeColorAtDistanceInMedia(attenuationColor.rgb, attenuationDistance), thickness) * calcTransmission(dispersionFactor, ior, baseColor, n, roughness, viewDir, transmission, thickness);
         #endif
 
-        if (isDefaultLight.x == 1.0) {
+        if (isDefaultLight == 1.0) {
         for (int j = 0; j < 4; j++) {
             if (lights[j] < 0) continue;
             int i = lights[j];
@@ -934,7 +925,7 @@ void main() {
         vec3 cSpecular;
         vec3 f_sheen = vec3(0.0);
         float albedoSheenScaling = 1.0;
-        if (isIBL.x == 1.0) {
+        if (isIBL == 1.0) {
             float NdotV = saturate(dot(n, viewDir));
             vec3 iridescenceFresnel = evalIridescence(1.0, iridescenceFactor, NdotV, iridescenceThickness, F0);
             vec3 iridescenceF0 = Schlick_to_F0(iridescenceFresnel, NdotV);
@@ -965,7 +956,7 @@ void main() {
             #endif
             emissive *= texture2D(emissiveTexture, outUV).rgb;
         #endif
-        emissive *= emissiveStrength.x;
+        emissive *= emissiveStrength;
 
         #ifdef TRANSMISSION
             float kT = 1.0 - specEnv(n, viewDir, metallic, roughness, F0, specularWeight);
@@ -997,9 +988,8 @@ void main() {
     #endif
 
     #ifndef SCATTERING
-    if (isTone.x == 1.0) {
+    if (isTone == 1.0) {
         #ifdef SPHERICAL_HARMONICS
-        color.rgb  *= 4.0;
         vec3 X = max(vec3(0.0, 0.0, 0.0), color.rgb - 0.004);
         vec3 retColor = (X * (6.2 * X + 0.5)) / (X * (6.2 * X + 1.7) + 0.06);
         color.rgb = retColor * retColor;

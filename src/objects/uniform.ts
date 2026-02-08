@@ -8,11 +8,13 @@ export class UniformBuffer {
     store: Float32Array;
 
     bufferWebGPU: GPUBuffer;
+    isTexture: boolean;
 
-    constructor() {
+    constructor(isTexture = false) {
         this.map = new Map();
         this.tempStore = {};
         this.offset = 0;
+        this.isTexture = isTexture;
     }
 
     getBuffer(v) {
@@ -40,7 +42,11 @@ export class UniformBuffer {
         this.map.set(name, this.offset);
         const buffer = this.getBuffer(value);
         this.tempStore[name] = buffer;
-        this.offset += Math.max(buffer.length, 4);
+        if (this.isTexture) {
+            this.offset += Math.max(buffer.length, 4);
+        } else {
+            this.offset += buffer.length;
+        }
     }
 
     update(gl, name, value, skip = false) {

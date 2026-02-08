@@ -45,7 +45,7 @@ uniform Matrices2 {
     mat4 view;
     mat4 projection;
     mat4 light;
-    vec4 isShadow;
+    float isShadow;
 };
 #ifdef JOINTNUMBER
 uniform Skin {

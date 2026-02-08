@@ -114,8 +114,8 @@ export class Env {
         uniform mat4 view;
         
         void main() {
-            outUV = inPosition;
-            gl_Position = projection * view * vec4(inPosition, 0.0, 1.0);
+            outUV = inPosition * 0.5 + 0.5;
+            gl_Position = vec4(inPosition, 0.0, 1.0);
         }
         `,
             program
@@ -131,7 +131,7 @@ export class Env {
         uniform sampler2D environmentMap;
         
         void main() {
-            vec3 c = texture(environmentMap, outUV).rgb;
+            vec3 c = texture(environmentMap, vec2(0.0, 1.0)).rgb;
             
             color = vec4(c, 1.0);
         }

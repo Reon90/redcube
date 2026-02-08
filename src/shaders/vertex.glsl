@@ -41,7 +41,7 @@ void main() {
     #endif
     outPosition = vec3(model * skin * vec4(inPosition, 1.0));
     outPositionView = projection * light * model * skin * vec4(inPosition, 1.0);
-    if (isShadow.x == 1.0) {
+    if (isShadow == 1.0) {
         gl_Position = projection * light * model * skin * vec4(inPosition, 1.0);
     } else {
         gl_Position = projection * view * model * skin * vec4(inPosition, 1.0);

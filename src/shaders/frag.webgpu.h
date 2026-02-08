@@ -48,31 +48,31 @@ layout(set = 0, binding = 39) uniform Matrices2 {
     vec4 isShadow;
 };
 struct Material {
-    vec4 baseColorFactor;
-    vec3 specularFactor;
-    vec3 specularColorFactor;
-    vec3 emissiveFactor;
-    vec4 glossinessFactor;
-    vec4 metallicFactor;
-    vec4 roughnessFactor;
-    vec4 clearcoatFactor;
-    vec4 clearcoatRoughnessFactor;
-    vec4 sheenColorFactor;
-    vec4 sheenRoughnessFactor;
-    vec4 transmissionFactor;
-    vec4 ior;
-    vec4 normalTextureScale;
-    vec4 attenuationColorFactor; 
-    vec4 attenuationDistance; 
-    vec4 thicknessFactor;
-    vec4 emissiveStrength;
-    vec4 anisotropyFactor;
+    vec4 lights;
     vec4 iridescence;
     vec4 diffuseTransmissionFactor;
-    vec4 dispersionFactor;
-    vec4 lights;
+    vec4 baseColorFactor;
+    vec3 specularColorFactor;
+    vec3 emissiveFactor;
+    vec3 sheenColorFactor;
+    vec3 attenuationColorFactor;
+    vec3 specularFactor;
+    vec2 anisotropyFactor;
+    float glossinessFactor;
+    float metallicFactor;
+    float roughnessFactor;
+    float clearcoatFactor;
+    float clearcoatRoughnessFactor;
+    float sheenRoughnessFactor;
+    float transmissionFactor;
+    float ior;
+    float normalTextureScale;
+    float attenuationDistance; 
+    float thicknessFactor;
+    float emissiveStrength;
+    float dispersionFactor;
 };
-layout(set = 0, binding = 1) buffer Uniforms {
+layout(std430, set = 0, binding = 1) buffer Uniforms {
     Material data[];
 } materials;
 
@@ -161,7 +161,7 @@ layout(set = 0, binding = 36) uniform texture2D diffuseTransmissionColorTexture;
 layout(set = 0, binding = 35) uniform textureCube charlieMap;
 
 layout(set = 0, binding = 30) uniform StateUniform {
-    vec4 isTone;
-    vec4 isIBL;
-    vec4 isDefaultLight;
+    float isTone;
+    float isIBL;
+    float isDefaultLight;
 };

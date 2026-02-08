@@ -283,7 +283,7 @@ export class Material extends M {
 
         if (material.extensions && material.extensions.KHR_materials_specular) {
             const { specularFactor, specularTexture, specularColorFactor, specularColorTexture } = material.extensions.KHR_materials_specular;
-            this.specularFactor = specularFactor;
+            this.specularFactor = [specularFactor, 0, 0];
             this.specularColorFactor = specularColorFactor;
             if (specularTexture) {
                 this.specularTexture = textures[specularTexture.index];
@@ -574,7 +574,7 @@ export class Material extends M {
         }
     }
 
-    createUniforms(camera, lights) {
+    createUniforms(isTexture, lights) {
         const spotDirs = new Float32Array(lights.length * 4);
         const lightPos = new Float32Array(lights.length * 4);
         const lightColor = new Float32Array(lights.length * 4);
@@ -595,31 +595,35 @@ export class Material extends M {
         });
 
         {
-            const materialUniformBuffer = new UniformBuffer();
+            const materialUniformBuffer = new UniformBuffer(isTexture);
+            materialUniformBuffer.add('lights', [...this.lights]);
+            materialUniformBuffer.add('iridescence', [this.iridescenceFactor ?? 0, this.iridescenceIOR ?? 1.3, this.iridescenceThicknessMaximum ?? 400, this.iridescenceThicknessMinimum ?? 100]);
+            materialUniformBuffer.add('diffuseTransmissionFactor', [this.diffuseTransmissionFactor ?? 0, ...this.diffuseTransmissionColorFactor]);
             materialUniformBuffer.add('baseColorFactor', this.baseColorFactor ?? [0.8, 0.8, 0.8, 1.0]);
-            materialUniformBuffer.add('specularFactor', this.specularFactor ?? 1);
             materialUniformBuffer.add('specularColorFactor', this.specularColorFactor ?? [1, 1, 1]);
             materialUniformBuffer.add('emissiveFactor', this.emissiveFactor ?? [0, 0, 0]);
+            materialUniformBuffer.add('sheenColorFactor', this.sheenColorFactor ?? [0, 0, 0]);
+            materialUniformBuffer.add('attenuationColor', this.attenuationColor ?? [1, 1, 1]);
+            materialUniformBuffer.add('specularFactor', this.specularFactor ?? [0, 0, 0]);
+            materialUniformBuffer.add('anisotropy', [this.anisotropyStrength ?? 0, this.anisotropyRotation ?? 0]);
             materialUniformBuffer.add('glossinessFactor', this.glossinessFactor ?? 0.5);
             materialUniformBuffer.add('metallicFactor', this.metallicFactor ?? 1);
             materialUniformBuffer.add('roughnessFactor', this.roughnessFactor ?? 1);
             materialUniformBuffer.add('clearcoatFactor', this.clearcoatFactor ?? 0);
             materialUniformBuffer.add('clearcoatRoughnessFactor', this.clearcoatRoughnessFactor ?? 0);
-            materialUniformBuffer.add('sheenColorFactor', this.sheenColorFactor ?? 0);
             materialUniformBuffer.add('sheenRoughnessFactor', this.sheenRoughnessFactor ?? 0);
             materialUniformBuffer.add('transmissionFactor', this.transmissionFactor ?? 0);
             materialUniformBuffer.add('ior', this.ior ?? 1);
             materialUniformBuffer.add('normalTextureScale', this.normalTextureScale ?? 1);
-            materialUniformBuffer.add('attenuationColor', this.attenuationColor ?? [1, 1, 1]);
             materialUniformBuffer.add('attenuationDistance', this.attenuationDistance ?? 1);
             materialUniformBuffer.add('thicknessFactor', this.thicknessFactor ?? 0);
             materialUniformBuffer.add('emissiveStrength', this.emissiveStrength ?? 1);
-            materialUniformBuffer.add('anisotropy', [this.anisotropyStrength ?? 0, this.anisotropyRotation ?? 0]);
-            materialUniformBuffer.add('iridescence', [this.iridescenceFactor ?? 0, this.iridescenceIOR ?? 1.3, this.iridescenceThicknessMaximum ?? 400, this.iridescenceThicknessMinimum ?? 100]);
-            materialUniformBuffer.add('diffuseTransmissionFactor', [this.diffuseTransmissionFactor ?? 0, ...this.diffuseTransmissionColorFactor]);
             materialUniformBuffer.add('dispersionFactor', [this.dispersion ?? 0]);
-            materialUniformBuffer.add('lights', [...this.lights]);
+            materialUniformBuffer.add('bulk', 0);
             materialUniformBuffer.done();
+            if (materialUniformBuffer.store.byteLength % 16 !== 0) {
+                throw new Error('Material uniform buffer length must be multiple of 16');
+            }
             this.materialUniformBuffer = materialUniformBuffer;
         }
         

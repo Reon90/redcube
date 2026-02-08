@@ -12650,9 +12650,9 @@ var redcube = (() => {
       }
       gl14.uniform1i(this.material.uniforms.depthTexture, preDepthTexture && !isprepender ? preDepthTexture.index : fakeDepth.index);
       gl14.uniform1i(this.material.uniforms.colorTexture, !isprerefraction ? colorTexture.index : fakeDepth.index);
-      gl14.uniform2f(this.material.uniforms.isTone, isprerefraction ? 0 : 1, 0);
-      gl14.uniform2f(this.material.uniforms.isIBL, isIBL ? 1 : 0, 0);
-      gl14.uniform2f(this.material.uniforms.isDefaultLight, isDefaultLight || lights.some((l) => !l.isInitial) ? 1 : 0, 0);
+      gl14.uniform1f(this.material.uniforms.isTone, isprerefraction ? 0 : 1, 0);
+      gl14.uniform1f(this.material.uniforms.isIBL, isIBL ? 1 : 0, 0);
+      gl14.uniform1f(this.material.uniforms.isDefaultLight, isDefaultLight || lights.some((l) => !l.isInitial) ? 1 : 0, 0);
       if (this.material.baseColorTexture) {
         gl14.activeTexture(gl14[`TEXTURE${0}`]);
         gl14.bindTexture(gl14.TEXTURE_2D, this.material.baseColorTexture);
@@ -13017,10 +13017,12 @@ var redcube = (() => {
     tempStore;
     store;
     bufferWebGPU;
-    constructor() {
+    isTexture;
+    constructor(isTexture = false) {
       this.map = /* @__PURE__ */ new Map();
       this.tempStore = {};
       this.offset = 0;
+      this.isTexture = isTexture;
     }
     getBuffer(v) {
       const { length } = v;
@@ -13045,7 +13047,11 @@ var redcube = (() => {
       this.map.set(name, this.offset);
       const buffer = this.getBuffer(value);
       this.tempStore[name] = buffer;
-      this.offset += Math.max(buffer.length, 4);
+      if (this.isTexture) {
+        this.offset += Math.max(buffer.length, 4);
+      } else {
+        this.offset += buffer.length;
+      }
     }
     update(gl14, name, value, skip = false) {
       if (value.length === void 0) {
@@ -13643,7 +13649,7 @@ var redcube = (() => {
         this.textureMatricesUniform = textureMatricesUniform;
       }
     }
-    createUniforms(camera, lights) {
+    createUniforms(isTexture, lights) {
       const spotDirs = new Float32Array(lights.length * 4);
       const lightPos = new Float32Array(lights.length * 4);
       const lightColor = new Float32Array(lights.length * 4);
@@ -13662,31 +13668,35 @@ var redcube = (() => {
         textureMatrices.set(m.elements, i * 16);
       });
       {
-        const materialUniformBuffer = new UniformBuffer();
+        const materialUniformBuffer = new UniformBuffer(isTexture);
+        materialUniformBuffer.add("lights", [...this.lights]);
+        materialUniformBuffer.add("iridescence", [this.iridescenceFactor ?? 0, this.iridescenceIOR ?? 1.3, this.iridescenceThicknessMaximum ?? 400, this.iridescenceThicknessMinimum ?? 100]);
+        materialUniformBuffer.add("diffuseTransmissionFactor", [this.diffuseTransmissionFactor ?? 0, ...this.diffuseTransmissionColorFactor]);
         materialUniformBuffer.add("baseColorFactor", this.baseColorFactor ?? [0.8, 0.8, 0.8, 1]);
-        materialUniformBuffer.add("specularFactor", this.specularFactor ?? 1);
         materialUniformBuffer.add("specularColorFactor", this.specularColorFactor ?? [1, 1, 1]);
         materialUniformBuffer.add("emissiveFactor", this.emissiveFactor ?? [0, 0, 0]);
+        materialUniformBuffer.add("sheenColorFactor", this.sheenColorFactor ?? [0, 0, 0]);
+        materialUniformBuffer.add("attenuationColor", this.attenuationColor ?? [1, 1, 1]);
+        materialUniformBuffer.add("specularFactor", this.specularFactor ?? [0, 0, 0]);
+        materialUniformBuffer.add("anisotropy", [this.anisotropyStrength ?? 0, this.anisotropyRotation ?? 0]);
         materialUniformBuffer.add("glossinessFactor", this.glossinessFactor ?? 0.5);
         materialUniformBuffer.add("metallicFactor", this.metallicFactor ?? 1);
         materialUniformBuffer.add("roughnessFactor", this.roughnessFactor ?? 1);
         materialUniformBuffer.add("clearcoatFactor", this.clearcoatFactor ?? 0);
         materialUniformBuffer.add("clearcoatRoughnessFactor", this.clearcoatRoughnessFactor ?? 0);
-        materialUniformBuffer.add("sheenColorFactor", this.sheenColorFactor ?? 0);
         materialUniformBuffer.add("sheenRoughnessFactor", this.sheenRoughnessFactor ?? 0);
         materialUniformBuffer.add("transmissionFactor", this.transmissionFactor ?? 0);
         materialUniformBuffer.add("ior", this.ior ?? 1);
         materialUniformBuffer.add("normalTextureScale", this.normalTextureScale ?? 1);
-        materialUniformBuffer.add("attenuationColor", this.attenuationColor ?? [1, 1, 1]);
         materialUniformBuffer.add("attenuationDistance", this.attenuationDistance ?? 1);
         materialUniformBuffer.add("thicknessFactor", this.thicknessFactor ?? 0);
         materialUniformBuffer.add("emissiveStrength", this.emissiveStrength ?? 1);
-        materialUniformBuffer.add("anisotropy", [this.anisotropyStrength ?? 0, this.anisotropyRotation ?? 0]);
-        materialUniformBuffer.add("iridescence", [this.iridescenceFactor ?? 0, this.iridescenceIOR ?? 1.3, this.iridescenceThicknessMaximum ?? 400, this.iridescenceThicknessMinimum ?? 100]);
-        materialUniformBuffer.add("diffuseTransmissionFactor", [this.diffuseTransmissionFactor ?? 0, ...this.diffuseTransmissionColorFactor]);
         materialUniformBuffer.add("dispersionFactor", [this.dispersion ?? 0]);
-        materialUniformBuffer.add("lights", [...this.lights]);
+        materialUniformBuffer.add("bulk", 0);
         materialUniformBuffer.done();
+        if (materialUniformBuffer.store.byteLength % 16 !== 0) {
+          throw new Error("Material uniform buffer length must be multiple of 16");
+        }
         this.materialUniformBuffer = materialUniformBuffer;
       }
       if (this.matrices.length) {
@@ -14780,8 +14790,8 @@ var redcube = (() => {
         uniform mat4 view;
         
         void main() {
-            outUV = inPosition;
-            gl_Position = projection * view * vec4(inPosition, 0.0, 1.0);
+            outUV = inPosition * 0.5 + 0.5;
+            gl_Position = vec4(inPosition, 0.0, 1.0);
         }
         `,
         program
@@ -14797,7 +14807,7 @@ var redcube = (() => {
         uniform sampler2D environmentMap;
         
         void main() {
-            vec3 c = texture(environmentMap, outUV).rgb;
+            vec3 c = texture(environmentMap, vec2(0.0, 1.0)).rgb;
             
             color = vec4(c, 1.0);
         }
@@ -15408,7 +15418,7 @@ var redcube = (() => {
   }
 
   // src/shaders/vertex.glsl
-  var vertex_default = '#include "./vert.h"\r\n\r\nvoid main() {\r\n    #if defined(WEBGPU)\r\n    Transform tr = transforms.data[gl_InstanceIndex];\r\n    #else\r\n    Transform tr = fetchTransform(int(uMaterialID));\r\n    #endif\r\n    mat4 model = tr.model;\r\n\r\n    #ifdef JOINTNUMBER\r\n        mat4 skin = inWeight.x * joint[int(inJoint.x)];\r\n        skin += inWeight.y * joint[int(inJoint.y)];\r\n        skin += inWeight.z * joint[int(inJoint.z)];\r\n        skin += inWeight.w * joint[int(inJoint.w)];\r\n    #else\r\n        mat4 skin = mat4(1.0);\r\n    #endif\r\n\r\n    #ifdef COLOR\r\n    vColor = inColor;\r\n    #endif\r\n    outUV0 = inUV;\r\n    #ifdef MULTIUV\r\n    outUV2 = inUV2;\r\n    #endif\r\n    #ifdef MULTIUV2\r\n    outUV3 = inUV3;\r\n    #endif\r\n    #ifdef TANGENT\r\n        vec3 normalW = normalize(vec3(model * vec4(inNormal.xyz, 0.0)));\r\n        vec3 tangentW = normalize(vec3(model * vec4(inTangent.xyz, 0.0)));\r\n        vec3 bitangentW = cross(normalW, tangentW) * inTangent.w;\r\n        #ifdef USERIGHTHANDEDSYSTEM\r\n        tangentW *= 1.0; // invertX\r\n        bitangentW *= -1.0; // invertY\r\n        #endif\r\n        outTBN = mat3(tangentW, bitangentW, normalW);\r\n    #else\r\n        outNormal = normalize(mat3(transpose(inverse(model))) * mat3(skin) * inNormal);\r\n    #endif\r\n    outPosition = vec3(model * skin * vec4(inPosition, 1.0));\r\n    outPositionView = projection * light * model * skin * vec4(inPosition, 1.0);\r\n    if (isShadow.x == 1.0) {\r\n        gl_Position = projection * light * model * skin * vec4(inPosition, 1.0);\r\n    } else {\r\n        gl_Position = projection * view * model * skin * vec4(inPosition, 1.0);\r\n    }\r\n\r\n    gl_PointSize = 1.0;\r\n    #if defined(WEBGPU)\r\n    id = gl_InstanceIndex;\r\n    #else\r\n    id = uMaterialID;\r\n    #endif\r\n}\r\n';
+  var vertex_default = '#include "./vert.h"\r\n\r\nvoid main() {\r\n    #if defined(WEBGPU)\r\n    Transform tr = transforms.data[gl_InstanceIndex];\r\n    #else\r\n    Transform tr = fetchTransform(int(uMaterialID));\r\n    #endif\r\n    mat4 model = tr.model;\r\n\r\n    #ifdef JOINTNUMBER\r\n        mat4 skin = inWeight.x * joint[int(inJoint.x)];\r\n        skin += inWeight.y * joint[int(inJoint.y)];\r\n        skin += inWeight.z * joint[int(inJoint.z)];\r\n        skin += inWeight.w * joint[int(inJoint.w)];\r\n    #else\r\n        mat4 skin = mat4(1.0);\r\n    #endif\r\n\r\n    #ifdef COLOR\r\n    vColor = inColor;\r\n    #endif\r\n    outUV0 = inUV;\r\n    #ifdef MULTIUV\r\n    outUV2 = inUV2;\r\n    #endif\r\n    #ifdef MULTIUV2\r\n    outUV3 = inUV3;\r\n    #endif\r\n    #ifdef TANGENT\r\n        vec3 normalW = normalize(vec3(model * vec4(inNormal.xyz, 0.0)));\r\n        vec3 tangentW = normalize(vec3(model * vec4(inTangent.xyz, 0.0)));\r\n        vec3 bitangentW = cross(normalW, tangentW) * inTangent.w;\r\n        #ifdef USERIGHTHANDEDSYSTEM\r\n        tangentW *= 1.0; // invertX\r\n        bitangentW *= -1.0; // invertY\r\n        #endif\r\n        outTBN = mat3(tangentW, bitangentW, normalW);\r\n    #else\r\n        outNormal = normalize(mat3(transpose(inverse(model))) * mat3(skin) * inNormal);\r\n    #endif\r\n    outPosition = vec3(model * skin * vec4(inPosition, 1.0));\r\n    outPositionView = projection * light * model * skin * vec4(inPosition, 1.0);\r\n    if (isShadow == 1.0) {\r\n        gl_Position = projection * light * model * skin * vec4(inPosition, 1.0);\r\n    } else {\r\n        gl_Position = projection * view * model * skin * vec4(inPosition, 1.0);\r\n    }\r\n\r\n    gl_PointSize = 1.0;\r\n    #if defined(WEBGPU)\r\n    id = gl_InstanceIndex;\r\n    #else\r\n    id = uMaterialID;\r\n    #endif\r\n}\r\n';
 
   // src/shaders/fragment.glsl
   var fragment_default = `#include "./frag.h"\r
@@ -15970,29 +15980,30 @@ void main() {\r
     #else\r
     Material mat = fetchMaterial(int(id));\r
     #endif\r
-    ivec4 lights = mat.lights;\r
+    ivec4 lights = ivec4(mat.lights);\r
     vec4 baseColorFactor = mat.baseColorFactor;\r
     vec3 specularFactor = mat.specularFactor;\r
     vec3 specularColorFactor = mat.specularColorFactor;\r
     vec3 emissiveFactor = mat.emissiveFactor;\r
-    vec4 glossinessFactor = mat.glossinessFactor;\r
-    vec4 metallicFactor = mat.metallicFactor;\r
-    vec4 roughnessFactor = mat.roughnessFactor;\r
-    vec4 clearcoatFactor = mat.clearcoatFactor;\r
-    vec4 clearcoatRoughnessFactor = mat.clearcoatRoughnessFactor;;\r
-    vec4 sheenColorFactor = mat.sheenColorFactor;\r
-    vec4 sheenRoughnessFactor = mat.sheenRoughnessFactor;\r
-    vec4 transmissionFactor = mat.transmissionFactor;\r
-    vec4 ior = mat.ior;\r
-    vec4 normalTextureScale = mat.normalTextureScale;;\r
-    vec4 attenuationColorFactor = mat.attenuationColorFactor; \r
-    vec4 attenuationDistance = mat.attenuationDistance;\r
-    vec4 thicknessFactor = mat.thicknessFactor;\r
-    vec4 emissiveStrength = mat.emissiveStrength;\r
-    vec4 anisotropyFactor = mat.anisotropyFactor;\r
+    float glossinessFactor = mat.glossinessFactor;\r
+    float metallic = mat.metallicFactor;\r
+    float roughness = mat.roughnessFactor;\r
+    float clearcoatBlendFactor = mat.clearcoatFactor;\r
+    float clearcoatRoughness = mat.clearcoatRoughnessFactor;;\r
+    vec3 sheenColor = mat.sheenColorFactor;\r
+    float sheenRoughness = mat.sheenRoughnessFactor;\r
+    float transmission = mat.transmissionFactor;\r
+    float ior = mat.ior;\r
+    float normalTextureScale = mat.normalTextureScale;\r
+    vec3 attenuationColorFactor = mat.attenuationColorFactor; \r
+    float attenuationDistance = mat.attenuationDistance;\r
+    float thickness = mat.thicknessFactor;\r
+    float emissiveStrength = mat.emissiveStrength;\r
+    vec2 anisotropyFactor = mat.anisotropyFactor;\r
     vec4 iridescence = mat.iridescence;\r
-    vec4 diffuseTransmissionFactor = mat.diffuseTransmissionFactor;\r
-    vec4 dispersionFactor = mat.dispersionFactor;\r
+    float transmissionDiffuse = mat.diffuseTransmissionFactor.x;\r
+    vec3 tintColor = mat.diffuseTransmissionFactor.yzw;\r
+    float dispersionFactor = mat.dispersionFactor;\r
 \r
     vec2 outUV = outUV0;\r
     #ifdef BASECOLORTEXTURE\r
@@ -16035,17 +16046,7 @@ void main() {\r
         #endif\r
         ao = texture2D(occlusionTexture, outUV).r;\r
     #endif\r
-\r
-    float roughness = roughnessFactor.x;\r
-    float metallic = metallicFactor.x;\r
-    float clearcoatRoughness = clearcoatRoughnessFactor.x;\r
-    float clearcoat = clearcoatFactor.x;\r
-    float clearcoatBlendFactor = clearcoat;\r
-    vec3 sheenColor = sheenColorFactor.xyz;\r
-    float sheenRoughness = sheenRoughnessFactor.x;\r
-    float transmission = transmissionFactor.x;\r
-    float transmissionDiffuse = diffuseTransmissionFactor.x;\r
-    float thickness = thicknessFactor.x;\r
+    \r
     #ifdef DIFFUSE_TRANSMISSION_MAP\r
         #ifdef DIFFUSE_TRANSMISSION_MAP_TEXTURE_TRANSFORM\r
             outUV = applyTransform(outUV, textureMatrices[DIFFUSE_TRANSMISSION_MAP_TEXTURE_TRANSFORM]);\r
@@ -16054,7 +16055,7 @@ void main() {\r
         transmissionDiffuse *= diffuseTransmissionTextureV.a;\r
     #endif\r
     vec3 attenuationColor = attenuationColorFactor.rgb;\r
-    vec3 tintColor = diffuseTransmissionFactor.yzw;\r
+    \r
     #ifdef DIFFUSE_TRANSMISSION_COLOR_MAP\r
         #ifdef DIFFUSE_TRANSMISSION_COLOR_MAP_TEXTURE_TRANSFORM\r
             outUV = applyTransform(outUV, textureMatrices[DIFFUSE_TRANSMISSION_COLOR_MAP_TEXTURE_TRANSFORM]);\r
@@ -16067,7 +16068,7 @@ void main() {\r
         #ifdef CLEARCOATMAP_TEXTURE_TRANSFORM\r
             outUV = applyTransform(outUV, textureMatrices[CLEARCOATMAP_TEXTURE_TRANSFORM]);\r
         #endif\r
-        clearcoatBlendFactor = texture2D(clearcoatTexture, outUV).r * clearcoat;\r
+        clearcoatBlendFactor = texture2D(clearcoatTexture, outUV).r * clearcoatBlendFactor;\r
     #endif\r
     #ifdef CLEARCOATROUGHMAP\r
         outUV = getUV(CLEARCOATROUGHMAP);\r
@@ -16133,7 +16134,7 @@ void main() {\r
             roughness = 1.0 - texture2D(metallicRoughnessTexture, outUV).a;\r
             specularMap = texture2D(metallicRoughnessTexture, outUV).rgb;\r
         #else\r
-            roughness = glossinessFactor.x;\r
+            roughness = glossinessFactor;\r
             specularMap = specularFactor;\r
         #endif\r
     #else\r
@@ -16166,7 +16167,7 @@ void main() {\r
     #endif\r
     vec3 F0 = mix(vec3(0.04), baseColor, metallic);\r
     #if defined(IOR) && defined(VOLUME)\r
-    F0 = vec3(pow(( ior.x - 1.0) /  (ior.x + 1.0), 2.0));\r
+    F0 = vec3(pow(( ior - 1.0) /  (ior + 1.0), 2.0));\r
     #endif\r
     #if defined SPECULAR\r
     F0 = mix(min(F0 * specularMap, vec3(1.0)), baseColor, metallic);\r
@@ -16182,7 +16183,7 @@ void main() {\r
                 outUV = applyTransform(outUV, textureMatrices[NORMALMAP_TEXTURE_TRANSFORM]);\r
             #endif\r
             vec3 n = texture2D(normalTexture, outUV).rgb;\r
-            n = normalize(outTBN * (2.0 * n - 1.0) * vec3(normalTextureScale.x, normalTextureScale.x, 1.0));\r
+            n = normalize(outTBN * (2.0 * n - 1.0) * vec3(normalTextureScale, normalTextureScale, 1.0));\r
         #else\r
             vec3 n = normalize(outTBN[2].xyz);\r
         #endif\r
@@ -16223,7 +16224,7 @@ void main() {\r
 \r
     vec3 anisotropicT = vec3(0.0);\r
     vec3 anisotropicB = vec3(0.0);\r
-    vec3 anisotropy = anisotropyFactor.xyz;\r
+    vec3 anisotropy = vec3(anisotropyFactor.xy, 0.0);\r
     anisotropy.yz = vec2(cos(anisotropy.y), sin(anisotropy.y));\r
     #ifdef ANISOTROPYMAP\r
         #ifdef ANISOTROPYMAP_TEXTURE_TRANSFORM\r
@@ -16251,10 +16252,10 @@ void main() {\r
         vec3 f_transmission = transmittance;\r
         vec3 f_transmission2 = transmittance;\r
         #else\r
-        vec3 f_transmission = cocaLambert(computeColorAtDistanceInMedia(attenuationColor.rgb, attenuationDistance.x), thickness) * calcTransmission(dispersionFactor.x, ior.x, baseColor, n, roughness, viewDir, transmission, thickness);\r
+        vec3 f_transmission = cocaLambert(computeColorAtDistanceInMedia(attenuationColor.rgb, attenuationDistance), thickness) * calcTransmission(dispersionFactor, ior, baseColor, n, roughness, viewDir, transmission, thickness);\r
         #endif\r
 \r
-        if (isDefaultLight.x == 1.0) {\r
+        if (isDefaultLight == 1.0) {\r
         for (int j = 0; j < 4; j++) {\r
             if (lights[j] < 0) continue;\r
             int i = lights[j];\r
@@ -16347,7 +16348,7 @@ void main() {\r
         vec3 cSpecular;\r
         vec3 f_sheen = vec3(0.0);\r
         float albedoSheenScaling = 1.0;\r
-        if (isIBL.x == 1.0) {\r
+        if (isIBL == 1.0) {\r
             float NdotV = saturate(dot(n, viewDir));\r
             vec3 iridescenceFresnel = evalIridescence(1.0, iridescenceFactor, NdotV, iridescenceThickness, F0);\r
             vec3 iridescenceF0 = Schlick_to_F0(iridescenceFresnel, NdotV);\r
@@ -16378,7 +16379,7 @@ void main() {\r
             #endif\r
             emissive *= texture2D(emissiveTexture, outUV).rgb;\r
         #endif\r
-        emissive *= emissiveStrength.x;\r
+        emissive *= emissiveStrength;\r
 \r
         #ifdef TRANSMISSION\r
             float kT = 1.0 - specEnv(n, viewDir, metallic, roughness, F0, specularWeight);\r
@@ -16410,9 +16411,8 @@ void main() {\r
     #endif\r
 \r
     #ifndef SCATTERING\r
-    if (isTone.x == 1.0) {\r
+    if (isTone == 1.0) {\r
         #ifdef SPHERICAL_HARMONICS\r
-        color.rgb  *= 4.0;\r
         vec3 X = max(vec3(0.0, 0.0, 0.0), color.rgb - 0.004);\r
         vec3 retColor = (X * (6.2 * X + 0.5)) / (X * (6.2 * X + 1.7) + 0.06);\r
         color.rgb = retColor * retColor;\r
@@ -16453,10 +16453,10 @@ void main() {\r
 `;
 
   // src/shaders/frag.h
-  var frag_default = "#version 300 es\r\nprecision highp float;\r\n\r\n// #ifdef DIFFUSE_TRANSMISSION\r\n//     #define SCATTERING 1\r\n// #endif\r\n\r\n#define texture2D(p, uv) texture(p, uv)\r\n#define textureCube(p, uv) texture(p, uv)\r\n#define textureLodCube(p, uv, i) textureLod(p, uv, i)\r\n#define textureLod2D(p, uv, i) textureLod(p, uv, i)\r\n#define textureLod2D2(p, uv, i) textureLod(p, uv, i)\r\n\r\nuniform sampler2D uMaterialTex;\r\n\r\nin vec4 vColor;\r\nin vec2 outUV0;\r\nin vec2 outUV2;\r\nin vec2 outUV3;\r\nin vec3 outPosition;\r\nin vec4 outPositionView;\r\nin float id;\r\n#ifdef TANGENT\r\n    in mat3 outTBN;\r\n#else\r\n    in vec3 outNormal;\r\n#endif\r\n\r\nlayout (location = 0) out vec4 color;\r\nlayout (location = 1) out vec4 normalColor;\r\nlayout (location = 2) out vec4 irradianceColor;\r\nlayout (location = 3) out vec4 albedoColor;\r\nlayout (location = 4) out vec4 specColor;\r\n\r\nstruct Material {\r\n    vec4 baseColorFactor;\r\n    vec3 specularFactor;\r\n    vec3 specularColorFactor;\r\n    vec3 emissiveFactor;\r\n    vec4 glossinessFactor;\r\n    vec4 metallicFactor;\r\n    vec4 roughnessFactor;\r\n    vec4 clearcoatFactor;\r\n    vec4 clearcoatRoughnessFactor;\r\n    vec4 sheenColorFactor;\r\n    vec4 sheenRoughnessFactor;\r\n    vec4 transmissionFactor;\r\n    vec4 ior;\r\n    vec4 normalTextureScale;\r\n    vec4 attenuationColorFactor; \r\n    vec4 attenuationDistance; \r\n    vec4 thicknessFactor;\r\n    vec4 emissiveStrength;\r\n    vec4 anisotropyFactor;\r\n    vec4 iridescence;\r\n    vec4 diffuseTransmissionFactor;\r\n    vec4 dispersionFactor;\r\n    ivec4 lights;\r\n};\r\n\r\nMaterial fetchMaterial(int id) {\r\n    Material m;\r\n    int row = id;\r\n    m.baseColorFactor         = texelFetch(uMaterialTex, ivec2(0, row), 0);\r\n    m.specularFactor          = texelFetch(uMaterialTex, ivec2(1, row), 0).xyz;\r\n    m.specularColorFactor     = texelFetch(uMaterialTex, ivec2(2, row), 0).xyz;\r\n    m.emissiveFactor          = texelFetch(uMaterialTex, ivec2(3, row), 0).xyz;\r\n    m.glossinessFactor        = texelFetch(uMaterialTex, ivec2(4, row), 0);\r\n    m.metallicFactor          = texelFetch(uMaterialTex, ivec2(5, row), 0);\r\n    m.roughnessFactor         = texelFetch(uMaterialTex, ivec2(6, row), 0);\r\n    m.clearcoatFactor         = texelFetch(uMaterialTex, ivec2(7, row), 0);\r\n    m.clearcoatRoughnessFactor= texelFetch(uMaterialTex, ivec2(8, row), 0);\r\n    m.sheenColorFactor        = texelFetch(uMaterialTex, ivec2(9, row), 0);\r\n    m.sheenRoughnessFactor    = texelFetch(uMaterialTex, ivec2(10, row), 0);\r\n    m.transmissionFactor      = texelFetch(uMaterialTex, ivec2(11, row), 0);\r\n    m.ior                     = texelFetch(uMaterialTex, ivec2(12, row), 0);\r\n    m.normalTextureScale      = texelFetch(uMaterialTex, ivec2(13, row), 0);\r\n    m.attenuationColorFactor  = texelFetch(uMaterialTex, ivec2(14, row), 0);\r\n    m.attenuationDistance     = texelFetch(uMaterialTex, ivec2(15, row), 0);\r\n    m.thicknessFactor         = texelFetch(uMaterialTex, ivec2(16, row), 0);\r\n    m.emissiveStrength        = texelFetch(uMaterialTex, ivec2(17, row), 0);\r\n    m.anisotropyFactor        = texelFetch(uMaterialTex, ivec2(18, row), 0);\r\n    m.iridescence             = texelFetch(uMaterialTex, ivec2(19, row), 0);\r\n    m.diffuseTransmissionFactor= texelFetch(uMaterialTex, ivec2(20, row), 0);\r\n    m.dispersionFactor        = texelFetch(uMaterialTex, ivec2(21, row), 0);\r\n    m.lights                  = ivec4(texelFetch(uMaterialTex, ivec2(22, row), 0));\r\n    return m;\r\n}\r\n\r\nuniform Matrices2 {\r\n    mat4 view;\r\n    mat4 projection;\r\n    mat4 light;\r\n    vec4 isShadow;\r\n};\r\nuniform LightPos {\r\n    vec4 lightPos[LIGHTNUMBER];\r\n};\r\nuniform LightColor {\r\n    vec4 lightColor[LIGHTNUMBER];\r\n};\r\nuniform Spotdir {\r\n    vec4 spotdir[LIGHTNUMBER];\r\n};\r\nuniform LightIntensity {\r\n    vec4 lightIntensity[LIGHTNUMBER];\r\n};\r\n#if defined MATRICES\r\nuniform TextureMatrices {\r\n    mat4 textureMatrices[MATRICES];\r\n};\r\n#endif\r\n#ifdef SPHERICAL_HARMONICS\r\nuniform SphericalHarmonics {\r\n    vec4 vSphericalL00;\r\n    vec4 vSphericalL1_1;\r\n    vec4 vSphericalL10;\r\n    vec4 vSphericalL11;\r\n    vec4 vSphericalL2_2;\r\n    vec4 vSphericalL2_1;\r\n    vec4 vSphericalL20;\r\n    vec4 vSphericalL21;\r\n    vec4 vSphericalL22;\r\n    mat4 rotationMatrix;\r\n};\r\n#endif\r\n\r\nuniform sampler2D baseColorTexture;\r\nuniform sampler2D metallicRoughnessTexture;\r\nuniform sampler2D normalTexture;\r\nuniform sampler2D emissiveTexture;\r\nuniform sampler2D occlusionTexture;\r\nuniform sampler2D clearcoatTexture;\r\nuniform sampler2D clearcoatRoughnessTexture;\r\nuniform sampler2D transmissionTexture;\r\nuniform sampler2D sheenColorTexture;\r\nuniform sampler2D sheenRoughnessTexture;\r\nuniform sampler2D iridescenceThicknessTexture;\r\nuniform sampler2D iridescenceTexture;\r\nuniform sampler2D clearcoatNormalTexture;\r\nuniform sampler2D specularTexture;\r\nuniform sampler2D specularColorTexture;\r\nuniform sampler2D thicknessTexture;\r\nuniform sampler2D diffuseTransmissionTexture;\r\nuniform sampler2D diffuseTransmissionColorTexture;\r\nuniform sampler2D anisotropyTexture;\r\n\r\nuniform samplerCube prefilterMap;\r\nuniform samplerCube charlieMap;\r\nuniform sampler2D brdfLUT;  \r\nuniform samplerCube irradianceMap;\r\nuniform sampler2D depthTexture;\r\nuniform sampler2D colorTexture;\r\nuniform vec2 isTone;\r\nuniform vec2 isIBL;\r\nuniform vec2 isDefaultLight;\r\nuniform sampler2D Sheen_E;\r\n";
+  var frag_default = "#version 300 es\r\nprecision highp float;\r\n\r\n// #ifdef DIFFUSE_TRANSMISSION\r\n//     #define SCATTERING 1\r\n// #endif\r\n\r\n#define texture2D(p, uv) texture(p, uv)\r\n#define textureCube(p, uv) texture(p, uv)\r\n#define textureLodCube(p, uv, i) textureLod(p, uv, i)\r\n#define textureLod2D(p, uv, i) textureLod(p, uv, i)\r\n#define textureLod2D2(p, uv, i) textureLod(p, uv, i)\r\n\r\nuniform sampler2D uMaterialTex;\r\n\r\nin vec4 vColor;\r\nin vec2 outUV0;\r\nin vec2 outUV2;\r\nin vec2 outUV3;\r\nin vec3 outPosition;\r\nin vec4 outPositionView;\r\nin float id;\r\n#ifdef TANGENT\r\n    in mat3 outTBN;\r\n#else\r\n    in vec3 outNormal;\r\n#endif\r\n\r\nlayout (location = 0) out vec4 color;\r\nlayout (location = 1) out vec4 normalColor;\r\nlayout (location = 2) out vec4 irradianceColor;\r\nlayout (location = 3) out vec4 albedoColor;\r\nlayout (location = 4) out vec4 specColor;\r\n\r\nstruct Material {\r\n    vec4 lights;\r\n    vec4 iridescence;\r\n    vec4 diffuseTransmissionFactor;\r\n    vec4 baseColorFactor;\r\n    vec3 specularColorFactor;\r\n    vec3 emissiveFactor;\r\n    vec3 sheenColorFactor;\r\n    vec3 attenuationColorFactor; \r\n    vec3 specularFactor;\r\n    vec2 anisotropyFactor;\r\n    float glossinessFactor;\r\n    float metallicFactor;\r\n    float roughnessFactor;\r\n    float clearcoatFactor;\r\n    float clearcoatRoughnessFactor;\r\n    float sheenRoughnessFactor;\r\n    float transmissionFactor;\r\n    float ior;\r\n    float normalTextureScale;\r\n    float attenuationDistance; \r\n    float thicknessFactor;\r\n    float emissiveStrength;\r\n    float dispersionFactor;\r\n};\r\n\r\nMaterial fetchMaterial(int id) {\r\n    Material m;\r\n    int row = id;\r\n    m.baseColorFactor         = texelFetch(uMaterialTex, ivec2(3, row), 0);\r\n    m.specularFactor          = texelFetch(uMaterialTex, ivec2(8, row), 0).xyz;\r\n    m.specularColorFactor     = texelFetch(uMaterialTex, ivec2(4, row), 0).xyz;\r\n    m.emissiveFactor          = texelFetch(uMaterialTex, ivec2(5, row), 0).xyz;\r\n    m.glossinessFactor        = texelFetch(uMaterialTex, ivec2(10, row), 0).x;\r\n    m.metallicFactor          = texelFetch(uMaterialTex, ivec2(11, row), 0).x;\r\n    m.roughnessFactor         = texelFetch(uMaterialTex, ivec2(12, row), 0).x;\r\n    m.clearcoatFactor         = texelFetch(uMaterialTex, ivec2(13, row), 0).x;\r\n    m.clearcoatRoughnessFactor= texelFetch(uMaterialTex, ivec2(14, row), 0).x;\r\n    m.sheenColorFactor        = texelFetch(uMaterialTex, ivec2(6, row), 0).xyz;\r\n    m.sheenRoughnessFactor    = texelFetch(uMaterialTex, ivec2(15, row), 0).x;\r\n    m.transmissionFactor      = texelFetch(uMaterialTex, ivec2(16, row), 0).x;\r\n    m.ior                     = texelFetch(uMaterialTex, ivec2(17, row), 0).x;\r\n    m.normalTextureScale      = texelFetch(uMaterialTex, ivec2(18, row), 0).x;\r\n    m.attenuationColorFactor  = texelFetch(uMaterialTex, ivec2(7, row), 0).xyz;\r\n    m.attenuationDistance     = texelFetch(uMaterialTex, ivec2(19, row), 0).x;\r\n    m.thicknessFactor         = texelFetch(uMaterialTex, ivec2(20, row), 0).x;\r\n    m.emissiveStrength        = texelFetch(uMaterialTex, ivec2(21, row), 0).x;\r\n    m.anisotropyFactor        = texelFetch(uMaterialTex, ivec2(9, row), 0).xy;\r\n    m.iridescence             = texelFetch(uMaterialTex, ivec2(1, row), 0);\r\n    m.diffuseTransmissionFactor= texelFetch(uMaterialTex, ivec2(2, row), 0);\r\n    m.dispersionFactor        = texelFetch(uMaterialTex, ivec2(22, row), 0).x;\r\n    m.lights                  = texelFetch(uMaterialTex, ivec2(0, row), 0);\r\n    return m;\r\n}\r\n\r\nuniform Matrices2 {\r\n    mat4 view;\r\n    mat4 projection;\r\n    mat4 light;\r\n    float isShadow;\r\n};\r\nuniform LightPos {\r\n    vec4 lightPos[LIGHTNUMBER];\r\n};\r\nuniform LightColor {\r\n    vec4 lightColor[LIGHTNUMBER];\r\n};\r\nuniform Spotdir {\r\n    vec4 spotdir[LIGHTNUMBER];\r\n};\r\nuniform LightIntensity {\r\n    vec4 lightIntensity[LIGHTNUMBER];\r\n};\r\n#if defined MATRICES\r\nuniform TextureMatrices {\r\n    mat4 textureMatrices[MATRICES];\r\n};\r\n#endif\r\n#ifdef SPHERICAL_HARMONICS\r\nuniform SphericalHarmonics {\r\n    vec4 vSphericalL00;\r\n    vec4 vSphericalL1_1;\r\n    vec4 vSphericalL10;\r\n    vec4 vSphericalL11;\r\n    vec4 vSphericalL2_2;\r\n    vec4 vSphericalL2_1;\r\n    vec4 vSphericalL20;\r\n    vec4 vSphericalL21;\r\n    vec4 vSphericalL22;\r\n    mat4 rotationMatrix;\r\n};\r\n#endif\r\n\r\nuniform sampler2D baseColorTexture;\r\nuniform sampler2D metallicRoughnessTexture;\r\nuniform sampler2D normalTexture;\r\nuniform sampler2D emissiveTexture;\r\nuniform sampler2D occlusionTexture;\r\nuniform sampler2D clearcoatTexture;\r\nuniform sampler2D clearcoatRoughnessTexture;\r\nuniform sampler2D transmissionTexture;\r\nuniform sampler2D sheenColorTexture;\r\nuniform sampler2D sheenRoughnessTexture;\r\nuniform sampler2D iridescenceThicknessTexture;\r\nuniform sampler2D iridescenceTexture;\r\nuniform sampler2D clearcoatNormalTexture;\r\nuniform sampler2D specularTexture;\r\nuniform sampler2D specularColorTexture;\r\nuniform sampler2D thicknessTexture;\r\nuniform sampler2D diffuseTransmissionTexture;\r\nuniform sampler2D diffuseTransmissionColorTexture;\r\nuniform sampler2D anisotropyTexture;\r\n\r\nuniform samplerCube prefilterMap;\r\nuniform samplerCube charlieMap;\r\nuniform sampler2D brdfLUT;  \r\nuniform samplerCube irradianceMap;\r\nuniform sampler2D depthTexture;\r\nuniform sampler2D colorTexture;\r\nuniform float isTone;\r\nuniform float isIBL;\r\nuniform float isDefaultLight;\r\nuniform sampler2D Sheen_E;\r\n";
 
   // src/shaders/vert.h
-  var vert_default = "#version 300 es\r\nprecision highp float;\r\n\r\nlayout (location = 0) in vec3 inPosition;\r\nlayout (location = 1) in vec3 inNormal;\r\nlayout (location = 2) in vec2 inUV;\r\nlayout (location = 4) in vec4 inJoint;\r\nlayout (location = 5) in vec4 inWeight;\r\nlayout (location = 3) in vec4 inTangent;\r\nlayout (location = 6) in vec4 inColor;\r\nlayout (location = 7) in vec2 inUV2;\r\nlayout (location = 8) in vec2 inUV3;\r\nlayout (location = 9) in float uMaterialID;\r\n\r\nuniform sampler2D uTransformTex;\r\n\r\nout vec4 vColor;\r\nout vec2 outUV0;\r\nout vec2 outUV2;\r\nout vec2 outUV3;\r\nout vec3 outPosition;\r\nout vec4 outPositionView;\r\nout float id;\r\n#ifdef TANGENT\r\n    out mat3 outTBN;\r\n#else\r\n    out vec3 outNormal;\r\n#endif\r\n\r\nstruct Transform {\r\n    mat4 model;\r\n};\r\nTransform fetchTransform(int id) {\r\n    Transform t;\r\n\r\n    // 8 texels across (0..7)\r\n    t.model[0] = texelFetch(uTransformTex, ivec2(0, id), 0);\r\n    t.model[1] = texelFetch(uTransformTex, ivec2(1, id), 0);\r\n    t.model[2] = texelFetch(uTransformTex, ivec2(2, id), 0);\r\n    t.model[3] = texelFetch(uTransformTex, ivec2(3, id), 0);\r\n\r\n    return t;\r\n}\r\nuniform Matrices2 {\r\n    mat4 view;\r\n    mat4 projection;\r\n    mat4 light;\r\n    vec4 isShadow;\r\n};\r\n#ifdef JOINTNUMBER\r\nuniform Skin {\r\n    mat4 joint[JOINTNUMBER];\r\n};\r\n#endif";
+  var vert_default = "#version 300 es\r\nprecision highp float;\r\n\r\nlayout (location = 0) in vec3 inPosition;\r\nlayout (location = 1) in vec3 inNormal;\r\nlayout (location = 2) in vec2 inUV;\r\nlayout (location = 4) in vec4 inJoint;\r\nlayout (location = 5) in vec4 inWeight;\r\nlayout (location = 3) in vec4 inTangent;\r\nlayout (location = 6) in vec4 inColor;\r\nlayout (location = 7) in vec2 inUV2;\r\nlayout (location = 8) in vec2 inUV3;\r\nlayout (location = 9) in float uMaterialID;\r\n\r\nuniform sampler2D uTransformTex;\r\n\r\nout vec4 vColor;\r\nout vec2 outUV0;\r\nout vec2 outUV2;\r\nout vec2 outUV3;\r\nout vec3 outPosition;\r\nout vec4 outPositionView;\r\nout float id;\r\n#ifdef TANGENT\r\n    out mat3 outTBN;\r\n#else\r\n    out vec3 outNormal;\r\n#endif\r\n\r\nstruct Transform {\r\n    mat4 model;\r\n};\r\nTransform fetchTransform(int id) {\r\n    Transform t;\r\n\r\n    // 8 texels across (0..7)\r\n    t.model[0] = texelFetch(uTransformTex, ivec2(0, id), 0);\r\n    t.model[1] = texelFetch(uTransformTex, ivec2(1, id), 0);\r\n    t.model[2] = texelFetch(uTransformTex, ivec2(2, id), 0);\r\n    t.model[3] = texelFetch(uTransformTex, ivec2(3, id), 0);\r\n\r\n    return t;\r\n}\r\nuniform Matrices2 {\r\n    mat4 view;\r\n    mat4 projection;\r\n    mat4 light;\r\n    float isShadow;\r\n};\r\n#ifdef JOINTNUMBER\r\nuniform Skin {\r\n    mat4 joint[JOINTNUMBER];\r\n};\r\n#endif";
 
   // src/objects/geometry.ts
   var GeometryEnum = {
@@ -17475,6 +17475,7 @@ ${defineStr}`));
           "baseColorTexture",
           "sheenColorTexture",
           "emissiveTexture",
+          "diffuseTransmissionColorTexture",
           //@ts-ignore
           mesh.defines.find((d) => d.name === "SPECULARGLOSSINESSMAP") && "metallicRoughnessTexture"
         ];
@@ -17582,14 +17583,14 @@ ${defineStr}`));
       this.images.set(name, tex);
       return tex;
     }
-    handleTextureLoaded({ image, name, mimeType, sampler, srgb }) {
+    handleTextureLoaded({ image, name, mimeType, sampler, srgb = false }) {
       const s = this.samplers[sampler !== void 0 ? sampler : 0];
       if (mimeType) {
         image.sampler = s;
         return image;
       }
-      if (this.images.get(name)) {
-        return this.images.get(name);
+      if (this.images.has(name + srgb)) {
+        return this.images.get(name + srgb);
       }
       const t = gl5.createTexture();
       t.name = name;
@@ -17601,7 +17602,7 @@ ${defineStr}`));
       gl5.pixelStorei(gl5.UNPACK_COLORSPACE_CONVERSION_WEBGL, gl5.NONE);
       gl5.texImage2D(gl5.TEXTURE_2D, 0, srgb ? gl5.SRGB8_ALPHA8 : gl5.RGBA, gl5.RGBA, gl5.UNSIGNED_BYTE, image);
       gl5.generateMipmap(gl5.TEXTURE_2D);
-      this.images.set(name, t);
+      this.images.set(name + srgb, t);
       return t;
     }
     async getEnv(isBuffer) {
@@ -19841,16 +19842,6 @@ ${defineStr}`));
       this.parse.calculateFov(this.camera.props.isInitial);
       const envData = await this.parse.getEnv(false);
       await this.env.createEnvironmentBuffer(envData);
-      const { renderState, isIBL, isDefaultLight, lights } = this.getState();
-      const stateBuffer = new UniformBuffer();
-      stateBuffer.add("isTone", renderState.isprerefraction ? 0 : 1);
-      stateBuffer.add("isIBL", isIBL ? 1 : 0);
-      stateBuffer.add("isDefaultLight", isDefaultLight || lights.some((l) => !l.isInitial) ? 1 : 0);
-      stateBuffer.done();
-      this.stateBuffer = stateBuffer;
-      const mUBO = gl13.createBuffer();
-      gl13.bindBuffer(gl13.UNIFORM_BUFFER, mUBO);
-      gl13.bufferData(gl13.UNIFORM_BUFFER, stateBuffer.store, gl13.STATIC_DRAW);
       const cameraBuffer = new UniformBuffer();
       cameraBuffer.add("view", this.camera.matrixWorldInvert.elements);
       cameraBuffer.add("projection", this.camera.projection.elements);
@@ -19919,7 +19910,7 @@ ${defineStr}`));
         mesh.repaint = true;
       });
       this.scene.meshes.forEach((mesh) => {
-        [mesh.material, ...mesh.variants.map((m) => m.m)].forEach((m) => m.createUniforms(this.camera, this.parse.lights));
+        [mesh.material, ...mesh.variants.map((m) => m.m)].forEach((m) => m.createUniforms(true, this.parse.lights));
       });
       gl13.activeTexture(gl13[`TEXTURE${31}`]);
       const texture = gl13.createTexture();

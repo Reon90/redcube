@@ -135,9 +135,9 @@ export class Mesh extends Object3D {
 
         gl.uniform1i(this.material.uniforms.depthTexture, preDepthTexture && !isprepender ? preDepthTexture.index : fakeDepth.index);
         gl.uniform1i(this.material.uniforms.colorTexture, !isprerefraction ? colorTexture.index : fakeDepth.index);
-        gl.uniform2f(this.material.uniforms.isTone, isprerefraction ? 0 : 1, 0);
-        gl.uniform2f(this.material.uniforms.isIBL, isIBL ? 1 : 0, 0);
-        gl.uniform2f(this.material.uniforms.isDefaultLight, isDefaultLight || lights.some(l => !l.isInitial) ? 1 : 0, 0);
+        gl.uniform1f(this.material.uniforms.isTone, isprerefraction ? 0 : 1, 0);
+        gl.uniform1f(this.material.uniforms.isIBL, isIBL ? 1 : 0, 0);
+        gl.uniform1f(this.material.uniforms.isDefaultLight, isDefaultLight || lights.some(l => !l.isInitial) ? 1 : 0, 0);
 
         if (this.material.baseColorTexture) {
             gl.activeTexture(gl[`TEXTURE${0}`]);
@@ -278,6 +278,7 @@ export class Mesh extends Object3D {
 
     setFrontFace() {
         this.frontFace = true;
+        this.material.defines.push({ name: 'FRONTFACE' });
     }
 
     isVisible(planes) {

@@ -173,7 +173,7 @@ export class Env {
         layout(set = 0, binding = 1) uniform texture2D environmentMap;
         
         void main() {
-            vec3 c = textureLod(sampler2D(environmentMap, baseSampler), outUV, 2.0).rgb;
+            vec3 c = textureLod(sampler2D(environmentMap, baseSampler), vec2(0.0, 1.0), 0.0).rgb;
             
             color = vec4(c, 1.0);
         }
@@ -224,7 +224,7 @@ export class Env {
             },
             {
                 binding: 1,
-                resource: x.createView(),
+                resource: this.bdrfTexture,
             },
         ];
 
