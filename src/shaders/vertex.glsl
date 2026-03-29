@@ -4,7 +4,7 @@ void main() {
     #if defined(WEBGPU)
     Transform tr = transforms.data[gl_InstanceIndex];
     #else
-    Transform tr = fetchTransform(int(uMaterialID));
+    Transform tr = fetchTransform(int(uMaterialID) + gl_InstanceID);
     #endif
     mat4 model = tr.model;
 
@@ -48,9 +48,6 @@ void main() {
     }
 
     gl_PointSize = 1.0;
-    #if defined(WEBGPU)
-    id = gl_InstanceIndex;
-    #else
+
     id = uMaterialID;
-    #endif
 }

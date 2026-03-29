@@ -3,16 +3,16 @@ import fragmentShaderGLSL from '../shaders/fragment.glsl';
 import fragGLSL from '../shaders/frag.webgpu.h';
 import vertGLSL from '../shaders/vert.webgpu.h';
 
-const programs = {};
-
-export function create(device: GPUDevice, glslang, wgsl, uniformBindGroup1, defines, hasTransmission, mode, frontFace) {
-    const programHash = defines.map(define => `${define.name}${define.value ?? 1}`).join('');
-    let program;
-    if (programs[programHash]) {
-        program = programs[programHash];
-    } else {
-        const defineStr = defines.map(define => `#define ${define.name} ${define.value ?? 1}` + '\n').join('');
-        const shaders = [vertexShaderGLSL, fragmentShaderGLSL]
+const lineFragmentShader = `#version 460
+    precision highp float;
+    layout (location = 0) out vec4 color;
+    
+    void main() {
+        color = vec4(0.0, 1.0, 0.0, 1.0);
+    }`;
+export function create(device: GPUDevice, glslang, wgsl, uniformBindGroup1, defines, mode, frontFace) {
+    const defineStr = defines.map(define => `#define ${define.name} ${define.value ?? 1}` + '\n').join('');
+    const shaders = [vertexShaderGLSL, mode > 3 ? fragmentShaderGLSL : fragmentShaderGLSL]
         .map(p => p.replace(/#include ".*/g, str => {
             const subPath = str.split('"')[1];
             if (subPath.includes('vert')) {
@@ -22,9 +22,7 @@ export function create(device: GPUDevice, glslang, wgsl, uniformBindGroup1, defi
             }
         }))
         .map(p => p.replace(/\n/, `\n${defineStr}`));
-        programs[programHash] = [convertGLSLtoWGSL(shaders[0], 'vertex'), convertGLSLtoWGSL(shaders[1], 'fragment')];
-        program = programs[programHash];
-    }
+    const program = [convertGLSLtoWGSL(shaders[0], 'vertex'), convertGLSLtoWGSL(shaders[1], 'fragment')];
 
     const entries: GPUBindGroupLayoutEntry[] = [
         {
@@ -174,84 +172,50 @@ export function create(device: GPUDevice, glslang, wgsl, uniformBindGroup1, defi
         bindGroupLayouts: [bindGroupLayout]
     });
 
-    const vertexLayout = [3, 2, 3, 4];
-    if (defines.find(d => d.name === 'JOINTNUMBER')) {
-        vertexLayout.push(4, 4);
-    }
-    if (defines.find(d => d.name === 'COLOR')) {
-        vertexLayout.push(4);
-    }
-    if (defines.find(d => d.name === 'MULTIUV')) {
-        vertexLayout.push(2);
-    }
-    if (defines.find(d => d.name === 'MULTIUV2')) {
-        vertexLayout.push(2);
-    }
-    const cubeVertexSize = Float32Array.BYTES_PER_ELEMENT * vertexLayout.reduce((a, b) => a + b, 0); // Byte size of one cube vertex.
-    const buffers = [
-        {
-            arrayStride: cubeVertexSize,
-            attributes: [
-                {
-                    shaderLocation: 0,
-                    offset: 0,
-                    format: 'float32x3' as GPUVertexFormat
-                },
-                {
-                    shaderLocation: 1,
-                    offset: Float32Array.BYTES_PER_ELEMENT * vertexLayout[0],
-                    format: 'float32x2' as GPUVertexFormat
-                },
-                {
-                    shaderLocation: 2,
-                    offset: Float32Array.BYTES_PER_ELEMENT * (vertexLayout[0] + vertexLayout[1]),
-                    format: 'float32x3' as GPUVertexFormat
-                },
-                {
-                    shaderLocation: 3,
-                    offset: Float32Array.BYTES_PER_ELEMENT * (vertexLayout[0] + vertexLayout[1] + vertexLayout[2]),
-                    format: 'float32x4' as GPUVertexFormat
-                }
-            ]
-        }
+    const attributesToDefine: { shaderLocation: number; format: GPUVertexFormat; size: number }[] = [
+        { shaderLocation: 0, format: 'float32x3', size: 3 }, // POSITION
+        { shaderLocation: 1, format: 'float32x2', size: 2 }, // TEXCOORD_0
+        { shaderLocation: 2, format: 'float32x3', size: 3 }, // NORMAL
+        { shaderLocation: 3, format: 'float32x4', size: 4 }, // TANGENT
+        { shaderLocation: 9, format: 'float32', size: 1 },   // order
     ];
+
     if (defines.find(d => d.name === 'JOINTNUMBER')) {
-        buffers[0].attributes.push(
-            {
-                shaderLocation: 4,
-                offset: Float32Array.BYTES_PER_ELEMENT * (vertexLayout[0] + vertexLayout[1] + vertexLayout[2] + vertexLayout[3]),
-                format: 'float32x4' as GPUVertexFormat
-            },
-            {
-                shaderLocation: 5,
-                offset:
-                    Float32Array.BYTES_PER_ELEMENT *
-                    (vertexLayout[0] + vertexLayout[1] + vertexLayout[2] + vertexLayout[3] + vertexLayout[4]),
-                format: 'float32x4' as GPUVertexFormat
-            }
+        attributesToDefine.push(
+            { shaderLocation: 4, format: 'float32x4', size: 4 }, // JOINTS_0
+            { shaderLocation: 5, format: 'float32x4', size: 4 }  // WEIGHTS_0
         );
     }
     if (defines.find(d => d.name === 'COLOR')) {
-        buffers[0].attributes.push({
-            shaderLocation: 6,
-            offset: Float32Array.BYTES_PER_ELEMENT * (vertexLayout[0] + vertexLayout[1] + vertexLayout[2] + vertexLayout[3]),
-            format: 'float32x4' as GPUVertexFormat
-        });
+        attributesToDefine.push({ shaderLocation: 6, format: 'float32x4', size: 4 }); // COLOR_0
     }
     if (defines.find(d => d.name === 'MULTIUV')) {
-        buffers[0].attributes.push({
-            shaderLocation: 7,
-            offset: Float32Array.BYTES_PER_ELEMENT * (vertexLayout[0] + vertexLayout[1] + vertexLayout[2] + vertexLayout[3]),
-            format: 'float32x2' as GPUVertexFormat
-        });
+        attributesToDefine.push({ shaderLocation: 7, format: 'float32x2', size: 2 }); // TEXCOORD_1
     }
     if (defines.find(d => d.name === 'MULTIUV2')) {
-        buffers[0].attributes.push({
-            shaderLocation: 8,
-            offset: Float32Array.BYTES_PER_ELEMENT * (vertexLayout[0] + vertexLayout[1] + vertexLayout[2] + vertexLayout[3] + vertexLayout[4]),
-            format: 'float32x2' as GPUVertexFormat
-        });
+        attributesToDefine.push({ shaderLocation: 8, format: 'float32x2', size: 2 }); // TEXCOORD_2
     }
+
+    const orderedAttributes = attributesToDefine.sort((a, b) => a.shaderLocation - b.shaderLocation);
+
+    let offset = 0;
+    const attributes = orderedAttributes.map(attr => {
+        const currentOffset = offset;
+        offset += attr.size * Float32Array.BYTES_PER_ELEMENT;
+        return {
+            shaderLocation: attr.shaderLocation,
+            offset: currentOffset,
+            format: attr.format,
+        };
+    });
+
+    const cubeVertexSize = offset;
+    const buffers = [
+        {
+            arrayStride: cubeVertexSize,
+            attributes,
+        },
+    ];
 
     function convertGLSLtoWGSL(code: string, type: string) {
         const spirv = glslang.compileGLSL(code, type);
@@ -259,8 +223,12 @@ export function create(device: GPUDevice, glslang, wgsl, uniformBindGroup1, defi
             .convertSpirV2WGSL(spirv);
     }
 
+    return [createPipeline(device, pipelineLayout, program, buffers, defines, mode, frontFace, false), createPipeline(device, pipelineLayout, program, buffers, defines, mode, frontFace, true)];
+}
+
+function createPipeline(device, pipelineLayout, program, buffers, defines, mode, frontFace, hasTransmission) {
     const pipeline = device.createRenderPipeline({
-        label: 'main-pipeline',
+        label: hasTransmission ? 'transmission-pipeline' : 'main-pipeline',
         layout: pipelineLayout,
         vertex: {
             module: device.createShaderModule({
@@ -309,6 +277,9 @@ export function create(device: GPUDevice, glslang, wgsl, uniformBindGroup1, defi
             depthWriteEnabled: true,
             depthCompare: 'less',
             format: 'depth32float'
+        },
+        multisample: {
+            count: hasTransmission ? 1 : 4,
         }
     });
     return pipeline;

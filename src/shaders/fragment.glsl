@@ -818,6 +818,10 @@ void main() {
         anisotropicB = normalize(cross(n, anisotropicT));
     #endif
 
+    // clamp nan inf
+    n = clamp(n, vec3(-1.0), vec3(1.0));
+    clearcoatNormal = clamp(clearcoatNormal, vec3(-1.0), vec3(1.0));
+
     #ifdef USE_PBR
         vec3 finalDiffuse = vec3(0.0);
         vec3 Lo = vec3(0.0);
@@ -974,17 +978,18 @@ void main() {
 
         color.rgb = f_sheen + color.rgb * albedoSheenScaling;
     #else
-        vec3 lightDir = normalize(lightPos[0].xyz - outPosition);
-        vec3 ambient = ambientStrength * lightColor[0].xyz;
+        n = clamp(n, vec3(0.0), vec3(1.0));
+        vec3 lightDir = normalize(lightPos[lights[0]].xyz - outPosition);
+        vec3 ambient = ambientStrength * lightColor[lights[0]].xyz;
 
         float diff = saturate(dot(n, lightDir));
-        vec3 diffuse = diff * lightColor[0].XYZ;
+        vec3 diffuse = diff * lightColor[lights[0]].xyz;
 
         vec3 reflectDir = reflect(-lightDir, n);
         float spec = pow(saturate(dot(viewDir, reflectDir)), specularPower);
-        vec3 specular = specularStrength * spec * lightColor[0].xyz;
+        vec3 specular = specularStrength * spec * lightColor[lights[0]].xyz;
 
-        color = vec4(baseColor.rgb * (ambient + diffuse + specular) * shadow, alpha);
+        color = vec4(emissiveFactor + baseColor.rgb * (ambient + diffuse + specular) * shadow, alpha);
     #endif
 
     #ifndef SCATTERING

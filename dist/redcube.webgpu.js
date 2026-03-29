@@ -15225,6 +15225,8 @@ var redcube = (() => {
     reflow;
     repaint;
     visible = true;
+    instances = 1;
+    matrices = [];
     constructor(name, parent) {
       this.uuid = Math.floor(Date.now() * Math.random());
       this.name = name;
@@ -15258,6 +15260,14 @@ var redcube = (() => {
       m.multiply(this.parent.matrixWorld);
       m.multiply(this.matrix);
       this.setMatrixWorld(m.elements);
+      if (this.matrices.length) {
+        for (const matrix of this.matrices) {
+          const m2 = new Matrix4();
+          m2.multiply(this.parent.matrixWorld);
+          m2.multiply(matrix);
+          matrix.set(m2.elements);
+        }
+      }
     }
   };
 
@@ -16425,18 +16435,18 @@ var redcube = (() => {
     setMaterial(material) {
       this.material = material;
     }
-    drawWebGPU(WebGPU2, passEncoder, i, { renderState, storage2, storage }) {
+    drawWebGPU(WebGPU2, passEncoder, i, { renderState, materialStorage, transformsStorage }) {
       const { isprerefraction } = renderState;
       if (this.defines.find((i2) => i2.name === "TRANSMISSION") && isprerefraction) {
         return;
       }
       if (this.reflow) {
-        storage2.store.set(this.matrixWorld.elements, i * this.geometry.uniformBuffer.store.length);
-        WebGPU2.device.queue.writeBuffer(storage2.bufferWebGPU, 0, storage2.store.buffer, storage2.store.byteOffset, storage2.store.byteLength);
+        transformsStorage.store.set(this.matrixWorld.elements, i * this.geometry.uniformBuffer.store.length);
+        WebGPU2.device.queue.writeBuffer(transformsStorage.bufferWebGPU, 0, transformsStorage.store.buffer, transformsStorage.store.byteOffset, transformsStorage.store.byteLength);
       }
       if (this.repaint) {
-        storage.store.set(this.material.materialUniformBuffer.store, i * this.material.materialUniformBuffer.store.length);
-        WebGPU2.device.queue.writeBuffer(storage.bufferWebGPU, 0, storage.store.buffer, storage.store.byteOffset, storage.store.byteLength);
+        materialStorage.store.set(this.material.materialUniformBuffer.store, i * this.material.materialUniformBuffer.store.length);
+        WebGPU2.device.queue.writeBuffer(materialStorage.bufferWebGPU, 0, materialStorage.store.buffer, materialStorage.store.byteOffset, materialStorage.store.byteLength);
       }
       if (this instanceof SkinnedMesh) {
         if (this.bones.some((bone) => bone.reflow)) {
@@ -16460,9 +16470,9 @@ var redcube = (() => {
       passEncoder.setVertexBuffer(0, this.geometry.verticesWebGPUBuffer);
       if (this.geometry.indicesBuffer) {
         passEncoder.setIndexBuffer(this.geometry.indicesWebGPUBuffer, "uint32");
-        passEncoder.drawIndexed(this.geometry.indicesBuffer.length, 1, 0, 0, i);
+        passEncoder.drawIndexed(this.geometry.indicesBuffer.length, this.instances, 0, 0, i);
       } else {
-        passEncoder.draw(this.geometry.attributes.POSITION.length / 3, 1, 0, i);
+        passEncoder.draw(this.geometry.attributes.POSITION.length / 3, this.instances, 0, i);
       }
     }
     draw(gl11, {
@@ -16611,15 +16621,25 @@ var redcube = (() => {
       if (this.frontFace) {
         gl11.frontFace(gl11.CW);
       }
-      if (this.geometry.indicesBuffer) {
-        gl11.drawElements(
+      if (this.instances > 1) {
+        gl11.drawElementsInstanced(
           this.mode,
           this.geometry.indicesBuffer.length,
           gl11[ArrayBufferMap.get(this.geometry.indicesBuffer.constructor)],
-          0
+          0,
+          this.instances
         );
       } else {
-        gl11.drawArrays(this.mode, 0, this.geometry.attributes.POSITION.length / 3);
+        if (this.geometry.indicesBuffer) {
+          gl11.drawElements(
+            this.mode === 2 ? gl11.LINES : this.mode,
+            this.geometry.indicesBuffer.length,
+            gl11[ArrayBufferMap.get(this.geometry.indicesBuffer.constructor)],
+            0
+          );
+        } else {
+          gl11.drawArrays(this.mode, 0, this.geometry.attributes.POSITION.length / 3);
+        }
       }
       if (this.material.doubleSided) {
         gl11.enable(gl11.CULL_FACE);
@@ -16661,6 +16681,11 @@ var redcube = (() => {
     }
     calculateBounding() {
       this.geometry.calculateBounding(this.matrixWorld);
+      if (this.matrices.length) {
+        for (const m of this.matrices) {
+          this.geometry.calculateBounding(m);
+        }
+      }
     }
   };
   var SkinnedMesh = class extends Mesh {
@@ -17230,7 +17255,7 @@ var redcube = (() => {
       }
       if (material.extensions && material.extensions.KHR_materials_specular) {
         const { specularFactor, specularTexture, specularColorFactor, specularColorTexture } = material.extensions.KHR_materials_specular;
-        this.specularFactor = [specularFactor, 0, 0];
+        this.specularFactor = [specularFactor ?? 1, 0, 0];
         this.specularColorFactor = specularColorFactor;
         if (specularTexture) {
           this.specularTexture = textures[specularTexture.index];
@@ -17535,7 +17560,7 @@ var redcube = (() => {
         materialUniformBuffer.add("emissiveFactor", this.emissiveFactor ?? [0, 0, 0]);
         materialUniformBuffer.add("sheenColorFactor", this.sheenColorFactor ?? [0, 0, 0]);
         materialUniformBuffer.add("attenuationColor", this.attenuationColor ?? [1, 1, 1]);
-        materialUniformBuffer.add("specularFactor", this.specularFactor ?? [0, 0, 0]);
+        materialUniformBuffer.add("specularFactor", this.specularFactor ?? [1, 0, 0]);
         materialUniformBuffer.add("anisotropy", [this.anisotropyStrength ?? 0, this.anisotropyRotation ?? 0]);
         materialUniformBuffer.add("glossinessFactor", this.glossinessFactor ?? 0.5);
         materialUniformBuffer.add("metallicFactor", this.metallicFactor ?? 1);
@@ -19084,11 +19109,11 @@ var redcube = (() => {
           const image = new Image();
           image.onload = () => {
             if (isbitmap) {
-              createImageBitmap(image).then((bitmap) => {
+              createImageBitmap(image, { premultiplyAlpha: "none", colorSpaceConversion: "none" }).then((bitmap) => {
                 resolve({
                   sampler,
                   name,
-                  bitmap
+                  image: bitmap
                 });
               });
             } else {
@@ -19202,7 +19227,7 @@ var redcube = (() => {
   }
 
   // src/shaders/vertex.glsl
-  var vertex_default = '#include "./vert.h"\r\n\r\nvoid main() {\r\n    #if defined(WEBGPU)\r\n    Transform tr = transforms.data[gl_InstanceIndex];\r\n    #else\r\n    Transform tr = fetchTransform(int(uMaterialID));\r\n    #endif\r\n    mat4 model = tr.model;\r\n\r\n    #ifdef JOINTNUMBER\r\n        mat4 skin = inWeight.x * joint[int(inJoint.x)];\r\n        skin += inWeight.y * joint[int(inJoint.y)];\r\n        skin += inWeight.z * joint[int(inJoint.z)];\r\n        skin += inWeight.w * joint[int(inJoint.w)];\r\n    #else\r\n        mat4 skin = mat4(1.0);\r\n    #endif\r\n\r\n    #ifdef COLOR\r\n    vColor = inColor;\r\n    #endif\r\n    outUV0 = inUV;\r\n    #ifdef MULTIUV\r\n    outUV2 = inUV2;\r\n    #endif\r\n    #ifdef MULTIUV2\r\n    outUV3 = inUV3;\r\n    #endif\r\n    #ifdef TANGENT\r\n        vec3 normalW = normalize(vec3(model * vec4(inNormal.xyz, 0.0)));\r\n        vec3 tangentW = normalize(vec3(model * vec4(inTangent.xyz, 0.0)));\r\n        vec3 bitangentW = cross(normalW, tangentW) * inTangent.w;\r\n        #ifdef USERIGHTHANDEDSYSTEM\r\n        tangentW *= 1.0; // invertX\r\n        bitangentW *= -1.0; // invertY\r\n        #endif\r\n        outTBN = mat3(tangentW, bitangentW, normalW);\r\n    #else\r\n        outNormal = normalize(mat3(transpose(inverse(model))) * mat3(skin) * inNormal);\r\n    #endif\r\n    outPosition = vec3(model * skin * vec4(inPosition, 1.0));\r\n    outPositionView = projection * light * model * skin * vec4(inPosition, 1.0);\r\n    if (isShadow == 1.0) {\r\n        gl_Position = projection * light * model * skin * vec4(inPosition, 1.0);\r\n    } else {\r\n        gl_Position = projection * view * model * skin * vec4(inPosition, 1.0);\r\n    }\r\n\r\n    gl_PointSize = 1.0;\r\n    #if defined(WEBGPU)\r\n    id = gl_InstanceIndex;\r\n    #else\r\n    id = uMaterialID;\r\n    #endif\r\n}\r\n';
+  var vertex_default = '#include "./vert.h"\r\n\r\nvoid main() {\r\n    #if defined(WEBGPU)\r\n    Transform tr = transforms.data[gl_InstanceIndex];\r\n    #else\r\n    Transform tr = fetchTransform(int(uMaterialID) + gl_InstanceID);\r\n    #endif\r\n    mat4 model = tr.model;\r\n\r\n    #ifdef JOINTNUMBER\r\n        mat4 skin = inWeight.x * joint[int(inJoint.x)];\r\n        skin += inWeight.y * joint[int(inJoint.y)];\r\n        skin += inWeight.z * joint[int(inJoint.z)];\r\n        skin += inWeight.w * joint[int(inJoint.w)];\r\n    #else\r\n        mat4 skin = mat4(1.0);\r\n    #endif\r\n\r\n    #ifdef COLOR\r\n    vColor = inColor;\r\n    #endif\r\n    outUV0 = inUV;\r\n    #ifdef MULTIUV\r\n    outUV2 = inUV2;\r\n    #endif\r\n    #ifdef MULTIUV2\r\n    outUV3 = inUV3;\r\n    #endif\r\n    #ifdef TANGENT\r\n        vec3 normalW = normalize(vec3(model * vec4(inNormal.xyz, 0.0)));\r\n        vec3 tangentW = normalize(vec3(model * vec4(inTangent.xyz, 0.0)));\r\n        vec3 bitangentW = cross(normalW, tangentW) * inTangent.w;\r\n        #ifdef USERIGHTHANDEDSYSTEM\r\n        tangentW *= 1.0; // invertX\r\n        bitangentW *= -1.0; // invertY\r\n        #endif\r\n        outTBN = mat3(tangentW, bitangentW, normalW);\r\n    #else\r\n        outNormal = normalize(mat3(transpose(inverse(model))) * mat3(skin) * inNormal);\r\n    #endif\r\n    outPosition = vec3(model * skin * vec4(inPosition, 1.0));\r\n    outPositionView = projection * light * model * skin * vec4(inPosition, 1.0);\r\n    if (isShadow == 1.0) {\r\n        gl_Position = projection * light * model * skin * vec4(inPosition, 1.0);\r\n    } else {\r\n        gl_Position = projection * view * model * skin * vec4(inPosition, 1.0);\r\n    }\r\n\r\n    gl_PointSize = 1.0;\r\n\r\n    id = uMaterialID;\r\n}\r\n';
 
   // src/shaders/fragment.glsl
   var fragment_default = `#include "./frag.h"\r
@@ -20025,6 +20050,10 @@ void main() {\r
         anisotropicB = normalize(cross(n, anisotropicT));\r
     #endif\r
 \r
+    // clamp nan inf\r
+    n = clamp(n, vec3(-1.0), vec3(1.0));\r
+    clearcoatNormal = clamp(clearcoatNormal, vec3(-1.0), vec3(1.0));\r
+\r
     #ifdef USE_PBR\r
         vec3 finalDiffuse = vec3(0.0);\r
         vec3 Lo = vec3(0.0);\r
@@ -20181,17 +20210,18 @@ void main() {\r
 \r
         color.rgb = f_sheen + color.rgb * albedoSheenScaling;\r
     #else\r
-        vec3 lightDir = normalize(lightPos[0].xyz - outPosition);\r
-        vec3 ambient = ambientStrength * lightColor[0].xyz;\r
+        n = clamp(n, vec3(0.0), vec3(1.0));\r
+        vec3 lightDir = normalize(lightPos[lights[0]].xyz - outPosition);\r
+        vec3 ambient = ambientStrength * lightColor[lights[0]].xyz;\r
 \r
         float diff = saturate(dot(n, lightDir));\r
-        vec3 diffuse = diff * lightColor[0].XYZ;\r
+        vec3 diffuse = diff * lightColor[lights[0]].xyz;\r
 \r
         vec3 reflectDir = reflect(-lightDir, n);\r
         float spec = pow(saturate(dot(viewDir, reflectDir)), specularPower);\r
-        vec3 specular = specularStrength * spec * lightColor[0].xyz;\r
+        vec3 specular = specularStrength * spec * lightColor[lights[0]].xyz;\r
 \r
-        color = vec4(baseColor.rgb * (ambient + diffuse + specular) * shadow, alpha);\r
+        color = vec4(emissiveFactor + baseColor.rgb * (ambient + diffuse + specular) * shadow, alpha);\r
     #endif\r
 \r
     #ifndef SCATTERING\r
@@ -20277,8 +20307,8 @@ void main() {\r
       this.boundingSphere = {
         center: new Vector3(),
         radius: null,
-        min: null,
-        max: null
+        min: new Vector3([Infinity, Infinity, Infinity]),
+        max: new Vector3([-Infinity, -Infinity, -Infinity])
       };
       this.uniformBuffer = null;
       this.UBO = null;
@@ -20468,17 +20498,14 @@ void main() {\r
       this.attributes = vertexBuffers;
       this.indicesBuffer = indicesBuffer;
       const { min, max } = boundingBox;
-      this.boundingSphere.min = new Vector3(min);
-      this.boundingSphere.max = new Vector3(max);
+      this.boundingSphere._min = new Vector3(min);
+      this.boundingSphere._max = new Vector3(max);
     }
     compose(order) {
-      let total = 12;
-      if (order !== void 0) {
-        total = 13;
-      }
+      let total = 13;
       const count = this.attributes["POSITION"].length / 3;
       const g = new Float32Array(
-        (order !== void 0 ? count : 0) + count * 3 + count * 2 + count * 3 + count * 4 + (this.attributes["JOINTS_0"]?.length ?? 0) + (this.attributes["WEIGHTS_0"]?.length ?? 0) + (this.attributes["COLOR_0"]?.length ?? 0) + (this.attributes["TEXCOORD_1"]?.length ?? 0) + (this.attributes["TEXCOORD_2"]?.length ?? 0)
+        count + count * 3 + count * 2 + count * 3 + count * 4 + (this.attributes["JOINTS_0"]?.length ?? 0) + (this.attributes["WEIGHTS_0"]?.length ?? 0) + (this.attributes["COLOR_0"]?.length ?? 0) + (this.attributes["TEXCOORD_1"]?.length ?? 0) + (this.attributes["TEXCOORD_2"]?.length ?? 0)
       );
       if (this.attributes["WEIGHTS_0"]) {
         total += 8;
@@ -20545,18 +20572,16 @@ void main() {\r
           g[i + 15] = this.attributes["TEXCOORD_2"][l + 1];
           j += 2;
         }
-        if (order !== void 0) {
-          g[i + j] = order;
-        }
+        g[i + j] = order;
         k += 3;
         l += 2;
         m += 4;
       }
       this.g = g;
     }
-    createGeometryForWebGPU(WebGPU2) {
+    createGeometryForWebGPU(WebGPU2, order) {
       const { device } = WebGPU2;
-      this.compose();
+      this.compose(order);
       const verticesBuffer = device.createBuffer({
         size: this.g.byteLength,
         usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
@@ -20621,8 +20646,13 @@ void main() {\r
       gl11.bindVertexArray(null);
     }
     calculateBounding(matrix) {
-      this.boundingSphere.min.applyMatrix4(matrix);
-      this.boundingSphere.max.applyMatrix4(matrix);
+      const box = new Box();
+      const min = new Vector3(this.boundingSphere._min.elements).applyMatrix4(matrix);
+      const max = new Vector3(this.boundingSphere._max.elements).applyMatrix4(matrix);
+      box.expand({ min, max });
+      box.expand(this.boundingSphere);
+      this.boundingSphere.min = box.min;
+      this.boundingSphere.max = box.max;
       const vertices = this.attributes.POSITION;
       let maxRadiusSq = 0;
       this.boundingSphere.center.add(this.boundingSphere.min).add(this.boundingSphere.max).scale(0.5);
@@ -20912,9 +20942,11 @@ ${defineStr}`));
       if (mesh instanceof SkinnedMesh) {
         mesh.skin = skin;
       }
+      mesh.matrices = parent.matrices;
       mesh.updateMatrix();
       mesh.calculateBounding();
       mesh.visible = parent.visible;
+      mesh.instances = parent.instances;
       return mesh;
     }
     buildNode(parent, name) {
@@ -20956,6 +20988,41 @@ ${defineStr}`));
       child.visible = parent.visible;
       if (el.extensions && el.extensions.KHR_node_visibility) {
         child.visible = el.extensions.KHR_node_visibility.visible;
+      }
+      if (el.extensions && el.extensions.EXT_mesh_gpu_instancing) {
+        const { attributes } = el.extensions.EXT_mesh_gpu_instancing;
+        const keys = ["ROTATION", "SCALE", "TRANSLATION"];
+        for (const key of keys) {
+          if (!attributes[key]) {
+            continue;
+          }
+          const stride = key === "ROTATION" ? 4 : 3;
+          const accessor = this.json.accessors[attributes[key]];
+          const bufferView = this.json.bufferViews[accessor.bufferView];
+          const buffer = buildArray(
+            this.arrayBuffer[bufferView.buffer],
+            accessor.componentType,
+            calculateOffset(bufferView.byteOffset, accessor.byteOffset),
+            getDataType(accessor.type) * accessor.count
+          );
+          if (child.instances === 1) {
+            child.instances = buffer.length / stride;
+            child.matrices = new Array(child.instances);
+            for (let i = 0; i < child.instances; i++) {
+              child.matrices[i] = new Matrix4();
+            }
+          }
+          for (let i = 0; i < buffer.length; i += stride) {
+            const m = child.matrices[i / stride];
+            if (key === "ROTATION") {
+              m.makeRotationFromQuaternion([buffer[i], buffer[i + 1], buffer[i + 2], buffer[i + 3]]);
+            } else if (key === "SCALE") {
+              m.scale(new Vector3([buffer[i], buffer[i + 1], buffer[i + 2]]));
+            } else if (key === "TRANSLATION") {
+              m.setTranslate(new Vector3([buffer[i], buffer[i + 1], buffer[i + 2]]));
+            }
+          }
+        }
       }
       child.id = el.name;
       parent.children.push(child);
@@ -21194,7 +21261,7 @@ ${defineStr}`));
       const samplers = this.json.samplers || [{}];
       this.samplers = samplers.map((s) => {
         const sampler = gl2.createSampler();
-        gl2.samplerParameteri(sampler, gl2.TEXTURE_MIN_FILTER, s.minFilter || gl2.NEAREST_MIPMAP_LINEAR);
+        gl2.samplerParameteri(sampler, gl2.TEXTURE_MIN_FILTER, s.minFilter || gl2.LINEAR_MIPMAP_LINEAR);
         gl2.samplerParameteri(sampler, gl2.TEXTURE_MAG_FILTER, s.magFilter || gl2.LINEAR);
         gl2.samplerParameteri(sampler, gl2.TEXTURE_WRAP_S, s.wrapS || gl2.REPEAT);
         gl2.samplerParameteri(sampler, gl2.TEXTURE_WRAP_T, s.wrapT || gl2.REPEAT);
@@ -21204,8 +21271,10 @@ ${defineStr}`));
     createSamplersWebGPU(WebGPU2) {
       function getSamplerParam(value) {
         const map = {
+          9987: "linear",
           9729: "linear",
-          9728: "linear",
+          9986: "nearest",
+          9728: "nearest",
           10497: "repeat",
           33648: "mirror-repeat",
           33071: "clamp-to-edge"
@@ -21216,12 +21285,13 @@ ${defineStr}`));
       this.samplers = samplers.map((s) => {
         const sampler = WebGPU2.device.createSampler({
           mipmapFilter: "linear",
-          magFilter: getSamplerParam(s.minFilter) || "linear",
-          minFilter: getSamplerParam(s.magFilter) || "nearest",
+          magFilter: getSamplerParam(s.magFilter) || "linear",
+          minFilter: getSamplerParam(s.minFilter) || "linear",
           addressModeU: getSamplerParam(s.wrapS) || "repeat",
           addressModeV: getSamplerParam(s.wrapT) || "repeat",
           addressModeW: getSamplerParam(s.wrapS) || "repeat"
         });
+        sampler.id = (getSamplerParam(s.minFilter) || "linear") + (getSamplerParam(s.magFilter) || "linear");
         return sampler;
       });
     }
@@ -22051,6 +22121,24 @@ ${defineStr}`));
             gl4.FLOAT,
             mesh.matrixWorld.elements
           );
+          if (mesh.matrices.length) {
+            mesh.matrices.forEach((matrix, j) => {
+              gl4.texSubImage2D(
+                gl4.TEXTURE_2D,
+                0,
+                // Mipmap level
+                0,
+                // xoffset
+                i + j + 1,
+                // yoffset
+                this.scene.meshes[0].geometry.uniformBuffer.store.length / Float32Array.BYTES_PER_ELEMENT,
+                1,
+                gl4.RGBA,
+                gl4.FLOAT,
+                matrix.elements
+              );
+            });
+          }
           mesh.reflow = false;
         }
         if (mesh.repaint) {
@@ -22152,7 +22240,7 @@ ${defineStr}`));
       }
     }
     async renderScene() {
-      let { renderPassDescriptor, context, device } = WebGPU;
+      let { renderPassDescriptor, context, device, newRenderTarget } = WebGPU;
       const s = this.getState();
       if (s.needUpdateView || this.reflow) {
         const planes = Frustum(s.camera.getViewProjMatrix());
@@ -22174,7 +22262,8 @@ ${defineStr}`));
         renderPassDescriptor = { ...renderPassDescriptor, label: "main-pass", colorAttachments: [
           {
             // attachment is acquired in render loop.
-            view: context.getCurrentTexture().createView(),
+            view: newRenderTarget,
+            resolveTarget: context.getCurrentTexture().createView(),
             storeOp: "store",
             loadOp: "clear",
             clearValue: { r: 0, g: 0, b: 0, a: 1 }
@@ -22223,13 +22312,13 @@ ${defineStr}`));
       });
       this.scene.opaqueChildren.forEach((mesh) => {
         if (mesh.visible) {
-          passEncoder.setPipeline(mesh.pipeline);
+          passEncoder.setPipeline(s.renderState.isprerefraction ? mesh.pipeline2 : mesh.pipeline);
           mesh.drawWebGPU(WebGPU, passEncoder, mesh.order, s);
         }
       });
       this.scene.transparentChildren.forEach((mesh) => {
         if (mesh.visible) {
-          passEncoder.setPipeline(mesh.pipeline);
+          passEncoder.setPipeline(s.renderState.isprerefraction ? mesh.pipeline2 : mesh.pipeline);
           mesh.drawWebGPU(WebGPU, passEncoder, mesh.order, s);
         }
       });
@@ -22256,30 +22345,22 @@ ${defineStr}`));
   var frag_webgpu_default = "#version 460\r\n\r\n#extension GL_EXT_samplerless_texture_functions:require\r\n\r\n// #ifdef DIFFUSE_TRANSMISSION\r\n//     #define SCATTERING 1\r\n// #endif\r\n\r\n#define texture2D(p, uv) texture(sampler2D(p, baseSampler), uv)\r\n#define textureCube(p, uv) texture(samplerCube(p, unfilteredSampler), uv)\r\n#define textureLodCube(p, uv, i) textureLod(samplerCube(p, unfilteredSampler), uv, i)\r\n#define textureLod2D(p, uv, i) textureLod(sampler2D(p, baseSampler2), uv, i)\r\n#define textureLod2D2(p, uv, i) textureLod(sampler2D(p, unfilteredSampler), uv, i)\r\n\r\n#define IBL 1\r\n#define USE_PBR 1\r\n#define WEBGPU 1\r\n\r\nlayout(location = 0) in vec2 outUV0;\r\n\r\n#ifdef TANGENT\r\n    layout(location = 4) in mat3 outTBN;\r\n#else\r\n    layout(location = 11) in vec3 outNormal;\r\n#endif\r\n#ifdef MULTIUV\r\nlayout(location = 1) in vec2 outUV2;\r\nlayout(location = 8) in vec2 outUV3;\r\n#endif\r\nlayout(location = 2) in vec3 outPosition;\r\nlayout(location = 3) in vec4 vColor;\r\nlayout(location = 7) in vec4 outPositionView;\r\nlayout(location = 12) in float id;\r\n\r\nlayout(location = 0) out vec4 color;\r\n// layout (location = 1) out vec4 normalColor;\r\nlayout (location = 1) out vec4 irradianceColor;\r\nlayout (location = 2) out vec4 albedoColor;\r\nlayout (location = 3) out vec4 specColor;\r\n\r\nlayout(set = 0, binding = 0) uniform Matrices {\r\n    mat4 model;\r\n};\r\nlayout(set = 0, binding = 39) uniform Matrices2 {\r\n    mat4 view;\r\n    mat4 projection;\r\n    mat4 light;\r\n    vec4 isShadow;\r\n};\r\nstruct Material {\r\n    vec4 lights;\r\n    vec4 iridescence;\r\n    vec4 diffuseTransmissionFactor;\r\n    vec4 baseColorFactor;\r\n    vec3 specularColorFactor;\r\n    vec3 emissiveFactor;\r\n    vec3 sheenColorFactor;\r\n    vec3 attenuationColorFactor;\r\n    vec3 specularFactor;\r\n    vec2 anisotropyFactor;\r\n    float glossinessFactor;\r\n    float metallicFactor;\r\n    float roughnessFactor;\r\n    float clearcoatFactor;\r\n    float clearcoatRoughnessFactor;\r\n    float sheenRoughnessFactor;\r\n    float transmissionFactor;\r\n    float ior;\r\n    float normalTextureScale;\r\n    float attenuationDistance; \r\n    float thicknessFactor;\r\n    float emissiveStrength;\r\n    float dispersionFactor;\r\n};\r\nlayout(std430, set = 0, binding = 1) buffer Uniforms {\r\n    Material data[];\r\n} materials;\r\n\r\nlayout(set = 0, binding = 27) uniform SphericalHarmonics {\r\n    vec4 vSphericalL00;\r\n    vec4 vSphericalL1_1;\r\n    vec4 vSphericalL10;\r\n    vec4 vSphericalL11;\r\n    vec4 vSphericalL2_2;\r\n    vec4 vSphericalL2_1;\r\n    vec4 vSphericalL20;\r\n    vec4 vSphericalL21;\r\n    vec4 vSphericalL22;\r\n    mat4 rotationMatrix;\r\n};\r\nlayout(set = 0, binding = 15) uniform LightColor {\r\n    vec4 lightColor[LIGHTNUMBER];\r\n};\r\nlayout(set = 0, binding = 17) uniform Spotdir {\r\n    vec4 spotdir[LIGHTNUMBER];\r\n};\r\nlayout(set = 0, binding = 18) uniform LightIntensity {\r\n    vec4 lightIntensity[LIGHTNUMBER];\r\n};\r\nlayout(set = 0, binding = 16) uniform LightPos {\r\n    vec4 lightPos[LIGHTNUMBER];\r\n};\r\n#if defined MATRICES\r\nlayout(set = 0, binding = 23) uniform TextureMatrices {\r\n    mat4 textureMatrices[MATRICES];\r\n};\r\n#endif\r\n\r\nlayout(set = 0, binding = 2) uniform sampler baseSampler;\r\nlayout(set = 0, binding = 37) uniform sampler baseSampler2;\r\nlayout(set = 0, binding = 24) uniform sampler unfilteredSampler;\r\n#ifdef BASECOLORTEXTURE\r\nlayout(set = 0, binding = 3) uniform texture2D baseColorTexture;\r\n#endif\r\n#ifdef METALROUGHNESSMAP\r\nlayout(set = 0, binding = 4) uniform texture2D metallicRoughnessTexture;\r\n#endif\r\n#ifdef NORMALMAP\r\nlayout(set = 0, binding = 5) uniform texture2D normalTexture;\r\n#endif\r\n#ifdef EMISSIVEMAP\r\nlayout(set = 0, binding = 6) uniform texture2D emissiveTexture;\r\n#endif\r\n#ifdef OCCLUSIONMAP\r\nlayout(set = 0, binding = 7) uniform texture2D occlusionTexture;\r\n#endif\r\n#ifdef CLEARCOATMAP\r\nlayout(set = 0, binding = 8) uniform texture2D clearcoatTexture;\r\n#endif\r\n#ifdef CLEARCOATROUGHMAP\r\nlayout(set = 0, binding = 9) uniform texture2D clearcoatRoughnessTexture;\r\n#endif\r\n#ifdef TRANSMISSIONMAP\r\nlayout(set = 0, binding = 10) uniform texture2D transmissionTexture;\r\n#endif\r\n#ifdef SHEENMAP\r\nlayout(set = 0, binding = 11) uniform texture2D sheenColorTexture;\r\nlayout(set = 0, binding = 12) uniform texture2D sheenRoughnessTexture;\r\n#endif\r\n#ifdef CLEARCOATNORMALMAP\r\nlayout(set = 0, binding = 13) uniform texture2D clearcoatNormalTexture;\r\n#endif\r\n#ifdef SPECULARMAP\r\nlayout(set = 0, binding = 14) uniform texture2D specularTexture;\r\n#endif\r\nlayout(set = 0, binding = 19) uniform textureCube prefilterMap;\r\nlayout(set = 0, binding = 20) uniform textureCube irradianceMap;\r\nlayout(set = 0, binding = 21) uniform texture2D brdfLUT;\r\n#ifdef SHADOWMAP\r\nlayout(set = 0, binding = 25) uniform texture2D depthTexture;\r\n#endif\r\nlayout(set = 0, binding = 26) uniform texture2D colorTexture;\r\nlayout(set = 0, binding = 28) uniform texture2D Sheen_E;\r\nlayout(set = 0, binding = 29) uniform texture2D thicknessTexture;\r\nlayout(set = 0, binding = 31) uniform texture2D anisotropyTexture;\r\nlayout(set = 0, binding = 32) uniform texture2D iridescenceThicknessTexture;\r\nlayout(set = 0, binding = 38) uniform texture2D iridescenceTexture;\r\nlayout(set = 0, binding = 33) uniform texture2D specularColorTexture;\r\nlayout(set = 0, binding = 34) uniform texture2D diffuseTransmissionTexture;\r\nlayout(set = 0, binding = 36) uniform texture2D diffuseTransmissionColorTexture;\r\nlayout(set = 0, binding = 35) uniform textureCube charlieMap;\r\n\r\nlayout(set = 0, binding = 30) uniform StateUniform {\r\n    float isTone;\r\n    float isIBL;\r\n    float isDefaultLight;\r\n};\r\n";
 
   // src/shaders/vert.webgpu.h
-  var vert_webgpu_default = "#version 460\r\nprecision highp float;\r\n\r\n#define WEBGPU 1\r\n\r\nlayout (location = 0) in vec3 inPosition;\r\nlayout (location = 1) in vec2 inUV;\r\nlayout (location = 2) in vec3 inNormal;\r\n#ifdef JOINTNUMBER\r\nlayout (location = 4) in vec4 inJoint;\r\nlayout (location = 5) in vec4 inWeight;\r\n#endif\r\n#ifdef TANGENT\r\nlayout (location = 3) in vec4 inTangent;\r\n#endif\r\n#ifdef COLOR\r\nlayout (location = 6) in vec4 inColor;\r\n#endif\r\n#ifdef MULTIUV\r\nlayout (location = 7) in vec2 inUV2;\r\n#endif\r\n#ifdef MULTIUV2\r\nlayout (location = 8) in vec2 inUV3;\r\n#endif\r\n\r\nlayout(location = 0) out vec2 outUV0;\r\nlayout(location = 1) out vec2 outUV2;\r\nlayout(location = 8) out vec2 outUV3;\r\nlayout(location = 2) out vec3 outPosition;\r\nlayout(location = 3) out vec4 vColor;\r\nlayout(location = 12) out float id;\r\n\r\n#ifdef TANGENT\r\n    layout(location = 4) out mat3 outTBN;\r\n#else\r\n    layout(location = 11) out vec3 outNormal;\r\n#endif\r\nlayout(location = 7) out vec4 outPositionView;\r\n\r\nstruct Transform {\r\n    mat4 model;\r\n};\r\n\r\nlayout(set = 0, binding = 0) buffer readonly Matrices {\r\n    Transform data[];\r\n} transforms;\r\nlayout(set = 0, binding = 39) uniform Matrices2 {\r\n    mat4 view;\r\n    mat4 projection;\r\n    mat4 light;\r\n    float isShadow;\r\n};\r\n\r\n#ifdef JOINTNUMBER\r\nlayout(set = 0, binding = 22) uniform Skin {\r\n    mat4 joint[JOINTNUMBER];\r\n};\r\n#endif";
+  var vert_webgpu_default = "#version 460\r\nprecision highp float;\r\n\r\n#define WEBGPU 1\r\n\r\nlayout (location = 0) in vec3 inPosition;\r\nlayout (location = 1) in vec2 inUV;\r\nlayout (location = 2) in vec3 inNormal;\r\n#ifdef JOINTNUMBER\r\nlayout (location = 4) in vec4 inJoint;\r\nlayout (location = 5) in vec4 inWeight;\r\n#endif\r\n#ifdef TANGENT\r\nlayout (location = 3) in vec4 inTangent;\r\n#endif\r\n#ifdef COLOR\r\nlayout (location = 6) in vec4 inColor;\r\n#endif\r\n#ifdef MULTIUV\r\nlayout (location = 7) in vec2 inUV2;\r\n#endif\r\n#ifdef MULTIUV2\r\nlayout (location = 8) in vec2 inUV3;\r\n#endif\r\nlayout (location = 9) in float uMaterialID;\r\n\r\nlayout(location = 0) out vec2 outUV0;\r\nlayout(location = 1) out vec2 outUV2;\r\nlayout(location = 8) out vec2 outUV3;\r\nlayout(location = 2) out vec3 outPosition;\r\nlayout(location = 3) out vec4 vColor;\r\nlayout(location = 12) out float id;\r\n\r\n#ifdef TANGENT\r\n    layout(location = 4) out mat3 outTBN;\r\n#else\r\n    layout(location = 11) out vec3 outNormal;\r\n#endif\r\nlayout(location = 7) out vec4 outPositionView;\r\n\r\nstruct Transform {\r\n    mat4 model;\r\n};\r\n\r\nlayout(set = 0, binding = 0) buffer readonly Matrices {\r\n    Transform data[];\r\n} transforms;\r\nlayout(set = 0, binding = 39) uniform Matrices2 {\r\n    mat4 view;\r\n    mat4 projection;\r\n    mat4 light;\r\n    float isShadow;\r\n};\r\n\r\n#ifdef JOINTNUMBER\r\nlayout(set = 0, binding = 22) uniform Skin {\r\n    mat4 joint[JOINTNUMBER];\r\n};\r\n#endif";
 
   // src/objects/pipeline.ts
-  var programs = {};
-  function create(device, glslang, wgsl, uniformBindGroup1, defines, hasTransmission, mode, frontFace) {
-    const programHash = defines.map((define2) => `${define2.name}${define2.value ?? 1}`).join("");
-    let program;
-    if (programs[programHash]) {
-      program = programs[programHash];
-    } else {
-      const defineStr = defines.map((define2) => `#define ${define2.name} ${define2.value ?? 1}
+  function create(device, glslang, wgsl, uniformBindGroup1, defines, mode, frontFace) {
+    const defineStr = defines.map((define2) => `#define ${define2.name} ${define2.value ?? 1}
 `).join("");
-      const shaders = [vertex_default, fragment_default].map((p) => p.replace(/#include ".*/g, (str) => {
-        const subPath = str.split('"')[1];
-        if (subPath.includes("vert")) {
-          return vert_webgpu_default;
-        } else {
-          return frag_webgpu_default;
-        }
-      })).map((p) => p.replace(/\n/, `
+    const shaders = [vertex_default, mode > 3 ? fragment_default : fragment_default].map((p) => p.replace(/#include ".*/g, (str) => {
+      const subPath = str.split('"')[1];
+      if (subPath.includes("vert")) {
+        return vert_webgpu_default;
+      } else {
+        return frag_webgpu_default;
+      }
+    })).map((p) => p.replace(/\n/, `
 ${defineStr}`));
-      programs[programHash] = [convertGLSLtoWGSL(shaders[0], "vertex"), convertGLSLtoWGSL(shaders[1], "fragment")];
-      program = programs[programHash];
-    }
+    const program = [convertGLSLtoWGSL(shaders[0], "vertex"), convertGLSLtoWGSL(shaders[1], "fragment")];
     const entries = [
       {
         binding: 0,
@@ -22422,88 +22503,62 @@ ${defineStr}`));
     const pipelineLayout = device.createPipelineLayout({
       bindGroupLayouts: [bindGroupLayout]
     });
-    const vertexLayout = [3, 2, 3, 4];
-    if (defines.find((d) => d.name === "JOINTNUMBER")) {
-      vertexLayout.push(4, 4);
-    }
-    if (defines.find((d) => d.name === "COLOR")) {
-      vertexLayout.push(4);
-    }
-    if (defines.find((d) => d.name === "MULTIUV")) {
-      vertexLayout.push(2);
-    }
-    if (defines.find((d) => d.name === "MULTIUV2")) {
-      vertexLayout.push(2);
-    }
-    const cubeVertexSize = Float32Array.BYTES_PER_ELEMENT * vertexLayout.reduce((a, b) => a + b, 0);
-    const buffers = [
-      {
-        arrayStride: cubeVertexSize,
-        attributes: [
-          {
-            shaderLocation: 0,
-            offset: 0,
-            format: "float32x3"
-          },
-          {
-            shaderLocation: 1,
-            offset: Float32Array.BYTES_PER_ELEMENT * vertexLayout[0],
-            format: "float32x2"
-          },
-          {
-            shaderLocation: 2,
-            offset: Float32Array.BYTES_PER_ELEMENT * (vertexLayout[0] + vertexLayout[1]),
-            format: "float32x3"
-          },
-          {
-            shaderLocation: 3,
-            offset: Float32Array.BYTES_PER_ELEMENT * (vertexLayout[0] + vertexLayout[1] + vertexLayout[2]),
-            format: "float32x4"
-          }
-        ]
-      }
+    const attributesToDefine = [
+      { shaderLocation: 0, format: "float32x3", size: 3 },
+      // POSITION
+      { shaderLocation: 1, format: "float32x2", size: 2 },
+      // TEXCOORD_0
+      { shaderLocation: 2, format: "float32x3", size: 3 },
+      // NORMAL
+      { shaderLocation: 3, format: "float32x4", size: 4 },
+      // TANGENT
+      { shaderLocation: 9, format: "float32", size: 1 }
+      // order
     ];
     if (defines.find((d) => d.name === "JOINTNUMBER")) {
-      buffers[0].attributes.push(
-        {
-          shaderLocation: 4,
-          offset: Float32Array.BYTES_PER_ELEMENT * (vertexLayout[0] + vertexLayout[1] + vertexLayout[2] + vertexLayout[3]),
-          format: "float32x4"
-        },
-        {
-          shaderLocation: 5,
-          offset: Float32Array.BYTES_PER_ELEMENT * (vertexLayout[0] + vertexLayout[1] + vertexLayout[2] + vertexLayout[3] + vertexLayout[4]),
-          format: "float32x4"
-        }
+      attributesToDefine.push(
+        { shaderLocation: 4, format: "float32x4", size: 4 },
+        // JOINTS_0
+        { shaderLocation: 5, format: "float32x4", size: 4 }
+        // WEIGHTS_0
       );
     }
     if (defines.find((d) => d.name === "COLOR")) {
-      buffers[0].attributes.push({
-        shaderLocation: 6,
-        offset: Float32Array.BYTES_PER_ELEMENT * (vertexLayout[0] + vertexLayout[1] + vertexLayout[2] + vertexLayout[3]),
-        format: "float32x4"
-      });
+      attributesToDefine.push({ shaderLocation: 6, format: "float32x4", size: 4 });
     }
     if (defines.find((d) => d.name === "MULTIUV")) {
-      buffers[0].attributes.push({
-        shaderLocation: 7,
-        offset: Float32Array.BYTES_PER_ELEMENT * (vertexLayout[0] + vertexLayout[1] + vertexLayout[2] + vertexLayout[3]),
-        format: "float32x2"
-      });
+      attributesToDefine.push({ shaderLocation: 7, format: "float32x2", size: 2 });
     }
     if (defines.find((d) => d.name === "MULTIUV2")) {
-      buffers[0].attributes.push({
-        shaderLocation: 8,
-        offset: Float32Array.BYTES_PER_ELEMENT * (vertexLayout[0] + vertexLayout[1] + vertexLayout[2] + vertexLayout[3] + vertexLayout[4]),
-        format: "float32x2"
-      });
+      attributesToDefine.push({ shaderLocation: 8, format: "float32x2", size: 2 });
     }
+    const orderedAttributes = attributesToDefine.sort((a, b) => a.shaderLocation - b.shaderLocation);
+    let offset = 0;
+    const attributes = orderedAttributes.map((attr) => {
+      const currentOffset = offset;
+      offset += attr.size * Float32Array.BYTES_PER_ELEMENT;
+      return {
+        shaderLocation: attr.shaderLocation,
+        offset: currentOffset,
+        format: attr.format
+      };
+    });
+    const cubeVertexSize = offset;
+    const buffers = [
+      {
+        arrayStride: cubeVertexSize,
+        attributes
+      }
+    ];
     function convertGLSLtoWGSL(code, type) {
       const spirv = glslang.compileGLSL(code, type);
       return wgsl.convertSpirV2WGSL(spirv);
     }
+    return [createPipeline(device, pipelineLayout, program, buffers, defines, mode, frontFace, false), createPipeline(device, pipelineLayout, program, buffers, defines, mode, frontFace, true)];
+  }
+  function createPipeline(device, pipelineLayout, program, buffers, defines, mode, frontFace, hasTransmission) {
     const pipeline = device.createRenderPipeline({
-      label: "main-pipeline",
+      label: hasTransmission ? "transmission-pipeline" : "main-pipeline",
       layout: pipelineLayout,
       vertex: {
         module: device.createShaderModule({
@@ -22548,6 +22603,9 @@ ${defineStr}`));
         depthWriteEnabled: true,
         depthCompare: "less",
         format: "depth32float"
+      },
+      multisample: {
+        count: hasTransmission ? 1 : 4
       }
     });
     return pipeline;
@@ -25200,8 +25258,8 @@ ${defineStr}`)];
     stateBuffer = {};
     cameraBuffer;
     lightPosBuffer;
-    storage2;
-    storage;
+    transformsStorage;
+    materialStorage;
     constructor(url, canvas, _pp, envUrl = "env") {
       if (!url) {
         throw new Error("Url not found");
@@ -25230,6 +25288,16 @@ ${defineStr}`)];
         format: "bgra8unorm",
         alphaMode: "opaque"
       });
+      const newRenderTarget = device.createTexture({
+        size: {
+          width: this.canvas.offsetWidth * devicePixelRatio,
+          height: this.canvas.offsetHeight * devicePixelRatio,
+          depthOrArrayLayers: 1
+        },
+        format: "bgra8unorm",
+        sampleCount: 4,
+        usage: GPUTextureUsage.RENDER_ATTACHMENT
+      });
       const depthTexture = device.createTexture({
         size: {
           width: this.canvas.offsetWidth * devicePixelRatio,
@@ -25237,6 +25305,7 @@ ${defineStr}`)];
           depthOrArrayLayers: 1
         },
         format: "depth32float",
+        sampleCount: 4,
         usage: GPUTextureUsage.RENDER_ATTACHMENT
       });
       const renderPassDescriptor = {
@@ -25248,7 +25317,7 @@ ${defineStr}`)];
           depthStoreOp: "store"
         }
       };
-      return { glslang, wgsl, context, device, renderPassDescriptor, features: adapter.features };
+      return { glslang, wgsl, context, device, renderPassDescriptor, features: adapter.features, newRenderTarget };
     }
     get camera() {
       return this.ioc.get("camera");
@@ -25308,7 +25377,7 @@ ${defineStr}`)];
         );
         await this.parse.getJson();
         await this.parse.getBuffer();
-        await this.parse.initTextures(false);
+        await this.parse.initTextures(true);
         this.parse.buildSkin();
         await this.parse.buildMesh();
         this.parse.buildAnimation();
@@ -25414,24 +25483,33 @@ ${defineStr}`)];
         this.scene.meshes.forEach((mesh) => {
           [mesh.material, ...mesh.variants.map((m) => m.m)].forEach((m) => m.createUniforms(false, this.parse.lights));
         });
-        const storage = new Float32Array(this.scene.meshes.length * this.scene.meshes[0].material.materialUniformBuffer.store.length);
+        const materialStorage = new Float32Array(this.scene.meshes.length * this.scene.meshes[0].material.materialUniformBuffer.store.length);
         this.scene.meshes.forEach((mesh, i) => {
-          storage.set(mesh.material.materialUniformBuffer.store, i * mesh.material.materialUniformBuffer.store.length);
+          materialStorage.set(mesh.material.materialUniformBuffer.store, i * mesh.material.materialUniformBuffer.store.length);
         });
-        const storageBuffer = { store: storage };
+        const storageBuffer = { store: materialStorage };
         this.scene.meshes[0].geometry.updateUniformsWebGPU(WebGPU2, storageBuffer, GPUBufferUsage.STORAGE);
+        let meshCount = this.scene.meshes.length;
         this.scene.meshes.forEach((mesh) => {
           mesh.geometry.createUniforms(mesh.matrixWorld);
+          if (mesh.matrices.length) {
+            meshCount += mesh.matrices.length;
+          }
         });
-        const storage2 = new Float32Array(this.scene.meshes.length * this.scene.meshes[0].geometry.uniformBuffer.store.length);
+        const transformsStorage = new Float32Array(meshCount * this.scene.meshes[0].geometry.uniformBuffer.store.length);
         this.scene.meshes.forEach((mesh, i) => {
           mesh.order = i;
-          storage2.set(mesh.geometry.uniformBuffer.store, i * mesh.geometry.uniformBuffer.store.length);
+          transformsStorage.set(mesh.geometry.uniformBuffer.store, i * mesh.geometry.uniformBuffer.store.length);
+          if (mesh.matrices.length) {
+            mesh.matrices.forEach((matrix, j) => {
+              transformsStorage.set(matrix.elements, (i + j + 1) * mesh.geometry.uniformBuffer.store.length);
+            });
+          }
         });
-        const storageBuffer2 = { store: storage2 };
+        const storageBuffer2 = { store: transformsStorage };
         this.scene.meshes[0].geometry.updateUniformsWebGPU(WebGPU2, storageBuffer2, GPUBufferUsage.STORAGE);
-        this.storage2 = storageBuffer2;
-        this.storage = storageBuffer;
+        this.transformsStorage = storageBuffer2;
+        this.materialStorage = storageBuffer;
         const uniformBindGroup1 = [
           {
             binding: 0,
@@ -25467,7 +25545,7 @@ ${defineStr}`)];
         const prevProgramHash = /* @__PURE__ */ new Map();
         const uniformBindGroup2 = [];
         this.scene.meshes.forEach((mesh, i) => {
-          mesh.geometry.createGeometryForWebGPU(WebGPU2);
+          mesh.geometry.createGeometryForWebGPU(WebGPU2, mesh.order);
           mesh.geometry.uniformBindGroup1 = [];
           mesh.material.updateUniformsWebGPU(WebGPU2);
           mesh.material.uniformBindGroup1.push(
@@ -25517,19 +25595,21 @@ ${defineStr}`)];
             }
             mesh.geometry.uniformBindGroup1.push(mesh.setSkinWebGPU(WebGPU2, this.parse.skins[mesh.skin]));
           }
-          const programHash = mesh.material.defines.map((define2) => `${define2.name}${define2.value ?? 1}`).join("");
+          const id = mesh.material.baseColorTexture ? mesh.material.baseColorTexture.sampler.id : "";
+          const programHash = mesh.mode + id + mesh.material.defines.map((define2) => `${define2.name}${define2.value ?? 1}`).join("");
           if (!prevProgramHash.has(programHash)) {
-            prevProgramHash.set(programHash, create(WebGPU2.device, WebGPU2.glslang, WebGPU2.wgsl, mesh.material.uniformBindGroup1, mesh.defines, hasTransmission, mesh.mode, mesh.frontFace));
+            prevProgramHash.set(programHash, create(WebGPU2.device, WebGPU2.glslang, WebGPU2.wgsl, mesh.material.uniformBindGroup1, mesh.defines, mesh.mode, mesh.frontFace));
           }
           let group = check(uniformBindGroup2, mesh.material.uniformBindGroup1);
           if (!group) {
             group = { k: mesh.material.uniformBindGroup1, v: WebGPU2.device.createBindGroup({
-              layout: prevProgramHash.get(programHash).getBindGroupLayout(0),
+              layout: prevProgramHash.get(programHash)[0].getBindGroupLayout(0),
               entries: [...uniformBindGroup1, ...mesh.geometry.uniformBindGroup1, ...mesh.material.uniformBindGroup1]
             }) };
             uniformBindGroup2.push(group);
           }
-          mesh.pipeline = prevProgramHash.get(programHash);
+          mesh.pipeline = prevProgramHash.get(programHash)[0];
+          mesh.pipeline2 = prevProgramHash.get(programHash)[1];
           mesh.uniformBindGroup1 = group.v;
         });
       } catch (e) {
@@ -25604,8 +25684,8 @@ ${defineStr}`)];
     getState() {
       return {
         lightColorBuffer: this.lightColorBuffer,
-        storage2: this.storage2,
-        storage: this.storage,
+        transformsStorage: this.transformsStorage,
+        materialStorage: this.materialStorage,
         lightPosBuffer: this.lightPosBuffer,
         cameraBuffer: this.cameraBuffer,
         stateBuffer: this.stateBuffer,

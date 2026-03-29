@@ -229,8 +229,12 @@ class RedCube {
         this.spotdirUniform = spotdirUniform;
         this.lightIntensityUniform = lightIntensityUniform;
 
+        let meshCount = this.scene.meshes.length;
         this.scene.meshes.forEach((mesh) => {
             mesh.geometry.createUniforms(mesh.matrixWorld);
+            if (mesh.matrices.length) {
+                meshCount += mesh.matrices.length;
+            }
         });
         this.scene.meshes.forEach((mesh, i) => {
             mesh.order = i;
@@ -247,7 +251,7 @@ class RedCube {
         gl.bindTexture(gl.TEXTURE_2D, texture);
         gl.texImage2D(
             gl.TEXTURE_2D, 0, gl.RGBA32F,
-            this.scene.meshes[0].geometry.uniformBuffer.store.length / Float32Array.BYTES_PER_ELEMENT, this.scene.meshes.length, 0,
+            this.scene.meshes[0].geometry.uniformBuffer.store.length / Float32Array.BYTES_PER_ELEMENT, meshCount, 0,
             gl.RGBA, gl.FLOAT,
             null
         );
@@ -391,7 +395,7 @@ class RedCube {
 
     glInit() {
         gl = this.canvas.getContext('webgl2', {
-            antialias: !(window as any).__FORCE_DETERMINISTIC__
+            antialias: true
         });
         this.gl = gl;
 

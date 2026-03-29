@@ -82,11 +82,11 @@ export function fetchImage(isbitmap, s, { bufferView, mimeType, uri }, { url, na
                 const image = new Image();
                 image.onload = () => {
                     if (isbitmap) {
-                        createImageBitmap(image).then(bitmap => {
+                        createImageBitmap(image, { premultiplyAlpha: 'none', colorSpaceConversion: 'none'}).then(bitmap => {
                             resolve({
                                 sampler,
                                 name,
-                                bitmap
+                                image: bitmap
                             });
                         });
                     } else {

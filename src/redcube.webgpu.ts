@@ -29,8 +29,8 @@ class RedCube {
     stateBuffer = {};
     cameraBuffer: UniformBuffer;
     lightPosBuffer: UniformBuffer;
-    storage2: UniformBuffer;
-    storage: UniformBuffer;
+    transformsStorage: UniformBuffer;
+    materialStorage: UniformBuffer;
 
     constructor(url, canvas, _pp, envUrl = 'env') {
         if (!url) {
@@ -67,6 +67,16 @@ class RedCube {
             alphaMode: 'opaque'
         });
 
+        const newRenderTarget = device.createTexture({
+            size: {
+                width: this.canvas.offsetWidth * devicePixelRatio,
+                height: this.canvas.offsetHeight * devicePixelRatio,
+                depthOrArrayLayers: 1
+            },
+            format: 'bgra8unorm',
+            sampleCount: 4,
+            usage: GPUTextureUsage.RENDER_ATTACHMENT,
+        });
         const depthTexture = device.createTexture({
             size: {
                 width: this.canvas.offsetWidth * devicePixelRatio,
@@ -74,6 +84,7 @@ class RedCube {
                 depthOrArrayLayers: 1
             },
             format: 'depth32float',
+            sampleCount: 4,
             usage: GPUTextureUsage.RENDER_ATTACHMENT
         });
 
@@ -88,7 +99,7 @@ class RedCube {
             }
         };
 
-        return { glslang, wgsl, context, device, renderPassDescriptor, features: adapter.features };
+        return { glslang, wgsl, context, device, renderPassDescriptor, features: adapter.features, newRenderTarget };
     }
 
     get camera(): Camera {
@@ -151,7 +162,7 @@ class RedCube {
 
             await this.parse.getJson();
             await this.parse.getBuffer();
-            await this.parse.initTextures(false);
+            await this.parse.initTextures(true);
             this.parse.buildSkin();
             await this.parse.buildMesh();
             this.parse.buildAnimation();
@@ -276,27 +287,36 @@ class RedCube {
             this.scene.meshes.forEach((mesh) => {
                 [mesh.material, ...mesh.variants.map(m => m.m)].forEach(m => m.createUniforms(false, this.parse.lights));
             });
-            const storage = new Float32Array(this.scene.meshes.length * this.scene.meshes[0].material.materialUniformBuffer.store.length);
+            const materialStorage = new Float32Array(this.scene.meshes.length * this.scene.meshes[0].material.materialUniformBuffer.store.length);
             this.scene.meshes.forEach((mesh, i) => {
-                storage.set(mesh.material.materialUniformBuffer.store, i * mesh.material.materialUniformBuffer.store.length);
+                materialStorage.set(mesh.material.materialUniformBuffer.store, i * mesh.material.materialUniformBuffer.store.length);
             });
-            const storageBuffer = {store: storage};
+            const storageBuffer = {store: materialStorage};
             this.scene.meshes[0].geometry.updateUniformsWebGPU(WebGPU, storageBuffer, GPUBufferUsage.STORAGE);
 
+            let meshCount = this.scene.meshes.length;
             this.scene.meshes.forEach((mesh) => {
                 mesh.geometry.createUniforms(mesh.matrixWorld);
+                if (mesh.matrices.length) {
+                    meshCount += mesh.matrices.length;
+                }
             });
-            const storage2 = new Float32Array(this.scene.meshes.length * this.scene.meshes[0].geometry.uniformBuffer.store.length);
+            const transformsStorage = new Float32Array(meshCount * this.scene.meshes[0].geometry.uniformBuffer.store.length);
             this.scene.meshes.forEach((mesh, i) => {
                 mesh.order = i;
-                storage2.set(mesh.geometry.uniformBuffer.store, i * mesh.geometry.uniformBuffer.store.length);
+                transformsStorage.set(mesh.geometry.uniformBuffer.store, i * mesh.geometry.uniformBuffer.store.length);
+                if (mesh.matrices.length) {
+                    mesh.matrices.forEach((matrix, j) => {
+                        transformsStorage.set(matrix.elements, (i + j + 1) * mesh.geometry.uniformBuffer.store.length);
+                    });
+                }
             });
-            const storageBuffer2 = {store: storage2};
+            const storageBuffer2 = {store: transformsStorage};
             this.scene.meshes[0].geometry.updateUniformsWebGPU(WebGPU, storageBuffer2, GPUBufferUsage.STORAGE);
             // @ts-expect-error
-            this.storage2 = storageBuffer2;
+            this.transformsStorage = storageBuffer2;
             // @ts-expect-error
-            this.storage = storageBuffer;
+            this.materialStorage = storageBuffer;
 
             const uniformBindGroup1 = [{
                 binding: 0,
@@ -330,7 +350,7 @@ class RedCube {
             const uniformBindGroup2 = [];
 
             this.scene.meshes.forEach((mesh, i) => {
-                mesh.geometry.createGeometryForWebGPU(WebGPU);
+                mesh.geometry.createGeometryForWebGPU(WebGPU, mesh.order);
                 mesh.geometry.uniformBindGroup1 = [];
 
                 mesh.material.updateUniformsWebGPU(WebGPU);
@@ -385,21 +405,23 @@ class RedCube {
                     mesh.geometry.uniformBindGroup1.push(mesh.setSkinWebGPU(WebGPU, this.parse.skins[mesh.skin]));
                 }
 
+                const id = mesh.material.baseColorTexture ? mesh.material.baseColorTexture.sampler.id : '';
                 // @ts-expect-error
-                const programHash = mesh.material.defines.map((define) => `${define.name}${define.value ?? 1}`).join('');
+                const programHash = mesh.mode + id + mesh.material.defines.map((define) => `${define.name}${define.value ?? 1}`).join('');
                 if (!prevProgramHash.has(programHash)) {
-                    prevProgramHash.set(programHash, create(WebGPU.device, WebGPU.glslang, WebGPU.wgsl, mesh.material.uniformBindGroup1, mesh.defines, hasTransmission, mesh.mode, mesh.frontFace));
+                    prevProgramHash.set(programHash, create(WebGPU.device, WebGPU.glslang, WebGPU.wgsl, mesh.material.uniformBindGroup1, mesh.defines, mesh.mode, mesh.frontFace));
                 }
                 let group = check(uniformBindGroup2, mesh.material.uniformBindGroup1);
                 if (!group) {
                     group = {k: mesh.material.uniformBindGroup1, v: WebGPU.device.createBindGroup({
-                        layout: prevProgramHash.get(programHash).getBindGroupLayout(0),
+                        layout: prevProgramHash.get(programHash)[0].getBindGroupLayout(0),
                         entries: [...uniformBindGroup1, ...mesh.geometry.uniformBindGroup1, ...mesh.material.uniformBindGroup1]
                     })};
                     uniformBindGroup2.push(group);
                 }
 
-                mesh.pipeline = prevProgramHash.get(programHash);
+                mesh.pipeline = prevProgramHash.get(programHash)[0];
+                mesh.pipeline2 = prevProgramHash.get(programHash)[1];
                 mesh.uniformBindGroup1 = group.v;
             });
 
@@ -507,8 +529,8 @@ class RedCube {
     getState() {
         return {
             lightColorBuffer: this.lightColorBuffer,
-            storage2: this.storage2,
-            storage: this.storage,
+            transformsStorage: this.transformsStorage,
+            materialStorage: this.materialStorage,
             lightPosBuffer: this.lightPosBuffer,
             cameraBuffer: this.cameraBuffer,
             stateBuffer: this.stateBuffer,

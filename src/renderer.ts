@@ -428,6 +428,21 @@ export class Renderer {
                     gl.FLOAT,
                     mesh.matrixWorld.elements
                 );
+                if (mesh.matrices.length) {
+                    mesh.matrices.forEach((matrix, j) => {
+                        gl.texSubImage2D(
+                            gl.TEXTURE_2D,
+                            0, // Mipmap level
+                            0, // xoffset
+                            i + j + 1, // yoffset
+                            this.scene.meshes[0].geometry.uniformBuffer.store.length / Float32Array.BYTES_PER_ELEMENT,
+                            1,
+                            gl.RGBA,
+                            gl.FLOAT,
+                            matrix.elements
+                        );
+                    });
+                }
                 mesh.reflow = false;
             }
             if (mesh.repaint) {

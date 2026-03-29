@@ -22,6 +22,7 @@ layout (location = 7) in vec2 inUV2;
 #ifdef MULTIUV2
 layout (location = 8) in vec2 inUV3;
 #endif
+layout (location = 9) in float uMaterialID;
 
 layout(location = 0) out vec2 outUV0;
 layout(location = 1) out vec2 outUV2;

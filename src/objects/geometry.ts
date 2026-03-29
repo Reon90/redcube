@@ -1,4 +1,4 @@
-import { Vector3 } from '../matrix';
+import { Box, Vector3 } from '../matrix';
 import { UniformBuffer } from './uniform';
 import {
     buildArray,
@@ -28,6 +28,8 @@ interface Attributes {
 interface BoundingSphere {
     min: Vector3;
     max: Vector3;
+    _min: Vector3;
+    _max: Vector3;
     center: Vector3;
     radius: number;
 }
@@ -72,8 +74,8 @@ export class Geometry {
         this.boundingSphere = {
             center: new Vector3(),
             radius: null,
-            min: null,
-            max: null
+            min: new Vector3([Infinity, Infinity, Infinity]),
+            max: new Vector3([-Infinity, -Infinity, -Infinity])
         };
         this.uniformBuffer = null;
         this.UBO = null;
@@ -282,18 +284,16 @@ export class Geometry {
         this.attributes = vertexBuffers;
         this.indicesBuffer = indicesBuffer;
         const { min, max } = boundingBox;
-        this.boundingSphere.min = new Vector3(min);
-        this.boundingSphere.max = new Vector3(max);
+        this.boundingSphere._min = new Vector3(min);
+        this.boundingSphere._max = new Vector3(max);
     }
 
-    compose(order?) {
-        let total = 12;
-        if (order !== undefined) {
-            total = 13;
-        }
+    compose(order) {
+        let total = 13;
+
         const count = this.attributes['POSITION'].length / 3;
         const g = new Float32Array(
-            (order !== undefined ? count : 0) + 
+            count + 
             count * 3 +
                 count * 2 +
                 count * 3 +
@@ -372,9 +372,9 @@ export class Geometry {
                 g[i + 15] = this.attributes['TEXCOORD_2'][l + 1];
                 j += 2;
             }
-            if (order !== undefined) {
-                g[i + j] = order;
-            }
+            
+            g[i + j] = order;
+            
             k += 3;
             l += 2;
             m += 4;
@@ -382,10 +382,10 @@ export class Geometry {
         this.g = g;
     }
 
-    createGeometryForWebGPU(WebGPU: WEBGPU) {
+    createGeometryForWebGPU(WebGPU: WEBGPU, order) {
         const { device } = WebGPU;
 
-        this.compose();
+        this.compose(order);
 
         const verticesBuffer = device.createBuffer({
             size: this.g.byteLength,
@@ -458,8 +458,13 @@ export class Geometry {
     }
 
     calculateBounding(matrix) {
-        this.boundingSphere.min.applyMatrix4(matrix);
-        this.boundingSphere.max.applyMatrix4(matrix);
+        const box = new Box();
+        const min = new Vector3(this.boundingSphere._min.elements).applyMatrix4(matrix);
+        const max = new Vector3(this.boundingSphere._max.elements).applyMatrix4(matrix);
+        box.expand({ min, max });
+        box.expand(this.boundingSphere);
+        this.boundingSphere.min = box.min;
+        this.boundingSphere.max = box.max;
 
         const vertices = this.attributes.POSITION;
         let maxRadiusSq = 0;

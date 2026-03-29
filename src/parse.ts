@@ -275,9 +275,11 @@ export class Parse {
         if (mesh instanceof SkinnedMesh) {
             mesh.skin = skin;
         }
+        mesh.matrices = parent.matrices;
         mesh.updateMatrix();
         mesh.calculateBounding();
         mesh.visible = parent.visible;
+        mesh.instances = parent.instances;
 
         return mesh;
     }
@@ -327,6 +329,42 @@ export class Parse {
         child.visible = parent.visible;
         if (el.extensions && el.extensions.KHR_node_visibility) {
             child.visible = el.extensions.KHR_node_visibility.visible;
+        }
+
+        if (el.extensions && el.extensions.EXT_mesh_gpu_instancing) {
+            const { attributes } = el.extensions.EXT_mesh_gpu_instancing;
+            const keys = ['ROTATION', 'SCALE', 'TRANSLATION'];
+            for (const key of keys) {
+                if (!attributes[key]) {
+                    continue;
+                }
+                const stride = key === 'ROTATION' ? 4 : 3;
+                const accessor = this.json.accessors[attributes[key]];
+                const bufferView = this.json.bufferViews[accessor.bufferView];
+                const buffer = buildArray(
+                    this.arrayBuffer[bufferView.buffer],
+                    accessor.componentType,
+                    calculateOffset(bufferView.byteOffset, accessor.byteOffset),
+                    getDataType(accessor.type) * accessor.count
+                );
+                if (child.instances === 1) {
+                    child.instances = buffer.length / stride;
+                    child.matrices = new Array(child.instances);
+                    for (let i = 0; i < child.instances; i++) {
+                        child.matrices[i] = new Matrix4();
+                    }
+                }
+                for (let i = 0; i < buffer.length; i += stride) {
+                    const m = child.matrices[i / stride];
+                    if (key === 'ROTATION') {
+                        m.makeRotationFromQuaternion([buffer[i], buffer[i + 1], buffer[i + 2], buffer[i + 3]]);
+                    } else if (key === 'SCALE') {
+                        m.scale(new Vector3([buffer[i], buffer[i + 1], buffer[i + 2]]));
+                    } else if (key === 'TRANSLATION') {
+                        m.setTranslate(new Vector3([buffer[i], buffer[i + 1], buffer[i + 2]]));
+                    }
+                }
+            }
         }
 
         child.id = el.name;
@@ -595,7 +633,7 @@ export class Parse {
         const samplers = this.json.samplers || [{}];
         this.samplers = samplers.map((s) => {
             const sampler = gl.createSampler();
-            gl.samplerParameteri(sampler, gl.TEXTURE_MIN_FILTER, s.minFilter || gl.NEAREST_MIPMAP_LINEAR);
+            gl.samplerParameteri(sampler, gl.TEXTURE_MIN_FILTER, s.minFilter || gl.LINEAR_MIPMAP_LINEAR);
             gl.samplerParameteri(sampler, gl.TEXTURE_MAG_FILTER, s.magFilter || gl.LINEAR);
             gl.samplerParameteri(sampler, gl.TEXTURE_WRAP_S, s.wrapS || gl.REPEAT);
             gl.samplerParameteri(sampler, gl.TEXTURE_WRAP_T, s.wrapT || gl.REPEAT);
@@ -606,8 +644,10 @@ export class Parse {
     createSamplersWebGPU(WebGPU: WEBGPU) {
         function getSamplerParam(value) {
             const map = {
+                9987: 'linear',
                 9729: 'linear',
-                9728: 'linear',
+                9986: 'nearest',
+                9728: 'nearest',
                 10497: 'repeat',
                 33648: 'mirror-repeat',
                 33071: 'clamp-to-edge',
@@ -618,12 +658,13 @@ export class Parse {
         this.samplers = samplers.map((s) => {
             const sampler = WebGPU.device.createSampler({
                 mipmapFilter: 'linear',
-                magFilter: getSamplerParam(s.minFilter) || 'linear',
-                minFilter: getSamplerParam(s.magFilter) || 'nearest',
+                magFilter: getSamplerParam(s.magFilter) || 'linear',
+                minFilter: getSamplerParam(s.minFilter) || 'linear',
                 addressModeU: getSamplerParam(s.wrapS) || 'repeat',
                 addressModeV: getSamplerParam(s.wrapT) || 'repeat',
                 addressModeW: getSamplerParam(s.wrapS) || 'repeat',
             });
+            sampler.id = (getSamplerParam(s.minFilter) || 'linear') + (getSamplerParam(s.magFilter) || 'linear');
             return sampler;
         });
     }

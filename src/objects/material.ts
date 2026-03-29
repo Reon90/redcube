@@ -283,7 +283,7 @@ export class Material extends M {
 
         if (material.extensions && material.extensions.KHR_materials_specular) {
             const { specularFactor, specularTexture, specularColorFactor, specularColorTexture } = material.extensions.KHR_materials_specular;
-            this.specularFactor = [specularFactor, 0, 0];
+            this.specularFactor = [specularFactor ?? 1, 0, 0];
             this.specularColorFactor = specularColorFactor;
             if (specularTexture) {
                 this.specularTexture = textures[specularTexture.index];
@@ -604,7 +604,7 @@ export class Material extends M {
             materialUniformBuffer.add('emissiveFactor', this.emissiveFactor ?? [0, 0, 0]);
             materialUniformBuffer.add('sheenColorFactor', this.sheenColorFactor ?? [0, 0, 0]);
             materialUniformBuffer.add('attenuationColor', this.attenuationColor ?? [1, 1, 1]);
-            materialUniformBuffer.add('specularFactor', this.specularFactor ?? [0, 0, 0]);
+            materialUniformBuffer.add('specularFactor', this.specularFactor ?? [1, 0, 0]);
             materialUniformBuffer.add('anisotropy', [this.anisotropyStrength ?? 0, this.anisotropyRotation ?? 0]);
             materialUniformBuffer.add('glossinessFactor', this.glossinessFactor ?? 0.5);
             materialUniformBuffer.add('metallicFactor', this.metallicFactor ?? 1);

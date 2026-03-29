@@ -68,7 +68,7 @@ export class RendererWebGPU extends Renderer {
     }
 
     async renderScene() {
-        let { renderPassDescriptor, context, device } = WebGPU;
+        let { renderPassDescriptor, context, device, newRenderTarget } = WebGPU;
 
         const s = this.getState();
         if (s.needUpdateView || this.reflow) {
@@ -94,7 +94,8 @@ export class RendererWebGPU extends Renderer {
             renderPassDescriptor = {...renderPassDescriptor, label: 'main-pass', colorAttachments: [
                 {
                     // attachment is acquired in render loop.
-                    view: context.getCurrentTexture().createView(),
+                    view: newRenderTarget,
+                    resolveTarget: context.getCurrentTexture().createView(),
                     storeOp: 'store' as GPUStoreOp,
                     loadOp: 'clear' as GPULoadOp,
                     clearValue: { r: 0, g: 0, b: 0, a: 1.0 }
@@ -150,13 +151,13 @@ export class RendererWebGPU extends Renderer {
 
         this.scene.opaqueChildren.forEach((mesh) => {
             if (mesh.visible) {
-                passEncoder.setPipeline(mesh.pipeline);
+                passEncoder.setPipeline(s.renderState.isprerefraction ? mesh.pipeline2 : mesh.pipeline);
                 mesh.drawWebGPU(WebGPU, passEncoder, mesh.order, s);
             }
         });
         this.scene.transparentChildren.forEach(mesh => {
             if (mesh.visible) {
-                passEncoder.setPipeline(mesh.pipeline);
+                passEncoder.setPipeline(s.renderState.isprerefraction ? mesh.pipeline2 : mesh.pipeline);
                 mesh.drawWebGPU(WebGPU, passEncoder, mesh.order, s);
             }
         });

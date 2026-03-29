@@ -11,6 +11,8 @@ export class Object3D {
     reflow: boolean;
     repaint: boolean;
     visible = true;
+    instances = 1;
+    matrices = [];
 
     constructor(name, parent) {
         this.uuid = Math.floor(Date.now() * Math.random());
@@ -50,5 +52,14 @@ export class Object3D {
         m.multiply(this.parent.matrixWorld);
         m.multiply(this.matrix);
         this.setMatrixWorld(m.elements);
+
+        if (this.matrices.length) {
+            for (const matrix of this.matrices) {
+                const m = new Matrix4();
+                m.multiply(this.parent.matrixWorld);
+                m.multiply(matrix);
+                matrix.set(m.elements);
+            }
+        }
     }
 }

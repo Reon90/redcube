@@ -39,20 +39,20 @@ export class Mesh extends Object3D {
         this.material = material;
     }
 
-    drawWebGPU(WebGPU: WEBGPU, passEncoder: GPURenderPassEncoder, i, { renderState, storage2, storage }) {
+    drawWebGPU(WebGPU: WEBGPU, passEncoder: GPURenderPassEncoder, i, { renderState, materialStorage, transformsStorage }) {
         const { isprerefraction } = renderState;
         if (this.defines.find(i => i.name === 'TRANSMISSION') && isprerefraction) {
             return;
         }
         if (this.reflow) {
             // matrixWorld changed
-            storage2.store.set(this.matrixWorld.elements, i * this.geometry.uniformBuffer.store.length);
-            WebGPU.device.queue.writeBuffer(storage2.bufferWebGPU, 0, storage2.store.buffer, storage2.store.byteOffset, storage2.store.byteLength);
+            transformsStorage.store.set(this.matrixWorld.elements, i * this.geometry.uniformBuffer.store.length);
+            WebGPU.device.queue.writeBuffer(transformsStorage.bufferWebGPU, 0, transformsStorage.store.buffer, transformsStorage.store.byteOffset, transformsStorage.store.byteLength);
         }
         if (this.repaint) {
             // matrixWorld changed
-            storage.store.set(this.material.materialUniformBuffer.store, i * this.material.materialUniformBuffer.store.length);
-            WebGPU.device.queue.writeBuffer(storage.bufferWebGPU, 0, storage.store.buffer, storage.store.byteOffset, storage.store.byteLength);
+            materialStorage.store.set(this.material.materialUniformBuffer.store, i * this.material.materialUniformBuffer.store.length);
+            WebGPU.device.queue.writeBuffer(materialStorage.bufferWebGPU, 0, materialStorage.store.buffer, materialStorage.store.byteOffset, materialStorage.store.byteLength);
         }
         if (this instanceof SkinnedMesh) {
             if (this.bones.some(bone => bone.reflow)) {
@@ -78,9 +78,9 @@ export class Mesh extends Object3D {
         if (this.geometry.indicesBuffer) {
             // const type = this.geometry.indexType < 5124 ? 'uint16' : 'uint32';
             passEncoder.setIndexBuffer(this.geometry.indicesWebGPUBuffer, 'uint32');
-            passEncoder.drawIndexed(this.geometry.indicesBuffer.length, 1, 0, 0, i);
+            passEncoder.drawIndexed(this.geometry.indicesBuffer.length, this.instances, 0, 0, i);
         } else {
-            passEncoder.draw(this.geometry.attributes.POSITION.length / 3, 1, 0, i);
+            passEncoder.draw(this.geometry.attributes.POSITION.length / 3, this.instances, 0, i);
         }
     }
 
@@ -241,15 +241,22 @@ export class Mesh extends Object3D {
             gl.frontFace(gl.CW);
         }
 
-        if (this.geometry.indicesBuffer) {
-            gl.drawElements(
+        if (this.instances > 1) {
+            gl.drawElementsInstanced(
                 this.mode,
-                this.geometry.indicesBuffer.length,
-                gl[ArrayBufferMap.get(this.geometry.indicesBuffer.constructor)],
-                0
+                this.geometry.indicesBuffer.length, gl[ArrayBufferMap.get(this.geometry.indicesBuffer.constructor)], 0, this.instances
             );
         } else {
-            gl.drawArrays(this.mode, 0, this.geometry.attributes.POSITION.length / 3);
+            if (this.geometry.indicesBuffer) {
+                gl.drawElements(
+                    this.mode === 2 ? gl.LINES : this.mode,
+                    this.geometry.indicesBuffer.length,
+                    gl[ArrayBufferMap.get(this.geometry.indicesBuffer.constructor)],
+                    0
+                );
+            } else {
+                gl.drawArrays(this.mode, 0, this.geometry.attributes.POSITION.length / 3);
+            }
         }
 
         if (this.material.doubleSided) {
@@ -300,6 +307,11 @@ export class Mesh extends Object3D {
 
     calculateBounding() {
         this.geometry.calculateBounding(this.matrixWorld);
+        if (this.matrices.length) {
+            for (const m of this.matrices) {
+                this.geometry.calculateBounding(m);
+            }
+        }
     }
 }
 
