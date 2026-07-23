@@ -3,8 +3,7 @@
       "outDir": "./dist",
       "allowJs": true,
       "module": "es2020",
-      "target": "esnext",
-      "moduleResolution": "node"
+      "target": "esnext"
   },
   "include": [
       "./src/**/*"
