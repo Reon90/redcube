@@ -53,8 +53,8 @@ export class SSAO extends PostProcessor {
             this.width / this.scale / noiceSize,
             this.height / this.scale / noiceSize
         );
-        gl.uniform1f(gl.getUniformLocation(this.ssaoProgram, 'zFar'), cameraProps!.zfar);
-        gl.uniform1f(gl.getUniformLocation(this.ssaoProgram, 'zNear'), cameraProps!.znear);
+        gl.uniform1f(gl.getUniformLocation(this.ssaoProgram, 'zFar'), cameraProps!.zfar!);
+        gl.uniform1f(gl.getUniformLocation(this.ssaoProgram, 'zNear'), cameraProps!.znear!);
         gl.uniform1f(gl.getUniformLocation(this.ssaoProgram, 'bias'), Math.sqrt(this.camera.modelSize!) * 0.03);
         gl.uniformMatrix4fv(gl.getUniformLocation(this.ssaoProgram, 'proj'), false, this.camera.projection.elements);
         gl.uniformMatrix4fv(gl.getUniformLocation(this.ssaoProgram, 'view'), false, this.camera.matrixWorldInvert.elements);

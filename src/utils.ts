@@ -26,8 +26,8 @@ export interface ProjectionCamera {
     type: string;
     perspective?: {
         yfov: number;
-        znear: number;
-        zfar: number;
+        znear?: number;
+        zfar?: number;
     };
     orthographic?: {
         xmag: number;
@@ -413,7 +413,7 @@ export function calculateProjection(cam: ProjectionCamera) {
         const { yfov } = cam.perspective;
 
         const f = 1.0 / Math.tan(yfov / 2);
-        const nf = 1 / (cam.perspective.znear - cam.perspective.zfar);
+        const nf = 1 / (cam.perspective.znear! - cam.perspective.zfar!);
 
         return new Matrix4().set([
             f / aspect,
@@ -426,11 +426,11 @@ export function calculateProjection(cam: ProjectionCamera) {
             0,
             0,
             0,
-            cam.perspective.zfar * nf,
+            cam.perspective.zfar! * nf,
             -1,
             0,
             0,
-            cam.perspective.znear * cam.perspective.zfar * nf,
+            cam.perspective.znear! * cam.perspective.zfar! * nf,
             0,
         ]);
     } else if (cam.type === 'orthographic' && cam.orthographic) {

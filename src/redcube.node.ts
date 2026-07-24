@@ -7,10 +7,10 @@ const FOV = 45; // degrees
 
 class RedCube {
     url: string;
-    parse: Parse;
-    camera: Camera;
+    parse!: Parse;
+    camera!: Camera;
 
-    constructor(url) {
+    constructor(url: string) {
         if (!url) {
             throw new Error('Url not found');
         }
@@ -18,7 +18,7 @@ class RedCube {
         this.url = url;
     }
 
-    async init(cb) {
+    async init(cb: (scene: Scene) => void) {
         const scene = new Scene();
         try {
             this.parse = new Parse(this.url, [], () => {});
@@ -63,7 +63,7 @@ class RedCube {
     }
 
     resize() {
-        const z = this.camera.modelSize;
+        const z = this.camera.modelSize!;
 
         if (this.camera.props.isInitial) {
             this.camera.setZ(z);
