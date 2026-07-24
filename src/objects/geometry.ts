@@ -1,5 +1,5 @@
 import { Box, Vector3, Matrix4 } from '../matrix';
-import { UniformBuffer } from './uniform';
+import { UniformBuffer, UniformBufferLike } from './uniform';
 import {
     buildArray,
     buildArrayWithStride,
@@ -498,7 +498,7 @@ export class Geometry {
         this.uniformBuffer = uniformBuffer;
     }
 
-    updateUniformsWebGPU(WebGPU: WEBGPU, buffer: UniformBuffer, usage = GPUBufferUsage.UNIFORM) {
+    updateUniformsWebGPU(WebGPU: WEBGPU, buffer: UniformBufferLike, usage = GPUBufferUsage.UNIFORM) {
         const matrixSize = buffer.store!.byteLength;
         const offset = 256; // uniformBindGroup offset must be 256-byte aligned
         const uniformBufferSize = offset + matrixSize;

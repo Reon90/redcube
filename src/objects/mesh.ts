@@ -3,7 +3,7 @@ import { Object3D } from './object3d';
 import { Geometry } from './geometry';
 import { Material } from './material';
 import { ArrayBufferMap, GLTexture } from '../utils';
-import { UniformBuffer } from './uniform';
+import { UniformBuffer, UniformBufferLike } from './uniform';
 import { Light } from './light';
 import { Camera } from './camera';
 import type { Scene } from './scene';
@@ -50,7 +50,7 @@ export class Mesh extends Object3D {
         WebGPU: WEBGPU,
         passEncoder: GPURenderPassEncoder,
         i: number,
-        { renderState, materialStorage, transformsStorage }: { renderState: RenderPassState; materialStorage: UniformBuffer; transformsStorage: UniformBuffer }
+        { renderState, materialStorage, transformsStorage }: { renderState: RenderPassState; materialStorage: UniformBufferLike; transformsStorage: UniformBufferLike }
     ) {
         const { isprerefraction } = renderState;
         if (this.defines!.find(i => i.name === 'TRANSMISSION') && isprerefraction) {

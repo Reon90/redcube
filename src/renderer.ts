@@ -8,7 +8,7 @@ import { FPS } from './fps';
 import { Light as PPLight } from './postprocessors/light';
 import { Env } from './env';
 import { Attributes } from './objects/geometry';
-import { UniformBuffer } from './objects/uniform';
+import { UniformBuffer, UniformBufferLike } from './objects/uniform';
 
 declare global {
     interface Window {
@@ -44,8 +44,8 @@ export interface State {
     storage2: { texture: WebGLTexture };
     storage: { texture2: WebGLTexture };
     stateBuffer: UniformBuffer;
-    materialStorage: UniformBuffer;
-    transformsStorage: UniformBuffer;
+    materialStorage: UniformBufferLike;
+    transformsStorage: UniformBufferLike;
 }
 
 export class Renderer {

@@ -1,6 +1,10 @@
 interface Store {
     [key: string]: ArrayLike<number>;
 }
+export interface UniformBufferLike {
+    store?: Float32Array;
+    bufferWebGPU?: GPUBuffer;
+}
 export class UniformBuffer {
     offset: number;
     map: Map<string, number>;
