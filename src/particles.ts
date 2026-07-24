@@ -1,6 +1,6 @@
 import { Matrix4 } from './matrix';
 import { perlin3 } from './perlin';
-import { createTexture, compileShader, createProgram } from './utils';
+import { createTexture, compileShader, createProgram, GLTexture } from './utils';
 import { Camera } from './objects/index';
 
 import instanceShader from './shaders/instance.glsl';
@@ -8,38 +8,36 @@ import instanceFragShader from './shaders/instance-frag.glsl';
 import instanceFragShader2 from './shaders/empty-frag.glsl';
 import instanceTransShader from './shaders/instance-trans.glsl';
 
-interface Texture extends WebGLTexture {
-    index: number;
-}
+type Texture = GLTexture;
 
-let gl;
+let gl: WebGL2RenderingContext;
 const amount = 1000;
 
 export class Particles {
-    currentSourceIdx: number;
-    program: WebGLProgram;
-    program2: WebGLProgram;
-    VAO: Array<WebGLVertexArrayObjectOES>;
-    TFO: Array<WebGLVertexArrayObjectOES>;
-    texture3d: Texture;
-    camera: Camera;
-    getLight: Function;
+    currentSourceIdx!: number;
+    program!: WebGLProgram;
+    program2!: WebGLProgram;
+    VAO!: Array<WebGLVertexArrayObject>;
+    TFO!: Array<WebGLTransformFeedback>;
+    texture3d!: Texture;
+    camera!: Camera;
+    getLight: () => number;
 
-    constructor(getLight) {
+    constructor(getLight: () => number) {
         this.getLight = getLight;
     }
 
-    setGl(g) {
+    setGl(g: WebGL2RenderingContext) {
         gl = g;
     }
 
-    setCamera(camera) {
+    setCamera(camera: Camera) {
         this.camera = camera;
     }
 
     build() {
         this.currentSourceIdx = 0;
-        const program = gl.createProgram();
+        const program = gl.createProgram()!;
         compileShader(gl.VERTEX_SHADER, instanceTransShader, program);
         compileShader(gl.FRAGMENT_SHADER, instanceFragShader2, program);
 
@@ -52,8 +50,8 @@ export class Particles {
         const program2 = createProgram(instanceShader, instanceFragShader);
         this.program2 = program2;
 
-        const VAO = [gl.createVertexArray(), gl.createVertexArray()];
-        const TFO = [gl.createTransformFeedback(), gl.createTransformFeedback()];
+        const VAO = [gl.createVertexArray()!, gl.createVertexArray()!];
+        const TFO = [gl.createTransformFeedback()!, gl.createTransformFeedback()!];
         this.VAO = VAO;
         this.TFO = TFO;
 
@@ -160,7 +158,7 @@ export class Particles {
         gl.generateMipmap(gl.TEXTURE_3D);
     }
 
-    draw(time) {
+    draw(time: number) {
         gl.enable(gl.BLEND);
         gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
@@ -183,7 +181,7 @@ export class Particles {
         gl.disable(gl.RASTERIZER_DISCARD);
         gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, null);
         gl.bindBuffer(gl.TRANSFORM_FEEDBACK_BUFFER, null);
-        const sync = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0);
+        const sync = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0)!;
 
         gl.waitSync(sync, 0, gl.TIMEOUT_IGNORED);
         gl.deleteSync(sync);
