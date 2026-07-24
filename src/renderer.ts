@@ -1,65 +1,100 @@
-import { Scene, Mesh, Camera, Bone, Light } from './objects/index';
+import { Scene, Mesh, Camera, Bone, Light, Object3D } from './objects/index';
 import { Vector, Vector2, Vector3, Vector4, Frustum } from './matrix';
-import { interpolation, walk } from './utils';
-import { Parse } from './parse';
+import { interpolation, walk, GLTexture } from './utils';
+import { Parse, Track } from './parse';
 import { PostProcessing } from './postprocessing.webgpu';
 import { Particles } from './particles';
 import { FPS } from './fps';
 import { Light as PPLight } from './postprocessors/light';
 import { Env } from './env';
+import { Attributes } from './objects/geometry';
+import { UniformBuffer } from './objects/uniform';
 
-let gl;
+declare global {
+    interface Window {
+        __FORCE_DETERMINISTIC__?: boolean;
+    }
+}
+
+let gl: WebGL2RenderingContext;
+
+export interface RenderPassState {
+    isprepender?: boolean;
+    isprerefraction?: boolean;
+}
+
+export interface State {
+    lights: Light[];
+    camera: Camera;
+    needUpdateProjection: boolean;
+    needUpdateView: boolean;
+    preDepthTexture: GLTexture;
+    colorTexture: GLTexture;
+    renderState: RenderPassState;
+    fakeDepth: GLTexture;
+    isIBL: boolean;
+    isDefaultLight: boolean;
+    UBO: WebGLBuffer;
+    cameraBuffer: UniformBuffer;
+    light: Light;
+    lightPosUniform: WebGLBuffer;
+    lightPosBuffer: UniformBuffer;
+    lightColorUniform: WebGLBuffer;
+    lightColorBuffer: UniformBuffer;
+    storage2: { texture: WebGLTexture };
+    storage: { texture2: WebGLTexture };
+}
 
 export class Renderer {
-    parse: Parse;
-    PP: PostProcessing;
-    scene: Scene;
-    Particles: Particles;
+    parse!: Parse;
+    PP!: PostProcessing;
+    scene!: Scene;
+    Particles!: Particles;
     fps: FPS;
-    camera: Camera;
-    getState: Function;
+    camera!: Camera;
+    getState: () => State;
     reflow: boolean;
     needUpdateProjection = true;
     needUpdateView = true;
-    env: Env;
+    env!: Env;
     currentTrack: number;
 
-    constructor(getState) {
+    constructor(getState: () => State) {
         this.reflow = true;
         this.fps = new FPS();
         this.getState = getState;
         this.currentTrack = 0;
     }
 
-    setEnv(env) {
+    setEnv(env: Env) {
         this.env = env;
     }
 
-    setCamera(camera) {
+    setCamera(camera: Camera) {
         this.camera = camera;
     }
 
-    setParticles(Particles) {
+    setParticles(Particles: Particles) {
         this.Particles = Particles;
     }
 
-    setScene(scene) {
+    setScene(scene: Scene) {
         this.scene = scene;
     }
 
-    setPp(pp) {
+    setPp(pp: PostProcessing) {
         this.PP = pp;
     }
 
-    setGl(g) {
+    setGl(g: WebGL2RenderingContext) {
         gl = g;
     }
 
-    setParser(parser) {
+    setParser(parser: Parse) {
         this.parse = parser;
     }
 
-    step(sec, v) {
+    step(sec: number, v: Track) {
         const val = interpolation(sec, v.keys);
 
         if (val[0] === -1 || val[1] === -1 || (val[0] === 0 && val[1] === 0)) {
@@ -68,7 +103,7 @@ export class Renderer {
 
         const current = v.keys[val[0]];
         const { component } = v;
-        let vectorC;
+        let vectorC: new (src: Float32Array) => Vector | Vector3 | Vector4;
         if (component === 3) {
             vectorC = Vector3;
         } else if (component === 4) {
@@ -76,7 +111,7 @@ export class Renderer {
         } else {
             vectorC = Vector;
         }
-        const vector = new vectorC(current.value);
+        const vector = new vectorC(current.value as Float32Array);
 
         if (v.type === 'rotation') {
             for (const mesh of v.meshes) {
@@ -91,12 +126,12 @@ export class Renderer {
                     mesh.matrix.restoreScale(scale);
                 }
 
-                mesh.matrix.scale(vector);
+                mesh.matrix.scale(vector as Vector3);
                 mesh.matrix.animated = true;
             }
         } else if (v.type === 'translation') {
             for (const mesh of v.meshes) {
-                mesh.matrix.setTranslate(vector);
+                mesh.matrix.setTranslate(vector as Vector3);
             }
         } else if (v.type === 'visible') {
             for (const mesh of v.meshes) {
@@ -105,7 +140,7 @@ export class Renderer {
         }
     }
 
-    spline(sec, v) {
+    spline(sec: number, v: Track) {
         const val = interpolation(sec, v.keys);
 
         if (val[0] === -1 || val[1] === -1 || (val[0] === 0 && val[1] === 0)) {
@@ -170,11 +205,11 @@ export class Renderer {
         }
     }
 
-    updateGeometry(mesh, geometry) {
+    updateGeometry(mesh: Mesh, geometry: Attributes) {
         mesh.geometry.update(gl, geometry);
     }
 
-    interpolation(sec, v) {
+    interpolation(sec: number, v: Track) {
         const val = interpolation(sec, v.keys);
 
         if (val[0] === -1 || val[1] === -1 || (val[0] === 0 && val[1] === 0)) {
@@ -184,10 +219,10 @@ export class Renderer {
         const startFrame = v.keys[val[0]];
         const endFrame = v.keys[val[1]];
         // eslint-disable-next-line
-        const t = val[2];
+        const t = val[2] as number;
 
         const { component } = v;
-        let vectorC;
+        let vectorC: new (src: Float32Array) => Vector | Vector2 | Vector3 | Vector4;
         if (component === 2) {
             vectorC = Vector2;
         } else if (component === 3) {
@@ -197,8 +232,8 @@ export class Renderer {
         } else {
             vectorC = Vector;
         }
-        const vector = new vectorC(startFrame.value);
-        const vector2 = new vectorC(endFrame.value);
+        const vector = new vectorC(startFrame.value as Float32Array);
+        const vector2 = new vectorC(endFrame.value as Float32Array);
 
         if (v.type === 'rotation') {
             const out = new Vector4();
@@ -227,25 +262,25 @@ export class Renderer {
             out.lerp(vector.elements, vector2.elements, t);
 
             for (const mesh of v.meshes) {
-                const geometry = {};
+                const geometry: Attributes = {};
 
                 for (const k in mesh.geometry.targets[0]) {
                     if (k !== 'POSITION') {
                         continue;
                     }
-                    geometry[k] = mesh.geometry.attributes[k].slice();
+                    geometry[k] = mesh.geometry.attributes[k]!.slice();
                     for (let i = 0; i < out.elements.length; i++) {
                         if (out.elements[i] === 0) {
                             continue;
                         }
 
                         const offset = 0;
-                        for (let l = 0; l < geometry[k].length; l++) {
+                        for (let l = 0; l < geometry[k]!.length; l++) {
                             // if (k === 'TANGENT' && (l + 1) % 4 === 0) {
                             //     offset++;
                             //     continue;
                             // }
-                            geometry[k][l] += out.elements[i] * mesh.geometry.targets[i][k][l - offset];
+                            geometry[k]![l] += out.elements[i] * mesh.geometry.targets[i][k]![l - offset];
                         }
                     }
                 }
@@ -269,7 +304,7 @@ export class Renderer {
         }
     }
 
-    updateMaterial(mesh, type, out) {
+    updateMaterial(mesh: Mesh, type: string, out: { elements: ArrayLike<number> }) {
         const s = type.split('/');
         const last = s[s.length - 1];
 
@@ -282,7 +317,7 @@ export class Renderer {
         }
     }
 
-    animate(sec) {
+    animate(sec: number) {
         if (!this.parse.tracks.length) {
             return;
         }
@@ -292,7 +327,7 @@ export class Renderer {
 
         for (const track of this.parse.tracks.sort((a, b) => a[0].duration - b[0].duration)) {
             for (const v of track) {
-                let result;
+                let result: boolean | undefined;
                 switch (v.interpolation) {
                 case 'LINEAR':
                     result = this.interpolation(sec, v);
@@ -312,7 +347,7 @@ export class Renderer {
                     continue;
                 }
                 for (const mesh of v.meshes) {
-                    walk(mesh, node => {
+                    walk<Mesh, Object3D>(mesh, node => {
                         node.updateMatrix();
 
                         if (node instanceof Bone) {
@@ -341,7 +376,7 @@ export class Renderer {
     render(time = 0) {
         const sec = time / 1000;
 
-        if (!(window as any).__FORCE_DETERMINISTIC__) {
+        if (!window.__FORCE_DETERMINISTIC__) {
             this.animate(sec);
         }
 
@@ -385,7 +420,7 @@ export class Renderer {
             const planes = Frustum(this.camera.getViewProjMatrix());
 
             this.scene.meshes.forEach(mesh => {
-                mesh.visible = mesh.parent.visible && mesh.isVisible(planes);
+                mesh.visible = mesh.parent!.visible && mesh.isVisible(planes);
             });
         }
 
@@ -397,16 +432,16 @@ export class Renderer {
 
             gl.bindBufferBase(gl.UNIFORM_BUFFER, 3, s.lightPosUniform);
             this.parse.lights.forEach((light, i) => {
-                s.lightPosBuffer.store.set(light.getPosition(), i * 4);
+                s.lightPosBuffer.store!.set(light.getPosition(), i * 4);
             });
-            gl.bufferSubData(gl.UNIFORM_BUFFER, 0, s.lightPosBuffer.store);
+            gl.bufferSubData(gl.UNIFORM_BUFFER, 0, s.lightPosBuffer.store!);
         }
         if (s.needUpdateProjection) {
             gl.bindBufferBase(gl.UNIFORM_BUFFER, 1, s.UBO);
             s.cameraBuffer.update(gl, 'projection', s.camera.projection.elements);
         }
         gl.bindBufferBase(gl.UNIFORM_BUFFER, 4, s.lightColorUniform);
-        gl.bufferSubData(gl.UNIFORM_BUFFER, 0, s.lightColorBuffer.store);
+        gl.bufferSubData(gl.UNIFORM_BUFFER, 0, s.lightColorBuffer.store!);
         s.lights.forEach((light, i) => {
             const offset = i * 4 * Float32Array.BYTES_PER_ELEMENT;
             if (light.visible === false) {
@@ -422,7 +457,7 @@ export class Renderer {
                     0, // Mipmap level
                     0, // xoffset
                     i, // yoffset
-                    this.scene.meshes[0].geometry.uniformBuffer.store.length / Float32Array.BYTES_PER_ELEMENT,
+                    this.scene.meshes[0].geometry.uniformBuffer!.store!.length / Float32Array.BYTES_PER_ELEMENT,
                     1,
                     gl.RGBA,
                     gl.FLOAT,
@@ -435,7 +470,7 @@ export class Renderer {
                             0, // Mipmap level
                             0, // xoffset
                             i + j + 1, // yoffset
-                            this.scene.meshes[0].geometry.uniformBuffer.store.length / Float32Array.BYTES_PER_ELEMENT,
+                            this.scene.meshes[0].geometry.uniformBuffer!.store!.length / Float32Array.BYTES_PER_ELEMENT,
                             1,
                             gl.RGBA,
                             gl.FLOAT,
@@ -485,7 +520,7 @@ export class Renderer {
 
     clean() {
         walk(this.scene, node => {
-            node.reflow = false;
+            (node as Object3D).reflow = false;
         });
         this.needUpdateView = false;
         this.needUpdateProjection = false;

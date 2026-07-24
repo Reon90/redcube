@@ -19,7 +19,7 @@ import { decodeDracoData, getArray, DracoModule } from '../decoder';
 import { GlTf, MeshPrimitive, Accessor } from '../../GLTF';
 import type { Define } from '../parse';
 
-interface Attributes {
+export interface Attributes {
     POSITION?: TypedArray;
     NORMAL?: TypedArray;
     TEXCOORD_0?: TypedArray;

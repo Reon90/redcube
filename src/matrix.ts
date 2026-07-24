@@ -195,6 +195,7 @@ class Matrix3 {
  */
 class Matrix4 {
     elements: Float32Array;
+    animated?: boolean;
 
     constructor(opt_src?: Matrix4) {
         let i;

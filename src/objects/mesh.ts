@@ -8,11 +8,7 @@ import { Light } from './light';
 import { Camera } from './camera';
 import type { Scene } from './scene';
 import type { Define, Skin } from '../parse';
-
-interface RenderState {
-    isprepender?: boolean;
-    isprerefraction?: boolean;
-}
+import type { State, RenderPassState } from '../renderer';
 
 export class Mesh extends Object3D {
     geometry!: Geometry;
@@ -53,7 +49,7 @@ export class Mesh extends Object3D {
         WebGPU: WEBGPU,
         passEncoder: GPURenderPassEncoder,
         i: number,
-        { renderState, materialStorage, transformsStorage }: { renderState: RenderState; materialStorage: UniformBuffer; transformsStorage: UniformBuffer }
+        { renderState, materialStorage, transformsStorage }: { renderState: RenderPassState; materialStorage: UniformBuffer; transformsStorage: UniformBuffer }
     ) {
         const { isprerefraction } = renderState;
         if (this.defines!.find(i => i.name === 'TRANSMISSION') && isprerefraction) {
@@ -111,17 +107,7 @@ export class Mesh extends Object3D {
             fakeDepth,
             isIBL,
             isDefaultLight,
-        }: {
-            lights: Light[];
-            camera: Camera;
-            needUpdateProjection: boolean;
-            preDepthTexture: GLTexture;
-            colorTexture: GLTexture;
-            renderState: RenderState;
-            fakeDepth: GLTexture;
-            isIBL: boolean;
-            isDefaultLight: boolean;
-        }
+        }: State
     ) {
         const texUnit = (n: number) => (gl as unknown as Record<string, number>)[`TEXTURE${n}`];
         const glTypeEnum = (ctor: unknown) => (gl as unknown as Record<string, number>)[ArrayBufferMap.get(ctor)];
@@ -179,17 +165,17 @@ export class Mesh extends Object3D {
         if (this.material.normalTexture) {
             gl.activeTexture(texUnit(2));
             gl.bindTexture(gl.TEXTURE_2D, this.material.normalTexture);
-            gl.bindSampler(2, this.material.normalTexture.sampler);
+            gl.bindSampler(2, this.material.normalTexture.sampler as WebGLSampler);
         }
         if (this.material.occlusionTexture) {
             gl.activeTexture(texUnit(3));
             gl.bindTexture(gl.TEXTURE_2D, this.material.occlusionTexture);
-            gl.bindSampler(3, this.material.occlusionTexture.sampler);
+            gl.bindSampler(3, this.material.occlusionTexture.sampler as WebGLSampler);
         }
         if (this.material.emissiveTexture) {
             gl.activeTexture(texUnit(4));
             gl.bindTexture(gl.TEXTURE_2D, this.material.emissiveTexture);
-            gl.bindSampler(4, this.material.emissiveTexture.sampler);
+            gl.bindSampler(4, this.material.emissiveTexture.sampler as WebGLSampler);
         }
         if (this.material.clearcoatTexture) {
             gl.activeTexture(texUnit(8));
