@@ -449,7 +449,6 @@ export class Env {
                     gl.TEXTURE_CUBE_MAP_NEGATIVE_Z
                 ];
                 for (let j = 0; j < this.envData.specularImages.length; j++) {
-                    // @ts-ignore
                     const s = this.envData.specularImageSize * Math.pow(0.5, j);
                     for (let i = 0; i < 6; i++) {
                         gl.texImage2D(x[i], j, gl.RGBA, s, s, 0, gl.RGBA, gl.UNSIGNED_BYTE, this.envData.specularImages[j][i]);

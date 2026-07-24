@@ -24,7 +24,7 @@ import { Geometry } from './objects/geometry';
 
 declare global {
     interface Constructable<T> {
-        new (...args: any): T;
+        new (...args: unknown[]): T;
     }
     interface KtxTexture {
         needsTranscoding: boolean;
