@@ -1,13 +1,13 @@
 interface Store {
-    [key: string]: Float32Array;
+    [key: string]: ArrayLike<number>;
 }
 export class UniformBuffer {
     offset: number;
     map: Map<string, number>;
-    tempStore: Store;
-    store: Float32Array;
+    tempStore: Store | null;
+    store?: Float32Array;
 
-    bufferWebGPU: GPUBuffer;
+    bufferWebGPU?: GPUBuffer;
     isTexture: boolean;
 
     constructor(isTexture = false) {
@@ -17,7 +17,7 @@ export class UniformBuffer {
         this.isTexture = isTexture;
     }
 
-    getBuffer(v) {
+    getBuffer(v: ArrayLike<number>) {
         const { length } = v;
         if (length === 3) {
             return new Float32Array([v[0], v[1], v[2], 0]);
@@ -35,13 +35,13 @@ export class UniformBuffer {
         return v;
     }
 
-    add(name, value) {
-        if (value.length === undefined) {
-            value = [value];
+    add(name: string, value: number | ArrayLike<number>) {
+        if ((value as ArrayLike<number>).length === undefined) {
+            value = [value as number];
         }
         this.map.set(name, this.offset);
-        const buffer = this.getBuffer(value);
-        this.tempStore[name] = buffer;
+        const buffer = this.getBuffer(value as ArrayLike<number>);
+        this.tempStore![name] = buffer;
         if (this.isTexture) {
             this.offset += Math.max(buffer.length, 4);
         } else {
@@ -49,50 +49,50 @@ export class UniformBuffer {
         }
     }
 
-    update(gl, name, value, skip = false) {
-        if (value.length === undefined) {
-            value = new Float32Array([value]);
+    update(gl: WebGL2RenderingContext, name: string, value: number | ArrayLike<number>, skip = false) {
+        if ((value as ArrayLike<number>).length === undefined) {
+            value = new Float32Array([value as number]);
         }
         const offset = this.map.get(name);
         if (offset === undefined) {
             return;
         }
-        const buffer = this.getBuffer(value);
-        this.store.set(buffer, offset);
+        const buffer = this.getBuffer(value as ArrayLike<number>);
+        this.store!.set(buffer, offset);
         if (skip) {
             return;
         }
-        gl.bufferSubData(gl.UNIFORM_BUFFER, offset * Float32Array.BYTES_PER_ELEMENT, buffer);
+        gl.bufferSubData(gl.UNIFORM_BUFFER, offset * Float32Array.BYTES_PER_ELEMENT, buffer as Float32Array);
     }
 
-    updateWebGPU(WebGPU: WEBGPU, name, value, skip = false) {
+    updateWebGPU(WebGPU: WEBGPU, name: string, value: number | ArrayLike<number>, skip = false) {
         const { device } = WebGPU;
-        if (value.length === undefined) {
-            value = new Float32Array([value]);
+        if ((value as ArrayLike<number>).length === undefined) {
+            value = new Float32Array([value as number]);
         }
         const offset = this.map.get(name);
         if (offset === undefined) {
             return;
         }
-        const buffer = this.getBuffer(value);
-        this.store.set(buffer, offset);
+        const buffer = this.getBuffer(value as ArrayLike<number>);
+        this.store!.set(buffer, offset);
         if (skip) {
             return;
         }
 
         device.queue.writeBuffer(
-            this.bufferWebGPU,
+            this.bufferWebGPU!,
             offset * Float32Array.BYTES_PER_ELEMENT,
-            buffer.buffer,
-            buffer.byteOffset,
-            buffer.byteLength
+            (buffer as Float32Array).buffer,
+            (buffer as Float32Array).byteOffset,
+            (buffer as Float32Array).byteLength
         );
     }
 
     done() {
         this.store = new Float32Array(this.offset);
         for (const [name, offset] of this.map) {
-            this.store.set(this.tempStore[name], offset);
+            this.store.set(this.tempStore![name], offset);
         }
         this.tempStore = null;
     }
