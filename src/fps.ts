@@ -13,7 +13,7 @@ export class FPS {
         this.lastTime = 0;
     }
 
-    tick(time) {
+    tick(time: number) {
         this.fps++;
         this.elapsedTime += time - this.lastTime;
         this.lastTime = time;

@@ -83,7 +83,7 @@ export class SphericalHarmonics {
 }
 
 export class SphericalPolynomial {
-    private _harmonics: SphericalHarmonics;
+    private _harmonics!: SphericalHarmonics;
 
     public get preScaledHarmonics(): SphericalHarmonics {
         if (!this._harmonics.preScaled) {
