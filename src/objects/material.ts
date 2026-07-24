@@ -1,42 +1,44 @@
 import { Vector3, Matrix4 } from '../matrix';
 import { UniformBuffer } from './uniform';
 import { Material as M } from '../../GLTF';
-import { textureEnum } from '../utils';
+import { textureEnum, GLTexture } from '../utils';
+import { Light } from './light';
+import type { Define } from '../parse';
 
 const defaultMaterial = {
     baseColorFactor: [1, 0, 0, 1]
 } as M;
 
 interface Uniforms {
-    baseColorTexture: WebGLUniformLocation;
-    metallicRoughnessTexture: WebGLUniformLocation;
-    normalTexture: WebGLUniformLocation;
-    occlusionTexture: WebGLUniformLocation;
-    clearcoatTexture: WebGLUniformLocation;
-    clearcoatRoughnessTexture: WebGLUniformLocation;
-    sheenRoughnessTexture: WebGLUniformLocation;
-    sheenColorTexture: WebGLUniformLocation;
-    clearcoatNormalTexture: WebGLUniformLocation;
-    transmissionTexture: WebGLUniformLocation;
-    specularTexture: WebGLUniformLocation;
-    specularColorTexture: WebGLUniformLocation;
-    thicknessTexture: WebGLUniformLocation;
-    emissiveTexture: WebGLUniformLocation;
-    prefilterMap: WebGLUniformLocation;
-    charlieMap: WebGLUniformLocation;
-    brdfLUT: WebGLUniformLocation;
-    irradianceMap: WebGLUniformLocation;
-    depthTexture: WebGLUniformLocation;
-    colorTexture: WebGLUniformLocation;
-    Sheen_E: WebGLUniformLocation;
-    iridescenceThicknessTexture: WebGLUniformLocation;
-    diffuseTransmissionTexture: WebGLUniformLocation;
-    diffuseTransmissionColorTexture: WebGLUniformLocation;
-    anisotropyTexture: WebGLUniformLocation;
-    iridescenceTexture: WebGLUniformLocation;
-    isTone: WebGLUniformLocation;
-    isIBL: WebGLUniformLocation;
-    isDefaultLight: WebGLUniformLocation;
+    baseColorTexture: WebGLUniformLocation | null;
+    metallicRoughnessTexture: WebGLUniformLocation | null;
+    normalTexture: WebGLUniformLocation | null;
+    occlusionTexture: WebGLUniformLocation | null;
+    clearcoatTexture: WebGLUniformLocation | null;
+    clearcoatRoughnessTexture: WebGLUniformLocation | null;
+    sheenRoughnessTexture: WebGLUniformLocation | null;
+    sheenColorTexture: WebGLUniformLocation | null;
+    clearcoatNormalTexture: WebGLUniformLocation | null;
+    transmissionTexture: WebGLUniformLocation | null;
+    specularTexture: WebGLUniformLocation | null;
+    specularColorTexture: WebGLUniformLocation | null;
+    thicknessTexture: WebGLUniformLocation | null;
+    emissiveTexture: WebGLUniformLocation | null;
+    prefilterMap: WebGLUniformLocation | null;
+    charlieMap: WebGLUniformLocation | null;
+    brdfLUT: WebGLUniformLocation | null;
+    irradianceMap: WebGLUniformLocation | null;
+    depthTexture: WebGLUniformLocation | null;
+    colorTexture: WebGLUniformLocation | null;
+    Sheen_E: WebGLUniformLocation | null;
+    iridescenceThicknessTexture: WebGLUniformLocation | null;
+    diffuseTransmissionTexture: WebGLUniformLocation | null;
+    diffuseTransmissionColorTexture: WebGLUniformLocation | null;
+    anisotropyTexture: WebGLUniformLocation | null;
+    iridescenceTexture: WebGLUniformLocation | null;
+    isTone: WebGLUniformLocation | null;
+    isIBL: WebGLUniformLocation | null;
+    isDefaultLight: WebGLUniformLocation | null;
 }
 
 const lightEnum = {
@@ -46,24 +48,24 @@ const lightEnum = {
 };
 
 export class Material extends M {
-    blend: string;
-    uniforms: Uniforms;
-    alpha: boolean;
-    UBO: WebGLBuffer;
-    defines: Array<{ name: string }>;
+    blend!: string;
+    uniforms!: Uniforms;
+    alpha!: boolean;
+    UBO?: WebGLBuffer;
+    defines: Array<Define>;
     matrices: Matrix4[];
-    uniformBuffer: GPUBuffer;
-    lightPosUniform: WebGLBuffer;
-    lightColorUniform: WebGLBuffer;
-    spotdirUniform: WebGLBuffer;
-    lightIntensityUniform: WebGLBuffer;
-    textureMatricesUniform: WebGLBuffer;
-    matricesMap = new Map<string, number>();
+    uniformBuffer!: GPUBuffer;
+    lightPosUniform?: WebGLBuffer;
+    lightColorUniform?: WebGLBuffer;
+    spotdirUniform?: WebGLBuffer;
+    lightIntensityUniform?: WebGLBuffer;
+    textureMatricesUniform?: WebGLBuffer;
+    matricesMap = new Map<string, number | undefined>();
     lights = [-1, -1, -1, -1];
 
-    uniformBindGroup1: GPUBindGroupEntry[];
+    uniformBindGroup1!: GPUBindGroupEntry[];
 
-    constructor(m = defaultMaterial, textures, defines) {
+    constructor(m: M = defaultMaterial, textures: GLTexture[], defines: Array<Define>) {
         super();
 
         const material = Object.assign({}, m);
@@ -435,22 +437,22 @@ export class Material extends M {
         }
     }
 
-    buildTrans(ex, defines, name = '') {
+    buildTrans(ex: { offset?: number[]; scale?: number[]; rotation?: number }, defines: Array<Define>, name = '') {
         if (ex.offset !== undefined || ex.scale !== undefined || ex.rotation !== undefined) {
             const offset = ex.offset || [0, 0];
             const scale = ex.scale || [1, 1];
             const rotation = ex.rotation || 0;
-            const i = this.matrices.push(new Matrix4().set([...offset, 0, 0, ...scale, 0, 0, rotation, 0, 0, 0, 0, 0, 0, 0])) - 1;
+            const i = this.matrices.push(new Matrix4().set([...offset, 0, 0, ...scale, 0, 0, rotation, 0, 0, 0, 0, 0, 0, 0])!) - 1;
             defines.push({ name: `${name}_TEXTURE_TRANSFORM`, value: i });
             return i;
         }
     }
 
-    setHarmonics(sphericalHarmonics) {
+    setHarmonics(sphericalHarmonics: WebGLBuffer) {
         this.sphericalHarmonics = sphericalHarmonics;
     }
 
-    updateUniformsWebgl(gl, program) {
+    updateUniformsWebgl(gl: WebGL2RenderingContext, program: WebGLProgram) {
         gl.useProgram(program);
 
         this.uniforms.isTone = gl.getUniformLocation(program, 'isTone');
@@ -574,7 +576,7 @@ export class Material extends M {
         }
     }
 
-    createUniforms(isTexture, lights) {
+    createUniforms(isTexture: boolean, lights: Light[]) {
         const spotDirs = new Float32Array(lights.length * 4);
         const lightPos = new Float32Array(lights.length * 4);
         const lightColor = new Float32Array(lights.length * 4);
@@ -588,7 +590,7 @@ export class Material extends M {
             );
             lightPos.set(light.getPosition(), i * 4);
             lightColor.set(light.color.elements, i * 4);
-            lightProps.set([light.intensity, light.spot.innerConeAngle ?? 0, light.spot.outerConeAngle ?? 0, lightEnum[light.type]], i * 4);
+            lightProps.set([light.intensity!, light.spot.innerConeAngle ?? 0, light.spot.outerConeAngle ?? 0, lightEnum[light.type]], i * 4);
         });
         this.matrices.forEach((m, i) => {
             textureMatrices.set(m.elements, i * 16);
@@ -621,7 +623,7 @@ export class Material extends M {
             materialUniformBuffer.add('dispersionFactor', [this.dispersion ?? 0]);
             materialUniformBuffer.add('bulk', 0);
             materialUniformBuffer.done();
-            if (materialUniformBuffer.store.byteLength % 16 !== 0) {
+            if (materialUniformBuffer.store!.byteLength % 16 !== 0) {
                 throw new Error('Material uniform buffer length must be multiple of 16');
             }
             this.materialUniformBuffer = materialUniformBuffer;
@@ -638,7 +640,7 @@ export class Material extends M {
     updateUniformsWebGPU(WebGPU: WEBGPU) {
         const { device, nearestSampler, linearSampler } = WebGPU;
 
-        let uniformBuffer6;
+        let uniformBuffer6: GPUBuffer | undefined;
         if (this.textureMatricesBuffer) {
             uniformBuffer6 = device.createBuffer({
                 size: 256 + this.textureMatricesBuffer.store.byteLength,
@@ -748,7 +750,7 @@ export class Material extends M {
 
         if (this.textureMatricesBuffer) {
             device.queue.writeBuffer(
-                uniformBuffer6,
+                uniformBuffer6!,
                 0,
                 this.textureMatricesBuffer.store.buffer,
                 this.textureMatricesBuffer.store.byteOffset,
@@ -763,13 +765,13 @@ export class Material extends M {
         return Boolean(this.normalTexture) || Boolean(this.clearcoatNormalTexture);
     }
 
-    setColor(gl, name, value) {
+    setColor(gl: WebGL2RenderingContext, name: string, value: { elements: ArrayLike<number> }) {
         this.materialUniformBuffer.update(gl, name, value.elements, true);
     }
 
-    setTexture(gl, name, type, value) {
-        gl.bindBufferBase(gl.UNIFORM_BUFFER, 8, this.textureMatricesUniform);
-        const i = this.matricesMap.get(name) * 16;
+    setTexture(gl: WebGL2RenderingContext, name: string, type: string, value: { elements: ArrayLike<number> }) {
+        gl.bindBufferBase(gl.UNIFORM_BUFFER, 8, this.textureMatricesUniform!);
+        const i = this.matricesMap.get(name)! * 16;
         if (type === 'offset') {
             this.textureMatricesBuffer.store[i] = value.elements[0];
             this.textureMatricesBuffer.store[i + 1] = value.elements[1];
@@ -783,12 +785,12 @@ export class Material extends M {
         if (type === 'rotation') {
             this.textureMatricesBuffer.store[i + 8] = value.elements[0];
         }
-        
+
         gl.bufferSubData(gl.UNIFORM_BUFFER, 0, this.textureMatricesBuffer.store);
     }
 
-    setTextureWebGPU(gl, name, type, value) {
-        const i = this.matricesMap.get(name) * 16;
+    setTextureWebGPU(WebGPU: WEBGPU, name: string, type: string, value: { elements: ArrayLike<number> }) {
+        const i = this.matricesMap.get(name)! * 16;
         if (type === 'offset') {
             this.textureMatricesBuffer.store[i] = value.elements[0];
             this.textureMatricesBuffer.store[i + 1] = value.elements[1];
@@ -802,8 +804,8 @@ export class Material extends M {
         if (type === 'rotation') {
             this.textureMatricesBuffer.store[i + 8] = value.elements[0];
         }
-        
-        gl.device.queue.writeBuffer(
+
+        WebGPU.device.queue.writeBuffer(
             this.textureMatricesBuffer.bufferWebGPU,
             0,
             this.textureMatricesBuffer.store.buffer,
@@ -812,7 +814,7 @@ export class Material extends M {
         );
     }
 
-    setColorWebGPU(gl, name, value) {
-        this.materialUniformBuffer.updateWebGPU(gl, name, value.elements, true);
+    setColorWebGPU(WebGPU: WEBGPU, name: string, value: { elements: ArrayLike<number> }) {
+        this.materialUniformBuffer.updateWebGPU(WebGPU, name, value.elements, true);
     }
 }

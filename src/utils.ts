@@ -7,7 +7,7 @@ let gl: WebGL2RenderingContext;
 let screenTextureCount = 31;
 export const clearColor = [0, 0, 0, 1];
 
-export type GLTexture = WebGLTexture & { index: number };
+export type GLTexture = WebGLTexture & { index: number; sampler?: WebGLSampler };
 
 export type TypedArray = Int8Array | Uint8Array | Int16Array | Uint16Array | Uint32Array | Float32Array;
 
