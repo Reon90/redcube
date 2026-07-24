@@ -14,14 +14,12 @@ import { UniformBuffer } from './objects/uniform';
 import Sheen_E from './images/Sheen_E.hdr';
 import { SphericalHarmonics, SphericalPolynomial } from './SH';
 
-interface Texture extends WebGLTexture {
-    index: number;
-}
-interface FrameBuffer extends WebGLFramebuffer {
-    size: number;
-}
+type EnvTexture = GPUTexture & { view?: GPUTextureView; sampler?: GPUSampler };
 
 interface IBLData {
+    rotation: number[];
+    irradianceCoefficients: number[][];
+    intensity: number;
     specularImages: Array<Array<{ bitmap: ImageBitmap }>>;
     specularImageSize: number;
 }
@@ -30,7 +28,11 @@ const FULL_SIZE = 512;
 let RADIANCE_SIZE = 128;
 const IRRADIANCE_SIZE = 32;
 
-function loadHDR(device, { data, shape, usage = GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST }, mipLevelCount) {
+function loadHDR(
+    device: GPUDevice,
+    { data, shape, usage = GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST }: { data: Float32Array; shape: [number, number]; usage?: number },
+    mipLevelCount: number
+) {
     const img = new Float16Array(data.length);
     let k;
     let r;
@@ -75,57 +77,36 @@ function loadHDR(device, { data, shape, usage = GPUTextureUsage.RENDER_ATTACHMEN
 }
 
 export class Env {
-    camera: Camera;
+    camera!: Camera;
     envMatrix: Matrix4;
-    VAO: WebGLBuffer;
-    quadVAO: WebGLBuffer;
-    IndexBufferLength: number;
-    cubeprogram: WebGLProgram;
-    irradianceprogram: WebGLProgram;
-    mipmapcubeprogram: WebGLProgram;
-    bdrfprogram: WebGLProgram;
-    level: WebGLUniformLocation;
-    diffuse: WebGLUniformLocation;
-    MVPMatrix: WebGLUniformLocation;
-    framebuffer: FrameBuffer;
-    irradiancebuffer: FrameBuffer;
-    prefilterbuffer: FrameBuffer;
-    views: Array<Matrix4>;
-    prefilterrender: WebGLRenderbuffer;
-    brdfbuffer: FrameBuffer;
-    canvas: HTMLCanvasElement;
+    views!: Array<Matrix4>;
+    canvas!: HTMLCanvasElement;
     url: string;
-    sampler: WebGLTexture;
-    samplerCube: WebGLTexture;
-    envData: IBLData;
-    uniformBuffer: UniformBuffer;
+    envData!: IBLData;
+    uniformBuffer?: UniformBuffer;
 
-    originalCubeTexture: GPUTexture;
-    brdfLUTTexture: Texture;
-    original2DTexture: Texture;
-    irradiancemap: Texture;
-    prefilterMap: Texture;
-    Sheen_E: GPUTexture;
+    originalCubeTexture!: EnvTexture;
+    Sheen_E!: EnvTexture;
 
-    prefilterTexture: GPUTexture;
-    charlieTexture: GPUTexture;
-    irradianceTexture: GPUTexture;
-    bdrfTexture: GPUTexture;
-    cubeTexture: GPUTexture;
-    pipeline: GPURenderPipeline;
-    pipeline2: GPURenderPipeline;
-    pipeline3: GPURenderPipeline;
+    prefilterTexture!: EnvTexture;
+    charlieTexture!: EnvTexture;
+    irradianceTexture!: EnvTexture;
+    bdrfTexture!: EnvTexture;
+    cubeTexture!: EnvTexture;
+    pipeline?: GPURenderPipeline;
+    pipeline2?: GPURenderPipeline;
+    pipeline3?: GPURenderPipeline;
 
-    constructor(url) {
+    constructor(url: string) {
         this.url = url;
         this.envMatrix = new Matrix4();
     }
 
-    setCamera(camera) {
+    setCamera(camera: Camera) {
         this.camera = camera;
     }
 
-    setCanvas(canvas) {
+    setCanvas(canvas: HTMLCanvasElement) {
         this.canvas = canvas;
     }
 
@@ -137,7 +118,7 @@ export class Env {
         return this.canvas.offsetHeight * devicePixelRatio;
     }
 
-    drawQuad(WebGPU: WEBGPU, x) {
+    drawQuad(WebGPU: WEBGPU, x: unknown) {
         const m = new Matrix4();
         const cam = Object.assign({}, this.camera.props, {
             perspective: {
@@ -146,7 +127,7 @@ export class Env {
                 zfar: 10000,
             },
         });
-        m.multiply(calculateProjection(cam));
+        m.multiply(calculateProjection(cam)!);
 
         const vertex = `#version 460
         precision highp float;
@@ -184,7 +165,7 @@ export class Env {
 
         const { device, context } = WebGPU;
 
-        let pass;
+        let pass: GPURenderPassDescriptor;
         {
             const depthTexture = device.createTexture({
                 size: [this.width, this.height, 1],
@@ -198,15 +179,15 @@ export class Env {
                     {
                         view: context.getCurrentTexture().createView(),
                         storeOp: 'store' as GPUStoreOp,
-                        loadOp: 'clear',
+                        loadOp: 'clear' as GPULoadOp,
                         clearValue: { r: 0, g: 0, b: 0, a: 1.0 },
                     },
                 ],
                 depthStencilAttachment: {
                     view: depthTextureView,
-                    depthLoadOp: 'clear',
+                    depthLoadOp: 'clear' as GPULoadOp,
                     depthClearValue: 1.0,
-                    depthStoreOp: 'store',
+                    depthStoreOp: 'store' as GPUStoreOp,
                 },
             };
         }
@@ -272,7 +253,7 @@ export class Env {
         device.queue.submit([commandEncoder.finish()]);
     }
 
-    drawCube(WebGPU: WEBGPU, shadowPass) {
+    drawCube(WebGPU: WEBGPU, shadowPass: GPURenderPassEncoder) {
         const { device } = WebGPU;
         const m = new Matrix4();
         const cam = Object.assign({}, this.camera.props, {
@@ -282,22 +263,22 @@ export class Env {
                 zfar: 10000,
             },
         });
-        m.multiply(calculateProjection(cam));
+        m.multiply(calculateProjection(cam)!);
 
         const uniformBuffer = new UniformBuffer();
-        const s = this.camera.modelSize * 2;
+        const s = this.camera.modelSize! * 2;
         uniformBuffer.add('model', new Matrix4().makeRotationAxis(new Vector3([1, 0, 0]), Math.PI).scale(new Vector3([s, s, s])).elements);
         uniformBuffer.add('view', this.camera.matrixWorldInvert.elements);
         uniformBuffer.add('projection', m.elements);
         uniformBuffer.done();
-        const matrixSize = uniformBuffer.store.byteLength;
+        const matrixSize = uniformBuffer.store!.byteLength;
         const offset = 256; // uniformBindGroup offset must be 256-byte aligned
         const uniformBufferSize = offset + matrixSize;
         const u = device.createBuffer({
             size: uniformBufferSize,
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
         });
-        device.queue.writeBuffer(u, 0, uniformBuffer.store.buffer, uniformBuffer.store.byteOffset, uniformBuffer.store.byteLength);
+        device.queue.writeBuffer(u, 0, uniformBuffer.store!.buffer, uniformBuffer.store!.byteOffset, uniformBuffer.store!.byteLength);
 
         const vertex = `#version 460
         precision highp float;
@@ -402,7 +383,7 @@ export class Env {
         //device.queue.submit([commandEncoder.finish()]);
     }
 
-    async createEnvironmentBuffer(envData, WebGPU: WEBGPU) {
+    async createEnvironmentBuffer(envData: IBLData, WebGPU: WEBGPU) {
         this.envData = envData;
 
         if (envData) {
@@ -428,16 +409,16 @@ export class Env {
             this.uniformBuffer = uniformBuffer;
 
             const buffer = WebGPU.device.createBuffer({
-                size: 256 + uniformBuffer.store.byteLength,
+                size: 256 + uniformBuffer.store!.byteLength,
                 usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
             });
             uniformBuffer.bufferWebGPU = buffer;
             WebGPU.device.queue.writeBuffer(
                 buffer,
                 0,
-                uniformBuffer.store.buffer,
-                uniformBuffer.store.byteOffset,
-                uniformBuffer.store.byteLength,
+                uniformBuffer.store!.buffer,
+                uniformBuffer.store!.byteOffset,
+                uniformBuffer.store!.byteLength,
             );
 
             RADIANCE_SIZE = envData.specularImageSize;
@@ -445,7 +426,7 @@ export class Env {
     }
 
     async createTexture(WebGPU: WEBGPU) {
-        const views = [
+        const views: [Vector3, number][] = [
             [new Vector3([0, 1, 0]), Math.PI / 2], // Right
             [new Vector3([0, 1, 0]), -Math.PI / 2], // Left
             [new Vector3([1, 0, 0]), Math.PI / 2], // Top
@@ -484,13 +465,12 @@ export class Env {
                 const tex = loadHDR(device, parseHDR(buffer), 1);
 
                 this.Sheen_E = tex;
-                // @ts-expect-error
                 this.Sheen_E.view = tex.createView();
                 return tex;
             });
     }
 
-    buildPass(WebGPU: WEBGPU, size): [GPURenderPassDescriptor, GPUTexture] {
+    buildPass(WebGPU: WEBGPU, size: number): [GPURenderPassDescriptor, GPUTexture] {
         const { device } = WebGPU;
 
         const depthTexture = device.createTexture({
@@ -528,7 +508,7 @@ export class Env {
         ];
     }
 
-    buildPipeline(WebGPU: WEBGPU, vertex, fragment, vertexId, entries, targets) {
+    buildPipeline(WebGPU: WEBGPU, vertex: string, fragment: string, vertexId: number, entries: GPUBindGroupLayoutEntry[], targets: GPUColorTargetState[]) {
         const { device, glslang, wgsl } = WebGPU;
 
         function convertGLSLtoWGSL(code: string, type: string) {
@@ -586,7 +566,7 @@ export class Env {
         return pipeline;
     }
 
-    buildVertex(WebGPU: WEBGPU, g) {
+    buildVertex(WebGPU: WEBGPU, g: Float32Array) {
         const { device } = WebGPU;
         const verticesBuffer = device.createBuffer({
             size: g.byteLength,
@@ -607,7 +587,6 @@ export class Env {
             usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
             format: 'rgba16float',
         });
-        // @ts-expect-error
         this.bdrfTexture.view = this.bdrfTexture.createView();
 
         const commandEncoder = device.createCommandEncoder();
@@ -644,7 +623,7 @@ export class Env {
         device.queue.submit([commandEncoder.finish()]);
     }
 
-    drawWebGPU(WebGPU: WEBGPU, mipWidth, mipHeight, layer, mip) {
+    drawWebGPU(WebGPU: WEBGPU, mipWidth: number, mipHeight: number, layer: number, mip: number) {
         const { device } = WebGPU;
 
         const m = new Matrix4();
@@ -656,7 +635,7 @@ export class Env {
                 zfar: 10000,
             },
         });
-        m.multiply(calculateProjection(cam));
+        m.multiply(calculateProjection(cam)!);
         const roughness = mip / 4;
         const uniformBuffer = new UniformBuffer();
         uniformBuffer.add('index', new Float32Array([layer, roughness, 0, 0]));
@@ -668,14 +647,14 @@ export class Env {
         uniformBuffer.add('view4', this.views[4].elements);
         uniformBuffer.add('view5', this.views[5].elements);
         uniformBuffer.done();
-        const matrixSize = uniformBuffer.store.byteLength;
+        const matrixSize = uniformBuffer.store!.byteLength;
         const offset = 256; // uniformBindGroup offset must be 256-byte aligned
         const uniformBufferSize = offset + matrixSize;
         const u = device.createBuffer({
             size: uniformBufferSize,
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
         });
-        device.queue.writeBuffer(u, 0, uniformBuffer.store.buffer, uniformBuffer.store.byteOffset, uniformBuffer.store.byteLength);
+        device.queue.writeBuffer(u, 0, uniformBuffer.store!.buffer, uniformBuffer.store!.byteOffset, uniformBuffer.store!.byteLength);
 
         const sampler = device.createSampler({
             magFilter: 'linear',
@@ -699,7 +678,7 @@ export class Env {
             },
         ];
 
-        const entriesL = [
+        const entriesL: GPUBindGroupLayoutEntry[] = [
             {
                 binding: 0,
                 visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
@@ -755,7 +734,7 @@ export class Env {
         device.queue.submit([commandEncoder.finish()]);
     }
 
-    drawWebGPU2(WebGPU: WEBGPU, mipWidth, mipHeight, layer, mip) {
+    drawWebGPU2(WebGPU: WEBGPU, mipWidth: number, mipHeight: number, layer: number, mip: number) {
         const { device } = WebGPU;
 
         const m = new Matrix4();
@@ -767,7 +746,7 @@ export class Env {
                 zfar: 10000,
             },
         });
-        m.multiply(calculateProjection(cam));
+        m.multiply(calculateProjection(cam)!);
         const uniformBuffer = new UniformBuffer();
         uniformBuffer.add('index', new Float32Array([layer, 0, 0, 0]));
         uniformBuffer.add('projection', m.elements);
@@ -778,14 +757,14 @@ export class Env {
         uniformBuffer.add('view4', this.views[4].elements);
         uniformBuffer.add('view5', this.views[5].elements);
         uniformBuffer.done();
-        const matrixSize = uniformBuffer.store.byteLength;
+        const matrixSize = uniformBuffer.store!.byteLength;
         const offset = 256; // uniformBindGroup offset must be 256-byte aligned
         const uniformBufferSize = offset + matrixSize;
         const u = device.createBuffer({
             size: uniformBufferSize,
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
         });
-        device.queue.writeBuffer(u, 0, uniformBuffer.store.buffer, uniformBuffer.store.byteOffset, uniformBuffer.store.byteLength);
+        device.queue.writeBuffer(u, 0, uniformBuffer.store!.buffer, uniformBuffer.store!.byteOffset, uniformBuffer.store!.byteLength);
 
         const sampler = device.createSampler({
             magFilter: 'linear',
@@ -811,7 +790,7 @@ export class Env {
             },
         ];
 
-        const entriesL = [
+        const entriesL: GPUBindGroupLayoutEntry[] = [
             {
                 binding: 0,
                 visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
@@ -868,7 +847,7 @@ export class Env {
         device.queue.submit([commandEncoder.finish()]);
     }
 
-    drawWebGPU3(WebGPU: WEBGPU, mipWidth, mipHeight, layer, mip) {
+    drawWebGPU3(WebGPU: WEBGPU, mipWidth: number, mipHeight: number, layer: number, mip: number) {
         const { device } = WebGPU;
 
         const m = new Matrix4();
@@ -880,7 +859,7 @@ export class Env {
                 zfar: 10000,
             },
         });
-        m.multiply(calculateProjection(cam));
+        m.multiply(calculateProjection(cam)!);
         const roughness = mip / 4;
         const uniformBuffer = new UniformBuffer();
         uniformBuffer.add('index', new Float32Array([layer, roughness, 0, 0]));
@@ -892,14 +871,14 @@ export class Env {
         uniformBuffer.add('view4', this.views[4].elements);
         uniformBuffer.add('view5', this.views[5].elements);
         uniformBuffer.done();
-        const matrixSize = uniformBuffer.store.byteLength;
+        const matrixSize = uniformBuffer.store!.byteLength;
         const offset = 256; // uniformBindGroup offset must be 256-byte aligned
         const uniformBufferSize = offset + matrixSize;
         const u = device.createBuffer({
             size: uniformBufferSize,
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
         });
-        device.queue.writeBuffer(u, 0, uniformBuffer.store.buffer, uniformBuffer.store.byteOffset, uniformBuffer.store.byteLength);
+        device.queue.writeBuffer(u, 0, uniformBuffer.store!.buffer, uniformBuffer.store!.byteOffset, uniformBuffer.store!.byteLength);
 
         const sampler = device.createSampler({
             magFilter: 'linear',
@@ -925,7 +904,7 @@ export class Env {
             },
         ];
 
-        const entriesL = [
+        const entriesL: GPUBindGroupLayoutEntry[] = [
             {
                 binding: 0,
                 visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
@@ -955,7 +934,6 @@ export class Env {
             usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_SRC,
             format: 'rgba16float',
         });
-        // @ts-expect-error
         pass.colorAttachments.push({
             view: colorTexture2.createView(),
             storeOp: 'store' as GPUStoreOp,
@@ -1048,7 +1026,6 @@ export class Env {
             usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
             format: 'rgba16float',
         });
-        // @ts-expect-error
         this.irradianceTexture.view = this.irradianceTexture.createView({
             dimension: 'cube'
         });
@@ -1068,7 +1045,6 @@ export class Env {
             usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
             format: 'rgba16float',
         });
-        // @ts-expect-error
         this.prefilterTexture.view = this.prefilterTexture.createView({
             dimension: 'cube'
         });
@@ -1079,7 +1055,6 @@ export class Env {
             usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
             format: 'rgba16float',
         });
-        // @ts-expect-error
         this.charlieTexture.view = this.charlieTexture.createView({
             dimension: 'cube'
         });
