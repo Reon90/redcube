@@ -1,24 +1,33 @@
-import { Matrix4, Vector3 } from '../matrix';
+import { Matrix4, Vector3, Vector4 } from '../matrix';
 import { Object3D } from './object3d';
 import { Geometry } from './geometry';
 import { Material } from './material';
-import { ArrayBufferMap } from '../utils';
+import { ArrayBufferMap, GLTexture } from '../utils';
+import { UniformBuffer } from './uniform';
+import { Light } from './light';
+import { Camera } from './camera';
+import type { Define, Skin } from '../parse';
+
+interface RenderState {
+    isprepender?: boolean;
+    isprerefraction?: boolean;
+}
 
 export class Mesh extends Object3D {
-    geometry: Geometry;
-    material: Material;
-    program: WebGLProgram;
-    defines: Array<{ name: string }>;
+    geometry!: Geometry;
+    material!: Material;
+    program: WebGLProgram | null;
+    defines: Array<Define> | null;
     mode: number;
-    frontFace: boolean;
-    distance: number;
+    frontFace?: boolean;
+    distance!: number;
     variants: { m: Material; variants: number[] }[];
-    order: number;
+    order!: number;
 
-    uniformBindGroup1: GPUBindGroup;
-    pipeline: GPURenderPipeline;
+    uniformBindGroup1!: GPUBindGroup;
+    pipeline!: GPURenderPipeline;
 
-    constructor(name, parent) {
+    constructor(name?: string, parent?: Object3D) {
         super(name, parent);
 
         this.program = null;
@@ -27,32 +36,37 @@ export class Mesh extends Object3D {
         this.variants = [];
     }
 
-    setDefines(defines) {
+    setDefines(defines: Array<Define>) {
         this.defines = defines;
     }
 
-    setBlend(value) {
+    setBlend(value: string) {
         this.material.blend = value;
     }
 
-    setMaterial(material) {
+    setMaterial(material: Material) {
         this.material = material;
     }
 
-    drawWebGPU(WebGPU: WEBGPU, passEncoder: GPURenderPassEncoder, i, { renderState, materialStorage, transformsStorage }) {
+    drawWebGPU(
+        WebGPU: WEBGPU,
+        passEncoder: GPURenderPassEncoder,
+        i: number,
+        { renderState, materialStorage, transformsStorage }: { renderState: RenderState; materialStorage: UniformBuffer; transformsStorage: UniformBuffer }
+    ) {
         const { isprerefraction } = renderState;
-        if (this.defines.find(i => i.name === 'TRANSMISSION') && isprerefraction) {
+        if (this.defines!.find(i => i.name === 'TRANSMISSION') && isprerefraction) {
             return;
         }
         if (this.reflow) {
             // matrixWorld changed
-            transformsStorage.store.set(this.matrixWorld.elements, i * this.geometry.uniformBuffer.store.length);
-            WebGPU.device.queue.writeBuffer(transformsStorage.bufferWebGPU, 0, transformsStorage.store.buffer, transformsStorage.store.byteOffset, transformsStorage.store.byteLength);
+            transformsStorage.store!.set(this.matrixWorld.elements, i * this.geometry.uniformBuffer!.store!.length);
+            WebGPU.device.queue.writeBuffer(transformsStorage.bufferWebGPU!, 0, transformsStorage.store!.buffer, transformsStorage.store!.byteOffset, transformsStorage.store!.byteLength);
         }
         if (this.repaint) {
             // matrixWorld changed
-            materialStorage.store.set(this.material.materialUniformBuffer.store, i * this.material.materialUniformBuffer.store.length);
-            WebGPU.device.queue.writeBuffer(materialStorage.bufferWebGPU, 0, materialStorage.store.buffer, materialStorage.store.byteOffset, materialStorage.store.byteLength);
+            materialStorage.store!.set(this.material.materialUniformBuffer.store!, i * this.material.materialUniformBuffer.store!.length);
+            WebGPU.device.queue.writeBuffer(materialStorage.bufferWebGPU!, 0, materialStorage.store!.buffer, materialStorage.store!.byteOffset, materialStorage.store!.byteLength);
         }
         if (this instanceof SkinnedMesh) {
             if (this.bones.some(bone => bone.reflow)) {
@@ -74,18 +88,18 @@ export class Mesh extends Object3D {
         }
 
         passEncoder.setBindGroup(0, this.uniformBindGroup1);
-        passEncoder.setVertexBuffer(0, this.geometry.verticesWebGPUBuffer);
+        passEncoder.setVertexBuffer(0, this.geometry.verticesWebGPUBuffer!);
         if (this.geometry.indicesBuffer) {
             // const type = this.geometry.indexType < 5124 ? 'uint16' : 'uint32';
-            passEncoder.setIndexBuffer(this.geometry.indicesWebGPUBuffer, 'uint32');
+            passEncoder.setIndexBuffer(this.geometry.indicesWebGPUBuffer!, 'uint32');
             passEncoder.drawIndexed(this.geometry.indicesBuffer.length, this.instances, 0, 0, i);
         } else {
-            passEncoder.draw(this.geometry.attributes.POSITION.length / 3, this.instances, 0, i);
+            passEncoder.draw(this.geometry.attributes.POSITION!.length / 3, this.instances, 0, i);
         }
     }
 
     draw(
-        gl,
+        gl: WebGL2RenderingContext,
         {
             lights,
             camera,
@@ -96,10 +110,22 @@ export class Mesh extends Object3D {
             fakeDepth,
             isIBL,
             isDefaultLight,
+        }: {
+            lights: Light[];
+            camera: Camera;
+            needUpdateProjection: boolean;
+            preDepthTexture: GLTexture;
+            colorTexture: GLTexture;
+            renderState: RenderState;
+            fakeDepth: GLTexture;
+            isIBL: boolean;
+            isDefaultLight: boolean;
         }
     ) {
+        const texUnit = (n: number) => (gl as unknown as Record<string, number>)[`TEXTURE${n}`];
+        const glTypeEnum = (ctor: unknown) => (gl as unknown as Record<string, number>)[ArrayBufferMap.get(ctor)];
         const { isprepender, isprerefraction } = renderState;
-        if (this.defines.find(i => i.name === 'TRANSMISSION') && isprerefraction) {
+        if (this.defines!.find(i => i.name === 'TRANSMISSION') && isprerefraction) {
             return;
         }
         gl.useProgram(this.program);
@@ -107,9 +133,9 @@ export class Mesh extends Object3D {
         gl.bindVertexArray(this.geometry.VAO);
 
         if (needUpdateProjection) {
-            this.geometry.uniformBuffer.update(gl, 'projection', camera.projection.elements);
+            this.geometry.uniformBuffer!.update(gl, 'projection', camera.projection.elements);
         }
-        this.geometry.uniformBuffer.update(gl, 'isShadow', isprepender ? 1 : 0);
+        this.geometry.uniformBuffer!.update(gl, 'isShadow', isprepender ? 1 : 0);
 
         if (this instanceof SkinnedMesh) {
             gl.bindBufferBase(gl.UNIFORM_BUFFER, 2, this.geometry.SKIN);
@@ -135,102 +161,102 @@ export class Mesh extends Object3D {
 
         gl.uniform1i(this.material.uniforms.depthTexture, preDepthTexture && !isprepender ? preDepthTexture.index : fakeDepth.index);
         gl.uniform1i(this.material.uniforms.colorTexture, !isprerefraction ? colorTexture.index : fakeDepth.index);
-        gl.uniform1f(this.material.uniforms.isTone, isprerefraction ? 0 : 1, 0);
-        gl.uniform1f(this.material.uniforms.isIBL, isIBL ? 1 : 0, 0);
-        gl.uniform1f(this.material.uniforms.isDefaultLight, isDefaultLight || lights.some(l => !l.isInitial) ? 1 : 0, 0);
+        gl.uniform1f(this.material.uniforms.isTone, isprerefraction ? 0 : 1);
+        gl.uniform1f(this.material.uniforms.isIBL, isIBL ? 1 : 0);
+        gl.uniform1f(this.material.uniforms.isDefaultLight, isDefaultLight || lights.some(l => !l.isInitial) ? 1 : 0);
 
         if (this.material.baseColorTexture) {
-            gl.activeTexture(gl[`TEXTURE${0}`]);
+            gl.activeTexture(texUnit(0));
             gl.bindTexture(gl.TEXTURE_2D, this.material.baseColorTexture);
             gl.bindSampler(0, this.material.baseColorTexture.sampler);
         }
         if (this.material.metallicRoughnessTexture) {
-            gl.activeTexture(gl[`TEXTURE${1}`]);
+            gl.activeTexture(texUnit(1));
             gl.bindTexture(gl.TEXTURE_2D, this.material.metallicRoughnessTexture);
             gl.bindSampler(1, this.material.metallicRoughnessTexture.sampler);
         }
         if (this.material.normalTexture) {
-            gl.activeTexture(gl[`TEXTURE${2}`]);
+            gl.activeTexture(texUnit(2));
             gl.bindTexture(gl.TEXTURE_2D, this.material.normalTexture);
             gl.bindSampler(2, this.material.normalTexture.sampler);
         }
         if (this.material.occlusionTexture) {
-            gl.activeTexture(gl[`TEXTURE${3}`]);
+            gl.activeTexture(texUnit(3));
             gl.bindTexture(gl.TEXTURE_2D, this.material.occlusionTexture);
             gl.bindSampler(3, this.material.occlusionTexture.sampler);
         }
         if (this.material.emissiveTexture) {
-            gl.activeTexture(gl[`TEXTURE${4}`]);
+            gl.activeTexture(texUnit(4));
             gl.bindTexture(gl.TEXTURE_2D, this.material.emissiveTexture);
             gl.bindSampler(4, this.material.emissiveTexture.sampler);
         }
         if (this.material.clearcoatTexture) {
-            gl.activeTexture(gl[`TEXTURE${8}`]);
+            gl.activeTexture(texUnit(8));
             gl.bindTexture(gl.TEXTURE_2D, this.material.clearcoatTexture);
             gl.bindSampler(8, this.material.clearcoatTexture.sampler);
         }
         if (this.material.clearcoatRoughnessTexture) {
-            gl.activeTexture(gl[`TEXTURE${9}`]);
+            gl.activeTexture(texUnit(9));
             gl.bindTexture(gl.TEXTURE_2D, this.material.clearcoatRoughnessTexture);
             gl.bindSampler(9, this.material.clearcoatRoughnessTexture.sampler);
         }
         if (this.material.sheenColorTexture) {
-            gl.activeTexture(gl[`TEXTURE${11}`]);
+            gl.activeTexture(texUnit(11));
             gl.bindTexture(gl.TEXTURE_2D, this.material.sheenColorTexture);
             gl.bindSampler(11, this.material.sheenColorTexture.sampler);
         }
         if (this.material.sheenRoughnessTexture) {
-            gl.activeTexture(gl[`TEXTURE${12}`]);
+            gl.activeTexture(texUnit(12));
             gl.bindTexture(gl.TEXTURE_2D, this.material.sheenRoughnessTexture);
             gl.bindSampler(12, this.material.sheenRoughnessTexture.sampler);
         }
         if (this.material.iridescenceThicknessTexture) {
-            gl.activeTexture(gl[`TEXTURE${17}`]);
+            gl.activeTexture(texUnit(17));
             gl.bindTexture(gl.TEXTURE_2D, this.material.iridescenceThicknessTexture);
             gl.bindSampler(17, this.material.iridescenceThicknessTexture.sampler);
         }
         if (this.material.iridescenceTexture) {
-            gl.activeTexture(gl[`TEXTURE${23}`]);
+            gl.activeTexture(texUnit(23));
             gl.bindTexture(gl.TEXTURE_2D, this.material.iridescenceTexture);
             gl.bindSampler(23, this.material.iridescenceTexture.sampler);
         }
         if (this.material.diffuseTransmissionTexture) {
-            gl.activeTexture(gl[`TEXTURE${20}`]);
+            gl.activeTexture(texUnit(20));
             gl.bindTexture(gl.TEXTURE_2D, this.material.diffuseTransmissionTexture);
             gl.bindSampler(20, this.material.diffuseTransmissionTexture.sampler);
         }
         if (this.material.diffuseTransmissionColorTexture) {
-            gl.activeTexture(gl[`TEXTURE${21}`]);
+            gl.activeTexture(texUnit(21));
             gl.bindTexture(gl.TEXTURE_2D, this.material.diffuseTransmissionColorTexture);
             gl.bindSampler(21, this.material.diffuseTransmissionColorTexture.sampler);
         }
         if (this.material.anisotropyTexture) {
-            gl.activeTexture(gl[`TEXTURE${22}`]);
+            gl.activeTexture(texUnit(22));
             gl.bindTexture(gl.TEXTURE_2D, this.material.anisotropyTexture);
             gl.bindSampler(22, this.material.anisotropyTexture.sampler);
         }
         if (this.material.clearcoatNormalTexture) {
-            gl.activeTexture(gl[`TEXTURE${10}`]);
+            gl.activeTexture(texUnit(10));
             gl.bindTexture(gl.TEXTURE_2D, this.material.clearcoatNormalTexture);
             gl.bindSampler(10, this.material.clearcoatNormalTexture.sampler);
         }
         if (this.material.transmissionTexture) {
-            gl.activeTexture(gl[`TEXTURE${14}`]);
+            gl.activeTexture(texUnit(14));
             gl.bindTexture(gl.TEXTURE_2D, this.material.transmissionTexture);
             gl.bindSampler(14, this.material.transmissionTexture.sampler);
         }
         if (this.material.specularTexture) {
-            gl.activeTexture(gl[`TEXTURE${15}`]);
+            gl.activeTexture(texUnit(15));
             gl.bindTexture(gl.TEXTURE_2D, this.material.specularTexture);
             gl.bindSampler(15, this.material.specularTexture.sampler);
         }
         if (this.material.specularColorTexture) {
-            gl.activeTexture(gl[`TEXTURE${19}`]);
+            gl.activeTexture(texUnit(19));
             gl.bindTexture(gl.TEXTURE_2D, this.material.specularColorTexture);
             gl.bindSampler(19, this.material.specularColorTexture.sampler);
         }
         if (this.material.thicknessTexture) {
-            gl.activeTexture(gl[`TEXTURE${16}`]);
+            gl.activeTexture(texUnit(16));
             gl.bindTexture(gl.TEXTURE_2D, this.material.thicknessTexture);
             gl.bindSampler(16, this.material.thicknessTexture.sampler);
         }
@@ -244,18 +270,18 @@ export class Mesh extends Object3D {
         if (this.instances > 1) {
             gl.drawElementsInstanced(
                 this.mode,
-                this.geometry.indicesBuffer.length, gl[ArrayBufferMap.get(this.geometry.indicesBuffer.constructor)], 0, this.instances
+                this.geometry.indicesBuffer!.length, glTypeEnum(this.geometry.indicesBuffer!.constructor), 0, this.instances
             );
         } else {
             if (this.geometry.indicesBuffer) {
                 gl.drawElements(
                     this.mode === 2 ? gl.LINES : this.mode,
                     this.geometry.indicesBuffer.length,
-                    gl[ArrayBufferMap.get(this.geometry.indicesBuffer.constructor)],
+                    glTypeEnum(this.geometry.indicesBuffer.constructor),
                     0
                 );
             } else {
-                gl.drawArrays(this.mode, 0, this.geometry.attributes.POSITION.length / 3);
+                gl.drawArrays(this.mode, 0, this.geometry.attributes.POSITION!.length / 3);
             }
         }
 
@@ -267,11 +293,11 @@ export class Mesh extends Object3D {
         }
     }
 
-    setGeometry(geometry) {
+    setGeometry(geometry: Geometry) {
         this.geometry = geometry;
     }
 
-    setProgram(value) {
+    setProgram(value: WebGLProgram) {
         this.program = value;
     }
 
@@ -279,7 +305,7 @@ export class Mesh extends Object3D {
         this.mode = value;
     }
 
-    setVariants(variants) {
+    setVariants(variants: { m: Material; variants: number[] }[]) {
         this.variants = variants;
     }
 
@@ -288,9 +314,9 @@ export class Mesh extends Object3D {
         this.material.defines.push({ name: 'FRONTFACE' });
     }
 
-    isVisible(planes) {
+    isVisible(planes: Vector4[]) {
         const c = new Vector3(this.geometry.boundingSphere.center.elements).applyMatrix4(this.matrixWorld);
-        const r = this.geometry.boundingSphere.radius * this.matrixWorld.getMaxScaleOnAxis();
+        const r = this.geometry.boundingSphere.radius! * this.matrixWorld.getMaxScaleOnAxis();
         let dist;
         let visible = true;
         for (const p of planes) {
@@ -300,7 +326,7 @@ export class Mesh extends Object3D {
                 break;
             }
         }
-        this.distance = dist + r;
+        this.distance = dist! + r;
 
         return visible;
     }
@@ -316,17 +342,17 @@ export class Mesh extends Object3D {
 }
 
 export class SkinnedMesh extends Mesh {
-    bones: Array<Bone>;
-    boneInverses: Array<Matrix4>;
-    skin: string;
+    bones!: Array<Bone>;
+    boneInverses!: Array<Matrix4>;
+    skin!: number;
 
-    skinBuffer: GPUBuffer;
+    skinBuffer!: GPUBuffer;
 
-    constructor(name, parent) {
+    constructor(name?: string, parent?: Object3D) {
         super(name, parent);
     }
 
-    setSkinWebGPU(WebGPU: WEBGPU, skin) {
+    setSkinWebGPU(WebGPU: WEBGPU, skin: Skin) {
         this.bones = skin.bones;
         this.boneInverses = skin.boneInverses;
 
@@ -359,7 +385,7 @@ export class SkinnedMesh extends Mesh {
         return uniformBindGroup1;
     }
 
-    setSkin(gl, skin) {
+    setSkin(gl: WebGL2RenderingContext, skin: Skin) {
         this.bones = skin.bones;
         this.boneInverses = skin.boneInverses;
 
@@ -370,8 +396,8 @@ export class SkinnedMesh extends Mesh {
             matrices.set(j.elements, 0 + 16 * i);
             i++;
         }
-        const uIndex = gl.getUniformBlockIndex(this.program, 'Skin');
-        gl.uniformBlockBinding(this.program, uIndex, 2);
+        const uIndex = gl.getUniformBlockIndex(this.program!, 'Skin');
+        gl.uniformBlockBinding(this.program!, uIndex, 2);
         const UBO = gl.createBuffer();
         gl.bindBuffer(gl.UNIFORM_BUFFER, UBO);
         gl.bufferData(gl.UNIFORM_BUFFER, matrices, gl.DYNAMIC_DRAW);

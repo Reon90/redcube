@@ -89,9 +89,10 @@ export interface Track {
 interface Key {
     value: number;
 }
-interface Skin {
+export interface Skin {
     jointNames: Array<number>;
     bones: Array<Bone>;
+    boneInverses: Array<Matrix4>;
 }
 interface texturesMap {
     name?: string;
