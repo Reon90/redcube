@@ -1,10 +1,32 @@
 import { Matrix2, Matrix3, Matrix4, Vector2, Vector3, Vector4 } from './matrix';
 import glEnum from './glEnum';
+import { Accessor, BufferView } from '../GLTF';
 
 //const glEnum = {};
-let gl;
+let gl: WebGL2RenderingContext;
 let screenTextureCount = 31;
 export const clearColor = [0, 0, 0, 1];
+
+export type GLTexture = WebGLTexture & { index: number };
+
+export type TypedArray = Int8Array | Uint8Array | Int16Array | Uint16Array | Uint32Array | Float32Array;
+
+export interface ProjectionCamera {
+    aspect: number;
+    zoom: number;
+    type: string;
+    perspective?: {
+        yfov: number;
+        znear: number;
+        zfar: number;
+    };
+    orthographic?: {
+        xmag: number;
+        ymag: number;
+        znear: number;
+        zfar: number;
+    };
+}
 
 export function getTextureIndex() {
     screenTextureCount--;
@@ -38,7 +60,7 @@ export const textureEnum = {
     iridescenceTexture: 23
 };
 
-export function setGl(_gl) {
+export function setGl(_gl: WebGL2RenderingContext) {
     gl = _gl;
     // for (const k in gl) {
     //     const v = gl[k];
@@ -48,19 +70,19 @@ export function setGl(_gl) {
     // }
 }
 
-export function isMatrix(type) {
+export function isMatrix(type: number) {
     return glEnum[type] === 'FLOAT_MAT4' || glEnum[type] === 'FLOAT_MAT3' || glEnum[type] === 'FLOAT_MAT2';
 }
 
-export function random(min, max) {
+export function random(min: number, max: number) {
     return Math.random() * (max - min) + min;
 }
 
-export function lerp(a, b, f) {
+export function lerp(a: number, b: number, f: number) {
     return a + f * (b - a);
 }
 
-export function getMatrixType(type) {
+export function getMatrixType(type: number) {
     if (glEnum[type] === 'FLOAT_MAT4') {
         return Matrix4;
     }
@@ -72,7 +94,7 @@ export function getMatrixType(type) {
     }
 }
 
-export function getDataType(type) {
+export function getDataType(type: string) {
     let count;
     switch (type) {
         case 'MAT2':
@@ -100,7 +122,7 @@ export function getDataType(type) {
     return count;
 }
 
-export function getComponentType(type) {
+export function getComponentType(type: number) {
     let count;
     switch (glEnum[type]) {
         case 'FLOAT_VEC4':
@@ -116,7 +138,7 @@ export function getComponentType(type) {
     return count;
 }
 
-export function getMethod(type) {
+export function getMethod(type: number) {
     let method;
     switch (glEnum[type]) {
         case 'FLOAT_VEC2':
@@ -147,11 +169,11 @@ export function getMethod(type) {
     return method;
 }
 
-export function range(min, max, value) {
+export function range(min: number, max: number, value: number) {
     return (value - min) / (max - min);
 }
 
-export function interpolation(time, frames) {
+export function interpolation(time: number, frames: { time: number }[]) {
     if (frames.length === 0) {
         return [-1, -1, 0];
     }
@@ -180,7 +202,7 @@ export function interpolation(time, frames) {
     }
 }
 
-function getCount(type) {
+function getCount(type: number) {
     let arr;
     switch (glEnum[type]) {
         case 'BYTE':
@@ -207,19 +229,19 @@ ArrayBufferMap.set(Uint16Array, 'UNSIGNED_SHORT');
 ArrayBufferMap.set(Uint32Array, 'UNSIGNED_INT');
 ArrayBufferMap.set(Float32Array, 'FLOAT');
 
-export function buildArrayWithStride(arrayBuffer, accessor, bufferView) {
+export function buildArrayWithStride(arrayBuffer: ArrayBufferLike, accessor: Accessor, bufferView: BufferView) {
     const sizeofComponent = getCount(accessor.componentType);
     const typeofComponent = getDataType(accessor.type);
     const offset = (bufferView.byteOffset || 0) + (accessor.byteOffset || 0);
     const stride = bufferView.byteStride;
-    const lengthByStride = (stride * accessor.count) / sizeofComponent;
-    const requiredLength = accessor.count * typeofComponent;
+    const lengthByStride = (stride! * accessor.count) / sizeofComponent!;
+    const requiredLength = accessor.count * typeofComponent!;
     let length = lengthByStride || requiredLength;
-    if (arrayBuffer.byteLength < length * sizeofComponent + offset) {
-        length -= accessor.byteOffset;
+    if (arrayBuffer.byteLength < length * sizeofComponent! + offset) {
+        length -= accessor.byteOffset!;
     }
 
-    let arr;
+    let arr: TypedArray | undefined;
     switch (glEnum[accessor.componentType]) {
         case 'BYTE':
             arr = new Int8Array(arrayBuffer, offset, length);
@@ -242,13 +264,14 @@ export function buildArrayWithStride(arrayBuffer, accessor, bufferView) {
     }
     if (length !== requiredLength) {
         // buffer is too big need to stride it
-        const stridedArr = new arr.constructor(requiredLength);
+        const ArrCtor = arr!.constructor as new (length: number) => TypedArray;
+        const stridedArr = new ArrCtor(requiredLength);
         let j = 0;
-        for (let i = 0; i < stridedArr.length; i += typeofComponent) {
-            for (let k = 0; k < typeofComponent; k++) {
-                stridedArr[i + k] = arr[j + k];
+        for (let i = 0; i < stridedArr.length; i += typeofComponent!) {
+            for (let k = 0; k < typeofComponent!; k++) {
+                stridedArr[i + k] = arr![j + k];
             }
-            j += stride / sizeofComponent;
+            j += stride! / sizeofComponent!;
         }
         return stridedArr;
     } else {
@@ -256,8 +279,8 @@ export function buildArrayWithStride(arrayBuffer, accessor, bufferView) {
     }
 }
 
-export function buildArray(arrayBuffer, type, offset, length) {
-    let arr;
+export function buildArray(arrayBuffer: ArrayBufferLike, type: number, offset: number, length: number) {
+    let arr: TypedArray | undefined;
     switch (glEnum[type]) {
         case 'BYTE':
             arr = new Int8Array(arrayBuffer, offset, length);
@@ -281,8 +304,8 @@ export function buildArray(arrayBuffer, type, offset, length) {
     return arr;
 }
 
-export function compileShader(type, shaderSource, program) {
-    const shader = gl.createShader(type);
+export function compileShader(type: GLenum, shaderSource: string, program: WebGLProgram) {
+    const shader = gl.createShader(type)!;
     gl.shaderSource(shader, shaderSource);
     gl.compileShader(shader);
     gl.attachShader(program, shader);
@@ -292,8 +315,8 @@ export function compileShader(type, shaderSource, program) {
     }
 }
 
-export function createProgram(vertex, fragment) {
-    const program = gl.createProgram();
+export function createProgram(vertex: string, fragment: string) {
+    const program = gl.createProgram()!;
     compileShader(gl.VERTEX_SHADER, vertex, program);
     compileShader(gl.FRAGMENT_SHADER, fragment, program);
     gl.linkProgram(program);
@@ -307,17 +330,17 @@ export function createProgram(vertex, fragment) {
     return program;
 }
 
-export function createTexture(type = gl.TEXTURE_2D, index = getTextureIndex()) {
-    const texture = gl.createTexture();
-    gl.activeTexture(gl[`TEXTURE${index}`]);
+export function createTexture(type: GLenum = gl.TEXTURE_2D, index: number = getTextureIndex()): GLTexture {
+    const texture = gl.createTexture() as GLTexture;
+    gl.activeTexture((gl as unknown as Record<string, number>)[`TEXTURE${index}`]);
     gl.bindTexture(type, texture);
     texture.index = index;
 
     return texture;
 }
 
-export function walk(node, callback) {
-    function _walk(node) {
+export function walk<T extends { children?: T[] }>(node: T, callback: (node: T) => void) {
+    function _walk(node: T) {
         callback(node);
         if (node.children) {
             node.children.forEach(_walk);
@@ -326,7 +349,7 @@ export function walk(node, callback) {
     _walk(node);
 }
 
-export function sceneToArcBall(pos) {
+export function sceneToArcBall(pos: [number, number]) {
     let len = pos[0] * pos[0] + pos[1] * pos[1];
     const sz = 0.04 * 0.04 - len;
     if (sz > 0) {
@@ -337,7 +360,7 @@ export function sceneToArcBall(pos) {
     }
 }
 
-export function canvasToWorld(vec2, projection, width, height) {
+export function canvasToWorld(vec2: [number, number], projection: Matrix4, width: number, height: number) {
     const [x, y] = vec2;
     const newM = new Matrix4();
     newM.setTranslate(new Vector3([0, 0, 0.05]));
@@ -352,7 +375,7 @@ export function canvasToWorld(vec2, projection, width, height) {
     return [v.elements[0], v.elements[1]];
 }
 
-export function calculateProjection2(cam) {
+export function calculateProjection2(cam: ProjectionCamera) {
     const { aspect, zoom } = cam;
     let proj;
     if (cam.type === 'perspective' && cam.perspective) {
@@ -371,7 +394,7 @@ export function calculateProjection2(cam) {
     return proj;
 }
 
-export function calculateProjection(cam) {
+export function calculateProjection(cam: ProjectionCamera) {
     const { aspect, zoom } = cam;
     let proj;
     if (cam.type === 'perspective' && cam.perspective) {
@@ -414,7 +437,7 @@ export function calculateOffset(a = 0, b = 0) {
     return a + b;
 }
 
-export function calculateUVs(vertex, normal) {
+export function calculateUVs(vertex: ArrayLike<number>, normal: ArrayLike<number>) {
     const UVS = new Float32Array((vertex.length / 3) * 2);
 
     const Min = new Vector2([Infinity, Infinity]);
@@ -429,7 +452,8 @@ export function calculateUVs(vertex, normal) {
         }
 
         const N = new Vector3(norm);
-        const components = ['x', 'y', 'z'].sort((a, b) => {
+        const components: ('x' | 'y' | 'z')[] = ['x', 'y', 'z'];
+        components.sort((a, b) => {
             return Math.abs(N[a]) - Math.abs(N[b]);
         });
 
@@ -454,7 +478,7 @@ export function calculateUVs(vertex, normal) {
     return UVS;
 }
 
-export function calculateNormals2(vertex) {
+export function calculateNormals2(vertex: ArrayLike<number>) {
     const ns = new Float32Array(vertex.length);
 
     for (let i = 0; i < vertex.length; i += 9) {
@@ -484,7 +508,7 @@ export function calculateNormals2(vertex) {
     return ns;
 }
 
-export function calculateNormals(index, vertex) {
+export function calculateNormals(index: ArrayLike<number>, vertex: ArrayLike<number>) {
     const ns = new Float32Array((vertex.length / 3) * 3);
     for (let i = 0; i < index.length; i += 3) {
         const faceIndexes = [index[i], index[i + 1], index[i + 2]];
@@ -505,19 +529,19 @@ export function calculateNormals(index, vertex) {
 
     return ns;
 
-    function vectorFromArray(array, index, elements = 3) {
+    function vectorFromArray(array: ArrayLike<number>, index: number, elements = 3) {
         index = index * elements;
         return new Vector3([array[index], array[index + 1], array[index + 2]]);
     }
 }
 
-export function calculateBinormals(index, vertex, normal, uv) {
+export function calculateBinormals(index: ArrayLike<number>, vertex: ArrayLike<number>, normal: ArrayLike<number>, uv: ArrayLike<number>) {
     const tangent = new Float32Array((normal.length / 3) * 4);
 
     for (let i = 0; i < index.length; i += 3) {
         const faceIndexes = [index[i], index[i + 1], index[i + 2]];
-        const faceVertices = faceIndexes.map((ix) => vectorFromArray(vertex, ix));
-        const faceUVs = faceIndexes.map((ix) => vectorFromArray(uv, ix, 2));
+        const faceVertices = faceIndexes.map((ix) => vectorFromArray3(vertex, ix));
+        const faceUVs = faceIndexes.map((ix) => vectorFromArray2(uv, ix));
 
         const dv1 = faceVertices[1].subtract(faceVertices[0]);
         const dv2 = faceVertices[2].subtract(faceVertices[0]);
@@ -542,17 +566,24 @@ export function calculateBinormals(index, vertex, normal, uv) {
 
     return tangent;
 
-    function vectorFromArray(array, index, elements = 3) {
-        index = index * elements;
-        if (elements === 3) {
-            return new Vector3([array[index], array[index + 1], array[index + 2]]);
-        }
-        if (elements === 2) {
-            return new Vector2([array[index], array[index + 1]]);
-        }
+    function vectorFromArray3(array: ArrayLike<number>, index: number) {
+        index = index * 3;
+        return new Vector3([array[index], array[index + 1], array[index + 2]]);
     }
 
-    function accumulateVectorInArray(array, index, vector, sign, elements = 4, accumulator = (acc, x) => acc + x) {
+    function vectorFromArray2(array: ArrayLike<number>, index: number) {
+        index = index * 2;
+        return new Vector2([array[index], array[index + 1]]);
+    }
+
+    function accumulateVectorInArray(
+        array: Float32Array,
+        index: number,
+        vector: Vector3,
+        sign: number,
+        elements = 4,
+        accumulator = (acc: number, x: number) => acc + x,
+    ) {
         index = index * elements;
         for (let i = 0; i < elements; ++i) {
             if (i === 3) {
@@ -579,12 +610,14 @@ export function measureGPU() {
     }
 }
 
-export function getGlEnum(name) {
+export function getGlEnum(name: number) {
     return glEnum[name];
 }
 
-export function normalize(array) {
-    let fn;
+export function normalize(
+    array: Uint8Array | Int8Array | Uint16Array | Int16Array | Float32Array | number[],
+): Float32Array | Uint8Array | Int8Array | Uint16Array | Int16Array | number[] {
+    let fn: ((c: number) => number) | undefined;
     switch (true) {
         case array instanceof Uint8Array:
             fn = (c) => c / 255;
@@ -610,7 +643,14 @@ export function normalize(array) {
     }
 }
 
-export async function generateMipmaps(device: GPUDevice, texture, width, height, mipLevelCount, { isCube = false } = {}) {
+export async function generateMipmaps(
+    device: GPUDevice,
+    texture: GPUTexture,
+    width: number,
+    height: number,
+    mipLevelCount: number,
+    { isCube = false } = {},
+) {
     const wgsl = `
     @group(0) @binding(0) var mySampler: sampler;
     @group(0) @binding(1) var myTexture: texture_2d<f32>;
@@ -737,9 +777,10 @@ export function fanToTriListIndices(
     return out;
 }
 
-export function convertLineLoopToLineList(loopIndices) {
+export function convertLineLoopToLineList(loopIndices: Uint16Array | Uint32Array) {
     const n = loopIndices.length;
-    const listIndices = new (loopIndices.constructor)(n * 2);
+    const ListCtor = loopIndices.constructor as new (length: number) => Uint16Array | Uint32Array;
+    const listIndices = new ListCtor(n * 2);
 
     for (let i = 0; i < n; i++) {
         const curr = loopIndices[i];
@@ -751,7 +792,9 @@ export function convertLineLoopToLineList(loopIndices) {
     return listIndices;
 }
 
-export function toFloat32Normalized(typedArray) {
+export function toFloat32Normalized(
+    typedArray: Int8Array | Uint8Array | Int16Array | Uint16Array | Int32Array | Uint32Array | Float32Array,
+) {
     const ctor = typedArray.constructor;
     const { length } = typedArray;
     const out = new Float32Array(length);
