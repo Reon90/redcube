@@ -1,4 +1,4 @@
-import { Camera } from './objects/index';
+import { Camera, Light as LightObj } from './objects/index';
 import { Renderer } from './renderer';
 import { SSAO } from './postprocessors/ssao';
 import { Bloom } from './postprocessors/bloom';
@@ -23,67 +23,77 @@ const processorsMap = {
     scattering: Scattering,
 };
 
+type ProcessorName = keyof typeof processorsMap;
+type GPUTextureSet = { texture: GPUTexture; sampler: GPUSampler; view: GPUTextureView };
+
+interface WebGPUProcessor {
+    postProcessingWebGPU(PP: PostProcessing): void;
+    preProcessingWebGPU(PP?: PostProcessing): void;
+    buildScreenBufferWebGPU(pp: PostProcessing): { name: string; value?: number };
+    attachUniformWebGPU?(): GPUBindGroupEntry;
+}
+
 export class PostProcessing {
-    screenTexture: { texture: GPUTexture; sampler: GPUSampler; view: GPUTextureView; };
-    normalTexture: { texture: GPUTexture; sampler: GPUSampler; view: GPUTextureView; };
-    irradianceTexture: { texture: GPUTexture; sampler: GPUSampler; view: GPUTextureView; };
-    specTexture: { texture: GPUTexture; sampler: GPUSampler; view: GPUTextureView; };
-    albedoTexture: { texture: GPUTexture; sampler: GPUSampler; view: GPUTextureView; };
-    depthTexture: { texture: GPUTexture; sampler: GPUSampler; view: GPUTextureView; };
-    preDepthTexture: { texture: GPUTexture; sampler: GPUSampler; view: GPUTextureView; };
-    fakeDepth: { texture: GPUTexture; sampler: GPUSampler; view: GPUTextureView; };
-    camera: Camera;
-    renderer: Renderer;
-    canvas: HTMLCanvasElement;
-    framebuffer: WebGLFramebuffer;
-    preframebuffer: WebGLFramebuffer;
-    postprocessors: Array<PostProcessor>;
-    VAO: WebGLBuffer;
-    program: WebGLProgram;
-    renderframebuffer: WebGLFramebuffer;
-    MSAA: Number;
-    renderScene: Function;
-    pipeline: GPURenderPipeline & { pass?: GPURenderPassDescriptor };
+    screenTexture!: GPUTextureSet;
+    normalTexture!: GPUTextureSet;
+    irradianceTexture!: GPUTextureSet;
+    specTexture!: GPUTextureSet;
+    albedoTexture!: GPUTextureSet;
+    depthTexture!: GPUTextureSet;
+    preDepthTexture!: GPUTextureSet;
+    fakeDepth!: GPUTextureSet;
+    camera!: Camera;
+    renderer!: Renderer;
+    canvas!: HTMLCanvasElement;
+    framebuffer!: WebGLFramebuffer;
+    preframebuffer!: WebGLFramebuffer;
+    postprocessors: Array<PostProcessor & Partial<WebGPUProcessor>>;
+    VAO!: WebGLBuffer;
+    program!: [string, string];
+    renderframebuffer?: WebGLFramebuffer;
+    MSAA!: number;
+    renderScene: (renderState: { isprepender?: boolean; isprerefraction?: boolean }) => void;
+    pipeline!: GPURenderPipeline & { pass?: GPURenderPassDescriptor };
     target: GPURenderPassColorAttachment[] | undefined;
-    vertexBuffer: GPUBuffer;
-    bindGroup: GPUBindGroup;
+    vertexBuffer!: GPUBuffer;
+    bindGroup!: GPUBindGroup;
 
     hasPostPass = false;
     hasPrePass = false;
 
-    constructor(processors, renderScene) {
+    constructor(processors: ProcessorName[], renderScene: (renderState: { isprepender?: boolean; isprerefraction?: boolean }) => void) {
         this.renderScene = renderScene;
         this.postprocessors = processors.map(name => new processorsMap[name]());
     }
 
-    add(name) {
-        const p = new processorsMap[name]();
+    add(name: ProcessorName) {
+        const p: PostProcessor = new processorsMap[name]();
         p.setGL(gl);
         this.postprocessors.push(p);
         this.hasPostPass = true;
     }
 
-    addPrepass(name) {
-        const p = new processorsMap[name]();
+    addPrepass(name: ProcessorName) {
+        const p: PostProcessor = new processorsMap[name]();
         p.setGL(gl);
         this.postprocessors.push(p);
         this.hasPrePass = true;
     }
 
-    setCamera(camera) {
+    setCamera(camera: Camera) {
         this.camera = camera;
         this.postprocessors.forEach(postProcessor => {
             postProcessor.setCamera(camera);
         });
     }
 
-    setLight(light) {
+    setLight(light: LightObj) {
         this.postprocessors.forEach(postProcessor => {
             postProcessor.light = light;
         });
     }
 
-    setGl(g) {
+    setGl(g: WEBGPU) {
         if (g) {
             gl = g;
             this.postprocessors.forEach(postProcessor => {
@@ -94,7 +104,7 @@ export class PostProcessing {
         }
     }
 
-    setCanvas(canvas) {
+    setCanvas(canvas: HTMLCanvasElement) {
         this.canvas = canvas;
         this.postprocessors.forEach(postProcessor => {
             postProcessor.setCanvas(canvas);
@@ -114,19 +124,16 @@ export class PostProcessing {
     }
 
     bindPostPass() {
-        // @ts-expect-error
-        this.target = this.pipeline.pass.colorAttachments;
+        this.target = this.pipeline.pass!.colorAttachments as GPURenderPassColorAttachment[];
     }
 
     preProcessing() {
-        // @ts-expect-error
-        this.postprocessors.forEach(postProcessor => postProcessor.preProcessingWebGPU(this));
+        this.postprocessors.forEach(postProcessor => postProcessor.preProcessingWebGPU!(this));
     }
 
     postProcessing() {
         const { device, context } = gl;
-        // @ts-expect-error
-        this.postprocessors.forEach(postProcessor => postProcessor.postProcessingWebGPU(this));
+        this.postprocessors.forEach(postProcessor => postProcessor.postProcessingWebGPU!(this));
 
         const commandEncoder = device.createCommandEncoder({label: 'compose-command-encoder'});
         const shadowPass = commandEncoder.beginRenderPass({
@@ -170,7 +177,7 @@ export class PostProcessing {
         return { texture, sampler, view: texture.createView() };
     }
 
-    createDefaultTexture(label: string, scale = 1, hasMipmap = false) {
+    createDefaultTexture(label?: string, scale = 1, hasMipmap = false) {
         const sampler = gl.device.createSampler({
             magFilter: 'linear',
             minFilter: 'linear',
@@ -217,7 +224,7 @@ export class PostProcessing {
         return { texture, sampler, view: texture.createView() };
     }
 
-    createNoiceTexture(size) {
+    createNoiceTexture(size: number) {
         const sampler = gl.device.createSampler({
             magFilter: 'nearest',
             minFilter: 'nearest',
@@ -232,7 +239,7 @@ export class PostProcessing {
         return { texture, sampler, view: texture.createView() };
     }
 
-    buildVertex(WebGPU: WEBGPU, g) {
+    buildVertex(WebGPU: WEBGPU, g: Float32Array) {
         const { device } = WebGPU;
         const verticesBuffer = device.createBuffer({
             size: g.byteLength,
@@ -244,7 +251,7 @@ export class PostProcessing {
         return verticesBuffer;
     }
 
-    buildPipeline(WebGPU: WEBGPU, vertex, fragment, vertexId, entries, screen = false, label) {
+    buildPipeline(WebGPU: WEBGPU, vertex: string, fragment: string, vertexId: number, entries: GPUBindGroupLayoutEntry[], screen = false, label?: string) {
         const { device, glslang, wgsl } = WebGPU;
 
         function convertGLSLtoWGSL(code: string, type: string) {
@@ -327,7 +334,7 @@ export class PostProcessing {
             {
                 view: this.screenTexture.texture.createView(),
                 storeOp: 'store' as GPUStoreOp,
-                loadOp: 'clear',
+                loadOp: 'clear' as GPULoadOp,
                 clearValue: { r: 0, g: 0, b: 0, a: 1.0 }
             },
             // {
@@ -356,8 +363,7 @@ export class PostProcessing {
             // }
         ];
 
-        // @ts-expect-error
-        const defines = this.postprocessors.map(postProcessor => postProcessor.buildScreenBufferWebGPU(this));
+        const defines = this.postprocessors.map(postProcessor => postProcessor.buildScreenBufferWebGPU!(this));
         const defineStr = defines.map(define => `#define ${define.name} ${define.value ?? 1}` + '\n').join('');
         this.program = [quadShader.replace(/\n/, `\n${defineStr}`), composerShader.replace(/\n/, `\n${defineStr}`)];
 
@@ -391,21 +397,18 @@ export class PostProcessing {
             true,
             'screen'
         );
-        // @ts-expect-error
         this.pipeline.pass = {
             colorAttachments,
             depthStencilAttachment: {
                 view: this.depthTexture.texture.createView(),
-                depthLoadOp: 'clear',
+                depthLoadOp: 'clear' as GPULoadOp,
                 depthClearValue: 1.0,
-                depthStoreOp: 'store'
+                depthStoreOp: 'store' as GPUStoreOp
             }
         };
         const entriesExternal = this.postprocessors
-            // @ts-expect-error
             .filter(p => p.attachUniformWebGPU)
-            // @ts-expect-error
-            .map(postProcessor => postProcessor.attachUniformWebGPU());
+            .map(postProcessor => postProcessor.attachUniformWebGPU!());
 
         const entries = [
             {

@@ -1,44 +1,44 @@
-import { createProgram } from '../utils';
+import { createProgram, GLTexture } from '../utils';
 import { PostProcessor } from './base';
+import type { PostProcessing as PostProcessingWebGL } from '../postprocessing';
+import type { PostProcessing as PostProcessingWebGPU } from '../postprocessing.webgpu';
 
 import quadShader from '../shaders/quad.glsl';
 import quadShader2 from '../shaders/quad.webgpu.glsl';
 import blurShader from '../shaders/scattering.glsl';
 import blurShader2 from '../shaders/scattering.webgpu.glsl';
 
-let gl;
+let gl: WebGL2RenderingContext & { device?: GPUDevice };
 
-interface Texture extends WebGLTexture {
-    index: number;
-}
+type Texture = GLTexture;
+type GPUTextureSet = { texture: GPUTexture; sampler: GPUSampler; view: GPUTextureView };
 
 export class Scattering extends PostProcessor {
-    output: Texture;
-    program: WebGLProgram;
-    pipeline: GPUPipelineBase;
-    bindGroup: GPUBindGroup;
+    output!: Texture | GPUTextureSet;
+    program!: WebGLProgram;
+    pipeline!: GPURenderPipeline;
+    bindGroup!: GPUBindGroup;
 
-    setGL(g) {
+    setGL(g: WebGL2RenderingContext & { device?: GPUDevice }) {
         gl = g;
     }
 
-    attachUniform(program) {
-        gl.uniform1i(gl.getUniformLocation(program, 'scattering'), this.output.index);
+    attachUniform(program: WebGLProgram) {
+        gl.uniform1i(gl.getUniformLocation(program, 'scattering'), (this.output as Texture).index);
     }
 
     attachUniformWebGPU() {
         return {
             binding: 8,
-            // @ts-expect-error
-            resource: this.output.view
+            resource: (this.output as GPUTextureSet).view
         };
     }
 
-    postProcessing(PP) {
+    postProcessing(PP: PostProcessingWebGL) {
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
 
         gl.useProgram(this.program);
-        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.output, 0);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.output as Texture, 0);
 
         gl.uniform1i(gl.getUniformLocation(this.program, 'textureSampler'), PP.screenTexture.index);
         gl.uniform1i(gl.getUniformLocation(this.program, 'depthSampler'), PP.depthTexture.index);
@@ -48,13 +48,12 @@ export class Scattering extends PostProcessor {
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     }
 
-    postProcessingWebGPU(PP) {
+    postProcessingWebGPU(PP: PostProcessingWebGPU) {
         const { device } = gl;
-        const commandEncoder = device.createCommandEncoder();
+        const commandEncoder = device!.createCommandEncoder();
         const shadowPass = commandEncoder.beginRenderPass({
             colorAttachments: [{
-                // @ts-expect-error
-               view: this.output.view,
+               view: (this.output as GPUTextureSet).view,
                storeOp: 'store' as GPUStoreOp,
                loadOp: 'clear' as GPULoadOp,
                clearValue: { r: 0, g: 0, b: 0, a: 1.0 },
@@ -69,11 +68,11 @@ export class Scattering extends PostProcessor {
         shadowPass.draw(6);
 
         shadowPass.end();
-        device.queue.submit([commandEncoder.finish()]);
+        device!.queue.submit([commandEncoder.finish()]);
     }
 
-    buildScreenBuffer(pp) {
-        this.framebuffer = gl.createFramebuffer();
+    buildScreenBuffer(pp: PostProcessingWebGL) {
+        this.framebuffer = gl.createFramebuffer()!;
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
         this.output = pp.createByteTexture();
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
@@ -83,7 +82,7 @@ export class Scattering extends PostProcessor {
         return { name: 'SCATTERING' };
     }
 
-    buildScreenBufferWebGPU(pp) {
+    buildScreenBufferWebGPU(pp: PostProcessingWebGPU) {
         const entries = [
             {
                 binding: 4,
@@ -111,7 +110,7 @@ export class Scattering extends PostProcessor {
             }
         ];
         this.pipeline = pp.buildPipeline(
-            gl,
+            gl as unknown as WEBGPU,
             quadShader2,
             blurShader2,
             2,
@@ -154,7 +153,7 @@ export class Scattering extends PostProcessor {
             false,
             'scaterring'
         );
-        this.bindGroup = gl.device.createBindGroup({
+        this.bindGroup = gl.device!.createBindGroup({
             layout: this.pipeline.getBindGroupLayout(0),
             entries
         });
