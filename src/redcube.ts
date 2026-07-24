@@ -3,43 +3,49 @@
 import { Container } from './container';
 import { Renderer } from './renderer';
 import { Vector3 } from './matrix';
-import { Scene, Camera, Light, SkinnedMesh, UniformBuffer } from './objects/index';
+import { Scene, Camera, Light, SkinnedMesh, Object3D, UniformBuffer } from './objects/index';
 import { Events } from './events';
 import { Env } from './env';
-import { Parse } from './parse';
+import { Parse, Define, Skin } from './parse';
 import { PostProcessing } from './postprocessing';
 import { Particles } from './particles';
-import { setGl, clearColor, walk } from './utils';
+import { setGl, clearColor, walk, GLTexture } from './utils';
 import { Light as PPLight } from './postprocessors/light';
 import { Refraction } from './postprocessors/refraction';
 import '../webgl-memory';
 
-let gl;
+declare global {
+    interface Window {
+        __TEST_READY__?: boolean;
+    }
+}
+
+let gl: WebGL2RenderingContext;
 const FOV = 60; // degrees
 
 class RedCube {
-    gl: WebGLRenderingContext;
+    gl!: WebGL2RenderingContext;
     canvas: HTMLCanvasElement;
     events: Events;
-    processors: Array<String>;
+    processors: Array<string>;
     ioc: Container;
-    renderState = {};
+    renderState: { isprepender?: boolean; isprerefraction?: boolean } = {};
     isIBL = true;
     isDefaultLight = true;
-    stateBuffer: UniformBuffer;
-    cameraBuffer: UniformBuffer;
-    lightPosBuffer: UniformBuffer;
-    lightColorBuffer: UniformBuffer;
-    storage2: Float32Array;
-    storage: Float32Array;
+    stateBuffer?: UniformBuffer;
+    cameraBuffer!: UniformBuffer;
+    lightPosBuffer!: UniformBuffer;
+    lightColorBuffer!: UniformBuffer;
+    storage2!: { texture: WebGLTexture };
+    storage!: { texture2: WebGLTexture };
 
-    lightPosUniform: WebGLBuffer;
-    lightColorUniform: WebGLBuffer;
-    spotdirUniform: WebGLBuffer;
-    lightIntensityUniform: WebGLBuffer;
-    UBO: WebGLBuffer;
+    lightPosUniform!: WebGLBuffer;
+    lightColorUniform!: WebGLBuffer;
+    spotdirUniform!: WebGLBuffer;
+    lightIntensityUniform!: WebGLBuffer;
+    UBO!: WebGLBuffer;
 
-    constructor(url, canvas, processors = [], envUrl = 'env', mode = 'pbr') {
+    constructor(url: string, canvas: HTMLCanvasElement, processors: string[] = [], envUrl = 'env', mode = 'pbr') {
         if (!url || !canvas) {
             throw new Error('Url or Canvas not found');
         }
@@ -47,7 +53,7 @@ class RedCube {
         this.canvas = canvas;
         this.processors = processors;
 
-        const defines = [];
+        const defines: Array<Define> = [];
         if (this.processors.length === 0) {
             defines.push({ name: 'TONE' });
         }
@@ -96,35 +102,35 @@ class RedCube {
     }
 
     get renderer(): Renderer {
-        return this.ioc.get('renderer');
+        return this.ioc.get('renderer') as Renderer;
     }
 
     get scene(): Scene {
-        return this.ioc.get('scene');
+        return this.ioc.get('scene') as Scene;
     }
     get camera(): Camera {
-        return this.ioc.get('camera');
+        return this.ioc.get('camera') as Camera;
     }
     get light(): Light {
-        return this.ioc.get('light');
+        return this.ioc.get('light') as Light;
     }
     get env(): Env {
-        return this.ioc.get('env');
+        return this.ioc.get('env') as Env;
     }
     get PP(): PostProcessing {
-        return this.ioc.get('pp');
+        return this.ioc.get('pp') as PostProcessing;
     }
     get Particles(): Particles {
-        return this.ioc.get('particles');
+        return this.ioc.get('particles') as Particles;
     }
     get parse(): Parse {
-        return this.ioc.get('parser');
+        return this.ioc.get('parser') as Parse;
     }
 
-    setVariant(variant) {
+    setVariant(variant: string | number) {
         this.scene.meshes.forEach(mesh => {
             if (variant && mesh.variants.length) {
-                mesh.material = mesh.variants.find(v => v.variants.includes(Number(variant))).m;
+                mesh.material = mesh.variants.find(v => v.variants.includes(Number(variant)))!.m;
                 mesh.repaint = true;
             }
         });
@@ -133,7 +139,7 @@ class RedCube {
         this.renderer.needUpdateProjection = true;
     }
 
-    async init(cb) {
+    async init(cb: () => void) {
         await this.parse.getJson();
         this.glInit();
         await this.parse.getBuffer();
@@ -172,7 +178,7 @@ class RedCube {
         this.cameraBuffer = cameraBuffer;
         const UBO = gl.createBuffer();
         gl.bindBuffer(gl.UNIFORM_BUFFER, UBO);
-        gl.bufferData(gl.UNIFORM_BUFFER, cameraBuffer.store, gl.DYNAMIC_DRAW);
+        gl.bufferData(gl.UNIFORM_BUFFER, cameraBuffer.store!, gl.DYNAMIC_DRAW);
         this.UBO = UBO;
 
         const lightEnum = {
@@ -192,7 +198,7 @@ class RedCube {
             );
             lightPos.set(light.getPosition(), i * 4);
             lightColor.set(light.color.elements, i * 4);
-            lightProps.set([light.intensity, light.spot.innerConeAngle ?? 0, light.spot.outerConeAngle ?? 0, lightEnum[light.type]], i * 4);
+            lightProps.set([light.intensity!, light.spot.innerConeAngle ?? 0, light.spot.outerConeAngle ?? 0, lightEnum[light.type]], i * 4);
         });
         const lightPosBuffer = new UniformBuffer();
         lightPosBuffer.add('lightPos', lightPos);
@@ -214,20 +220,20 @@ class RedCube {
 
         const lightPosUniform = gl.createBuffer();
         gl.bindBuffer(gl.UNIFORM_BUFFER, lightPosUniform);
-        gl.bufferData(gl.UNIFORM_BUFFER, lightPosBuffer.store, gl.DYNAMIC_DRAW);
+        gl.bufferData(gl.UNIFORM_BUFFER, lightPosBuffer.store!, gl.DYNAMIC_DRAW);
         const lightColorUniform = gl.createBuffer();
         gl.bindBuffer(gl.UNIFORM_BUFFER, lightColorUniform);
-        gl.bufferData(gl.UNIFORM_BUFFER, lightColorBuffer.store, gl.DYNAMIC_DRAW);
+        gl.bufferData(gl.UNIFORM_BUFFER, lightColorBuffer.store!, gl.DYNAMIC_DRAW);
         const spotdirUniform = gl.createBuffer();
         gl.bindBuffer(gl.UNIFORM_BUFFER, spotdirUniform);
-        gl.bufferData(gl.UNIFORM_BUFFER, spotdirBuffer.store, gl.DYNAMIC_DRAW);
+        gl.bufferData(gl.UNIFORM_BUFFER, spotdirBuffer.store!, gl.DYNAMIC_DRAW);
         const lightIntensityUniform = gl.createBuffer();
         gl.bindBuffer(gl.UNIFORM_BUFFER, lightIntensityUniform);
-        gl.bufferData(gl.UNIFORM_BUFFER, lightIntensityBuffer.store, gl.DYNAMIC_DRAW);
-        this.lightPosUniform = lightPosUniform;
-        this.lightColorUniform = lightColorUniform;
-        this.spotdirUniform = spotdirUniform;
-        this.lightIntensityUniform = lightIntensityUniform;
+        gl.bufferData(gl.UNIFORM_BUFFER, lightIntensityBuffer.store!, gl.DYNAMIC_DRAW);
+        this.lightPosUniform = lightPosUniform!;
+        this.lightColorUniform = lightColorUniform!;
+        this.spotdirUniform = spotdirUniform!;
+        this.lightIntensityUniform = lightIntensityUniform!;
 
         let meshCount = this.scene.meshes.length;
         this.scene.meshes.forEach((mesh) => {
@@ -251,34 +257,32 @@ class RedCube {
         gl.bindTexture(gl.TEXTURE_2D, texture);
         gl.texImage2D(
             gl.TEXTURE_2D, 0, gl.RGBA32F,
-            this.scene.meshes[0].geometry.uniformBuffer.store.length / Float32Array.BYTES_PER_ELEMENT, meshCount, 0,
+            this.scene.meshes[0].geometry.uniformBuffer!.store!.length / Float32Array.BYTES_PER_ELEMENT, meshCount, 0,
             gl.RGBA, gl.FLOAT,
             null
         );
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-        // @ts-expect-error
-        this.storage2 = {texture};
+        this.storage2 = {texture: texture!};
 
         gl.activeTexture(gl[`TEXTURE${30}`]);
         const texture2 = gl.createTexture();
         gl.bindTexture(gl.TEXTURE_2D, texture2);
         gl.texImage2D(
             gl.TEXTURE_2D, 0, gl.RGBA32F,
-            this.scene.meshes[0].material.materialUniformBuffer.store.length / Float32Array.BYTES_PER_ELEMENT, this.scene.meshes.length, 0,
+            this.scene.meshes[0].material.materialUniformBuffer.store!.length / Float32Array.BYTES_PER_ELEMENT, this.scene.meshes.length, 0,
             gl.RGBA, gl.FLOAT,
             null
         );
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-        // @ts-expect-error
-        this.storage = {texture2};
+        this.storage = {texture2: texture2!};
 
         const hasTransmission = this.parse.json.extensionsUsed && this.parse.json.extensionsUsed.includes('KHR_materials_transmission');
         this.scene.meshes.forEach(mesh => {
-            mesh.geometry.createGeometryForWebGl(gl, mesh.defines, mesh.order);
+            mesh.geometry.createGeometryForWebGl(gl, mesh.defines!, mesh.order);
 
-            const program = this.parse.createProgram(mesh.defines);
+            const program = this.parse.createProgram(mesh.defines!);
             [mesh.material, ...mesh.variants.map(m => m.m)].forEach(m => m.updateUniformsWebgl(gl, program));
             mesh.material.setHarmonics(this.env.updateUniform(gl, program));
 
@@ -297,7 +301,7 @@ class RedCube {
             t = gl.getUniformLocation(program, 'uMaterialTex');
             gl.uniform1i(t, 30);
 
-            mesh.geometry.updateUniformsWebGl(gl, mesh.program);
+            mesh.geometry.updateUniformsWebGl(gl, mesh.program!);
 
             if (mesh instanceof SkinnedMesh) {
                 for (const join of this.parse.skins[mesh.skin].jointNames) {
@@ -336,30 +340,30 @@ class RedCube {
         cb();
     }
 
-    buildBones(join, v, node) {
-        if (node.name === join) {
+    buildBones(join: number, v: Skin, node: Object3D | Scene) {
+        if (node instanceof Object3D && node.name === join) {
             v.bones.push(node);
         }
     }
 
-    renderScene(renderState) {
+    renderScene(renderState: { isprepender?: boolean; isprerefraction?: boolean }) {
         this.renderState = renderState;
         this.renderer.renderScene();
         this.renderState = this.PP.hasPostPass ? { isprerefraction: true } : {};
     }
 
-    redraw(type, coordsStart, coordsMove) {
+    redraw(type: string, coordsStart?: [number, number] | number, coordsMove?: [number, number]) {
         if (type === 'zoom') {
-            this.camera.zoom(coordsStart);
+            this.camera.zoom(coordsStart as number);
             this.renderer.needUpdateView = true;
             this.renderer.needUpdateProjection = true;
         }
         if (type === 'rotate') {
-            this.camera.rotate(coordsStart, coordsMove);
+            this.camera.rotate(coordsStart as [number, number], coordsMove!);
             this.renderer.needUpdateView = true;
         }
         if (type === 'pan') {
-            this.camera.pan(coordsStart, coordsMove, this.canvas.offsetWidth, this.canvas.offsetHeight);
+            this.camera.pan(coordsStart as [number, number], coordsMove!, this.canvas.offsetWidth, this.canvas.offsetHeight);
             this.renderer.needUpdateView = true;
         }
         if (type === 'resize') {
@@ -370,12 +374,12 @@ class RedCube {
         this.renderer.reflow = true;
     }
 
-    resize(e) {
+    resize(e: string | null) {
         this.camera.props.aspect = this.canvas.offsetWidth / this.canvas.offsetHeight;
         this.canvas.width = this.canvas.offsetWidth * devicePixelRatio;
         this.canvas.height = this.canvas.offsetHeight * devicePixelRatio;
         gl.viewport(0, 0, this.canvas.offsetWidth * devicePixelRatio, this.canvas.offsetHeight * devicePixelRatio);
-        const z = this.camera.modelSize;
+        const z = this.camera.modelSize!;
 
         if (this.camera.props.isInitial) {
             this.camera.setZ(z);
@@ -394,14 +398,16 @@ class RedCube {
     }
 
     glInit() {
-        gl = this.canvas.getContext('webgl2', {
+        const context = this.canvas.getContext('webgl2', {
             antialias: true
         });
-        this.gl = gl;
 
-        if (!gl) {
+        if (!context) {
             throw new Error('Webgl 2 doesnt support');
         }
+
+        gl = context;
+        this.gl = gl;
 
         setGl(gl);
         this.ioc.register('gl', gl);
@@ -416,13 +422,12 @@ class RedCube {
         this.renderer.reflow = true;
     }
     initialDraw() {
-        gl.clearColor(...clearColor);
+        gl.clearColor(...(clearColor as [number, number, number, number]));
         gl.enable(gl.DEPTH_TEST);
         gl.enable(gl.CULL_FACE);
 
         this.renderer.reflow = true;
         this.renderer.render();
-        // @ts-ignore
         window.__TEST_READY__ = true;
     }
 
@@ -446,8 +451,7 @@ class RedCube {
             camera: this.camera,
             light: this.light,
             preDepthTexture: this.PP.preDepthTexture,
-            // @ts-ignore
-            colorTexture: refraction ? refraction.texture : this.PP.fakeDepth,
+            colorTexture: refraction ? (refraction.texture as GLTexture) : this.PP.fakeDepth,
             fakeDepth: this.PP.fakeDepth,
             needUpdateView: this.renderer.needUpdateView,
             needUpdateProjection: this.renderer.needUpdateProjection,

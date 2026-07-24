@@ -342,7 +342,7 @@ export class Env {
         if (this.uniformBuffer) {
             const mIndex = gl.getUniformBlockIndex(program, 'SphericalHarmonics');
             gl.uniformBlockBinding(program, mIndex, 7);
-            const mUBO = gl.createBuffer();
+            const mUBO = gl.createBuffer()!;
             gl.bindBuffer(gl.UNIFORM_BUFFER, mUBO);
             gl.bufferData(gl.UNIFORM_BUFFER, this.uniformBuffer.store!, gl.STATIC_DRAW);
             return mUBO;

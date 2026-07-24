@@ -451,7 +451,7 @@ export class Material extends M {
         }
     }
 
-    setHarmonics(sphericalHarmonics: WebGLBuffer) {
+    setHarmonics(sphericalHarmonics?: WebGLBuffer) {
         this.sphericalHarmonics = sphericalHarmonics;
     }
 
