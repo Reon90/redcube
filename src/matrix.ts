@@ -26,7 +26,7 @@ class Matrix2 {
         }
     }
 
-    set(src) {
+    set(src: ArrayLike<number>) {
         let i;
         let s;
         let d;
@@ -71,7 +71,7 @@ class Matrix3 {
         }
     }
 
-    set(src) {
+    set(src: ArrayLike<number>) {
         let i;
         let s;
         let d;
@@ -90,9 +90,9 @@ class Matrix3 {
         return this;
     }
 
-    normalFromMat4(a) {
+    normalFromMat4(src: Matrix4) {
         const e = this.elements;
-        a = a.elements;
+        const a = src.elements;
 
         const a00 = a[0];
         const a01 = a[1];
@@ -146,7 +146,7 @@ class Matrix3 {
         return this;
     }
 
-    multiply(matrix) {
+    multiply(matrix: Matrix3) {
         const ae = this.elements;
         const be = matrix.elements;
         const te = this.elements;
@@ -217,7 +217,7 @@ class Matrix4 {
      * @param src source matrix
      * @return this
      */
-    set(src) {
+    set(src: ArrayLike<number>) {
         let i;
         let s;
         let d;
@@ -236,7 +236,7 @@ class Matrix4 {
         return this;
     }
 
-    multiply(matrix) {
+    multiply(matrix: Matrix4) {
         this.concat(matrix);
         return this;
     }
@@ -246,7 +246,7 @@ class Matrix4 {
      * @param other The multiply matrix
      * @return this
      */
-    concat({ elements }) {
+    concat({ elements }: Matrix4) {
         let i;
         let e;
         let a;
@@ -288,7 +288,7 @@ class Matrix4 {
      * @param other The source matrix
      * @return this
      */
-    setInverseOf({ elements }) {
+    setInverseOf({ elements }: Matrix4) {
         let i;
         let s;
         let d;
@@ -421,7 +421,7 @@ class Matrix4 {
         return this.setInverseOf(this);
     }
 
-    makeOrthographic(left, right, top, bottom, near, far) {
+    makeOrthographic(left: number, right: number, top: number, bottom: number, near: number, far: number) {
         var te = this.elements;
         var w = 1.0 / (right - left);
         var h = 1.0 / (top - bottom);
@@ -461,7 +461,7 @@ class Matrix4 {
      * @param far The distances to the farther depth clipping plane. This value is minus if the plane is to be behind the viewer.
      * @return this
      */
-    setOrtho(r, t, near, far) {
+    setOrtho(r: number, t: number, near: number, far: number) {
         let e;
         let rw;
         let rh;
@@ -504,7 +504,7 @@ class Matrix4 {
      * @param far The distances to the farther depth clipping plane. This value must be plus value.
      * @return this
      */
-    setPerspective(fovy, aspect, near, far) {
+    setPerspective(fovy: number, aspect: number, near: number, far: number) {
         let e;
         let rd;
         let s;
@@ -562,7 +562,7 @@ class Matrix4 {
      * @param far The distances to the farther depth clipping plane. This value must be plus value.
      * @return this
      */
-    perspective(fovy, aspect, near, far) {
+    perspective(fovy: number, aspect: number, near: number, far: number) {
         return this.concat(new Matrix4().setPerspective(fovy, aspect, near, far));
     }
 
@@ -571,7 +571,7 @@ class Matrix4 {
      * @param pos  The multiply vector
      * @return The result of multiplication(Float32Array)
      */
-    multiplyVector4({ elements }) {
+    multiplyVector4({ elements }: Vector4) {
         const e = this.elements;
         const p = elements;
         const v = new Vector4();
@@ -663,7 +663,7 @@ class Matrix4 {
      * @param z The Z value of a translation.
      * @return this
      */
-    translate(x, y, z) {
+    translate(x: number, y: number, z: number) {
         const e = this.elements;
         e[12] += e[0] * x + e[4] * y + e[8] * z;
         e[13] += e[1] * x + e[5] * y + e[9] * z;
@@ -682,7 +682,7 @@ class Matrix4 {
         return Math.sqrt(Math.max(scaleXSq, scaleYSq, scaleZSq));
     }
 
-    rotate(axis, rad) {
+    rotate(axis: Vector3, rad: number) {
         let x = axis.elements[0],
             y = axis.elements[1],
             z = axis.elements[2];
@@ -750,7 +750,7 @@ class Matrix4 {
         return this;
     }
 
-    makeRotationAxis(axis, angle) {
+    makeRotationAxis(axis: Vector3, angle: number) {
         // Based on http://www.gamedev.net/reference/articles/article1199.asp
 
         const te = this.elements;
@@ -783,7 +783,7 @@ class Matrix4 {
         return this;
     }
 
-    makeRotationFromQuaternion(q) {
+    makeRotationFromQuaternion(q: ArrayLike<number>) {
         const te = this.elements;
 
         const x = q[0];
@@ -854,7 +854,7 @@ class Vector {
         this.elements = src.slice();
     }
 
-    lerp(a, b, t) {
+    lerp(a: ArrayLike<number>, b: ArrayLike<number>, t: number) {
         const out = this.elements;
 
         for (let i = 0; i < out.length; i++) {
@@ -908,12 +908,12 @@ class Vector3 {
         this.elements = v;
     }
 
-    projectOnVector(vector) {
+    projectOnVector(vector: Vector3) {
         const scalar = Vector3.dot(vector, this) / vector.lengthSq();
-        return new Vector3(vector).scale(scalar);
+        return new Vector3(vector.elements).scale(scalar);
     }
 
-    applyQuaternion({ elements }) {
+    applyQuaternion({ elements }: Vector4) {
         const x = this.elements[0];
         const y = this.elements[1];
         const z = this.elements[2];
@@ -973,16 +973,16 @@ class Vector3 {
      * @param {Number} b amount to scale the vector by
      * @returns {vec3} out
      */
-    add(b) {
+    add(vector: Vector3) {
         const a = this.elements;
-        b = b.elements;
+        const b = vector.elements;
         a[0] = a[0] + b[0];
         a[1] = a[1] + b[1];
         a[2] = a[2] + b[2];
         return this;
     }
 
-    addS(b) {
+    addS(b: number) {
         const a = this.elements;
         a[0] = a[0] + b;
         a[1] = a[1] + b;
@@ -990,7 +990,7 @@ class Vector3 {
         return this;
     }
 
-    scale(b) {
+    scale(b: number) {
         const a = this.elements;
         a[0] = a[0] * b;
         a[1] = a[1] * b;
@@ -1008,7 +1008,7 @@ class Vector3 {
         return new Vector3([this.x + otherVector.x, this.y + otherVector.y, this.z + otherVector.z]);
     }
 
-    distanceToSquared(x, y, z) {
+    distanceToSquared(x: number, y: number, z: number) {
         const dx = this.elements[0] - x;
         const dy = this.elements[1] - y;
         const dz = this.elements[2] - z;
@@ -1016,20 +1016,20 @@ class Vector3 {
         return dx * dx + dy * dy + dz * dz;
     }
 
-    subtract(b) {
+    subtract(vector: Vector3) {
         const out = this.elements;
-        b = b.elements;
+        const b = vector.elements;
         out[0] = out[0] - b[0];
         out[1] = out[1] - b[1];
         out[2] = out[2] - b[2];
         return this;
     }
 
-    divideScalar(scalar) {
+    divideScalar(scalar: number) {
         return this.scale(1 / scalar);
     }
 
-    applyMatrix4({ elements }) {
+    applyMatrix4({ elements }: Matrix4) {
         const x = this.elements[0];
         const y = this.elements[1];
         const z = this.elements[2];
@@ -1043,7 +1043,7 @@ class Vector3 {
         return this.divideScalar(w);
     }
 
-    lerp(a, b, t) {
+    lerp(a: ArrayLike<number>, b: ArrayLike<number>, t: number) {
         const out = this.elements;
         const ax = a[0];
         const ay = a[1];
@@ -1058,7 +1058,7 @@ class Vector3 {
         return this.elements[0] * this.elements[0] + this.elements[1] * this.elements[1] + this.elements[2] * this.elements[2];
     }
 
-    multiply({ elements }) {
+    multiply({ elements }: Vector3) {
         this.elements[0] *= elements[0];
         this.elements[1] *= elements[1];
         this.elements[2] *= elements[2];
@@ -1066,7 +1066,7 @@ class Vector3 {
         return this;
     }
 
-    static angle(a, b) {
+    static angle(a: Vector3, b: Vector3) {
         const tempA = new Vector3(a.elements);
         const tempB = new Vector3(b.elements);
 
@@ -1082,9 +1082,9 @@ class Vector3 {
         }
     }
 
-    static cross(a, b) {
-        a = a.elements;
-        b = b.elements;
+    static cross(vecA: Vector3, vecB: Vector3) {
+        const a = vecA.elements;
+        const b = vecB.elements;
         const ax = a[0];
         const ay = a[1];
         const az = a[2];
@@ -1099,9 +1099,9 @@ class Vector3 {
         return out;
     }
 
-    static dot(a, b) {
-        a = a.elements;
-        b = b.elements;
+    static dot(vecA: Vector3, vecB: Vector3) {
+        const a = vecA.elements;
+        const b = vecB.elements;
         return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
     }
 
@@ -1109,7 +1109,7 @@ class Vector3 {
         return Math.sqrt(this.x * this.x + this.y * this.y + this.z * this.z);
     }
 
-    min(v) {
+    min(v: Vector3) {
         this.x = Math.min(this.x, v.x);
         this.y = Math.min(this.y, v.y);
         this.z = Math.min(this.z, v.z);
@@ -1117,14 +1117,14 @@ class Vector3 {
         return this;
     }
 
-    max(v) {
+    max(v: Vector3) {
         this.x = Math.max(this.x, v.x);
         this.y = Math.max(this.y, v.y);
         this.z = Math.max(this.z, v.z);
 
         return this;
     }
-    subVectors(a, b) {
+    subVectors(a: Vector3, b: Vector3) {
         this.x = a.x - b.x;
         this.y = a.y - b.y;
         this.z = a.z - b.z;
@@ -1137,7 +1137,7 @@ class Box {
     min = new Vector3([Infinity, Infinity, Infinity]);
     max = new Vector3([-Infinity, -Infinity, -Infinity]);
 
-    expand(box) {
+    expand(box: { min: Vector3; max: Vector3 }) {
         this.min.min(box.min);
         this.max.max(box.max);
     }
@@ -1168,7 +1168,7 @@ class Vector4 {
         this.elements = v;
     }
 
-    set(e) {
+    set(e: ArrayLike<number>) {
         const a = this.elements;
         a[0] = e[0];
         a[1] = e[1];
@@ -1177,9 +1177,9 @@ class Vector4 {
         return this;
     }
 
-    add(b) {
+    add(vector: Vector4) {
         const a = this.elements;
-        b = b.elements;
+        const b = vector.elements;
         a[0] = b[0];
         a[1] = b[1];
         a[2] = b[2];
@@ -1203,7 +1203,7 @@ class Vector4 {
         return this;
     }
 
-    setFromRotationMatrix({ elements }) {
+    setFromRotationMatrix({ elements }: Matrix4) {
         const te = elements;
         const m11 = te[0];
         const m12 = te[4];
@@ -1250,7 +1250,7 @@ class Vector4 {
         return this;
     }
 
-    lerp(a, b, t) {
+    lerp(a: ArrayLike<number>, b: ArrayLike<number>, t: number) {
         const out = this.elements;
 
         if (t === 0) {
@@ -1360,15 +1360,15 @@ class Vector2 {
         this.elements = v;
     }
 
-    subtract(b) {
+    subtract(vector: Vector2) {
         const out = this.elements;
-        b = b.elements;
+        const b = vector.elements;
         out[0] = out[0] - b[0];
         out[1] = out[1] - b[1];
         return this;
     }
 
-    lerp(a, b, t) {
+    lerp(a: ArrayLike<number>, b: ArrayLike<number>, t: number) {
         const out = this.elements;
         const ax = a[0];
         const ay = a[1];
@@ -1379,7 +1379,7 @@ class Vector2 {
 }
 
 // { 0: right, 1: left, 2: bottom. 3: top, 4: far, 5: near }
-function Frustum(m) {
+function Frustum(m: Matrix4) {
     const planes = [new Vector4(), new Vector4(), new Vector4(), new Vector4(), new Vector4(), new Vector4()];
     const me = m.elements;
     let me0 = me[0],
