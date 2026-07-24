@@ -1,11 +1,11 @@
-class Events {
-    redraw: Function;
-    isPan: boolean;
-    isDrag: boolean;
-    x: number;
-    y: number;
+class Events implements EventListenerObject {
+    redraw: (type: string, coordsStart?: [number, number] | number, coordsMove?: [number, number]) => void;
+    isPan?: boolean;
+    isDrag?: boolean;
+    x!: number;
+    y!: number;
 
-    constructor(canvas, redraw) {
+    constructor(canvas: HTMLCanvasElement, redraw: (type: string, coordsStart?: [number, number] | number, coordsMove?: [number, number]) => void) {
         this.redraw = redraw;
         document.addEventListener('wheel', this, { passive: false });
         canvas.addEventListener('mousedown', this);
@@ -16,16 +16,16 @@ class Events {
         addEventListener('resize', this);
     }
 
-    handleEvent(e) {
+    handleEvent(e: Event) {
         switch (e.type) {
         case 'wheel':
-            this.zoom(e);
+            this.zoom(e as WheelEvent);
             break;
         case 'mousedown':
-            this.onStart(e);
+            this.onStart(e as MouseEvent);
             break;
         case 'mousemove':
-            this.onMove(e);
+            this.onMove(e as MouseEvent);
             break;
         case 'mouseup':
             this.onEnd();
@@ -34,7 +34,7 @@ class Events {
             this.onKeyUp();
             break;
         case 'keydown':
-            this.onKeyDown(e);
+            this.onKeyDown(e as KeyboardEvent);
             break;
         case 'resize':
             this.onResize();
@@ -46,7 +46,7 @@ class Events {
         this.redraw('resize');
     }
 
-    onKeyDown(e) {
+    onKeyDown(e: KeyboardEvent) {
         if (e.shiftKey || e.ctrlKey) {
             this.isPan = true;
         }
@@ -56,13 +56,13 @@ class Events {
         this.isPan = false;
     }
 
-    onStart(e) {
+    onStart(e: MouseEvent) {
         this.x = e.clientX;
         this.y = e.clientY;
         this.isDrag = true;
     }
 
-    onMove(e) {
+    onMove(e: MouseEvent) {
         if (this.isDrag) {
             if (this.isPan) {
                 this.redraw('pan', [this.x, this.y], [e.clientX, e.clientY]);
@@ -78,7 +78,7 @@ class Events {
         this.isDrag = false;
     }
 
-    zoom(e) {
+    zoom(e: WheelEvent) {
         e.preventDefault();
         this.redraw('zoom', e.deltaY);
     }

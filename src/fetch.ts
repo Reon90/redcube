@@ -1,7 +1,18 @@
-import * as fs from 'fs';
-import { GlTf } from '../GLTF';
+import { GlTf, Image as GLTFImage, BufferView } from '../GLTF';
 
-function loadKTX(b) {
+interface FetchedImage {
+    sampler: unknown;
+    mimeType?: string;
+    name?: string;
+    image: unknown;
+}
+
+interface ImageSource {
+    json: { bufferViews?: BufferView[] };
+    arrayBuffer: ArrayBufferLike[];
+}
+
+function loadKTX(b: ArrayBuffer) {
     const { ktxTexture, TranscodeTarget, transcoderConfig } = window.LIBKTX;
     const { astcSupported, dxtSupported, pvrtcSupported, etc1Supported, etc2Supported } = transcoderConfig;
     const ktxdata = new Uint8Array(b);
@@ -55,17 +66,23 @@ function IsValid(data: ArrayBufferView): boolean {
     return false;
 }
 
-export function fetchJSON(url): Promise<GlTf> {
+export function fetchJSON(url: string): Promise<GlTf> {
     return fetch(url).then(r => r.json());
 }
 
-export function fetchBinary(url): Promise<ArrayBuffer> {
+export function fetchBinary(url: string): Promise<ArrayBuffer> {
     return fetch(url).then(r => r.arrayBuffer());
 }
 
-export function fetchImage(isbitmap, s, { bufferView, mimeType, uri }, { url, name }, sampler): Promise<any> {
+export function fetchImage(
+    isbitmap: boolean,
+    s: ImageSource,
+    { bufferView, mimeType, uri }: GLTFImage,
+    { url, name }: { url: string; name?: string },
+    sampler: unknown
+): Promise<FetchedImage> {
     if (typeof window !== 'undefined') {
-        return new Promise((resolve, reject) => {
+        return new Promise<FetchedImage>((resolve, reject) => {
             if (mimeType === 'image/ktx2') {
                 window
                     .fetch(url)
@@ -103,12 +120,12 @@ export function fetchImage(isbitmap, s, { bufferView, mimeType, uri }, { url, na
                 };
                 image.crossOrigin = 'anonymous';
                 if (bufferView !== undefined) {
-                    const view = s.json.bufferViews[bufferView];
+                    const view = s.json.bufferViews![bufferView];
                     const buffer = new Uint8Array(s.arrayBuffer[view.buffer], view.byteOffset, view.byteLength);
-                    const blob = new Blob([buffer], { type: mimeType });
+                    const blob = new Blob([buffer as BlobPart], { type: mimeType });
                     image.src = URL.createObjectURL(blob);
-                } else if (/base64/.test(uri)) {
-                    image.src = uri;
+                } else if (/base64/.test(uri!)) {
+                    image.src = uri!;
                 } else {
                     image.src = url;
                 }
