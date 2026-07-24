@@ -13,9 +13,9 @@ export class Scene {
     transparentChildren: Array<Mesh>;
     opaqueChildren: Array<Mesh>;
     meshes: Array<Mesh>;
-    tracks: Array<Track[]>;
-    cameras: Array<Camera>;
-    lights: Array<Light>;
+    tracks?: Array<Track[]>;
+    cameras?: Array<Camera>;
+    lights?: Array<Light>;
     variants: { name: string }[];
     visible = true;
 

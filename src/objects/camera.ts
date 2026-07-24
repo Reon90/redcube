@@ -1,39 +1,32 @@
 import { Matrix4, Vector3 } from '../matrix';
-import { canvasToWorld, calculateProjection } from '../utils';
+import { canvasToWorld, calculateProjection, ProjectionCamera } from '../utils';
 import { Object3D } from './object3d';
 
-interface CameraProps {
+interface CameraProps extends ProjectionCamera {
     zoom: number;
     isInitial: boolean;
     aspect: number;
-    perspective: CameraPerspective;
-    orthographic: CameraPerspective;
     type: string;
 }
-interface CameraPerspective {
-    yfov: number;
-    znear: number;
-    zfar: number;
-}
 
-function clamp(a, b, c) {
+function clamp(a: number, b: number, c: number) {
     return a < b ? b : a > c ? c : a;
 }
 
 export class Camera extends Object3D {
-    isInitial: boolean;
+    isInitial?: boolean;
     props: CameraProps;
     matrixWorldInvert: Matrix4;
     projection: Matrix4;
-    modelSize: number;
-    modelXSize: number;
-    modelYSize: number;
+    modelSize?: number;
+    modelXSize?: number;
+    modelYSize?: number;
     yaw: number;
     pitch: number;
-    matrixInitial: Matrix4;
+    matrixInitial?: Matrix4;
     rotation: Matrix4;
 
-    constructor(props, name?, parent?) {
+    constructor(props: CameraProps, name?: string, parent?: Object3D) {
         super(name, parent);
 
         this.matrixWorldInvert = new Matrix4();
@@ -45,11 +38,11 @@ export class Camera extends Object3D {
         this.rotation = new Matrix4();
     }
 
-    setProjection(matrix) {
+    setProjection(matrix: Matrix4) {
         this.projection.set(matrix.elements);
     }
 
-    setMatrixWorld(matrix) {
+    setMatrixWorld(matrix: ArrayLike<number>) {
         super.setMatrixWorld(matrix);
         this.matrixWorldInvert.setInverseOf(this.matrixWorld);
         if (!this.matrixInitial) {
@@ -57,7 +50,7 @@ export class Camera extends Object3D {
         }
     }
 
-    setZ(z) {
+    setZ(z: number) {
         this.matrix.elements[14] = z;
         this.matrixInitial = new Matrix4(this.matrix);
         this.setMatrixWorld(this.matrix.elements);
@@ -71,7 +64,7 @@ export class Camera extends Object3D {
         return m;
     }
 
-    pan(coordsStart, coordsMove, width, height) {
+    pan(coordsStart: [number, number], coordsMove: [number, number], width: number, height: number) {
         const coordsStartWorld = canvasToWorld(coordsStart, this.projection, width, height);
         const coordsMoveWorld = canvasToWorld(coordsMove, this.projection, width, height);
         const p0 = new Vector3([...coordsStartWorld, 0]);
@@ -79,20 +72,20 @@ export class Camera extends Object3D {
         if (this.props.type === 'orthographic') {
             const pan = 2 * this.matrixWorld.elements[14];
             const delta = p0.subtract(p1).scale(pan);
-            this.matrixInitial.translate(delta.elements[0], delta.elements[1], 0);
+            this.matrixInitial!.translate(delta.elements[0], delta.elements[1], 0);
         } else {
             const pan = 10 * this.matrixWorld.elements[14];
             const delta = p1.subtract(p0).scale(pan);
-            this.matrixInitial.translate(delta.elements[0], delta.elements[1], 0);
+            this.matrixInitial!.translate(delta.elements[0], delta.elements[1], 0);
         }
 
         const res = new Matrix4(this.rotation);
-        res.multiply(this.matrixInitial);
+        res.multiply(this.matrixInitial!);
 
         this.setMatrixWorld(res.elements);
     }
 
-    rotate(coordsStart, coordsMove) {
+    rotate(coordsStart: [number, number], coordsMove: [number, number]) {
         this.yaw += (coordsStart[0] - coordsMove[0]) * 0.01;
         this.pitch += (coordsStart[1] - coordsMove[1]) * 0.01;
         this.pitch = clamp(this.pitch, -1.5 * Math.PI, -0.5 * Math.PI);
@@ -103,19 +96,19 @@ export class Camera extends Object3D {
         this.rotation = m;
 
         const res = new Matrix4(m);
-        res.multiply(this.matrixInitial);
+        res.multiply(this.matrixInitial!);
 
         this.setMatrixWorld(res.elements);
     }
 
-    zoom(value) {
-        if (this.matrixInitial.elements[14] > this.modelSize * 5 && value > 0) {
+    zoom(value: number) {
+        if (this.matrixInitial!.elements[14] > this.modelSize! * 5 && value > 0) {
             return;
         }
-        this.matrixInitial.elements[14] += value * this.modelSize * 0.001;
+        this.matrixInitial!.elements[14] += value * this.modelSize! * 0.001;
 
         const m = new Matrix4(this.rotation);
-        m.multiply(this.matrixInitial);
+        m.multiply(this.matrixInitial!);
 
         this.setMatrixWorld(m.elements);
         this.updateNF();
@@ -124,13 +117,13 @@ export class Camera extends Object3D {
     updateNF() {
         if (this.props.isInitial) {
             const scale = Math.min(...this.matrixWorld.getScaling().elements);
-            const modelSize = this.modelSize / scale;
+            const modelSize = this.modelSize! / scale;
             const cameraZ = Math.abs(this.matrixWorldInvert.elements[14]);
             const cameraProps = this.props.perspective || this.props.orthographic;
-            cameraProps.znear = Math.max(cameraZ - modelSize, modelSize * 0.05);
-            cameraProps.zfar = cameraZ + modelSize;
+            cameraProps!.znear = Math.max(cameraZ - modelSize, modelSize * 0.05);
+            cameraProps!.zfar = cameraZ + modelSize;
         }
 
-        this.setProjection(calculateProjection(this.props));
+        this.setProjection(calculateProjection(this.props)!);
     }
 }
