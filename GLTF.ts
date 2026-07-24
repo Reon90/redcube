@@ -336,7 +336,7 @@ export interface TextureInfo {
   /**
    * The index of the texture.
    */
-  'index': GlTfId;
+  'index'?: GlTfId;
   /**
    * The set index of texture's TEXCOORD attribute used for texture coordinate mapping.
    */

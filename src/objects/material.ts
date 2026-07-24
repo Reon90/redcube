@@ -1,7 +1,7 @@
 import { Vector3, Matrix4 } from '../matrix';
 import { UniformBuffer } from './uniform';
 import { Material as M } from '../../GLTF';
-import { textureEnum, GLTexture } from '../utils';
+import { textureEnum, LoadedTexture } from '../utils';
 import { Light } from './light';
 import type { Define } from '../parse';
 
@@ -48,6 +48,9 @@ const lightEnum = {
 };
 
 export class Material extends M {
+    declare normalTexture?: LoadedTexture;
+    declare occlusionTexture?: LoadedTexture;
+    declare emissiveTexture?: LoadedTexture;
     blend!: string;
     uniforms!: Uniforms;
     alpha!: boolean;
@@ -65,7 +68,7 @@ export class Material extends M {
 
     uniformBindGroup1!: GPUBindGroupEntry[];
 
-    constructor(m: M = defaultMaterial, textures: GLTexture[], defines: Array<Define>) {
+    constructor(m: M = defaultMaterial, textures: LoadedTexture[], defines: Array<Define>) {
         super();
 
         const material = Object.assign({}, m);
@@ -360,7 +363,7 @@ export class Material extends M {
 
         if (pbrMetallicRoughness && pbrMetallicRoughness.metallicRoughnessTexture) {
             const { extensions, texCoord } = pbrMetallicRoughness.metallicRoughnessTexture;
-            this.metallicRoughnessTexture = textures[pbrMetallicRoughness.metallicRoughnessTexture.index];
+            this.metallicRoughnessTexture = textures[pbrMetallicRoughness.metallicRoughnessTexture.index!];
             defines.push({ name: 'METALROUGHNESSMAP', value: texCoord ?? 0 });
             if (extensions) {
                 const ex = extensions.KHR_texture_transform;
@@ -395,7 +398,7 @@ export class Material extends M {
         }
         if (pbrMetallicRoughness && pbrMetallicRoughness.baseColorTexture) {
             const { extensions, texCoord } = pbrMetallicRoughness.baseColorTexture;
-            this.baseColorTexture = textures[pbrMetallicRoughness.baseColorTexture.index];
+            this.baseColorTexture = textures[pbrMetallicRoughness.baseColorTexture.index!];
             defines.push({ name: 'BASECOLORTEXTURE', value: texCoord ?? 0 });
             if (extensions) {
                 const ex = extensions.KHR_texture_transform;
@@ -406,7 +409,7 @@ export class Material extends M {
         }
         if (material.emissiveTexture) {
             const { extensions, texCoord } = material.emissiveTexture;
-            this.emissiveTexture = textures[material.emissiveTexture.index];
+            this.emissiveTexture = textures[material.emissiveTexture.index!];
             defines.push({ name: 'EMISSIVEMAP', value: texCoord ?? 0 });
             if (extensions) {
                 const ex = extensions.KHR_texture_transform;

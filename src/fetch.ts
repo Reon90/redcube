@@ -1,15 +1,15 @@
 import { GlTf, Image as GLTFImage, BufferView } from '../GLTF';
 
-interface FetchedImage {
+export interface FetchedImage {
     sampler: unknown;
     mimeType?: string;
     name?: string;
     image: unknown;
 }
 
-interface ImageSource {
+export interface ImageSource {
     json: { bufferViews?: BufferView[] };
-    arrayBuffer: ArrayBufferLike[];
+    arrayBuffer: ArrayBufferLike[] | null;
 }
 
 function loadKTX(b: ArrayBuffer) {
@@ -121,7 +121,7 @@ export function fetchImage(
                 image.crossOrigin = 'anonymous';
                 if (bufferView !== undefined) {
                     const view = s.json.bufferViews![bufferView];
-                    const buffer = new Uint8Array(s.arrayBuffer[view.buffer], view.byteOffset, view.byteLength);
+                    const buffer = new Uint8Array(s.arrayBuffer![view.buffer], view.byteOffset, view.byteLength);
                     const blob = new Blob([buffer as BlobPart], { type: mimeType });
                     image.src = URL.createObjectURL(blob);
                 } else if (/base64/.test(uri!)) {

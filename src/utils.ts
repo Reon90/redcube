@@ -9,6 +9,15 @@ export const clearColor = [0, 0, 0, 1];
 
 export type GLTexture = WebGLTexture & { index: number; sampler?: WebGLSampler };
 
+export type LoadedTexture = (WebGLTexture | GPUTexture) & {
+    index?: number;
+    sampler?: WebGLSampler | GPUSampler;
+    view?: GPUTextureView;
+    name?: string;
+    image?: unknown;
+    srgb?: boolean;
+};
+
 export type TypedArray = Int8Array | Uint8Array | Int16Array | Uint16Array | Uint32Array | Float32Array;
 
 export interface ProjectionCamera {
@@ -618,8 +627,8 @@ export function getGlEnum(name: number) {
 }
 
 export function normalize(
-    array: Uint8Array | Int8Array | Uint16Array | Int16Array | Float32Array | number[],
-): Float32Array | Uint8Array | Int8Array | Uint16Array | Int16Array | number[] {
+    array: Uint8Array | Int8Array | Uint16Array | Int16Array | Uint32Array | Float32Array | number[],
+): Float32Array | Uint8Array | Int8Array | Uint16Array | Int16Array | Uint32Array | number[] {
     let fn: ((c: number) => number) | undefined;
     switch (true) {
         case array instanceof Uint8Array:

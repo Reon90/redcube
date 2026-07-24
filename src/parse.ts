@@ -13,7 +13,7 @@ import { Mesh, SkinnedMesh, Bone, Camera, Object3D, Scene, Light, Material } fro
 import type { CameraProps } from './objects/camera';
 import { Matrix4, Box, Vector3 } from './matrix';
 import { GlTf, Node, MeshPrimitive } from '../GLTF';
-import { fetchJSON, fetchBinary, fetchImage } from './fetch';
+import { fetchJSON, fetchBinary, fetchImage, FetchedImage, ImageSource } from './fetch';
 import { DecoderModule, DracoModule } from './decoder';
 
 import vertexShader from './shaders/vertex.glsl';
@@ -28,7 +28,7 @@ declare global {
     }
     interface KtxTexture {
         needsTranscoding: boolean;
-        transcodeBasis(target: TranscodeTarget, flags: number): number;
+        transcodeBasis(target: number, flags: number): number;
         glUpload(): { texture: WebGLTexture };
     }
     interface TranscodeTarget {
@@ -83,13 +83,15 @@ export interface Track {
     keys: Array<Key>;
     stoped: boolean;
     type: string;
+    component: number;
     meshes: Array<Mesh>;
     name: string;
     interpolation: string;
     duration: number;
 }
 interface Key {
-    value: number;
+    time: number;
+    value: Float32Array | Uint8Array | Int8Array | Uint16Array | Int16Array | Uint32Array | number[];
 }
 export interface Skin {
     jointNames: Array<number>;
@@ -97,14 +99,9 @@ export interface Skin {
     boneInverses: Array<Matrix4>;
 }
 interface texturesMap {
-    name?: string;
+    [key: string]: TextureJSON;
 }
-interface Texture {
-    name: string;
-    image: string;
-    count: number;
-    data: WebGLTexture;
-}
+type TextureJSON = GlTf['textures'] extends (infer T)[] | undefined ? T & { name?: string } : never;
 export interface Define {
     name: string;
     value?: number;
@@ -351,7 +348,7 @@ export class Parse {
                     this.arrayBuffer![bufferView.buffer],
                     accessor.componentType,
                     calculateOffset(bufferView.byteOffset, accessor.byteOffset),
-                    getDataType(accessor.type) * accessor.count
+                    getDataType(accessor.type)! * accessor.count
                 )!;
                 if (child.instances === 1) {
                     child.instances = buffer.length / stride;
@@ -379,8 +376,8 @@ export class Parse {
 
         if (el.mesh !== undefined) {
             parent.children.push(
-                ...this.json.meshes[el.mesh].primitives.map(
-                    this.buildPrim.bind(this, el, parent, this.json.meshes[el.mesh].name, el.skin, this.json.meshes[el.mesh].weights),
+                ...this.json.meshes![el.mesh].primitives.map(
+                    this.buildPrim.bind(this, el, parent, this.json.meshes![el.mesh].name, el.skin, this.json.meshes![el.mesh].weights),
                 ),
             );
         }
@@ -390,9 +387,9 @@ export class Parse {
         }
     }
 
-    calculateFov(isInitial) {
+    calculateFov(isInitial: boolean) {
         const box = new Box();
-        walk(this.scene, (node) => {
+        walk(this.scene, (node: Object3D | Scene) => {
             if (node instanceof Mesh) {
                 box.expand(node.geometry.boundingSphere);
             }
@@ -405,7 +402,7 @@ export class Parse {
             matrix.translate(center.x, center.y, center.z);
             matrix.invert();
             this.scene.matrixWorld.multiply(matrix);
-            walk(this.scene, (node) => {
+            walk(this.scene, (node: Object3D | Scene) => {
                 if (node instanceof Object3D) {
                     node.updateMatrix();
                 }
@@ -427,17 +424,17 @@ export class Parse {
             this.scene.variants = this.json.extensions.KHR_materials_variants.variants;
         }
 
-        this.json.scenes[this.json.scene !== undefined ? this.json.scene : 0].nodes.forEach((n) => {
-            if (this.json.nodes[n].extensions !== undefined) {
+        this.json.scenes![this.json.scene !== undefined ? this.json.scene : 0].nodes!.forEach((n) => {
+            if (this.json.nodes![n].extensions !== undefined) {
                 this.buildNode(this.scene, n);
             }
-            if (this.json.nodes[n].children && this.json.nodes[n].children.length) {
+            if (this.json.nodes![n].children && this.json.nodes![n].children!.length) {
                 this.buildNode(this.scene, n);
             }
-            if (this.json.nodes[n].mesh !== undefined) {
+            if (this.json.nodes![n].mesh !== undefined) {
                 this.buildNode(this.scene, n);
             }
-            if (this.json.nodes[n].camera !== undefined) {
+            if (this.json.nodes![n].camera !== undefined) {
                 this.buildNode(this.scene, n);
             }
         });
@@ -445,7 +442,7 @@ export class Parse {
             this.lights.push(this.light);
         }
 
-        walk(this.scene, (mesh) => {
+        walk(this.scene, (mesh: Object3D | Scene) => {
             if (mesh instanceof Mesh) {
                 if (mesh.material.alpha) {
                     this.scene.transparentChildren.push(mesh);
@@ -453,7 +450,6 @@ export class Parse {
                     this.scene.opaqueChildren.push(mesh);
                 }
                 this.scene.meshes.push(mesh);
-                // @ts-ignore
                 mesh.material.defines.push({ name: 'LIGHTNUMBER', value: this.lights.length });
 
                 this.lights.forEach((light, i) => {
@@ -487,65 +483,64 @@ export class Parse {
             return true;
         }
         for (const animation of this.json.animations) {
-            const tracks = [];
+            const tracks: Track[] = [];
             for (const channel of animation.channels) {
                 const duration = 0;
                 const sampler = animation.samplers[channel.sampler];
 
                 if (sampler) {
                     const { target } = channel;
-                    let name = target.node;
+                    let name: string | number | undefined = target.node;
                     let { path } = target;
                     if (name === undefined) {
                         const s = target.extensions.KHR_animation_pointer.pointer.split('/');
                         if (s[1] === 'materials') {
-                            const mat = this.json.materials[s[2]].name;
-                            // @ts-ignore
-                            name = this.scene.meshes.find(m => m.material.name === mat).name;
+                            const mat = this.json.materials![Number(s[2])].name;
+                            name = this.scene.meshes.find(m => m.material.name === mat)!.name;
                             path = s.splice(3).join('/');
                         }
                         if (s[1] === 'nodes') {
-                            name = this.json.nodes[s[2]].name;
+                            name = this.json.nodes![Number(s[2])].name;
                             path = s[5];
                         }
                     }
                     const input = animation.parameters !== undefined ? animation.parameters[sampler.input] : sampler.input;
                     const output = animation.parameters !== undefined ? animation.parameters[sampler.output] : sampler.output;
 
-                    const inputAccessor = this.json.accessors[input];
-                    const outputAccessor = this.json.accessors[output];
-                    const inputBuffer = this.json.bufferViews[inputAccessor.bufferView];
-                    const outputBuffer = this.json.bufferViews[outputAccessor.bufferView];
+                    const inputAccessor = this.json.accessors![input];
+                    const outputAccessor = this.json.accessors![output];
+                    const inputBuffer = this.json.bufferViews![inputAccessor.bufferView!];
+                    const outputBuffer = this.json.bufferViews![outputAccessor.bufferView!];
 
                     const inputArray = buildArray(
-                        this.arrayBuffer[inputBuffer.buffer],
+                        this.arrayBuffer![inputBuffer.buffer],
                         inputAccessor.componentType,
                         calculateOffset(inputBuffer.byteOffset, inputAccessor.byteOffset),
-                        getDataType(inputAccessor.type) * inputAccessor.count,
-                    );
+                        getDataType(inputAccessor.type)! * inputAccessor.count,
+                    )!;
                     const outputArray = buildArray(
-                        this.arrayBuffer[outputBuffer.buffer],
+                        this.arrayBuffer![outputBuffer.buffer],
                         outputAccessor.componentType,
                         calculateOffset(outputBuffer.byteOffset, outputAccessor.byteOffset),
-                        getDataType(outputAccessor.type) * outputAccessor.count,
-                    );
+                        getDataType(outputAccessor.type)! * outputAccessor.count,
+                    )!;
 
-                    const meshes = [];
-                    walk(this.scene, (node) => {
-                        if (node.name === name || node.id === name) {
+                    const meshes: Mesh[] = [];
+                    walk(this.scene, (node: Object3D | Scene) => {
+                        if ((node as Object3D).name === name || (node as Object3D).id === name) {
                             if (path === 'weights' && node instanceof Object3D) {
-                                meshes.push(...node.children);
+                                meshes.push(...(node.children as Mesh[]));
                             } else {
-                                meshes.push(node);
+                                meshes.push(node as Mesh);
                             }
                         }
                     });
 
-                    let component = path === 'weights' ? meshes[0].geometry.targets.length : getDataType(outputAccessor.type);
+                    let component = path === 'weights' ? meshes[0].geometry.targets.length : getDataType(outputAccessor.type)!;
                     if (sampler.interpolation === 'CUBICSPLINE') {
                         component = component * 3;
                     }
-                    const keys = [];
+                    const keys: Key[] = [];
                     for (let i = 0; i < inputArray.length; i++) {
                         const firstT = inputArray[i];
                         const firstV = outputArray.slice(i * component, (i + 1) * component);
@@ -565,7 +560,7 @@ export class Parse {
                                 type: path,
                                 name: `${meshes[0].name}.${path}`,
                                 keys: keys,
-                                interpolation: sampler.interpolation,
+                                interpolation: sampler.interpolation!,
                             });
                         }
                     }
@@ -580,16 +575,16 @@ export class Parse {
             return true;
         }
         for (const skin of this.json.skins) {
-            const acc = this.json.accessors[skin.inverseBindMatrices];
-            const buffer = this.json.bufferViews[acc.bufferView];
+            const acc = this.json.accessors![skin.inverseBindMatrices!];
+            const buffer = this.json.bufferViews![acc.bufferView!];
             const array = buildArray(
-                this.arrayBuffer[buffer.buffer],
+                this.arrayBuffer![buffer.buffer],
                 acc.componentType,
                 calculateOffset(buffer.byteOffset, acc.byteOffset),
-                getDataType(acc.type) * acc.count,
-            );
+                getDataType(acc.type)! * acc.count,
+            )!;
 
-            const v = {
+            const v: Skin & { inverseBindMatrices: typeof array } = {
                 jointNames: skin.joints,
                 inverseBindMatrices: array,
                 bones: [],
@@ -599,9 +594,9 @@ export class Parse {
             let i = 0;
             for (const join of v.jointNames) {
                 //walk(this.scene, this.buildBones.bind(this, join, v));
-                this.json.nodes[join].isBone = true;
+                this.json.nodes![join].isBone = true;
                 const m = v.inverseBindMatrices;
-                const mat = new Matrix4().set(m.slice(i * 16, (i + 1) * 16));
+                const mat = new Matrix4().set(m.slice(i * 16, (i + 1) * 16))!;
                 v.boneInverses.push(mat);
                 i++;
             }
@@ -626,7 +621,7 @@ export class Parse {
         } else {
             return fetchJSON(this.url).then((json: GlTf) => {
                 for (const key in json.buffers) {
-                    this.scene.bin.push(json.buffers[key].uri);
+                    this.scene.bin.push(json.buffers![Number(key)].uri!);
                 }
                 this.json = json;
 
@@ -636,20 +631,21 @@ export class Parse {
     }
 
     createSamplers() {
+        const webglGl = gl as WebGL2RenderingContext;
         const samplers = this.json.samplers || [{}];
         this.samplers = samplers.map((s) => {
-            const sampler = gl.createSampler();
-            gl.samplerParameteri(sampler, gl.TEXTURE_MIN_FILTER, s.minFilter || gl.LINEAR_MIPMAP_LINEAR);
-            gl.samplerParameteri(sampler, gl.TEXTURE_MAG_FILTER, s.magFilter || gl.LINEAR);
-            gl.samplerParameteri(sampler, gl.TEXTURE_WRAP_S, s.wrapS || gl.REPEAT);
-            gl.samplerParameteri(sampler, gl.TEXTURE_WRAP_T, s.wrapT || gl.REPEAT);
+            const sampler = webglGl.createSampler()!;
+            webglGl.samplerParameteri(sampler, webglGl.TEXTURE_MIN_FILTER, s.minFilter || webglGl.LINEAR_MIPMAP_LINEAR);
+            webglGl.samplerParameteri(sampler, webglGl.TEXTURE_MAG_FILTER, s.magFilter || webglGl.LINEAR);
+            webglGl.samplerParameteri(sampler, webglGl.TEXTURE_WRAP_S, s.wrapS || webglGl.REPEAT);
+            webglGl.samplerParameteri(sampler, webglGl.TEXTURE_WRAP_T, s.wrapT || webglGl.REPEAT);
             return sampler;
         });
     }
 
     createSamplersWebGPU(WebGPU: WEBGPU) {
-        function getSamplerParam(value) {
-            const map = {
+        function getSamplerParam(value?: number) {
+            const map: Record<number, string> = {
                 9987: 'linear',
                 9729: 'linear',
                 9986: 'nearest',
@@ -658,18 +654,18 @@ export class Parse {
                 33648: 'mirror-repeat',
                 33071: 'clamp-to-edge',
             };
-            return map[value];
+            return value === undefined ? undefined : map[value];
         }
         const samplers = this.json.samplers || [{}];
         this.samplers = samplers.map((s) => {
             const sampler = WebGPU.device.createSampler({
                 mipmapFilter: 'linear',
-                magFilter: getSamplerParam(s.magFilter) || 'linear',
-                minFilter: getSamplerParam(s.minFilter) || 'linear',
-                addressModeU: getSamplerParam(s.wrapS) || 'repeat',
-                addressModeV: getSamplerParam(s.wrapT) || 'repeat',
-                addressModeW: getSamplerParam(s.wrapS) || 'repeat',
-            });
+                magFilter: (getSamplerParam(s.magFilter) || 'linear') as GPUFilterMode,
+                minFilter: (getSamplerParam(s.minFilter) || 'linear') as GPUFilterMode,
+                addressModeU: (getSamplerParam(s.wrapS) || 'repeat') as GPUAddressMode,
+                addressModeV: (getSamplerParam(s.wrapT) || 'repeat') as GPUAddressMode,
+                addressModeW: (getSamplerParam(s.wrapS) || 'repeat') as GPUAddressMode,
+            }) as GPUSampler & { id?: string };
             sampler.id = (getSamplerParam(s.minFilter) || 'linear') + (getSamplerParam(s.magFilter) || 'linear');
             return sampler;
         });
