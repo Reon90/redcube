@@ -2,15 +2,32 @@ import vertexShaderGLSL from '../shaders/vertex.glsl';
 import fragmentShaderGLSL from '../shaders/fragment.glsl';
 import fragGLSL from '../shaders/frag.webgpu.h';
 import vertGLSL from '../shaders/vert.webgpu.h';
+import type { Define } from '../parse';
 
 const lineFragmentShader = `#version 460
     precision highp float;
     layout (location = 0) out vec4 color;
-    
+
     void main() {
         color = vec4(0.0, 1.0, 0.0, 1.0);
     }`;
-export function create(device: GPUDevice, glslang, wgsl, uniformBindGroup1, defines, mode, frontFace) {
+
+interface Glslang {
+    compileGLSL(code: string, type: string): Uint32Array;
+}
+interface WgslConverter {
+    convertSpirV2WGSL(spirv: Uint32Array): string;
+}
+
+export function create(
+    device: GPUDevice,
+    glslang: Glslang,
+    wgsl: WgslConverter,
+    uniformBindGroup1: GPUBindGroupEntry[],
+    defines: Define[],
+    mode: number,
+    frontFace: boolean
+) {
     const defineStr = defines.map(define => `#define ${define.name} ${define.value ?? 1}` + '\n').join('');
     const shaders = [vertexShaderGLSL, mode > 3 ? fragmentShaderGLSL : fragmentShaderGLSL]
         .map(p => p.replace(/#include ".*/g, str => {
@@ -226,7 +243,16 @@ export function create(device: GPUDevice, glslang, wgsl, uniformBindGroup1, defi
     return [createPipeline(device, pipelineLayout, program, buffers, defines, mode, frontFace, false), createPipeline(device, pipelineLayout, program, buffers, defines, mode, frontFace, true)];
 }
 
-function createPipeline(device, pipelineLayout, program, buffers, defines, mode, frontFace, hasTransmission) {
+function createPipeline(
+    device: GPUDevice,
+    pipelineLayout: GPUPipelineLayout,
+    program: string[],
+    buffers: GPUVertexBufferLayout[],
+    defines: Define[],
+    mode: number,
+    frontFace: boolean,
+    hasTransmission: boolean
+) {
     const pipeline = device.createRenderPipeline({
         label: hasTransmission ? 'transmission-pipeline' : 'main-pipeline',
         layout: pipelineLayout,
@@ -269,8 +295,8 @@ function createPipeline(device, pipelineLayout, program, buffers, defines, mode,
 
         primitive: {
             frontFace: frontFace ? 'cw' : 'ccw',
-            stripIndexFormat: getMode(mode).endsWith('strip') ? 'uint32' : undefined,
-            topology: getMode(mode),
+            stripIndexFormat: getMode(mode)!.endsWith('strip') ? 'uint32' : undefined,
+            topology: getMode(mode)!,
             cullMode: defines.find(d => d.name === 'DOUBLESIDED') ? 'none' : 'back'
         },
         depthStencil: {
@@ -285,7 +311,7 @@ function createPipeline(device, pipelineLayout, program, buffers, defines, mode,
     return pipeline;
 }
 
-function getMode(mode) {
+function getMode(mode: number) {
     switch (mode) {
     case 0:
         return 'point-list';
