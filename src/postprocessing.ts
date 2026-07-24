@@ -1,5 +1,5 @@
-import { createProgram, createTexture } from './utils';
-import { Camera } from './objects/index';
+import { createProgram, createTexture, GLTexture } from './utils';
+import { Camera, Light as LightObj } from './objects/index';
 import { Renderer } from './renderer';
 import { SSAO } from './postprocessors/ssao';
 import { Bloom } from './postprocessors/bloom';
@@ -13,7 +13,7 @@ import composerShader from './shaders/composer.glsl';
 import { quadVertex } from './vertex';
 import { Scattering } from './postprocessors/scattering';
 
-let gl;
+let gl: WebGL2RenderingContext;
 
 const processorsMap = {
     bloom: Bloom,
@@ -24,67 +24,66 @@ const processorsMap = {
     scattering: Scattering,
 };
 
-interface Texture extends WebGLTexture {
-    index: number;
-}
+type ProcessorName = keyof typeof processorsMap;
+type Texture = GLTexture;
 
 export class PostProcessing {
-    screenTexture: Texture;
-    normalTexture: Texture;
-    irradianceTexture: Texture;
-    specTexture: Texture;
-    albedoTexture: Texture;
-    depthTexture: Texture;
-    preDepthTexture: Texture;
-    fakeDepth: Texture;
-    camera: Camera;
-    renderer: Renderer;
-    canvas: HTMLCanvasElement;
-    framebuffer: WebGLFramebuffer;
-    preframebuffer: WebGLFramebuffer;
+    screenTexture!: Texture;
+    normalTexture!: Texture;
+    irradianceTexture!: Texture;
+    specTexture!: Texture;
+    albedoTexture!: Texture;
+    depthTexture!: Texture;
+    preDepthTexture!: Texture;
+    fakeDepth!: Texture;
+    camera!: Camera;
+    renderer!: Renderer;
+    canvas!: HTMLCanvasElement;
+    framebuffer!: WebGLFramebuffer;
+    preframebuffer!: WebGLFramebuffer;
     postprocessors: Array<PostProcessor>;
-    VAO: WebGLBuffer;
-    program: WebGLProgram;
-    renderframebuffer: WebGLFramebuffer;
-    MSAA: Number;
-    renderScene: Function;
+    VAO!: WebGLVertexArrayObject;
+    program!: WebGLProgram;
+    renderframebuffer?: WebGLFramebuffer;
+    MSAA!: number;
+    renderScene: (renderState: { isprepender?: boolean; isprerefraction?: boolean }) => void;
 
     hasPostPass = false;
     hasPrePass = false;
 
-    constructor(processors, renderScene) {
+    constructor(processors: ProcessorName[], renderScene: (renderState: { isprepender?: boolean; isprerefraction?: boolean }) => void) {
         this.renderScene = renderScene;
         this.postprocessors = processors.map(name => new processorsMap[name]());
     }
 
-    add(name) {
+    add(name: ProcessorName) {
         const p = new processorsMap[name]();
         p.setGL(gl);
         this.postprocessors.push(p);
         this.hasPostPass = true;
     }
 
-    addPrepass(name) {
+    addPrepass(name: ProcessorName) {
         const p = new processorsMap[name]();
         p.setGL(gl);
         this.postprocessors.push(p);
         this.hasPrePass = true;
     }
 
-    setCamera(camera) {
+    setCamera(camera: Camera) {
         this.camera = camera;
         this.postprocessors.forEach(postProcessor => {
             postProcessor.setCamera(camera);
         });
     }
 
-    setLight(light) {
+    setLight(light: LightObj) {
         this.postprocessors.forEach(postProcessor => {
             postProcessor.light = light;
         });
     }
 
-    setGl(g) {
+    setGl(g: WebGL2RenderingContext) {
         if (g) {
             gl = g;
             this.MSAA = gl.getParameter(gl.MAX_SAMPLES);
@@ -95,7 +94,7 @@ export class PostProcessing {
         }
     }
 
-    setCanvas(canvas) {
+    setCanvas(canvas: HTMLCanvasElement) {
         this.canvas = canvas;
         this.postprocessors.forEach(postProcessor => {
             postProcessor.setCanvas(canvas);
@@ -171,7 +170,7 @@ export class PostProcessing {
         return texture;
     }
 
-    createDefaultTexture(scale = 1, hasMipmap = false) {
+    createDefaultTexture(scale: number = 1, hasMipmap = false) {
         const texture = createTexture();
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
         if (hasMipmap) {
@@ -184,7 +183,7 @@ export class PostProcessing {
         return texture;
     }
 
-    createOneChannelTexture(scale = 1) {
+    createOneChannelTexture(scale: number = 1) {
         const texture = createTexture();
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
@@ -200,7 +199,7 @@ export class PostProcessing {
         return texture;
     }
 
-    createNoiceTexture(size, data) {
+    createNoiceTexture(size: number, data: Float32Array) {
         const texture = createTexture();
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);

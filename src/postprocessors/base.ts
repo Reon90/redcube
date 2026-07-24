@@ -1,22 +1,22 @@
 import { Camera, Light } from '../objects/index';
 
 export abstract class PostProcessor {
-    canvas: HTMLCanvasElement;
-    camera: Camera;
-    light: Light;
-    framebuffer: WebGLFramebuffer;
-    abstract postProcessing(PP);
-    abstract preProcessing(PP);
-    abstract buildScreenBuffer(pp);
-    abstract setGL(gl);
-    abstract attachUniform(program);
-    setCanvas(canvas) {
+    canvas!: HTMLCanvasElement;
+    camera!: Camera;
+    light!: Light;
+    framebuffer!: WebGLFramebuffer;
+    abstract postProcessing(PP: unknown): unknown;
+    abstract preProcessing(PP?: unknown): unknown;
+    abstract buildScreenBuffer(pp: unknown): { name: string; value?: number };
+    abstract setGL(gl: unknown): unknown;
+    abstract attachUniform(program: unknown): unknown;
+    setCanvas(canvas: HTMLCanvasElement) {
         this.canvas = canvas;
     }
-    setCamera(camera) {
+    setCamera(camera: Camera) {
         this.camera = camera;
     }
-    setLight(light) {
+    setLight(light: Light) {
         this.light = light;
     }
     get width() {

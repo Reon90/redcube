@@ -1,23 +1,22 @@
 import { PostProcessor } from './base';
-import { createProgram } from '../utils';
+import { createProgram, GLTexture } from '../utils';
 
 import lightShader from '../shaders/light.glsl';
 import lightVertShader from '../shaders/light-vert.glsl';
 import { Matrix4 } from '../matrix';
 import { calculateProjection } from './../utils';
 import { quadVertex } from '../vertex';
+import type { PostProcessing } from '../postprocessing';
 
-let gl;
+let gl: WebGL2RenderingContext;
 
-interface Texture extends WebGLTexture {
-    index: number;
-}
+type Texture = GLTexture;
 
 export class Light extends PostProcessor {
-    texture: Texture;
-    program: WebGLProgram;
+    texture!: Texture;
+    program!: WebGLProgram;
     scale: number;
-    quadVAO: WebGLVertexArrayObjectOES;
+    quadVAO!: WebGLVertexArrayObject;
 
     constructor() {
         super();
@@ -25,11 +24,11 @@ export class Light extends PostProcessor {
         this.scale = 2;
     }
 
-    setGL(g) {
+    setGL(g: WebGL2RenderingContext) {
         gl = g;
     }
 
-    preProcessing(PP) {
+    preProcessing(PP: PostProcessing) {
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
         PP.renderScene({ isprepender: true });
 
@@ -41,7 +40,7 @@ export class Light extends PostProcessor {
         gl.bindVertexArray(this.quadVAO);
 
         const cam = Object.assign({}, this.camera.props, { zoom: 1 });
-        const proj = calculateProjection(cam);
+        const proj = calculateProjection(cam)!;
 
         gl.uniformMatrix4fv(gl.getUniformLocation(this.program, 'Iproj'), false, new Matrix4().setInverseOf(proj).elements);
         gl.uniformMatrix4fv(gl.getUniformLocation(this.program, 'proj'), false, proj.elements);
@@ -58,14 +57,14 @@ export class Light extends PostProcessor {
         gl.viewport(0, 0, this.width, this.height);
     }
 
-    buildScreenBuffer(PP) {
-        this.framebuffer = gl.createFramebuffer();
+    buildScreenBuffer(PP: PostProcessing) {
+        this.framebuffer = gl.createFramebuffer()!;
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
         this.texture = PP.createOneChannelTexture(this.scale);
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.texture, 0);
         this.program = createProgram(lightVertShader, lightShader);
 
-        this.quadVAO = gl.createVertexArray();
+        this.quadVAO = gl.createVertexArray()!;
         gl.bindVertexArray(this.quadVAO);
         const quadVBO = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, quadVBO);
@@ -77,7 +76,7 @@ export class Light extends PostProcessor {
         return { name: 'LIGHT' };
     }
 
-    attachUniform(program) {
+    attachUniform(program: WebGLProgram) {
         gl.uniform1i(gl.getUniformLocation(program, 'light'), this.texture.index);
     }
 

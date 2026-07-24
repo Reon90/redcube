@@ -1,26 +1,25 @@
 import { Vector3, Matrix4 } from '../matrix';
 import { PostProcessor } from './base';
-import { random, createProgram, lerp, clearColor } from '../utils';
+import { random, createProgram, lerp, clearColor, GLTexture } from '../utils';
+import type { PostProcessing } from '../postprocessing';
 
 import quadShader from '../shaders/quad.glsl';
 import ssaoShader from '../shaders/ssao.glsl';
 import ssaoBlurShader from '../shaders/blur.glsl';
 
-let gl;
+let gl: WebGL2RenderingContext;
 const noiceSize = 4;
 const kernelSize = 32;
 
-interface Texture extends WebGLTexture {
-    index: number;
-}
+type Texture = GLTexture;
 
 export class SSAO extends PostProcessor {
-    ssaoBlurTexture: Texture;
-    ssaoTexture: Texture;
-    noice: Texture;
-    kernels: Float32Array;
-    ssaoProgram: WebGLProgram;
-    ssaoBlurProgram: WebGLProgram;
+    ssaoBlurTexture!: Texture;
+    ssaoTexture!: Texture;
+    noice!: Texture;
+    kernels!: Float32Array;
+    ssaoProgram!: WebGLProgram;
+    ssaoBlurProgram!: WebGLProgram;
     scale: number;
 
     constructor() {
@@ -29,19 +28,19 @@ export class SSAO extends PostProcessor {
         this.scale = 2;
     }
 
-    setGL(g) {
+    setGL(g: WebGL2RenderingContext) {
         gl = g;
     }
 
-    attachUniform(program) {
+    attachUniform(program: WebGLProgram) {
         gl.uniform1i(gl.getUniformLocation(program, 'ssao'), this.ssaoTexture.index);
     }
 
-    postProcessing(PP) {
+    postProcessing(PP: PostProcessing) {
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.ssaoTexture, 0);
 
-        gl.clearColor(...clearColor);
+        gl.clearColor(...(clearColor as [number, number, number, number]));
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
         gl.useProgram(this.ssaoProgram);
@@ -54,9 +53,9 @@ export class SSAO extends PostProcessor {
             this.width / this.scale / noiceSize,
             this.height / this.scale / noiceSize
         );
-        gl.uniform1f(gl.getUniformLocation(this.ssaoProgram, 'zFar'), cameraProps.zfar);
-        gl.uniform1f(gl.getUniformLocation(this.ssaoProgram, 'zNear'), cameraProps.znear);
-        gl.uniform1f(gl.getUniformLocation(this.ssaoProgram, 'bias'), Math.sqrt(this.camera.modelSize) * 0.03);
+        gl.uniform1f(gl.getUniformLocation(this.ssaoProgram, 'zFar'), cameraProps!.zfar);
+        gl.uniform1f(gl.getUniformLocation(this.ssaoProgram, 'zNear'), cameraProps!.znear);
+        gl.uniform1f(gl.getUniformLocation(this.ssaoProgram, 'bias'), Math.sqrt(this.camera.modelSize!) * 0.03);
         gl.uniformMatrix4fv(gl.getUniformLocation(this.ssaoProgram, 'proj'), false, this.camera.projection.elements);
         gl.uniformMatrix4fv(gl.getUniformLocation(this.ssaoProgram, 'view'), false, this.camera.matrixWorldInvert.elements);
         gl.uniformMatrix4fv(
@@ -88,8 +87,8 @@ export class SSAO extends PostProcessor {
         gl.viewport(0, 0, this.width, this.height);
     }
 
-    buildScreenBuffer(pp) {
-        this.framebuffer = gl.createFramebuffer();
+    buildScreenBuffer(pp: PostProcessing) {
+        this.framebuffer = gl.createFramebuffer()!;
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
         this.ssaoTexture = pp.createOneChannelTexture(this.scale);
         this.ssaoBlurTexture = pp.createOneChannelTexture(this.scale);
@@ -104,7 +103,7 @@ export class SSAO extends PostProcessor {
         return { name: 'SSAO' };
     }
 
-    buildNoice(pp) {
+    buildNoice(pp: PostProcessing) {
         const noice = new Float32Array(noiceSize * noiceSize * 3);
         for (let i = 0; i < noiceSize * noiceSize; i++) {
             const v = new Vector3([random(0, 1) * 2.0 - 1.0, random(0, 1) * 2.0 - 1.0, 0.1]); // Z is 0.1 because surface is not flat
@@ -118,7 +117,7 @@ export class SSAO extends PostProcessor {
     }
 
     buildKernels() {
-        const kernels = new Array(kernelSize);
+        const kernels: Vector3[] = new Array(kernelSize);
         for (let i = 0; i < kernels.length; i++) {
             kernels[i] = new Vector3([random(0, 1) * 2 - 1, random(0, 1) * 2 - 1, random(0, 1)]);
             kernels[i].normalize();
