@@ -339,8 +339,11 @@ export function createTexture(type: GLenum = gl.TEXTURE_2D, index: number = getT
     return texture;
 }
 
-export function walk<T extends { children?: T[] }>(node: T, callback: (node: T) => void) {
-    function _walk(node: T) {
+export function walk<R extends { children?: C[] }, C extends { children?: C[] }>(
+    node: R,
+    callback: (node: R | C) => void,
+) {
+    function _walk(node: R | C) {
         callback(node);
         if (node.children) {
             node.children.forEach(_walk);

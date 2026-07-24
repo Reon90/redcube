@@ -1,20 +1,21 @@
 import { Matrix4, Vector3 } from '../matrix';
+import type { Scene } from './scene';
 
 export class Object3D {
     uuid: number;
-    name?: string;
+    name?: string | number;
     id?: string;
     children: Array<Object3D>;
     matrix: Matrix4;
     matrixWorld: Matrix4;
-    parent?: Object3D;
+    parent?: Object3D | Scene;
     reflow?: boolean;
     repaint?: boolean;
     visible = true;
     instances = 1;
     matrices: Matrix4[] = [];
 
-    constructor(name?: string, parent?: Object3D) {
+    constructor(name?: string | number, parent?: Object3D | Scene) {
         this.uuid = Math.floor(Date.now() * Math.random());
         this.name = name;
         this.children = [];

@@ -1,5 +1,6 @@
 import { Matrix4, Vector3 } from '../matrix';
 import { Object3D } from './object3d';
+import type { Scene } from './scene';
 
 interface Spot {
     innerConeAngle?: number;
@@ -24,7 +25,7 @@ export class Light extends Object3D {
     spot: Spot;
     range: number;
 
-    constructor(props: LightProps, name?: string, parent?: Object3D) {
+    constructor(props: LightProps, name?: string | number, parent?: Object3D | Scene) {
         super(name, parent);
 
         const { type, color = [1, 1, 1], intensity, isInitial, spot = {}, range = -1 } = props;

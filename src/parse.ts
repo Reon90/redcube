@@ -7,12 +7,14 @@ import {
     createProgram,
     calculateOffset,
     normalize,
+    GLTexture,
 } from './utils';
 import { Mesh, SkinnedMesh, Bone, Camera, Object3D, Scene, Light, Material } from './objects/index';
+import type { CameraProps } from './objects/camera';
 import { Matrix4, Box, Vector3 } from './matrix';
-import { GlTf } from '../GLTF';
+import { GlTf, Node, MeshPrimitive } from '../GLTF';
 import { fetchJSON, fetchBinary, fetchImage } from './fetch';
-import { DecoderModule } from './decoder';
+import { DecoderModule, DracoModule } from './decoder';
 
 import vertexShader from './shaders/vertex.glsl';
 import fragmentShader from './shaders/fragment.glsl';
@@ -30,27 +32,27 @@ declare global {
         glUpload(): { texture: WebGLTexture };
     }
     interface TranscodeTarget {
-        ETC1_RGB;
-        BC1_RGB;
-        BC4_R;
-        BC5_RG;
-        BC3_RGBA;
-        BC1_OR_3;
-        PVRTC1_4_RGB;
-        PVRTC1_4_RGBA;
-        BC7_M6_RGB;
-        BC7_M5_RGBA;
-        ETC2_RGBA;
-        ASTC_4x4_RGBA;
-        RGBA32;
-        RGB565;
-        BGR565;
-        RGBA4444;
-        PVRTC2_4_RGB;
-        PVRTC2_4_RGBA;
-        ETC;
-        EAC_R11;
-        EAC_RG11;
+        ETC1_RGB: number;
+        BC1_RGB: number;
+        BC4_R: number;
+        BC5_RG: number;
+        BC3_RGBA: number;
+        BC1_OR_3: number;
+        PVRTC1_4_RGB: number;
+        PVRTC1_4_RGBA: number;
+        BC7_M6_RGB: number;
+        BC7_M5_RGBA: number;
+        ETC2_RGBA: number;
+        ASTC_4x4_RGBA: number;
+        RGBA32: number;
+        RGB565: number;
+        BGR565: number;
+        RGBA4444: number;
+        PVRTC2_4_RGB: number;
+        PVRTC2_4_RGBA: number;
+        ETC: number;
+        EAC_R11: number;
+        EAC_RG11: number;
     }
     interface Window {
         LIBKTX: {
@@ -74,7 +76,7 @@ declare global {
     }
 }
 
-let gl;
+let gl: WebGL2RenderingContext | WEBGPU;
 const BASE64_MARKER = ';base64,';
 
 export interface Track {
@@ -113,25 +115,25 @@ export class Parse {
     url: string;
     host: string;
     skins: Array<Skin>;
-    textures: Array<object>;
-    images: Map<string, object>;
-    samplers: Array<object>;
-    arrayBuffer: object;
+    textures: GLTexture[] | null;
+    images: Map<string, unknown>;
+    samplers: Array<WebGLSampler | GPUSampler> | null;
+    arrayBuffer: ArrayBufferLike[] | null;
     cameras: Array<Camera>;
     lights: Array<Light>;
-    programs: object;
-    scene: Scene;
-    camera: Camera;
-    light: Light;
-    aspect: number;
-    zoom: number;
-    canvas: HTMLCanvasElement;
-    resize: Function;
-    json: GlTf;
+    programs: Record<string, WebGLProgram>;
+    scene!: Scene;
+    camera!: Camera;
+    light!: Light;
+    aspect?: number;
+    zoom?: number;
+    canvas!: HTMLCanvasElement;
+    resize: () => void;
+    json!: GlTf;
     defines: Array<Define>;
-    draco?: {};
+    draco?: DracoModule;
 
-    constructor(url, defines, resize) {
+    constructor(url: string, defines: Array<Define>, resize: () => void) {
         this.url = url;
         this.host = url.substr(0, url.lastIndexOf('/') + 1);
         this.tracks = [];
@@ -147,23 +149,23 @@ export class Parse {
         this.resize = resize;
     }
 
-    setScene(scene) {
+    setScene(scene: Scene) {
         this.scene = scene;
     }
 
-    setGl(g) {
+    setGl(g: WebGL2RenderingContext | WEBGPU) {
         gl = g;
     }
 
-    setCamera(camera) {
+    setCamera(camera: Camera) {
         this.camera = camera;
     }
 
-    setLight(light) {
+    setLight(light: Light) {
         this.light = light;
     }
 
-    setCanvas(canvas) {
+    setCanvas(canvas: HTMLCanvasElement) {
         this.canvas = canvas;
     }
 
@@ -193,7 +195,7 @@ export class Parse {
         });
     }
 
-    createProgram(defines) {
+    createProgram(defines: Define[]) {
         let program;
         const programHash = defines.map((define) => `${define.name}${define.value ?? 1}`).join('');
         if (this.programs[programHash]) {
@@ -219,8 +221,8 @@ export class Parse {
         return program;
     }
 
-    buildPrim(el, parent, name, skin, weights, primitive) {
-        const m = this.json.materials && this.json.materials[primitive.material];
+    buildPrim(el: Node, parent: Object3D, name: string, skin: number | undefined, weights: number[] | undefined, primitive: MeshPrimitive) {
+        const m = this.json.materials && this.json.materials[primitive.material!];
         if (this.json.extensions && this.json.extensions.EXT_lights_image_based) {
             this.defines.push({
                 name: 'SPHERICAL_HARMONICS',
@@ -231,7 +233,7 @@ export class Parse {
             this.defines.push({ name: 'BASISU' });
         }
         const defines = [...this.defines];
-        const material = new Material(m, this.textures, defines);
+        const material = new Material(m, this.textures!, defines);
         if (skin !== undefined) {
             defines.push({
                 name: 'JOINTNUMBER',
@@ -252,14 +254,14 @@ export class Parse {
         }
 
         const mesh = skin !== undefined ? new SkinnedMesh(name, parent) : new Mesh(name, parent);
-        const geometry = new Geometry(this.json, this.arrayBuffer, weights, this.draco, primitive);
+        const geometry = new Geometry(this.json, this.arrayBuffer!, weights!, this.draco, primitive);
         if (primitive.attributes.TANGENT === undefined) {
             defines.push({ name: 'USERIGHTHANDEDSYSTEM' });
         }
 
         if (primitive.extensions && primitive.extensions.KHR_materials_variants) {
-            const variants = primitive.extensions.KHR_materials_variants.mappings.map((m) => {
-                return { ...m, m: new Material(this.json.materials[m.material], this.textures, [...defines]) };
+            const variants = primitive.extensions.KHR_materials_variants.mappings.map((m: { material: number; variants: number[] }) => {
+                return { ...m, m: new Material(this.json.materials![m.material], this.textures!, [...defines]) };
             });
             mesh.setVariants(variants);
         }
@@ -274,7 +276,7 @@ export class Parse {
         }
         mesh.setDefines(material.defines);
         if (mesh instanceof SkinnedMesh) {
-            mesh.skin = skin;
+            mesh.skin = skin!;
         }
         mesh.matrices = parent.matrices;
         mesh.updateMatrix();
@@ -285,24 +287,26 @@ export class Parse {
         return mesh;
     }
 
-    buildNode(parent, name) {
-        const el = this.json.nodes[name];
-        let child;
+    buildNode(parent: Object3D | Scene, name: number) {
+        const el = this.json.nodes![name];
+        let child: Object3D;
 
         if (el.camera !== undefined) {
             const camera = Object.assign(
                 {
                     zoom: 1,
+                    isInitial: false,
                     aspect: this.canvas ? this.canvas.offsetWidth / this.canvas.offsetHeight : 1,
                 },
-                this.json.cameras[el.camera],
-            );
+                this.json.cameras![el.camera],
+            ) as unknown as CameraProps;
 
-            child = new Camera(camera, name, parent);
-            const proj = calculateProjection(child.props);
-            child.setProjection(proj);
+            const camObj = new Camera(camera, name, parent);
+            const proj = calculateProjection(camObj.props);
+            camObj.setProjection(proj!);
 
-            this.cameras.push(child);
+            this.cameras.push(camObj);
+            child = camObj;
         } else if (el.extensions && el.extensions.KHR_lights_punctual) {
             if (this.lights.find((l) => l.id === el.name)) {
                 return;
@@ -310,8 +314,9 @@ export class Parse {
             const light = this.json.extensions.KHR_lights_punctual.lights[el.extensions.KHR_lights_punctual.light];
             light.isInitial = false;
 
-            child = new Light(light, name, parent);
-            this.lights.push(child);
+            const lightObj = new Light(light, name, parent);
+            this.lights.push(lightObj);
+            child = lightObj;
         } else {
             if (el.isBone !== undefined) {
                 child = new Bone(name, parent);
@@ -340,14 +345,14 @@ export class Parse {
                     continue;
                 }
                 const stride = key === 'ROTATION' ? 4 : 3;
-                const accessor = this.json.accessors[attributes[key]];
-                const bufferView = this.json.bufferViews[accessor.bufferView];
+                const accessor = this.json.accessors![attributes[key]];
+                const bufferView = this.json.bufferViews![accessor.bufferView!];
                 const buffer = buildArray(
-                    this.arrayBuffer[bufferView.buffer],
+                    this.arrayBuffer![bufferView.buffer],
                     accessor.componentType,
                     calculateOffset(bufferView.byteOffset, accessor.byteOffset),
                     getDataType(accessor.type) * accessor.count
-                );
+                )!;
                 if (child.instances === 1) {
                     child.instances = buffer.length / stride;
                     child.matrices = new Array(child.instances);

@@ -1,8 +1,9 @@
 import { Matrix4, Vector3 } from '../matrix';
 import { canvasToWorld, calculateProjection, ProjectionCamera } from '../utils';
 import { Object3D } from './object3d';
+import type { Scene } from './scene';
 
-interface CameraProps extends ProjectionCamera {
+export interface CameraProps extends ProjectionCamera {
     zoom: number;
     isInitial: boolean;
     aspect: number;
@@ -26,7 +27,7 @@ export class Camera extends Object3D {
     matrixInitial?: Matrix4;
     rotation: Matrix4;
 
-    constructor(props: CameraProps, name?: string, parent?: Object3D) {
+    constructor(props: CameraProps, name?: string | number, parent?: Object3D | Scene) {
         super(name, parent);
 
         this.matrixWorldInvert = new Matrix4();

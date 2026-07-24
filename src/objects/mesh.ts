@@ -6,6 +6,7 @@ import { ArrayBufferMap, GLTexture } from '../utils';
 import { UniformBuffer } from './uniform';
 import { Light } from './light';
 import { Camera } from './camera';
+import type { Scene } from './scene';
 import type { Define, Skin } from '../parse';
 
 interface RenderState {
@@ -27,7 +28,7 @@ export class Mesh extends Object3D {
     uniformBindGroup1!: GPUBindGroup;
     pipeline!: GPURenderPipeline;
 
-    constructor(name?: string, parent?: Object3D) {
+    constructor(name?: string | number, parent?: Object3D | Scene) {
         super(name, parent);
 
         this.program = null;
@@ -152,7 +153,7 @@ export class Mesh extends Object3D {
         }
 
         if (this.material.matrices.length) {
-            gl.bindBufferBase(gl.UNIFORM_BUFFER, 8, this.material.textureMatricesUniform);
+            gl.bindBufferBase(gl.UNIFORM_BUFFER, 8, this.material.textureMatricesUniform!);
         }
 
         if (this.material.sphericalHarmonics) {
@@ -348,7 +349,7 @@ export class SkinnedMesh extends Mesh {
 
     skinBuffer!: GPUBuffer;
 
-    constructor(name?: string, parent?: Object3D) {
+    constructor(name?: string | number, parent?: Object3D | Scene) {
         super(name, parent);
     }
 
