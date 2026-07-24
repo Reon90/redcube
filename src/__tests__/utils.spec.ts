@@ -121,7 +121,7 @@ describe('getTextureIndex', () => {
 
 describe('setGl', () => {
     it('should set the gl variable', () => {
-        const fakeGl = {};
+        const fakeGl = {} as WebGL2RenderingContext;
         utils.setGl(fakeGl);
         // No error means pass; gl is module-scoped
     });
@@ -129,12 +129,12 @@ describe('setGl', () => {
 
 describe('isMatrix', () => {
     it('should return true for FLOAT_MAT4, FLOAT_MAT3, FLOAT_MAT2', () => {
-        const glEnum = { a: 'FLOAT_MAT4', b: 'FLOAT_MAT3', c: 'FLOAT_MAT2', d: 'FLOAT_VEC3' };
+        const glEnum: Record<number, string> = { 0: 'FLOAT_MAT4', 1: 'FLOAT_MAT3', 2: 'FLOAT_MAT2', 3: 'FLOAT_VEC3' };
         jest.spyOn(utils, 'getGlEnum').mockImplementation(name => glEnum[name]);
-        expect(utils.isMatrix('a')).toBe(true);
-        expect(utils.isMatrix('b')).toBe(true);
-        expect(utils.isMatrix('c')).toBe(true);
-        expect(utils.isMatrix('d')).toBe(false);
+        expect(utils.isMatrix(0)).toBe(true);
+        expect(utils.isMatrix(1)).toBe(true);
+        expect(utils.isMatrix(2)).toBe(true);
+        expect(utils.isMatrix(3)).toBe(false);
     });
 });
 
@@ -159,11 +159,11 @@ describe('lerp', () => {
 
 describe('getMatrixType', () => {
     it('should return correct matrix class', () => {
-        const glEnum = { a: 'FLOAT_MAT4', b: 'FLOAT_MAT3', c: 'FLOAT_MAT2' };
+        const glEnum: Record<number, string> = { 0: 'FLOAT_MAT4', 1: 'FLOAT_MAT3', 2: 'FLOAT_MAT2' };
         jest.spyOn(utils, 'getGlEnum').mockImplementation(name => glEnum[name]);
-        expect(utils.getMatrixType('a')).toBe(Matrix4);
-        expect(utils.getMatrixType('b')).toBe(Matrix3);
-        expect(utils.getMatrixType('c')).toBe(Matrix2);
+        expect(utils.getMatrixType(0)).toBe(Matrix4);
+        expect(utils.getMatrixType(1)).toBe(Matrix3);
+        expect(utils.getMatrixType(2)).toBe(Matrix2);
     });
 });
 
@@ -181,29 +181,29 @@ describe('getDataType', () => {
 
 describe('getComponentType', () => {
     it('should return correct count for vector types', () => {
-        const glEnum = { a: 'FLOAT_VEC4', b: 'FLOAT_VEC3', c: 'FLOAT_VEC2' };
+        const glEnum: Record<number, string> = { 0: 'FLOAT_VEC4', 1: 'FLOAT_VEC3', 2: 'FLOAT_VEC2' };
         jest.spyOn(utils, 'getGlEnum').mockImplementation(name => glEnum[name]);
-        expect(utils.getComponentType('a')).toBe(4);
-        expect(utils.getComponentType('b')).toBe(3);
-        expect(utils.getComponentType('c')).toBe(2);
+        expect(utils.getComponentType(0)).toBe(4);
+        expect(utils.getComponentType(1)).toBe(3);
+        expect(utils.getComponentType(2)).toBe(2);
     });
 });
 
 describe('getMethod', () => {
     it('should return correct uniform method', () => {
-        const glEnum = {
-            a: 'FLOAT_VEC2', b: 'FLOAT_VEC4', c: 'FLOAT', d: 'FLOAT_VEC3',
-            e: 'FLOAT_MAT4', f: 'FLOAT_MAT3', g: 'FLOAT_MAT2', h: 'SAMPLER_2D'
+        const glEnum: Record<number, string> = {
+            0: 'FLOAT_VEC2', 1: 'FLOAT_VEC4', 2: 'FLOAT', 3: 'FLOAT_VEC3',
+            4: 'FLOAT_MAT4', 5: 'FLOAT_MAT3', 6: 'FLOAT_MAT2', 7: 'SAMPLER_2D'
         };
         jest.spyOn(utils, 'getGlEnum').mockImplementation(name => glEnum[name]);
-        expect(utils.getMethod('a')).toBe('uniform2f');
-        expect(utils.getMethod('b')).toBe('uniform4f');
-        expect(utils.getMethod('c')).toBe('uniform1f');
-        expect(utils.getMethod('d')).toBe('uniform3f');
-        expect(utils.getMethod('e')).toBe('uniformMatrix4fv');
-        expect(utils.getMethod('f')).toBe('uniformMatrix3fv');
-        expect(utils.getMethod('g')).toBe('uniformMatrix2fv');
-        expect(utils.getMethod('h')).toBe('uniform1i');
+        expect(utils.getMethod(0)).toBe('uniform2f');
+        expect(utils.getMethod(1)).toBe('uniform4f');
+        expect(utils.getMethod(2)).toBe('uniform1f');
+        expect(utils.getMethod(3)).toBe('uniform3f');
+        expect(utils.getMethod(4)).toBe('uniformMatrix4fv');
+        expect(utils.getMethod(5)).toBe('uniformMatrix3fv');
+        expect(utils.getMethod(6)).toBe('uniformMatrix2fv');
+        expect(utils.getMethod(7)).toBe('uniform1i');
     });
 });
 
@@ -252,11 +252,16 @@ describe('calculateOffset', () => {
     });
 });
 
+interface TreeNode {
+    value: number;
+    children?: TreeNode[];
+}
+
 describe('walk', () => {
     it('should traverse all nodes in a tree', () => {
-        const nodes = [];
-        const tree = { value: 1, children: [{ value: 2 }, { value: 3, children: [{ value: 4 }] }] };
-        utils.walk(tree, node => nodes.push(node.value));
+        const nodes: number[] = [];
+        const tree: TreeNode = { value: 1, children: [{ value: 2 }, { value: 3, children: [{ value: 4 }] }] };
+        utils.walk(tree, (node: TreeNode) => nodes.push(node.value));
         expect(nodes).toEqual([1, 2, 3, 4]);
     });
 });
@@ -274,9 +279,9 @@ describe('sceneToArcBall', () => {
 
 describe('getGlEnum', () => {
     it('should return value from glEnum', () => {
-        const glEnum = { TEST: 123 };
+        const glEnum: Record<number, string> = { 0: 'TEST' };
         jest.spyOn(utils, 'getGlEnum').mockImplementation(name => glEnum[name]);
-        expect(utils.getGlEnum('TEST')).toBe(123);
+        expect(utils.getGlEnum(0)).toBe('TEST');
     });
 });
 

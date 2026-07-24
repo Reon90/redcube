@@ -4,7 +4,8 @@
       "allowJs": true,
       "module": "es2020",
       "target": "esnext",
-      "skipLibCheck": true
+      "skipLibCheck": true,
+      "types": ["jest"]
   },
   "include": [
       "./src/**/*"
