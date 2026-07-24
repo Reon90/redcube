@@ -1,4 +1,4 @@
-import { compileShader, createProgram, createTexture, calculateProjection, textureEnum } from './utils';
+import { compileShader, createProgram, createTexture, calculateProjection, textureEnum, GLTexture } from './utils';
 import { Matrix4, Vector3, Vector4 } from './matrix';
 import { Camera } from './objects/index';
 import parseHDR from 'parse-hdr';
@@ -12,71 +12,70 @@ import quad from './shaders/quad.glsl';
 import { cubeVertex, quadVertex } from './vertex';
 import { SphericalHarmonics, SphericalPolynomial } from './SH';
 import { UniformBuffer } from './objects/uniform';
-//@ts-ignore
 import Sheen_E from '../src/images/Sheen_E.hdr';
 
-let gl;
+let gl: WebGL2RenderingContext;
 
-interface Texture extends WebGLTexture {
-    index: number;
-}
-interface FrameBuffer extends WebGLFramebuffer {
-    size: number;
-}
+type Texture = GLTexture;
+type FrameBuffer = WebGLFramebuffer & { size: number };
 
 interface IBLData {
+    rotation: number[];
+    irradianceCoefficients: number[][];
+    intensity: number;
+    specularImageSize: number;
     specularImages: Array<Array<HTMLImageElement>>;
 }
 
 export class Env {
-    camera: Camera;
+    camera!: Camera;
     envMatrix: Matrix4;
-    VAO: WebGLBuffer;
-    quadVAO: WebGLBuffer;
-    IndexBufferLength: number;
-    cubeprogram: WebGLProgram;
-    irradianceprogram: WebGLProgram;
-    mipmapcubeprogram: WebGLProgram;
-    bdrfprogram: WebGLProgram;
-    level: WebGLUniformLocation;
-    diffuse: WebGLUniformLocation;
-    MVPMatrix: WebGLUniformLocation;
-    framebuffer: FrameBuffer;
-    irradiancebuffer: FrameBuffer;
-    prefilterbuffer: FrameBuffer;
-    views: Array<Matrix4>;
-    views2: Array<Matrix4>;
-    prefilterrender: WebGLRenderbuffer;
-    brdfbuffer: FrameBuffer;
-    canvas: HTMLCanvasElement;
+    VAO!: WebGLVertexArrayObject;
+    quadVAO!: WebGLVertexArrayObject;
+    IndexBufferLength?: number;
+    cubeprogram!: WebGLProgram;
+    irradianceprogram!: WebGLProgram;
+    mipmapcubeprogram!: WebGLProgram;
+    bdrfprogram!: WebGLProgram;
+    level?: WebGLUniformLocation;
+    diffuse?: WebGLUniformLocation;
+    MVPMatrix?: WebGLUniformLocation;
+    framebuffer!: FrameBuffer;
+    irradiancebuffer!: FrameBuffer;
+    prefilterbuffer!: FrameBuffer;
+    views!: Array<Matrix4>;
+    views2!: Array<Matrix4>;
+    prefilterrender?: WebGLRenderbuffer;
+    brdfbuffer!: FrameBuffer;
+    canvas!: HTMLCanvasElement;
     url: string;
-    sampler: WebGLTexture;
-    samplerCube: WebGLTexture;
-    envData: IBLData;
-    uniformBuffer: UniformBuffer;
+    sampler!: WebGLSampler;
+    samplerCube!: WebGLSampler;
+    envData!: IBLData;
+    uniformBuffer?: UniformBuffer;
 
-    originalCubeTexture: Texture;
-    brdfLUTTexture: Texture;
-    original2DTexture: Texture;
-    irradiancemap: Texture;
-    prefilterMap: Texture;
-    charlieMap: Texture;
-    Sheen_E: Texture;
+    originalCubeTexture!: Texture;
+    brdfLUTTexture!: Texture;
+    original2DTexture!: Texture;
+    irradiancemap!: Texture;
+    prefilterMap!: Texture;
+    charlieMap!: Texture;
+    Sheen_E!: Texture;
 
-    constructor(url) {
+    constructor(url: string) {
         this.url = url;
         this.envMatrix = new Matrix4();
     }
 
-    setCamera(camera) {
+    setCamera(camera: Camera) {
         this.camera = camera;
     }
 
-    setGl(g) {
+    setGl(g: WebGL2RenderingContext) {
         gl = g;
     }
 
-    setCanvas(canvas) {
+    setCanvas(canvas: HTMLCanvasElement) {
         this.canvas = canvas;
     }
 
@@ -97,7 +96,7 @@ export class Env {
                 zfar: 10000
             }
         });
-        m.multiply(calculateProjection(cam));
+        m.multiply(calculateProjection(cam)!);
 
         gl.enable(gl.CULL_FACE);
         const program = gl.createProgram();
@@ -156,7 +155,7 @@ export class Env {
                 zfar: 10000
             }
         });
-        m.multiply(calculateProjection(cam));
+        m.multiply(calculateProjection(cam)!);
 
         gl.enable(gl.CULL_FACE);
         const program = gl.createProgram();
@@ -205,7 +204,7 @@ export class Env {
         gl.useProgram(program);
         gl.bindVertexArray(this.VAO);
         gl.uniformMatrix4fv(gl.getUniformLocation(program, 'projection'), false, m.elements);
-        const s = this.camera.modelSize * 2;
+        const s = this.camera.modelSize! * 2;
         gl.uniformMatrix4fv(gl.getUniformLocation(program, 'model'), false,
             new Matrix4().makeRotationAxis(new Vector3([1, 0, 0]), Math.PI).scale(new Vector3([s, s, s])).elements
         );
@@ -226,7 +225,7 @@ export class Env {
                 zfar: 10000
             }
         });
-        m.multiply(calculateProjection(cam));
+        m.multiply(calculateProjection(cam)!);
 
         if (!this.envData) {
             gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
@@ -339,18 +338,18 @@ export class Env {
         gl.viewport(0, 0, this.width, this.height);
     }
 
-    updateUniform(gl, program) {
+    updateUniform(gl: WebGL2RenderingContext, program: WebGLProgram) {
         if (this.uniformBuffer) {
             const mIndex = gl.getUniformBlockIndex(program, 'SphericalHarmonics');
             gl.uniformBlockBinding(program, mIndex, 7);
             const mUBO = gl.createBuffer();
             gl.bindBuffer(gl.UNIFORM_BUFFER, mUBO);
-            gl.bufferData(gl.UNIFORM_BUFFER, this.uniformBuffer.store, gl.STATIC_DRAW);
+            gl.bufferData(gl.UNIFORM_BUFFER, this.uniformBuffer.store!, gl.STATIC_DRAW);
             return mUBO;
         }
     }
 
-    async createEnvironmentBuffer(envData) {
+    async createEnvironmentBuffer(envData: IBLData) {
         this.envData = envData;
 
         if (envData) {
@@ -397,7 +396,7 @@ export class Env {
 
         {
             const size = 32;
-            const captureFBO = gl.createFramebuffer();
+            const captureFBO = gl.createFramebuffer() as FrameBuffer;
             this.irradiancebuffer = captureFBO;
             this.irradiancebuffer.size = size;
             gl.bindFramebuffer(gl.FRAMEBUFFER, captureFBO);
@@ -417,7 +416,7 @@ export class Env {
 
         {
             const size = 512;
-            const captureFBO = gl.createFramebuffer();
+            const captureFBO = gl.createFramebuffer() as FrameBuffer;
             this.framebuffer = captureFBO;
             this.framebuffer.size = size;
             gl.bindFramebuffer(gl.FRAMEBUFFER, captureFBO);
@@ -434,7 +433,7 @@ export class Env {
 
         {
             const size = 128;
-            const captureFBO = gl.createFramebuffer();
+            const captureFBO = gl.createFramebuffer() as FrameBuffer;
             this.prefilterbuffer = captureFBO;
             this.prefilterbuffer.size = size;
             gl.bindFramebuffer(gl.FRAMEBUFFER, captureFBO);
@@ -484,7 +483,7 @@ export class Env {
 
         {
             const size = 512;
-            const captureFBO = gl.createFramebuffer();
+            const captureFBO = gl.createFramebuffer() as FrameBuffer;
             this.brdfbuffer = captureFBO;
             this.brdfbuffer.size = size;
             gl.bindFramebuffer(gl.FRAMEBUFFER, captureFBO);
@@ -505,7 +504,7 @@ export class Env {
             gl.bindVertexArray(null);
         }
 
-        const views = [
+        const views: [Vector3, number][] = [
             [new Vector3([0, 1, 0]), Math.PI / 2], // Right
             [new Vector3([0, 1, 0]), -Math.PI / 2], // Left
             [new Vector3([1, 0, 0]), 0], // Top
@@ -535,7 +534,7 @@ export class Env {
 
             return new Matrix4().setInverseOf(camMatrix);
         });
-        const views2 = [
+        const views2: [Vector3, number][] = [
             [new Vector3([0, 1, 0]), Math.PI], // Right
             [new Vector3([0, 1, 0]), 0], // Left
             [new Vector3([1, 0, 0]), Math.PI / 2], // Top
