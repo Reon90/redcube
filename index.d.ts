@@ -31,4 +31,5 @@ interface WEBGPU {
     commandEncoder?: GPUCommandEncoder;
     nearestSampler?: GPUSampler;
     linearSampler?: GPUSampler;
+    newRenderTarget?: GPUTextureView;
 }

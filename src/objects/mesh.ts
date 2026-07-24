@@ -23,6 +23,7 @@ export class Mesh extends Object3D {
 
     uniformBindGroup1!: GPUBindGroup;
     pipeline!: GPURenderPipeline;
+    pipeline2?: GPURenderPipeline;
 
     constructor(name?: string | number, parent?: Object3D | Scene) {
         super(name, parent);

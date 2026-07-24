@@ -43,6 +43,9 @@ export interface State {
     lightColorBuffer: UniformBuffer;
     storage2: { texture: WebGLTexture };
     storage: { texture2: WebGLTexture };
+    stateBuffer: UniformBuffer;
+    materialStorage: UniformBuffer;
+    transformsStorage: UniformBuffer;
 }
 
 export class Renderer {
@@ -86,8 +89,8 @@ export class Renderer {
         this.PP = pp;
     }
 
-    setGl(g: WebGL2RenderingContext) {
-        gl = g;
+    setGl(g: WebGL2RenderingContext | WEBGPU) {
+        gl = g as WebGL2RenderingContext;
     }
 
     setParser(parser: Parse) {

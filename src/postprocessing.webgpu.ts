@@ -43,7 +43,7 @@ export class PostProcessing {
     renderframebuffer: WebGLFramebuffer;
     MSAA: Number;
     renderScene: Function;
-    pipeline: GPURenderPipeline;
+    pipeline: GPURenderPipeline & { pass?: GPURenderPassDescriptor };
     target: GPURenderPassColorAttachment[] | undefined;
     vertexBuffer: GPUBuffer;
     bindGroup: GPUBindGroup;

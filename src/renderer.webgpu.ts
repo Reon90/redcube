@@ -1,29 +1,33 @@
 import { Frustum } from './matrix';
 import { WebGPUProfiler } from './profile';
-import { Renderer } from './renderer';
+import { Renderer, State } from './renderer';
+import { Env } from './env';
+import { PostProcessing } from './postprocessing.webgpu';
+import { Mesh } from './objects/index';
+import { Attributes } from './objects/geometry';
 
 let WebGPU: WEBGPU;
 
 export class RendererWebGPU extends Renderer {
-    profiler: WebGPUProfiler;
+    profiler!: WebGPUProfiler;
 
-    setEnv(env) {
+    setEnv(env: Env) {
         this.env = env;
     }
 
-    setGl(g) {
-        WebGPU = g;
-        this.profiler = new WebGPUProfiler(g.device, { maxTimestampWrites: 64 });
+    setGl(g: WebGL2RenderingContext | WEBGPU) {
+        WebGPU = g as WEBGPU;
+        this.profiler = new WebGPUProfiler((g as WEBGPU).device, { maxTimestampWrites: 64 });
     }
 
-    setPp(pp) {
+    setPp(pp: PostProcessing) {
         this.PP = pp;
     }
 
     async render(time = 0) {
         const sec = time / 1000;
 
-        if (!(window as any).__FORCE_DETERMINISTIC__) {
+        if (!window.__FORCE_DETERMINISTIC__) {
             this.animate(sec);
         }
 
@@ -37,7 +41,7 @@ export class RendererWebGPU extends Renderer {
                 this.PP.bindPostPass();
             }
 
-            this.renderScene();
+            await this.renderScene();
             this.clean();
 
             if (this.PP.hasPostPass) {
@@ -50,11 +54,11 @@ export class RendererWebGPU extends Renderer {
         requestAnimationFrame(this.render.bind(this));
     }
 
-    updateGeometry(mesh, geometry) {
+    updateGeometry(mesh: Mesh, geometry: Attributes) {
         mesh.geometry.updateWebGPU(WebGPU, geometry);
     }
 
-    updateMaterial(mesh, type, out) {
+    updateMaterial(mesh: Mesh, type: string, out: { elements: ArrayLike<number> }) {
         const s = type.split('/');
         const last = s[s.length - 1];
 
@@ -75,7 +79,7 @@ export class RendererWebGPU extends Renderer {
             const planes = Frustum(s.camera.getViewProjMatrix());
 
             this.scene.meshes.forEach(mesh => {
-                mesh.visible = mesh.parent.visible && mesh.isVisible(planes);
+                mesh.visible = mesh.parent!.visible && mesh.isVisible(planes);
             });
 
             this.scene.opaqueChildren.sort((a, b) => a.distance - b.distance);
@@ -87,14 +91,13 @@ export class RendererWebGPU extends Renderer {
                 ...renderPassDescriptor,
                 label: 'g-pass',
                 colorAttachments: this.PP.target,
-                // @ts-expect-error
-                depthStencilAttachment: this.PP.pipeline.pass.depthStencilAttachment
+                depthStencilAttachment: this.PP.pipeline.pass!.depthStencilAttachment
             };
         } else {
             renderPassDescriptor = {...renderPassDescriptor, label: 'main-pass', colorAttachments: [
                 {
                     // attachment is acquired in render loop.
-                    view: newRenderTarget,
+                    view: newRenderTarget!,
                     resolveTarget: context.getCurrentTexture().createView(),
                     storeOp: 'store' as GPUStoreOp,
                     loadOp: 'clear' as GPULoadOp,
@@ -106,7 +109,6 @@ export class RendererWebGPU extends Renderer {
         this.profiler.beginFrame();
         const commandEncoder = device.createCommandEncoder({label: 'main-command-encoder'});
         const passEncoder = this.profiler.beginTimedRenderPass(commandEncoder, renderPassDescriptor, 'main-pass');
-        // @ts-ignore
         // this.env.drawQuad(WebGPU, passEncoder);
 
         s.stateBuffer.updateWebGPU(WebGPU, 'isTone', s.renderState.isprerefraction ? 0 : 1);
@@ -115,14 +117,14 @@ export class RendererWebGPU extends Renderer {
             s.cameraBuffer.updateWebGPU(WebGPU, 'light', s.light.matrixWorldInvert.elements);
 
             this.parse.lights.forEach((light, i) => {
-                s.lightPosBuffer.store.set(light.getPosition(), i * 4);
+                s.lightPosBuffer.store!.set(light.getPosition(), i * 4);
             });
             device.queue.writeBuffer(
-                s.lightPosBuffer.bufferWebGPU,
+                s.lightPosBuffer.bufferWebGPU!,
                 0,
-                s.lightPosBuffer.store.buffer,
-                s.lightPosBuffer.store.byteOffset,
-                s.lightPosBuffer.store.byteLength
+                s.lightPosBuffer.store!.buffer,
+                s.lightPosBuffer.store!.byteOffset,
+                s.lightPosBuffer.store!.byteLength
             );
         }
         if (s.needUpdateProjection) {
@@ -130,17 +132,17 @@ export class RendererWebGPU extends Renderer {
         }
 
         device.queue.writeBuffer(
-            s.lightColorBuffer.bufferWebGPU,
+            s.lightColorBuffer.bufferWebGPU!,
             0,
-            s.lightColorBuffer.store.buffer,
-            s.lightColorBuffer.store.byteOffset,
-            s.lightColorBuffer.store.byteLength
+            s.lightColorBuffer.store!.buffer,
+            s.lightColorBuffer.store!.byteOffset,
+            s.lightColorBuffer.store!.byteLength
         );
         s.lights.forEach((light, i) => {
             const offset = i * 4 * Float32Array.BYTES_PER_ELEMENT;
             if (light.visible === false) {
                 device.queue.writeBuffer(
-                    s.lightColorBuffer.bufferWebGPU,
+                    s.lightColorBuffer.bufferWebGPU!,
                     offset,
                     new Float32Array([0, 0, 0, 0]).buffer,
                     0,
@@ -151,13 +153,13 @@ export class RendererWebGPU extends Renderer {
 
         this.scene.opaqueChildren.forEach((mesh) => {
             if (mesh.visible) {
-                passEncoder.setPipeline(s.renderState.isprerefraction ? mesh.pipeline2 : mesh.pipeline);
+                passEncoder.setPipeline((s.renderState.isprerefraction ? mesh.pipeline2 : mesh.pipeline)!);
                 mesh.drawWebGPU(WebGPU, passEncoder, mesh.order, s);
             }
         });
         this.scene.transparentChildren.forEach(mesh => {
             if (mesh.visible) {
-                passEncoder.setPipeline(s.renderState.isprerefraction ? mesh.pipeline2 : mesh.pipeline);
+                passEncoder.setPipeline((s.renderState.isprerefraction ? mesh.pipeline2 : mesh.pipeline)!);
                 mesh.drawWebGPU(WebGPU, passEncoder, mesh.order, s);
             }
         });
