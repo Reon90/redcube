@@ -102,7 +102,7 @@ interface Texture {
     count: number;
     data: WebGLTexture;
 }
-interface Define {
+export interface Define {
     name: string;
     value?: number;
 }

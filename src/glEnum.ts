@@ -1,4 +1,4 @@
-export default {
+export default <Record<number, string>>{
     '0': 'NONE',
     '1': 'ONE',
     '2': 'LINE_LOOP',

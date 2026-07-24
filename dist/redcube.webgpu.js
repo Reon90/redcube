@@ -11,11 +11,20 @@ var redcube = (() => {
     if (typeof require !== "undefined") return require.apply(this, arguments);
     throw Error('Dynamic require of "' + x + '" is not supported');
   });
-  var __esm = (fn, res) => function __init() {
-    return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
+  var __esm = (fn, res, err) => function __init() {
+    if (err) throw err[0];
+    try {
+      return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
+    } catch (e) {
+      throw err = [e], e;
+    }
   };
   var __commonJS = (cb, mod) => function __require2() {
-    return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
+    try {
+      return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
+    } catch (e) {
+      throw mod = 0, e;
+    }
   };
   var __export = (target, all) => {
     for (var name in all)
@@ -14789,7 +14798,7 @@ var redcube = (() => {
     }
     projectOnVector(vector) {
       const scalar = _Vector3.dot(vector, this) / vector.lengthSq();
-      return new _Vector3(vector).scale(scalar);
+      return new _Vector3(vector.elements).scale(scalar);
     }
     applyQuaternion({ elements }) {
       const x = this.elements[0];
@@ -14842,9 +14851,9 @@ var redcube = (() => {
      * @param {Number} b amount to scale the vector by
      * @returns {vec3} out
      */
-    add(b) {
+    add(vector) {
       const a = this.elements;
-      b = b.elements;
+      const b = vector.elements;
       a[0] = a[0] + b[0];
       a[1] = a[1] + b[1];
       a[2] = a[2] + b[2];
@@ -14879,9 +14888,9 @@ var redcube = (() => {
       const dz = this.elements[2] - z;
       return dx * dx + dy * dy + dz * dz;
     }
-    subtract(b) {
+    subtract(vector) {
       const out = this.elements;
-      b = b.elements;
+      const b = vector.elements;
       out[0] = out[0] - b[0];
       out[1] = out[1] - b[1];
       out[2] = out[2] - b[2];
@@ -14932,9 +14941,9 @@ var redcube = (() => {
         return Math.acos(cosine);
       }
     }
-    static cross(a, b) {
-      a = a.elements;
-      b = b.elements;
+    static cross(vecA, vecB) {
+      const a = vecA.elements;
+      const b = vecB.elements;
       const ax = a[0];
       const ay = a[1];
       const az = a[2];
@@ -14947,9 +14956,9 @@ var redcube = (() => {
       out.elements[2] = ax * by - ay * bx;
       return out;
     }
-    static dot(a, b) {
-      a = a.elements;
-      b = b.elements;
+    static dot(vecA, vecB) {
+      const a = vecA.elements;
+      const b = vecB.elements;
       return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
     }
     length() {
@@ -15007,9 +15016,9 @@ var redcube = (() => {
       a[3] = e[3];
       return this;
     }
-    add(b) {
+    add(vector) {
       const a = this.elements;
-      b = b.elements;
+      const b = vector.elements;
       a[0] = b[0];
       a[1] = b[1];
       a[2] = b[2];
@@ -15155,9 +15164,9 @@ var redcube = (() => {
       }
       this.elements = v;
     }
-    subtract(b) {
+    subtract(vector) {
       const out = this.elements;
-      b = b.elements;
+      const b = vector.elements;
       out[0] = out[0] - b[0];
       out[1] = out[1] - b[1];
       return this;
@@ -15974,7 +15983,8 @@ var redcube = (() => {
         break;
     }
     if (length !== requiredLength) {
-      const stridedArr = new arr.constructor(requiredLength);
+      const ArrCtor = arr.constructor;
+      const stridedArr = new ArrCtor(requiredLength);
       let j = 0;
       for (let i = 0; i < stridedArr.length; i += typeofComponent) {
         for (let k = 0; k < typeofComponent; k++) {
@@ -16104,7 +16114,8 @@ var redcube = (() => {
         norm.push(normal[3 * i + c]);
       }
       const N = new Vector3(norm);
-      const components = ["x", "y", "z"].sort((a, b) => {
+      const components = ["x", "y", "z"];
+      components.sort((a, b) => {
         return Math.abs(N[a]) - Math.abs(N[b]);
       });
       const pos = new Vector3(coords);
@@ -16174,8 +16185,8 @@ var redcube = (() => {
     const tangent = new Float32Array(normal.length / 3 * 4);
     for (let i = 0; i < index.length; i += 3) {
       const faceIndexes = [index[i], index[i + 1], index[i + 2]];
-      const faceVertices = faceIndexes.map((ix) => vectorFromArray(vertex, ix));
-      const faceUVs = faceIndexes.map((ix) => vectorFromArray(uv, ix, 2));
+      const faceVertices = faceIndexes.map((ix) => vectorFromArray3(vertex, ix));
+      const faceUVs = faceIndexes.map((ix) => vectorFromArray2(uv, ix));
       const dv1 = faceVertices[1].subtract(faceVertices[0]);
       const dv2 = faceVertices[2].subtract(faceVertices[0]);
       const duv1 = faceUVs[1].subtract(faceUVs[0]);
@@ -16194,14 +16205,13 @@ var redcube = (() => {
       });
     }
     return tangent;
-    function vectorFromArray(array, index2, elements = 3) {
-      index2 = index2 * elements;
-      if (elements === 3) {
-        return new Vector3([array[index2], array[index2 + 1], array[index2 + 2]]);
-      }
-      if (elements === 2) {
-        return new Vector2([array[index2], array[index2 + 1]]);
-      }
+    function vectorFromArray3(array, index2) {
+      index2 = index2 * 3;
+      return new Vector3([array[index2], array[index2 + 1], array[index2 + 2]]);
+    }
+    function vectorFromArray2(array, index2) {
+      index2 = index2 * 2;
+      return new Vector2([array[index2], array[index2 + 1]]);
     }
     function accumulateVectorInArray(array, index2, vector, sign, elements = 4, accumulator = (acc, x) => acc + x) {
       index2 = index2 * elements;
@@ -16357,7 +16367,8 @@ var redcube = (() => {
   }
   function convertLineLoopToLineList(loopIndices) {
     const n = loopIndices.length;
-    const listIndices = new loopIndices.constructor(n * 2);
+    const ListCtor = loopIndices.constructor;
+    const listIndices = new ListCtor(n * 2);
     for (let i = 0; i < n; i++) {
       const curr = loopIndices[i];
       const next = loopIndices[(i + 1) % n];

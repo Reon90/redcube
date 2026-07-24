@@ -1,4 +1,4 @@
-import { Box, Vector3 } from '../matrix';
+import { Box, Vector3, Matrix4 } from '../matrix';
 import { UniformBuffer } from './uniform';
 import {
     buildArray,
@@ -12,29 +12,35 @@ import {
     calculateUVs,
     fanToTriListIndices,
     convertLineLoopToLineList,
-    toFloat32Normalized
+    toFloat32Normalized,
+    TypedArray
 } from '../utils';
-import { decodeDracoData, getArray } from '../decoder';
+import { decodeDracoData, getArray, DracoModule } from '../decoder';
+import { GlTf, MeshPrimitive, Accessor } from '../../GLTF';
+import type { Define } from '../parse';
 
 interface Attributes {
-    POSITION: Float32Array;
-    NORMAL: Float32Array;
-    TEXCOORD_0: Float32Array;
-    JOINTS_0: Float32Array;
-    WEIGHTS_0: Float32Array;
-    TANGENT: Float32Array;
-    COLOR_0: Float32Array;
+    POSITION?: TypedArray;
+    NORMAL?: TypedArray;
+    TEXCOORD_0?: TypedArray;
+    TEXCOORD_1?: TypedArray;
+    TEXCOORD_2?: TypedArray;
+    JOINTS_0?: TypedArray;
+    WEIGHTS_0?: TypedArray;
+    TANGENT?: TypedArray;
+    COLOR_0?: TypedArray;
+    [key: string]: TypedArray | undefined;
 }
 interface BoundingSphere {
     min: Vector3;
     max: Vector3;
-    _min: Vector3;
-    _max: Vector3;
+    _min?: Vector3;
+    _max?: Vector3;
     center: Vector3;
-    radius: number;
+    radius: number | null;
 }
-interface Attr {
-    componentType: string;
+interface Attr extends Partial<Accessor> {
+    componentType: number;
 }
 
 const GeometryEnum = {
@@ -50,27 +56,27 @@ const GeometryEnum = {
 };
 
 export class Geometry {
-    UBO: WebGLBuffer;
-    VAO: WebGLBuffer;
-    uniformBuffer: UniformBuffer;
-    indicesBuffer: Uint32Array;
+    UBO: WebGLBuffer | null;
+    VAO: WebGLBuffer | null;
+    uniformBuffer: UniformBuffer | null;
+    indicesBuffer?: TypedArray;
     attributes: Attributes;
     targets: Array<Attributes>;
-    blend: string;
-    uniforms: object;
-    SKIN: WebGLBuffer;
+    blend: string | null;
+    uniforms: object | null;
+    SKIN: WebGLBuffer | null;
     boundingSphere: BoundingSphere;
     vertexAccessor: Map<string, Attr>;
     indexType: number;
-    cubeVertexSize: number;
-    VBO: WebGLBuffer;
+    cubeVertexSize?: number;
+    VBO?: WebGLBuffer;
 
-    indicesWebGPUBuffer: GPUBuffer;
-    verticesWebGPUBuffer: GPUBuffer;
-    uniformBindGroup1: GPUBindGroupEntry[];
-    g: Float32Array;
+    indicesWebGPUBuffer?: GPUBuffer;
+    verticesWebGPUBuffer?: GPUBuffer;
+    uniformBindGroup1?: GPUBindGroupEntry[];
+    g?: Float32Array;
 
-    constructor(json, arrayBuffer, weights, draco, primitive) {
+    constructor(json: GlTf, arrayBuffer: ArrayBufferLike[], weights: number[], draco: DracoModule | undefined, primitive: MeshPrimitive) {
         this.boundingSphere = {
             center: new Vector3(),
             radius: null,
@@ -80,40 +86,37 @@ export class Geometry {
         this.uniformBuffer = null;
         this.UBO = null;
         this.VAO = null;
-        this.indicesBuffer = null;
-        this.attributes = null;
-        this.targets = null;
         this.blend = null;
         this.uniforms = null;
         this.SKIN = null;
         this.targets = [];
 
-        let indicesBuffer;
+        let indicesBuffer: TypedArray | undefined;
         const vertexBuffers = <Attributes>{};
-        const indicesAccessor = json.accessors[primitive.indices];
-        this.indexType = indicesAccessor?.componentType;
-        const vertexAccessor = new Map();
+        const indicesAccessor = primitive.indices !== undefined ? json.accessors![primitive.indices] : undefined;
+        this.indexType = indicesAccessor?.componentType as number;
+        const vertexAccessor = new Map<string, Attr>();
         for (const a in primitive.attributes) {
-            vertexAccessor.set(a, json.accessors[primitive.attributes[a]]);
+            vertexAccessor.set(a, json.accessors![primitive.attributes[a]]);
         }
         const boundingBox = {
-            min: vertexAccessor.get('POSITION').min,
-            max: vertexAccessor.get('POSITION').max
+            min: vertexAccessor.get('POSITION')!.min!,
+            max: vertexAccessor.get('POSITION')!.max!
         };
 
         const compresedMesh = primitive.extensions && primitive.extensions.KHR_draco_mesh_compression;
         if (compresedMesh) {
-            const bufferView = json.bufferViews[compresedMesh.bufferView];
-            const decoder = new draco.Decoder();
-            const decodedGeometry = decodeDracoData(arrayBuffer[bufferView.buffer], decoder, bufferView.byteOffset, bufferView.byteLength);
+            const bufferView = json.bufferViews![compresedMesh.bufferView];
+            const decoder = new draco!.Decoder();
+            const decodedGeometry = decodeDracoData(arrayBuffer[bufferView.buffer], decoder, bufferView.byteOffset!, bufferView.byteLength);
             const numFaces = decodedGeometry.num_faces();
             const numPoints = decodedGeometry.num_points();
 
             for (const k of vertexAccessor.keys()) {
                 const attribute = decoder.GetAttributeByUniqueId(decodedGeometry, compresedMesh.attributes[k]);
-                const size = getDataType(vertexAccessor.get(k).type);
+                const size = getDataType(vertexAccessor.get(k)!.type!)!;
                 const [dracoArr, arr] = getArray(
-                    getGlEnum(vertexAccessor.get(k).componentType),
+                    getGlEnum(vertexAccessor.get(k)!.componentType)!,
                     numPoints * size,
                     decodedGeometry,
                     attribute,
@@ -121,83 +124,86 @@ export class Geometry {
                 );
 
                 for (let i = 0; i < numPoints * size; i += size) {
-                    arr[i] = dracoArr.GetValue(i);
-                    arr[i + 1] = dracoArr.GetValue(i + 1);
+                    arr![i] = dracoArr!.GetValue(i);
+                    arr![i + 1] = dracoArr!.GetValue(i + 1);
                     if (size > 2) {
-                        arr[i + 2] = dracoArr.GetValue(i + 2);
+                        arr![i + 2] = dracoArr!.GetValue(i + 2);
                     }
                     if (size > 3) {
-                        arr[i + 3] = dracoArr.GetValue(i + 3);
+                        arr![i + 3] = dracoArr!.GetValue(i + 3);
                     }
                 }
-                draco.destroy(dracoArr);
+                draco!.destroy(dracoArr);
                 vertexBuffers[k] = arr;
             }
 
             {
-                indicesBuffer = new Uint32Array(numFaces * 3);
-                indicesBuffer.type = 'UNSIGNED_INT';
-                const ia = new draco.DracoUInt32Array();
+                const indices = new Uint32Array(numFaces * 3) as TypedArray & { type?: string };
+                indices.type = 'UNSIGNED_INT';
+                const ia = new draco!.DracoUInt32Array();
                 for (let i = 0; i < numFaces; ++i) {
                     decoder.GetFaceFromMesh(decodedGeometry, i, ia);
                     const index = i * 3;
-                    indicesBuffer[index] = ia.GetValue(0);
-                    indicesBuffer[index + 1] = ia.GetValue(1);
-                    indicesBuffer[index + 2] = ia.GetValue(2);
+                    indices[index] = ia.GetValue(0);
+                    indices[index + 1] = ia.GetValue(1);
+                    indices[index + 2] = ia.GetValue(2);
                 }
-                draco.destroy(ia);
+                draco!.destroy(ia);
+                indicesBuffer = indices;
             }
 
-            draco.destroy(decoder);
-            draco.destroy(decodedGeometry);
+            draco!.destroy(decoder);
+            draco!.destroy(decodedGeometry);
         } else {
             if (indicesAccessor) {
-                const bufferView = json.bufferViews[indicesAccessor.bufferView];
+                const bufferView = json.bufferViews![indicesAccessor.bufferView!];
                 indicesBuffer = buildArray(
                     arrayBuffer[bufferView.buffer],
                     indicesAccessor.componentType,
                     calculateOffset(bufferView.byteOffset, indicesAccessor.byteOffset),
-                    getDataType(indicesAccessor.type) * indicesAccessor.count
+                    getDataType(indicesAccessor.type)! * indicesAccessor.count
                 );
                 if (primitive.mode === 6) {
-                    indicesBuffer = fanToTriListIndices(indicesBuffer);
+                    indicesBuffer = fanToTriListIndices(indicesBuffer as Uint16Array | Uint32Array);
                 }
                 if (primitive.mode === 2) {
-                    indicesBuffer = convertLineLoopToLineList(indicesBuffer);
+                    indicesBuffer = convertLineLoopToLineList(indicesBuffer as Uint16Array | Uint32Array);
                 }
             }
             for (const k of vertexAccessor.keys()) {
-                const accessor = vertexAccessor.get(k);
-                const bufferView = json.bufferViews[accessor.bufferView];
-                vertexBuffers[k] = buildArrayWithStride(arrayBuffer[bufferView.buffer], accessor, bufferView);
+                const accessor = vertexAccessor.get(k)!;
+                const bufferView = json.bufferViews![accessor.bufferView!];
+                vertexBuffers[k] = buildArrayWithStride(arrayBuffer[bufferView.buffer], accessor as Accessor, bufferView);
             }
         }
 
         if (primitive.targets) {
             for (const target of primitive.targets) {
                 const vertexAcc = <Attributes>{};
+                const accessors: Record<string, Attr> = {};
                 for (const a in target) {
-                    vertexAcc[a] = json.accessors[target[a]];
-                    const accessor = vertexAcc[a];
-                    const bufferView = json.bufferViews[accessor.bufferView];
-                    vertexAcc[a] = buildArrayWithStride(arrayBuffer[bufferView.buffer], accessor, bufferView);
+                    accessors[a] = json.accessors![target[a]];
+                    const accessor = accessors[a];
+                    const bufferView = json.bufferViews![accessor.bufferView!];
+                    vertexAcc[a] = buildArrayWithStride(arrayBuffer[bufferView.buffer], accessor as Accessor, bufferView);
                 }
-                this.targets.push(vertexAcc);
+                this.targets!.push(vertexAcc);
             }
             for (const k of vertexAccessor.keys()) {
-                if (this.targets[0][k]) {
+                if (this.targets![0][k]) {
                     let offset = 0;
-                    const geometry = vertexBuffers[k];
-                    vertexBuffers[k] = new geometry.constructor(geometry.length);
-                    for (let i = 0; i < vertexBuffers[k].length; i++) {
+                    const geometry = vertexBuffers[k]!;
+                    const GeometryCtor = geometry.constructor as new (length: number) => TypedArray;
+                    vertexBuffers[k] = new GeometryCtor(geometry.length);
+                    for (let i = 0; i < vertexBuffers[k]!.length; i++) {
                         if (k === 'TANGENT' && (i + 1) % 4 === 0) {
                             offset++;
                             continue;
                         }
-                        vertexBuffers[k][i] =
+                        vertexBuffers[k]![i] =
                             geometry[i] +
                             weights.reduce((a, b, index) => {
-                                return a + weights[index] * this.targets[index][k][i - offset];
+                                return a + weights[index] * this.targets![index][k]![i - offset];
                             }, 0);
                     }
                 }
@@ -205,15 +211,16 @@ export class Geometry {
         }
 
         for (const k of vertexAccessor.keys()) {
-            const accessor = vertexAccessor.get(k);
+            const accessor = vertexAccessor.get(k)!;
             if (k === 'COLOR_0' && accessor.type === 'VEC3') {
-                const temp = new vertexBuffers[k].constructor(accessor.count * 4);
+                const ColorCtor = vertexBuffers[k]!.constructor as new (length: number) => TypedArray;
+                const temp = new ColorCtor(accessor.count! * 4);
                 let j = 0;
                 for (let i = 0; i < temp.length; i++) {
                     if ((i + 1) % 4 === 0) {
                         temp[i] = 1;
                     } else {
-                        temp[i] = vertexBuffers[k][j];
+                        temp[i] = vertexBuffers[k]![j];
                         j++;
                     }
                 }
@@ -221,61 +228,61 @@ export class Geometry {
             }
 
             if (accessor.sparse !== undefined) {
-                const itemSize = getDataType(accessor.type);
-                const indicesBufferView = json.bufferViews[accessor.sparse.indices.bufferView];
-                const valuesBufferView = json.bufferViews[accessor.sparse.values.bufferView];
+                const itemSize = getDataType(accessor.type!)!;
+                const indicesBufferView = json.bufferViews![accessor.sparse.indices.bufferView];
+                const valuesBufferView = json.bufferViews![accessor.sparse.values.bufferView];
 
                 const sparseIndices = buildArray(
                     arrayBuffer[indicesBufferView.buffer],
                     accessor.sparse.indices.componentType,
                     calculateOffset(indicesBufferView.byteOffset, accessor.sparse.indices.byteOffset),
                     accessor.sparse.count
-                );
+                )!;
                 const sparseValues = buildArray(
                     arrayBuffer[valuesBufferView.buffer],
-                    accessor.componentType,
+                    accessor.componentType!,
                     calculateOffset(valuesBufferView.byteOffset, accessor.byteOffset),
-                    getDataType(accessor.type) * accessor.sparse.count
-                );
+                    getDataType(accessor.type!)! * accessor.sparse.count
+                )!;
 
                 for (let i = 0, il = sparseIndices.length; i < il; i++) {
                     const index = sparseIndices[i];
 
-                    vertexBuffers[k][index * itemSize] = sparseValues[i * itemSize];
+                    vertexBuffers[k]![index * itemSize] = sparseValues[i * itemSize];
                     if (itemSize >= 2) {
-                        vertexBuffers[k][index * itemSize + 1] = sparseValues[i * itemSize + 1];
+                        vertexBuffers[k]![index * itemSize + 1] = sparseValues[i * itemSize + 1];
                     }
                     if (itemSize >= 3) {
-                        vertexBuffers[k][index * itemSize + 2] = sparseValues[i * itemSize + 2];
+                        vertexBuffers[k]![index * itemSize + 2] = sparseValues[i * itemSize + 2];
                     }
                     if (itemSize >= 4) {
-                        vertexBuffers[k][index * itemSize + 3] = sparseValues[i * itemSize + 3];
+                        vertexBuffers[k]![index * itemSize + 3] = sparseValues[i * itemSize + 3];
                     }
                 }
             }
         }
 
         if (vertexBuffers.NORMAL === undefined && indicesBuffer) {
-            vertexBuffers.NORMAL = calculateNormals(indicesBuffer, vertexBuffers.POSITION);
+            vertexBuffers.NORMAL = calculateNormals(indicesBuffer, vertexBuffers.POSITION!);
             vertexAccessor.set('NORMAL', { componentType: 5126 });
         }
 
         if (vertexBuffers.NORMAL === undefined && indicesBuffer === undefined) {
-            vertexBuffers.NORMAL = calculateNormals2(vertexBuffers.POSITION);
+            vertexBuffers.NORMAL = calculateNormals2(vertexBuffers.POSITION!);
             vertexAccessor.set('NORMAL', { componentType: 5126 });
         }
 
         if (vertexBuffers.TEXCOORD_0 === undefined && indicesBuffer) {
-            vertexBuffers.TEXCOORD_0 = calculateUVs(vertexBuffers.POSITION, vertexBuffers.NORMAL);
+            vertexBuffers.TEXCOORD_0 = calculateUVs(vertexBuffers.POSITION!, vertexBuffers.NORMAL!);
             vertexAccessor.set('TEXCOORD_0', { componentType: 5126 });
         }
 
         if (primitive.attributes.TANGENT === undefined && indicesBuffer) {
             vertexBuffers.TANGENT = calculateBinormals(
                 indicesBuffer,
-                vertexBuffers.POSITION,
-                vertexBuffers.NORMAL,
-                vertexBuffers.TEXCOORD_0
+                vertexBuffers.POSITION!,
+                vertexBuffers.NORMAL!,
+                vertexBuffers.TEXCOORD_0!
             );
             vertexAccessor.set('TANGENT', { componentType: 5126 });
         }
@@ -288,12 +295,12 @@ export class Geometry {
         this.boundingSphere._max = new Vector3(max);
     }
 
-    compose(order) {
+    compose(order: number) {
         let total = 13;
 
-        const count = this.attributes['POSITION'].length / 3;
+        const count = this.attributes['POSITION']!.length / 3;
         const g = new Float32Array(
-            count + 
+            count +
             count * 3 +
                 count * 2 +
                 count * 3 +
@@ -319,24 +326,24 @@ export class Geometry {
         let k = 0;
         let l = 0;
         let m = 0;
-        this.attributes['NORMAL'] = toFloat32Normalized(this.attributes['NORMAL']);
+        this.attributes['NORMAL'] = toFloat32Normalized(this.attributes['NORMAL']!) as TypedArray;
         if (this.attributes['COLOR_0']) {
-            this.attributes['COLOR_0'] = toFloat32Normalized(this.attributes['COLOR_0']);
+            this.attributes['COLOR_0'] = toFloat32Normalized(this.attributes['COLOR_0']) as TypedArray;
         }
         for (let i = 0; i < g.length; i += total) {
             let j = 12;
-            g[i] = this.attributes['POSITION'][k];
-            g[i + 1] = this.attributes['POSITION'][k + 1];
-            g[i + 2] = this.attributes['POSITION'][k + 2];
+            g[i] = this.attributes['POSITION']![k];
+            g[i + 1] = this.attributes['POSITION']![k + 1];
+            g[i + 2] = this.attributes['POSITION']![k + 2];
 
             if (this.attributes['TEXCOORD_0']) {
                 g[i + 3] = this.attributes['TEXCOORD_0'][l];
                 g[i + 4] = this.attributes['TEXCOORD_0'][l + 1];
             }
-            
-            g[i + 5] = this.attributes['NORMAL'][k];
-            g[i + 6] = this.attributes['NORMAL'][k + 1];
-            g[i + 7] = this.attributes['NORMAL'][k + 2];
+
+            g[i + 5] = this.attributes['NORMAL']![k];
+            g[i + 6] = this.attributes['NORMAL']![k + 1];
+            g[i + 7] = this.attributes['NORMAL']![k + 2];
             if (this.attributes['TANGENT']) {
                 g[i + 8] = this.attributes['TANGENT'][m];
                 g[i + 9] = this.attributes['TANGENT'][m + 1];
@@ -345,10 +352,10 @@ export class Geometry {
             }
 
             if (this.attributes['WEIGHTS_0']) {
-                g[i + 12] = this.attributes['JOINTS_0'][m];
-                g[i + 13] = this.attributes['JOINTS_0'][m + 1];
-                g[i + 14] = this.attributes['JOINTS_0'][m + 2];
-                g[i + 15] = this.attributes['JOINTS_0'][m + 3];
+                g[i + 12] = this.attributes['JOINTS_0']![m];
+                g[i + 13] = this.attributes['JOINTS_0']![m + 1];
+                g[i + 14] = this.attributes['JOINTS_0']![m + 2];
+                g[i + 15] = this.attributes['JOINTS_0']![m + 3];
                 g[i + 16] = this.attributes['WEIGHTS_0'][m];
                 g[i + 17] = this.attributes['WEIGHTS_0'][m + 1];
                 g[i + 18] = this.attributes['WEIGHTS_0'][m + 2];
@@ -372,9 +379,9 @@ export class Geometry {
                 g[i + 15] = this.attributes['TEXCOORD_2'][l + 1];
                 j += 2;
             }
-            
+
             g[i + j] = order;
-            
+
             k += 3;
             l += 2;
             m += 4;
@@ -382,17 +389,17 @@ export class Geometry {
         this.g = g;
     }
 
-    createGeometryForWebGPU(WebGPU: WEBGPU, order) {
+    createGeometryForWebGPU(WebGPU: WEBGPU, order: number) {
         const { device } = WebGPU;
 
         this.compose(order);
 
         const verticesBuffer = device.createBuffer({
-            size: this.g.byteLength,
+            size: this.g!.byteLength,
             usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
             mappedAtCreation: true
         });
-        new Float32Array(verticesBuffer.getMappedRange()).set(this.g);
+        new Float32Array(verticesBuffer.getMappedRange()).set(this.g!);
         verticesBuffer.unmap();
         this.verticesWebGPUBuffer = verticesBuffer;
 
@@ -409,15 +416,15 @@ export class Geometry {
         }
     }
 
-    createGeometryForWebGl(gl, defines, order) {
-        const VAO = gl.createVertexArray();
+    createGeometryForWebGl(gl: WebGL2RenderingContext, defines: Define[], order: number) {
+        const VAO = gl.createVertexArray()!;
         gl.bindVertexArray(VAO);
 
         this.compose(order);
 
-        const VBO = gl.createBuffer();
+        const VBO = gl.createBuffer()!;
         gl.bindBuffer(gl.ARRAY_BUFFER, VBO);
-        gl.bufferData(gl.ARRAY_BUFFER, this.g, gl.STATIC_DRAW);
+        gl.bufferData(gl.ARRAY_BUFFER, this.g!, gl.STATIC_DRAW);
         this.VBO = VBO;
 
         const vertexLayout = [3, 2, 3, 4];
@@ -440,7 +447,7 @@ export class Geometry {
         let offset = 0;
         for (const k in GeometryEnum) {
             if (k in this.attributes || k === 'TANGENT' || k === 'TEXCOORD_0') {
-                const index = GeometryEnum[k];
+                const index = GeometryEnum[k as keyof typeof GeometryEnum];
                 gl.enableVertexAttribArray(index[0]);
                 gl.vertexAttribPointer(index[0], index[1], gl.FLOAT, false, cubeVertexSize, Float32Array.BYTES_PER_ELEMENT * offset);
                 offset += index[1];
@@ -457,16 +464,16 @@ export class Geometry {
         gl.bindVertexArray(null);
     }
 
-    calculateBounding(matrix) {
+    calculateBounding(matrix: Matrix4) {
         const box = new Box();
-        const min = new Vector3(this.boundingSphere._min.elements).applyMatrix4(matrix);
-        const max = new Vector3(this.boundingSphere._max.elements).applyMatrix4(matrix);
+        const min = new Vector3(this.boundingSphere._min!.elements).applyMatrix4(matrix);
+        const max = new Vector3(this.boundingSphere._max!.elements).applyMatrix4(matrix);
         box.expand({ min, max });
-        box.expand(this.boundingSphere);
+        box.expand(this.boundingSphere as { min: Vector3; max: Vector3 });
         this.boundingSphere.min = box.min;
         this.boundingSphere.max = box.max;
 
-        const vertices = this.attributes.POSITION;
+        const vertices = this.attributes.POSITION!;
         let maxRadiusSq = 0;
 
         this.boundingSphere.center
@@ -483,7 +490,7 @@ export class Geometry {
         this.boundingSphere.radius = Math.sqrt(maxRadiusSq);
     }
 
-    createUniforms(matrixWorld) {
+    createUniforms(matrixWorld: Matrix4) {
         const uniformBuffer = new UniformBuffer();
         uniformBuffer.add('model', matrixWorld.elements);
         uniformBuffer.done();
@@ -491,8 +498,8 @@ export class Geometry {
         this.uniformBuffer = uniformBuffer;
     }
 
-    updateUniformsWebGPU(WebGPU: WEBGPU, buffer, usage = GPUBufferUsage.UNIFORM) {
-        const matrixSize = buffer.store.byteLength;
+    updateUniformsWebGPU(WebGPU: WEBGPU, buffer: UniformBuffer, usage = GPUBufferUsage.UNIFORM) {
+        const matrixSize = buffer.store!.byteLength;
         const offset = 256; // uniformBindGroup offset must be 256-byte aligned
         const uniformBufferSize = offset + matrixSize;
 
@@ -513,20 +520,20 @@ export class Geometry {
         device.queue.writeBuffer(
             uniformBuffer,
             0,
-            buffer.store.buffer,
-            buffer.store.byteOffset,
-            buffer.store.byteLength
+            buffer.store!.buffer,
+            buffer.store!.byteOffset,
+            buffer.store!.byteLength
         );
 
         return uniformBindGroup1;
     }
 
-    updateUniformsWebGl(gl, program) {
+    updateUniformsWebGl(gl: WebGL2RenderingContext, program: WebGLProgram) {
         const uIndex2 = gl.getUniformBlockIndex(program, 'Matrices2');
         gl.uniformBlockBinding(program, uIndex2, 1);
     }
 
-    async updateWebGPU(WebGPU: WEBGPU, geometry) {
+    async updateWebGPU(WebGPU: WEBGPU, geometry: Attributes) {
         const { device } = WebGPU;
         let total = 12;
         if (this.attributes['COLOR_0']) {
@@ -538,7 +545,7 @@ export class Geometry {
         let k = 0;
         let l = 0;
         let m = 0;
-        const { g } = this;
+        const g = this.g!;
         for (let i = 0; i < g.length; i += total) {
             if (geometry['POSITION']) {
                 g[i] = geometry['POSITION'][k];
@@ -565,10 +572,10 @@ export class Geometry {
             m += 4;
         }
 
-        device.queue.writeBuffer(this.verticesWebGPUBuffer, 0, g.buffer, g.byteOffset, g.byteLength);
+        device.queue.writeBuffer(this.verticesWebGPUBuffer!, 0, g.buffer, g.byteOffset, g.byteLength);
     }
 
-    update(gl, geometry) {
+    update(gl: WebGL2RenderingContext, geometry: Attributes) {
         gl.bindVertexArray(this.VAO);
 
         let total = 13;
@@ -581,7 +588,7 @@ export class Geometry {
         let k = 0;
         let l = 0;
         let m = 0;
-        const { g } = this;
+        const g = this.g!;
         for (let i = 0; i < g.length; i += total) {
             if (geometry['POSITION']) {
                 g[i] = geometry['POSITION'][k];
@@ -608,7 +615,7 @@ export class Geometry {
             m += 4;
         }
 
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.VBO);
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.VBO!);
         gl.bufferData(gl.ARRAY_BUFFER, g, gl.STATIC_DRAW);
 
         gl.bindVertexArray(null);
