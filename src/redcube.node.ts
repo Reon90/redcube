@@ -10,7 +10,7 @@ class RedCube {
 
     constructor(url: string) {
         if (!url) {
-            throw new Error('Url not found');
+            throw new Error('RedCube: a glTF url must be passed as the first constructor argument');
         }
 
         this.url = url;

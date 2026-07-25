@@ -44,8 +44,11 @@ class RedCube {
     UBO!: WebGLBuffer;
 
     constructor(url: string, canvas: HTMLCanvasElement, processors: string[] = [], envUrl = 'env', mode = 'pbr') {
-        if (!url || !canvas) {
-            throw new Error('Url or Canvas not found');
+        if (!url) {
+            throw new Error('RedCube: a glTF url must be passed as the first constructor argument');
+        }
+        if (!canvas) {
+            throw new Error('RedCube: an HTMLCanvasElement must be passed as the second constructor argument');
         }
 
         this.canvas = canvas;
@@ -414,7 +417,7 @@ class RedCube {
         });
 
         if (!context) {
-            throw new Error('Webgl 2 doesnt support');
+            throw new Error('RedCube: WebGL2 is not supported by this browser/canvas - use the WebGPU or Node build instead, or check that the canvas has no other active rendering context');
         }
 
         gl = context;
