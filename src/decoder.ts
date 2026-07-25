@@ -37,15 +37,16 @@ export type TaggedTypedArray = (Int8Array | Uint8Array | Int16Array | Uint16Arra
 
 export let decoderModule: DracoModule;
 export const DecoderModule = () =>
-    new Promise<DracoModule>(async resolve => {
+    new Promise<DracoModule>((resolve) => {
         const dracoDecoderType = {
             onModuleLoaded(module: DracoModule) {
                 decoderModule = module;
                 resolve(decoderModule);
-            }
+            },
         };
-        const m = await import(/*webpackChunkName: "draco3d"*/ 'draco3d');
-        m.createDecoderModule(dracoDecoderType);
+        import(/*webpackChunkName: "draco3d"*/ 'draco3d').then((m) => {
+            m.createDecoderModule(dracoDecoderType);
+        });
     });
 
 export function decodeDracoData(rawBuffer: ArrayBufferLike, decoder: DracoDecoder, offset: number, length: number) {
@@ -69,54 +70,54 @@ export function getArray(
     let arr: TaggedTypedArray | undefined;
     let dracoArr: DracoPointArray | undefined;
     switch (type) {
-    case 'BYTE':
-        arr = new Int8Array(length) as TaggedTypedArray;
-        arr.type = 'BYTE';
-        dracoArr = new decoderModule.DracoInt8Array();
-        if (decodedGeometry) {
-            decoder!.GetAttributeInt8ForAllPoints(decodedGeometry, attribute!, dracoArr);
-        }
-        break;
-    case 'UNSIGNED_BYTE':
-        arr = new Uint8Array(length) as TaggedTypedArray;
-        arr.type = 'UNSIGNED_BYTE';
-        dracoArr = new decoderModule.DracoUInt8Array();
-        if (decodedGeometry) {
-            decoder!.GetAttributeUInt8ForAllPoints(decodedGeometry, attribute!, dracoArr);
-        }
-        break;
-    case 'SHORT':
-        arr = new Int16Array(length) as TaggedTypedArray;
-        arr.type = 'SHORT';
-        dracoArr = new decoderModule.DracoInt16Array();
-        if (decodedGeometry) {
-            decoder!.GetAttributeInt16ForAllPoints(decodedGeometry, attribute!, dracoArr);
-        }
-        break;
-    case 'UNSIGNED_SHORT':
-        arr = new Uint16Array(length) as TaggedTypedArray;
-        arr.type = 'UNSIGNED_SHORT';
-        dracoArr = new decoderModule.DracoUInt16Array();
-        if (decodedGeometry) {
-            decoder!.GetAttributeUInt16ForAllPoints(decodedGeometry, attribute!, dracoArr);
-        }
-        break;
-    case 'UNSIGNED_INT':
-        arr = new Uint32Array(length) as TaggedTypedArray;
-        arr.type = 'UNSIGNED_INT';
-        dracoArr = new decoderModule.DracoUInt32Array();
-        if (decodedGeometry) {
-            decoder!.GetAttributeUInt32ForAllPoints(decodedGeometry, attribute!, dracoArr);
-        }
-        break;
-    case 'FLOAT':
-        arr = new Float32Array(length) as TaggedTypedArray;
-        arr.type = 'FLOAT';
-        dracoArr = new decoderModule.DracoFloat32Array();
-        if (decodedGeometry) {
-            decoder!.GetAttributeFloatForAllPoints(decodedGeometry, attribute!, dracoArr);
-        }
-        break;
+        case 'BYTE':
+            arr = new Int8Array(length) as TaggedTypedArray;
+            arr.type = 'BYTE';
+            dracoArr = new decoderModule.DracoInt8Array();
+            if (decodedGeometry) {
+                decoder!.GetAttributeInt8ForAllPoints(decodedGeometry, attribute!, dracoArr);
+            }
+            break;
+        case 'UNSIGNED_BYTE':
+            arr = new Uint8Array(length) as TaggedTypedArray;
+            arr.type = 'UNSIGNED_BYTE';
+            dracoArr = new decoderModule.DracoUInt8Array();
+            if (decodedGeometry) {
+                decoder!.GetAttributeUInt8ForAllPoints(decodedGeometry, attribute!, dracoArr);
+            }
+            break;
+        case 'SHORT':
+            arr = new Int16Array(length) as TaggedTypedArray;
+            arr.type = 'SHORT';
+            dracoArr = new decoderModule.DracoInt16Array();
+            if (decodedGeometry) {
+                decoder!.GetAttributeInt16ForAllPoints(decodedGeometry, attribute!, dracoArr);
+            }
+            break;
+        case 'UNSIGNED_SHORT':
+            arr = new Uint16Array(length) as TaggedTypedArray;
+            arr.type = 'UNSIGNED_SHORT';
+            dracoArr = new decoderModule.DracoUInt16Array();
+            if (decodedGeometry) {
+                decoder!.GetAttributeUInt16ForAllPoints(decodedGeometry, attribute!, dracoArr);
+            }
+            break;
+        case 'UNSIGNED_INT':
+            arr = new Uint32Array(length) as TaggedTypedArray;
+            arr.type = 'UNSIGNED_INT';
+            dracoArr = new decoderModule.DracoUInt32Array();
+            if (decodedGeometry) {
+                decoder!.GetAttributeUInt32ForAllPoints(decodedGeometry, attribute!, dracoArr);
+            }
+            break;
+        case 'FLOAT':
+            arr = new Float32Array(length) as TaggedTypedArray;
+            arr.type = 'FLOAT';
+            dracoArr = new decoderModule.DracoFloat32Array();
+            if (decodedGeometry) {
+                decoder!.GetAttributeFloatForAllPoints(decodedGeometry, attribute!, dracoArr);
+            }
+            break;
     }
 
     return [dracoArr, arr];

@@ -550,5 +550,5 @@ export default <Record<number, string>>{
     '37444': 'BROWSER_DEFAULT_WEBGL',
     '37447': 'MAX_CLIENT_WAIT_TIMEOUT_WEBGL',
     '4294967295': 'INVALID_INDEX',
-    '-1': 'TIMEOUT_IGNORED'
+    '-1': 'TIMEOUT_IGNORED',
 };

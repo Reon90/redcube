@@ -298,7 +298,7 @@ export class Renderer {
                 mesh.matrix.setTranslate(out);
             }
         } else {
-            const out = v.component === 2 ? new Vector2() : (v.component === 4 ? new Vector4() : new Vector(new Float32Array(1)));
+            const out = v.component === 2 ? new Vector2() : v.component === 4 ? new Vector4() : new Vector(new Float32Array(1));
             out.lerp(vector.elements, vector2.elements, t);
 
             for (const mesh of v.meshes) {
@@ -307,7 +307,7 @@ export class Renderer {
         }
     }
 
-    updateMaterial(mesh: Mesh, type: string, out: { elements: ArrayLike<number> }) {
+    updateMaterial(mesh: Mesh, type: string, out: { elements: Float32Array }) {
         const s = type.split('/');
         const last = s[s.length - 1];
 
@@ -324,7 +324,7 @@ export class Renderer {
         if (!this.parse.tracks.length) {
             return;
         }
-        const duration = Math.max(...this.parse.tracks.map(t => t[0].duration));
+        const duration = Math.max(...this.parse.tracks.map((t) => t[0].duration));
         const increment = Math.floor(sec / duration);
         sec -= increment * duration;
 
@@ -332,25 +332,25 @@ export class Renderer {
             for (const v of track) {
                 let result: boolean | undefined;
                 switch (v.interpolation) {
-                case 'LINEAR':
-                    result = this.interpolation(sec, v);
-                    break;
-                case 'CUBICSPLINE':
-                    result = this.spline(sec, v);
-                    break;
-                case 'STEP':
-                    result = this.step(sec, v);
-                    break;
-                default:
-                    result = this.interpolation(sec, v);
-                    break;
+                    case 'LINEAR':
+                        result = this.interpolation(sec, v);
+                        break;
+                    case 'CUBICSPLINE':
+                        result = this.spline(sec, v);
+                        break;
+                    case 'STEP':
+                        result = this.step(sec, v);
+                        break;
+                    default:
+                        result = this.interpolation(sec, v);
+                        break;
                 }
 
                 if (result === false) {
                     continue;
                 }
                 for (const mesh of v.meshes) {
-                    walk<Mesh, Object3D>(mesh, node => {
+                    walk<Mesh, Object3D>(mesh, (node) => {
                         node.updateMatrix();
 
                         if (node instanceof Bone) {
@@ -402,7 +402,7 @@ export class Renderer {
             this.renderScene();
             this.clean();
 
-            if (this.PP.postprocessors.some(p => p instanceof PPLight)) {
+            if (this.PP.postprocessors.some((p) => p instanceof PPLight)) {
                 gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, null);
                 this.Particles.draw(time);
                 this.reflow = true;
@@ -422,7 +422,7 @@ export class Renderer {
         if (this.needUpdateView || this.reflow) {
             const planes = Frustum(this.camera.getViewProjMatrix());
 
-            this.scene.meshes.forEach(mesh => {
+            this.scene.meshes.forEach((mesh) => {
                 mesh.visible = mesh.parent!.visible && mesh.isVisible(planes);
             });
         }
@@ -464,7 +464,7 @@ export class Renderer {
                     1,
                     gl.RGBA,
                     gl.FLOAT,
-                    mesh.matrixWorld.elements
+                    mesh.matrixWorld.elements,
                 );
                 if (mesh.matrices.length) {
                     mesh.matrices.forEach((matrix, j) => {
@@ -477,7 +477,7 @@ export class Renderer {
                             1,
                             gl.RGBA,
                             gl.FLOAT,
-                            matrix.elements
+                            matrix.elements,
                         );
                     });
                 }
@@ -495,13 +495,13 @@ export class Renderer {
                     1,
                     gl.RGBA,
                     gl.FLOAT,
-                    mesh.material.materialUniformBuffer.store
+                    mesh.material.materialUniformBuffer.store,
                 );
                 mesh.repaint = false;
             }
         });
 
-        this.scene.opaqueChildren.forEach(mesh => {
+        this.scene.opaqueChildren.forEach((mesh) => {
             if (mesh.visible) {
                 mesh.draw(gl, this.getState());
             }
@@ -510,7 +510,7 @@ export class Renderer {
             gl.enable(gl.BLEND);
             gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
-            this.scene.transparentChildren.forEach(mesh => {
+            this.scene.transparentChildren.forEach((mesh) => {
                 if (mesh.visible) {
                     mesh.draw(gl, this.getState());
                 }
@@ -522,7 +522,7 @@ export class Renderer {
     }
 
     clean() {
-        walk(this.scene, node => {
+        walk(this.scene, (node) => {
             (node as Object3D).reflow = false;
         });
         this.needUpdateView = false;

@@ -153,7 +153,7 @@ export class Particles {
             0, // border
             gl.RED, // format
             gl.UNSIGNED_BYTE, // type
-            data // pixel
+            data, // pixel
         );
         gl.generateMipmap(gl.TEXTURE_3D);
     }

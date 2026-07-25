@@ -5,7 +5,10 @@ class Events implements EventListenerObject {
     x!: number;
     y!: number;
 
-    constructor(canvas: HTMLCanvasElement, redraw: (type: string, coordsStart?: [number, number] | number, coordsMove?: [number, number]) => void) {
+    constructor(
+        canvas: HTMLCanvasElement,
+        redraw: (type: string, coordsStart?: [number, number] | number, coordsMove?: [number, number]) => void,
+    ) {
         this.redraw = redraw;
         document.addEventListener('wheel', this, { passive: false });
         canvas.addEventListener('mousedown', this);
@@ -18,27 +21,27 @@ class Events implements EventListenerObject {
 
     handleEvent(e: Event) {
         switch (e.type) {
-        case 'wheel':
-            this.zoom(e as WheelEvent);
-            break;
-        case 'mousedown':
-            this.onStart(e as MouseEvent);
-            break;
-        case 'mousemove':
-            this.onMove(e as MouseEvent);
-            break;
-        case 'mouseup':
-            this.onEnd();
-            break;
-        case 'keyup':
-            this.onKeyUp();
-            break;
-        case 'keydown':
-            this.onKeyDown(e as KeyboardEvent);
-            break;
-        case 'resize':
-            this.onResize();
-            break;
+            case 'wheel':
+                this.zoom(e as WheelEvent);
+                break;
+            case 'mousedown':
+                this.onStart(e as MouseEvent);
+                break;
+            case 'mousemove':
+                this.onMove(e as MouseEvent);
+                break;
+            case 'mouseup':
+                this.onEnd();
+                break;
+            case 'keyup':
+                this.onKeyUp();
+                break;
+            case 'keydown':
+                this.onKeyDown(e as KeyboardEvent);
+                break;
+            case 'resize':
+                this.onResize();
+                break;
         }
     }
 

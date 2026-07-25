@@ -1,12 +1,13 @@
 import { Frustum } from './matrix';
 import { WebGPUProfiler } from './profile';
-import { Renderer, State } from './renderer';
+import { Renderer } from './renderer';
 import { Env } from './env';
 import { PostProcessing } from './postprocessing.webgpu';
 import { Mesh } from './objects/index';
 import { Attributes } from './objects/geometry';
 
 let WebGPU: WEBGPU;
+const DEBUG_PROFILING = false;
 
 export class RendererWebGPU extends Renderer {
     profiler!: WebGPUProfiler;
@@ -58,7 +59,7 @@ export class RendererWebGPU extends Renderer {
         mesh.geometry.updateWebGPU(WebGPU, geometry);
     }
 
-    updateMaterial(mesh: Mesh, type: string, out: { elements: ArrayLike<number> }) {
+    updateMaterial(mesh: Mesh, type: string, out: { elements: Float32Array }) {
         const s = type.split('/');
         const last = s[s.length - 1];
 
@@ -72,13 +73,14 @@ export class RendererWebGPU extends Renderer {
     }
 
     async renderScene() {
-        let { renderPassDescriptor, context, device, newRenderTarget } = WebGPU;
+        const { context, device, newRenderTarget } = WebGPU;
+        let { renderPassDescriptor } = WebGPU;
 
         const s = this.getState();
         if (s.needUpdateView || this.reflow) {
             const planes = Frustum(s.camera.getViewProjMatrix());
 
-            this.scene.meshes.forEach(mesh => {
+            this.scene.meshes.forEach((mesh) => {
                 mesh.visible = mesh.parent!.visible && mesh.isVisible(planes);
             });
 
@@ -91,23 +93,27 @@ export class RendererWebGPU extends Renderer {
                 ...renderPassDescriptor,
                 label: 'g-pass',
                 colorAttachments: this.PP.target,
-                depthStencilAttachment: this.PP.pipeline.pass!.depthStencilAttachment
+                depthStencilAttachment: this.PP.pipeline.pass!.depthStencilAttachment,
             };
         } else {
-            renderPassDescriptor = {...renderPassDescriptor, label: 'main-pass', colorAttachments: [
-                {
-                    // attachment is acquired in render loop.
-                    view: newRenderTarget!,
-                    resolveTarget: context.getCurrentTexture().createView(),
-                    storeOp: 'store' as GPUStoreOp,
-                    loadOp: 'clear' as GPULoadOp,
-                    clearValue: { r: 0, g: 0, b: 0, a: 1.0 }
-                }
-            ]};
+            renderPassDescriptor = {
+                ...renderPassDescriptor,
+                label: 'main-pass',
+                colorAttachments: [
+                    {
+                        // attachment is acquired in render loop.
+                        view: newRenderTarget!,
+                        resolveTarget: context.getCurrentTexture().createView(),
+                        storeOp: 'store' as GPUStoreOp,
+                        loadOp: 'clear' as GPULoadOp,
+                        clearValue: { r: 0, g: 0, b: 0, a: 1.0 },
+                    },
+                ],
+            };
         }
 
         this.profiler.beginFrame();
-        const commandEncoder = device.createCommandEncoder({label: 'main-command-encoder'});
+        const commandEncoder = device.createCommandEncoder({ label: 'main-command-encoder' });
         const passEncoder = this.profiler.beginTimedRenderPass(commandEncoder, renderPassDescriptor, 'main-pass');
         // this.env.drawQuad(WebGPU, passEncoder);
 
@@ -124,7 +130,7 @@ export class RendererWebGPU extends Renderer {
                 0,
                 s.lightPosBuffer.store!.buffer,
                 s.lightPosBuffer.store!.byteOffset,
-                s.lightPosBuffer.store!.byteLength
+                s.lightPosBuffer.store!.byteLength,
             );
         }
         if (s.needUpdateProjection) {
@@ -136,18 +142,12 @@ export class RendererWebGPU extends Renderer {
             0,
             s.lightColorBuffer.store!.buffer,
             s.lightColorBuffer.store!.byteOffset,
-            s.lightColorBuffer.store!.byteLength
+            s.lightColorBuffer.store!.byteLength,
         );
         s.lights.forEach((light, i) => {
             const offset = i * 4 * Float32Array.BYTES_PER_ELEMENT;
             if (light.visible === false) {
-                device.queue.writeBuffer(
-                    s.lightColorBuffer.bufferWebGPU!,
-                    offset,
-                    new Float32Array([0, 0, 0, 0]).buffer,
-                    0,
-                    16
-                );
+                device.queue.writeBuffer(s.lightColorBuffer.bufferWebGPU!, offset, new Float32Array([0, 0, 0, 0]).buffer, 0, 16);
             }
         });
 
@@ -157,26 +157,25 @@ export class RendererWebGPU extends Renderer {
                 mesh.drawWebGPU(WebGPU, passEncoder, mesh.order, s);
             }
         });
-        this.scene.transparentChildren.forEach(mesh => {
+        this.scene.transparentChildren.forEach((mesh) => {
             if (mesh.visible) {
                 passEncoder.setPipeline((s.renderState.isprerefraction ? mesh.pipeline2 : mesh.pipeline)!);
                 mesh.drawWebGPU(WebGPU, passEncoder, mesh.order, s);
             }
         });
         passEncoder.end();
-        
+
         this.profiler.resolveQueries(commandEncoder);
         device.queue.submit([commandEncoder.finish()]);
-        
 
-        if (false) {
+        if (DEBUG_PROFILING) {
             const timings = await this.profiler.endFrame();
             console.table({
                 frame: timings.frameIndex,
                 cpuEncodeMs: timings.cpuEncodeMs.toFixed(3),
                 gpuTotalMs: timings.gpuTotalMs?.toFixed(3),
             });
-            timings.passes.forEach(p => {
+            timings.passes.forEach((p) => {
                 if (p.durationMs !== undefined) {
                     console.log(`${p.label} (${p.kind}): ${p.durationMs.toFixed(3)} ms`);
                 }

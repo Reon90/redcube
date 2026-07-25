@@ -30,7 +30,7 @@ export class Scattering extends PostProcessor {
     attachUniformWebGPU() {
         return {
             binding: 8,
-            resource: (this.output as GPUTextureSet).view
+            resource: (this.output as GPUTextureSet).view,
         };
     }
 
@@ -52,19 +52,18 @@ export class Scattering extends PostProcessor {
         const { device } = gl;
         const commandEncoder = device!.createCommandEncoder();
         const shadowPass = commandEncoder.beginRenderPass({
-            colorAttachments: [{
-               view: (this.output as GPUTextureSet).view,
-               storeOp: 'store' as GPUStoreOp,
-               loadOp: 'clear' as GPULoadOp,
-               clearValue: { r: 0, g: 0, b: 0, a: 1.0 },
-           }]
+            colorAttachments: [
+                {
+                    view: (this.output as GPUTextureSet).view,
+                    storeOp: 'store' as GPUStoreOp,
+                    loadOp: 'clear' as GPULoadOp,
+                    clearValue: { r: 0, g: 0, b: 0, a: 1.0 },
+                },
+            ],
         });
         shadowPass.setPipeline(this.pipeline);
         shadowPass.setVertexBuffer(0, PP.vertexBuffer);
-        shadowPass.setBindGroup(
-            0,
-            this.bindGroup
-        );
+        shadowPass.setBindGroup(0, this.bindGroup);
         shadowPass.draw(6);
 
         shadowPass.end();
@@ -86,28 +85,28 @@ export class Scattering extends PostProcessor {
         const entries = [
             {
                 binding: 4,
-                resource: pp.depthTexture.sampler
+                resource: pp.depthTexture.sampler,
             },
             {
                 binding: 5,
-                resource: pp.screenTexture.sampler
+                resource: pp.screenTexture.sampler,
             },
             {
                 binding: 0,
-                resource: pp.screenTexture.view
+                resource: pp.screenTexture.view,
             },
             {
                 binding: 1,
-                resource: pp.depthTexture.view
+                resource: pp.depthTexture.view,
             },
             {
                 binding: 2,
-                resource: pp.albedoTexture.view
+                resource: pp.albedoTexture.view,
             },
             {
                 binding: 3,
-                resource: pp.irradianceTexture.view
-            }
+                resource: pp.irradianceTexture.view,
+            },
         ];
         this.pipeline = pp.buildPipeline(
             gl as unknown as WEBGPU,
@@ -120,42 +119,42 @@ export class Scattering extends PostProcessor {
                     visibility: GPUShaderStage.FRAGMENT,
                     sampler: {
                         type: 'non-filtering',
-                    }
+                    },
                 },
                 {
                     binding: 5,
                     visibility: GPUShaderStage.FRAGMENT,
-                    sampler: {}
+                    sampler: {},
                 },
                 {
                     binding: 1,
                     visibility: GPUShaderStage.FRAGMENT,
                     texture: {
-                        sampleType: 'unfilterable-float'
-                    }
+                        sampleType: 'unfilterable-float',
+                    },
                 },
                 {
                     binding: 2,
                     visibility: GPUShaderStage.FRAGMENT,
-                    texture: {}
+                    texture: {},
                 },
                 {
                     binding: 3,
                     visibility: GPUShaderStage.FRAGMENT,
-                    texture: {}
+                    texture: {},
                 },
                 {
                     binding: 0,
                     visibility: GPUShaderStage.FRAGMENT,
-                    texture: {}
-                }
+                    texture: {},
+                },
             ],
             false,
-            'scaterring'
+            'scaterring',
         );
         this.bindGroup = gl.device!.createBindGroup({
             layout: this.pipeline.getBindGroupLayout(0),
-            entries
+            entries,
         });
         this.output = pp.createDefaultTexture();
         return { name: 'SCATTERING' };

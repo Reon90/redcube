@@ -89,7 +89,7 @@ export class UniformBuffer {
             offset * Float32Array.BYTES_PER_ELEMENT,
             (buffer as Float32Array).buffer,
             (buffer as Float32Array).byteOffset,
-            (buffer as Float32Array).byteLength
+            (buffer as Float32Array).byteLength,
         );
     }
 

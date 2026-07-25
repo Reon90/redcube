@@ -93,8 +93,8 @@ export class Env {
             perspective: {
                 yfov: 0.3,
                 znear: 0.01,
-                zfar: 10000
-            }
+                zfar: 10000,
+            },
         });
         m.multiply(calculateProjection(cam)!);
 
@@ -117,7 +117,7 @@ export class Env {
             gl_Position = vec4(inPosition, 0.0, 1.0);
         }
         `,
-            program
+            program,
         );
         compileShader(
             gl.FRAGMENT_SHADER,
@@ -135,7 +135,7 @@ export class Env {
             color = vec4(c, 1.0);
         }
         `,
-            program
+            program,
         );
         gl.linkProgram(program);
         gl.useProgram(program);
@@ -152,8 +152,8 @@ export class Env {
             perspective: {
                 yfov: 0.3,
                 znear: 0.01,
-                zfar: 10000
-            }
+                zfar: 10000,
+            },
         });
         m.multiply(calculateProjection(cam)!);
 
@@ -177,7 +177,7 @@ export class Env {
             gl_Position = projection * view * model * vec4(inPosition, 1.0);
         }
         `,
-            program
+            program,
         );
         compileShader(
             gl.FRAGMENT_SHADER,
@@ -197,7 +197,7 @@ export class Env {
             color = c;
         }
         `,
-            program
+            program,
         );
         gl.disable(gl.DEPTH_TEST);
         gl.linkProgram(program);
@@ -205,8 +205,10 @@ export class Env {
         gl.bindVertexArray(this.VAO);
         gl.uniformMatrix4fv(gl.getUniformLocation(program, 'projection'), false, m.elements);
         const s = this.camera.modelSize! * 2;
-        gl.uniformMatrix4fv(gl.getUniformLocation(program, 'model'), false,
-            new Matrix4().makeRotationAxis(new Vector3([1, 0, 0]), Math.PI).scale(new Vector3([s, s, s])).elements
+        gl.uniformMatrix4fv(
+            gl.getUniformLocation(program, 'model'),
+            false,
+            new Matrix4().makeRotationAxis(new Vector3([1, 0, 0]), Math.PI).scale(new Vector3([s, s, s])).elements,
         );
         gl.uniform1i(gl.getUniformLocation(program, 'environmentMap'), this.originalCubeTexture.index);
         gl.uniformMatrix4fv(gl.getUniformLocation(program, 'view'), false, this.camera.matrixWorldInvert.elements);
@@ -222,8 +224,8 @@ export class Env {
             perspective: {
                 yfov: Math.PI / 2,
                 znear: 0.01,
-                zfar: 10000
-            }
+                zfar: 10000,
+            },
         });
         m.multiply(calculateProjection(cam)!);
 
@@ -250,7 +252,7 @@ export class Env {
                         gl.COLOR_ATTACHMENT0,
                         gl.TEXTURE_CUBE_MAP_POSITIVE_X + i,
                         this.originalCubeTexture,
-                        mip
+                        mip,
                     );
                     gl.uniformMatrix4fv(gl.getUniformLocation(this.cubeprogram, 'view'), false, this.views[i].elements);
                     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -303,15 +305,9 @@ export class Env {
                         gl.COLOR_ATTACHMENT0,
                         gl.TEXTURE_CUBE_MAP_POSITIVE_X + i,
                         this.prefilterMap,
-                        mip
+                        mip,
                     );
-                    gl.framebufferTexture2D(
-                        gl.FRAMEBUFFER,
-                        gl.COLOR_ATTACHMENT1,
-                        gl.TEXTURE_CUBE_MAP_POSITIVE_X + i,
-                        this.charlieMap,
-                        mip
-                    );
+                    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, gl.TEXTURE_CUBE_MAP_POSITIVE_X + i, this.charlieMap, mip);
                     gl.uniformMatrix4fv(gl.getUniformLocation(this.mipmapcubeprogram, 'view'), false, this.views2[i].elements);
                     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
                     gl.drawArrays(gl.TRIANGLES, 0, 36);
@@ -446,7 +442,7 @@ export class Env {
                     gl.TEXTURE_CUBE_MAP_NEGATIVE_Y,
                     gl.TEXTURE_CUBE_MAP_POSITIVE_Y,
                     gl.TEXTURE_CUBE_MAP_POSITIVE_Z,
-                    gl.TEXTURE_CUBE_MAP_NEGATIVE_Z
+                    gl.TEXTURE_CUBE_MAP_NEGATIVE_Z,
                 ];
                 for (let j = 0; j < this.envData.specularImages.length; j++) {
                     const s = this.envData.specularImageSize * Math.pow(0.5, j);
@@ -509,7 +505,7 @@ export class Env {
             [new Vector3([1, 0, 0]), 0], // Top
             [new Vector3([1, 0, 0]), Math.PI], // Bottom
             [new Vector3([1, 0, 0]), -Math.PI / 2], // Front
-            [new Vector3([1, 0, 0]), Math.PI / 2] // Back
+            [new Vector3([1, 0, 0]), Math.PI / 2], // Back
         ];
         this.views = views.map((view, i) => {
             const camMatrix = new Matrix4();
@@ -539,7 +535,7 @@ export class Env {
             [new Vector3([1, 0, 0]), Math.PI / 2], // Top
             [new Vector3([1, 0, 0]), -Math.PI / 2], // Bottom
             [new Vector3([0, 1, 0]), Math.PI / 2], // Front
-            [new Vector3([0, 1, 0]), -Math.PI / 2] // Back
+            [new Vector3([0, 1, 0]), -Math.PI / 2], // Back
         ];
         this.views2 = views2.map((view, i) => {
             const camMatrix = new Matrix4();
@@ -576,8 +572,8 @@ export class Env {
         this.bdrfprogram = createProgram(quad, bdrf);
 
         await fetch(this.url)
-            .then(res => res.arrayBuffer())
-            .then(buffer => {
+            .then((res) => res.arrayBuffer())
+            .then((buffer) => {
                 const { data, shape } = parseHDR(buffer);
 
                 this.original2DTexture = createTexture();
@@ -590,8 +586,8 @@ export class Env {
                 return true;
             });
         await fetch(Sheen_E)
-            .then(res => res.arrayBuffer())
-            .then(buffer => {
+            .then((res) => res.arrayBuffer())
+            .then((buffer) => {
                 const { data, shape } = parseHDR(buffer);
 
                 this.Sheen_E = createTexture(gl.TEXTURE_2D, textureEnum.Sheen_E);

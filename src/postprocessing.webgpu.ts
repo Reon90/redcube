@@ -63,7 +63,7 @@ export class PostProcessing {
 
     constructor(processors: ProcessorName[], renderScene: (renderState: { isprepender?: boolean; isprerefraction?: boolean }) => void) {
         this.renderScene = renderScene;
-        this.postprocessors = processors.map(name => new processorsMap[name]());
+        this.postprocessors = processors.map((name) => new processorsMap[name]());
     }
 
     add(name: ProcessorName) {
@@ -82,13 +82,13 @@ export class PostProcessing {
 
     setCamera(camera: Camera) {
         this.camera = camera;
-        this.postprocessors.forEach(postProcessor => {
+        this.postprocessors.forEach((postProcessor) => {
             postProcessor.setCamera(camera);
         });
     }
 
     setLight(light: LightObj) {
-        this.postprocessors.forEach(postProcessor => {
+        this.postprocessors.forEach((postProcessor) => {
             postProcessor.light = light;
         });
     }
@@ -96,7 +96,7 @@ export class PostProcessing {
     setGl(g: WEBGPU) {
         if (g) {
             gl = g;
-            this.postprocessors.forEach(postProcessor => {
+            this.postprocessors.forEach((postProcessor) => {
                 postProcessor.setGL(gl);
             });
             this.fakeDepth = this.createNoiceTexture(1);
@@ -106,7 +106,7 @@ export class PostProcessing {
 
     setCanvas(canvas: HTMLCanvasElement) {
         this.canvas = canvas;
-        this.postprocessors.forEach(postProcessor => {
+        this.postprocessors.forEach((postProcessor) => {
             postProcessor.setCanvas(canvas);
         });
     }
@@ -119,44 +119,41 @@ export class PostProcessing {
         return this.canvas.offsetHeight * devicePixelRatio;
     }
 
-    bindPrePass() {
-        
-    }
+    bindPrePass() {}
 
     bindPostPass() {
         this.target = this.pipeline.pass!.colorAttachments as GPURenderPassColorAttachment[];
     }
 
     preProcessing() {
-        this.postprocessors.forEach(postProcessor => postProcessor.preProcessingWebGPU!(this));
+        this.postprocessors.forEach((postProcessor) => postProcessor.preProcessingWebGPU!(this));
     }
 
     postProcessing() {
         const { device, context } = gl;
-        this.postprocessors.forEach(postProcessor => postProcessor.postProcessingWebGPU!(this));
+        this.postprocessors.forEach((postProcessor) => postProcessor.postProcessingWebGPU!(this));
 
-        const commandEncoder = device.createCommandEncoder({label: 'compose-command-encoder'});
+        const commandEncoder = device.createCommandEncoder({ label: 'compose-command-encoder' });
         const shadowPass = commandEncoder.beginRenderPass({
-            colorAttachments: [{
-                // attachment is acquired in render loop.
-                view: context.getCurrentTexture().createView(),
-                storeOp: 'store' as GPUStoreOp,
-                loadOp: 'clear' as GPULoadOp,
-                clearValue: { r: 0, g: 0, b: 0, a: 1.0 }
-            }],
+            colorAttachments: [
+                {
+                    // attachment is acquired in render loop.
+                    view: context.getCurrentTexture().createView(),
+                    storeOp: 'store' as GPUStoreOp,
+                    loadOp: 'clear' as GPULoadOp,
+                    clearValue: { r: 0, g: 0, b: 0, a: 1.0 },
+                },
+            ],
             depthStencilAttachment: {
                 view: this.depthTexture.view,
                 depthLoadOp: 'clear',
                 depthClearValue: 1.0,
-                depthStoreOp: 'store'
-            }
+                depthStoreOp: 'store',
+            },
         });
         shadowPass.setPipeline(this.pipeline);
         shadowPass.setVertexBuffer(0, this.vertexBuffer);
-        shadowPass.setBindGroup(
-            0,
-            this.bindGroup
-        );
+        shadowPass.setBindGroup(0, this.bindGroup);
         shadowPass.draw(6);
 
         shadowPass.end();
@@ -166,13 +163,13 @@ export class PostProcessing {
     createByteTexture(label: string) {
         const sampler = gl.device.createSampler({
             magFilter: 'nearest',
-            minFilter: 'nearest'
+            minFilter: 'nearest',
         });
         const texture = gl.device.createTexture({
             size: [this.width, this.height, 1],
             usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
             format: 'bgra8unorm',
-            label
+            label,
         });
         return { texture, sampler, view: texture.createView() };
     }
@@ -181,7 +178,7 @@ export class PostProcessing {
         const sampler = gl.device.createSampler({
             magFilter: 'linear',
             minFilter: 'linear',
-            mipmapFilter: hasMipmap ? 'linear' : undefined
+            mipmapFilter: hasMipmap ? 'linear' : undefined,
         });
         const mipLevelCount = Math.max(1, Math.floor(Math.log2(Math.max(this.width, this.height))) - 2);
         const texture = gl.device.createTexture({
@@ -189,23 +186,27 @@ export class PostProcessing {
             mipLevelCount,
             size: [this.width / scale, this.height / scale, 1],
             usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
-            format: 'bgra8unorm'
+            format: 'bgra8unorm',
         });
-        return { texture, sampler, view: texture.createView({
-            baseMipLevel: 0,
-            mipLevelCount: 1
-        }) };
+        return {
+            texture,
+            sampler,
+            view: texture.createView({
+                baseMipLevel: 0,
+                mipLevelCount: 1,
+            }),
+        };
     }
 
     createOneChannelTexture(scale = 1) {
         const sampler = gl.device.createSampler({
             magFilter: 'linear',
-            minFilter: 'linear'
+            minFilter: 'linear',
         });
         const texture = gl.device.createTexture({
             size: [this.width / scale, this.height / scale, 1],
             usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
-            format: 'r8uint'
+            format: 'r8uint',
         });
         return { texture, sampler, view: texture.createView() };
     }
@@ -213,13 +214,13 @@ export class PostProcessing {
     createDepthTexture(label: string) {
         const sampler = gl.device.createSampler({
             magFilter: 'nearest',
-            minFilter: 'nearest'
+            minFilter: 'nearest',
         });
         const texture = gl.device.createTexture({
             size: [this.width, this.height, 1],
             usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
             format: 'depth32float',
-            label
+            label,
         });
         return { texture, sampler, view: texture.createView() };
     }
@@ -229,12 +230,12 @@ export class PostProcessing {
             magFilter: 'nearest',
             minFilter: 'nearest',
             addressModeU: 'repeat',
-            addressModeV: 'repeat'
+            addressModeV: 'repeat',
         });
         const texture = gl.device.createTexture({
             size: [size, size, 1],
             usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
-            format: 'rgba16float'
+            format: 'rgba16float',
         });
         return { texture, sampler, view: texture.createView() };
     }
@@ -244,36 +245,43 @@ export class PostProcessing {
         const verticesBuffer = device.createBuffer({
             size: g.byteLength,
             usage: GPUBufferUsage.VERTEX,
-            mappedAtCreation: true
+            mappedAtCreation: true,
         });
         new Float32Array(verticesBuffer.getMappedRange()).set(g);
         verticesBuffer.unmap();
         return verticesBuffer;
     }
 
-    buildPipeline(WebGPU: WEBGPU, vertex: string, fragment: string, vertexId: number, entries: GPUBindGroupLayoutEntry[], screen = false, label?: string) {
+    buildPipeline(
+        WebGPU: WEBGPU,
+        vertex: string,
+        fragment: string,
+        vertexId: number,
+        entries: GPUBindGroupLayoutEntry[],
+        screen = false,
+        label?: string,
+    ) {
         const { device, glslang, wgsl } = WebGPU;
 
         function convertGLSLtoWGSL(code: string, type: string) {
             const spirv = glslang.compileGLSL(code, type);
-            return wgsl
-                .convertSpirV2WGSL(spirv);
+            return wgsl.convertSpirV2WGSL(spirv);
         }
 
         const bindGroupLayout = device.createBindGroupLayout({
             entries,
-            label
+            label,
         });
         const pipelineLayout = device.createPipelineLayout({
-            bindGroupLayouts: [bindGroupLayout]
+            bindGroupLayouts: [bindGroupLayout],
         });
-        const fragmentCode ='diagnostic(off,derivative_uniformity);\n' + convertGLSLtoWGSL(fragment, 'fragment');
+        const fragmentCode = `diagnostic(off,derivative_uniformity);\n${convertGLSLtoWGSL(fragment, 'fragment')}`;
         const pipeline = device.createRenderPipeline({
             label: 'g-pipeline',
             layout: pipelineLayout,
             vertex: {
                 module: device.createShaderModule({
-                    code: convertGLSLtoWGSL(vertex, 'vertex')
+                    code: convertGLSLtoWGSL(vertex, 'vertex'),
                 }),
                 entryPoint: 'main',
                 buffers: [
@@ -284,34 +292,36 @@ export class PostProcessing {
                                 // position
                                 shaderLocation: 0,
                                 offset: 0,
-                                format: `float32x${vertexId}` as GPUVertexFormat
-                            }
-                        ]
-                    }
-                ]
+                                format: `float32x${vertexId}` as GPUVertexFormat,
+                            },
+                        ],
+                    },
+                ],
             },
             fragment: {
                 module: device.createShaderModule({
                     code: fragmentCode,
-                    label
+                    label,
                 }),
                 entryPoint: 'main',
                 targets: [
                     {
-                        format: screen ? 'bgra8unorm' : 'bgra8unorm'
-                    }
-                ]
+                        format: screen ? 'bgra8unorm' : 'bgra8unorm',
+                    },
+                ],
             },
 
             primitive: {
                 topology: 'triangle-list',
-                cullMode: 'none'
+                cullMode: 'none',
             },
-            depthStencil: screen ? {
-                depthWriteEnabled: true,
-                depthCompare: 'less',
-                format: 'depth32float'
-            } : undefined
+            depthStencil: screen
+                ? {
+                      depthWriteEnabled: true,
+                      depthCompare: 'less',
+                      format: 'depth32float',
+                  }
+                : undefined,
         });
         return pipeline;
     }
@@ -335,7 +345,7 @@ export class PostProcessing {
                 view: this.screenTexture.texture.createView(),
                 storeOp: 'store' as GPUStoreOp,
                 loadOp: 'clear' as GPULoadOp,
-                clearValue: { r: 0, g: 0, b: 0, a: 1.0 }
+                clearValue: { r: 0, g: 0, b: 0, a: 1.0 },
             },
             // {
             //     view: this.normalTexture.texture.createView(),
@@ -363,8 +373,8 @@ export class PostProcessing {
             // }
         ];
 
-        const defines = this.postprocessors.map(postProcessor => postProcessor.buildScreenBufferWebGPU!(this));
-        const defineStr = defines.map(define => `#define ${define.name} ${define.value ?? 1}` + '\n').join('');
+        const defines = this.postprocessors.map((postProcessor) => postProcessor.buildScreenBufferWebGPU!(this));
+        const defineStr = defines.map((define) => `#define ${define.name} ${define.value ?? 1}` + '\n').join('');
         this.program = [quadShader.replace(/\n/, `\n${defineStr}`), composerShader.replace(/\n/, `\n${defineStr}`)];
 
         this.pipeline = this.buildPipeline(
@@ -376,12 +386,12 @@ export class PostProcessing {
                 {
                     binding: 10,
                     visibility: GPUShaderStage.FRAGMENT,
-                    sampler: {}
+                    sampler: {},
                 },
                 {
                     binding: 0,
                     visibility: GPUShaderStage.FRAGMENT,
-                    texture: {}
+                    texture: {},
                 },
                 // {
                 //     binding: 8,
@@ -391,11 +401,11 @@ export class PostProcessing {
                 {
                     binding: 9,
                     visibility: GPUShaderStage.FRAGMENT,
-                    texture: {}
-                }
+                    texture: {},
+                },
             ],
             true,
-            'screen'
+            'screen',
         );
         this.pipeline.pass = {
             colorAttachments,
@@ -403,32 +413,32 @@ export class PostProcessing {
                 view: this.depthTexture.texture.createView(),
                 depthLoadOp: 'clear' as GPULoadOp,
                 depthClearValue: 1.0,
-                depthStoreOp: 'store' as GPUStoreOp
-            }
+                depthStoreOp: 'store' as GPUStoreOp,
+            },
         };
         const entriesExternal = this.postprocessors
-            .filter(p => p.attachUniformWebGPU)
-            .map(postProcessor => postProcessor.attachUniformWebGPU!());
+            .filter((p) => p.attachUniformWebGPU)
+            .map((postProcessor) => postProcessor.attachUniformWebGPU!());
 
         const entries = [
             {
                 binding: 10,
-                resource: this.screenTexture.sampler
+                resource: this.screenTexture.sampler,
             },
             {
                 binding: 0,
-                resource: this.screenTexture.view
+                resource: this.screenTexture.view,
             },
             {
                 binding: 9,
-                resource: this.specTexture.view
+                resource: this.specTexture.view,
             },
-            ...entriesExternal
+            ...entriesExternal,
         ];
         this.bindGroup = gl.device.createBindGroup({
             layout: this.pipeline.getBindGroupLayout(0),
-            entries
-        })
+            entries,
+        });
     }
 
     clear() {

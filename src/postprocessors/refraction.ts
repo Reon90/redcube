@@ -36,7 +36,7 @@ export class Refraction extends PostProcessor {
                 loadOp: 'clear' as GPULoadOp,
                 clearValue: { r: 0, g: 0, b: 0, a: 1.0 },
             },
-            ...(PP.pipeline.pass!.colorAttachments.slice(1))
+            ...PP.pipeline.pass!.colorAttachments.slice(1),
         ] as GPURenderPassColorAttachment[];
         PP.renderScene({ isprerefraction: true });
 

@@ -1,5 +1,3 @@
-/// <reference path='../index.d.ts'/>
-
 import { Scene, Camera } from './objects/index';
 import { Parse } from './parse';
 
@@ -40,10 +38,10 @@ class RedCube {
                         zoom: 1,
                         aspect: 1,
                         perspective: {
-                            yfov: (FOV * Math.PI) / 180
-                        }
+                            yfov: (FOV * Math.PI) / 180,
+                        },
                     },
-                    'perspective'
+                    'perspective',
                 );
                 this.parse.cameras.push(this.camera);
             }

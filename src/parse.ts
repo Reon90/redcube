@@ -186,7 +186,7 @@ export class Parse {
                         }
                         return buffer;
                     } else {
-                        return fetchBinary(`${this.host}${url}`) /*.then(res => res.arrayBuffer())*/;
+                        return fetchBinary(`${this.host}${url}`); /*.then(res => res.arrayBuffer())*/
                     }
                 } else {
                     return Promise.resolve(url);
@@ -353,11 +353,11 @@ export class Parse {
                     this.arrayBuffer![bufferView.buffer],
                     accessor.componentType,
                     calculateOffset(bufferView.byteOffset, accessor.byteOffset),
-                    getDataType(accessor.type)! * accessor.count
+                    getDataType(accessor.type)! * accessor.count,
                 )!;
                 if (child.instances === 1) {
                     child.instances = buffer.length / stride;
-                    child.matrices = new Array(child.instances);
+                    child.matrices = Array.from({ length: child.instances });
                     for (let i = 0; i < child.instances; i++) {
                         child.matrices[i] = new Matrix4();
                     }
@@ -460,20 +460,21 @@ export class Parse {
                 this.lights.forEach((light, i) => {
                     if (light.visible) {
                         if (light.type === 'directional') {
-                            mesh.material.lights[mesh.material.lights.findIndex(l => l === -1)] = i;
+                            mesh.material.lights[mesh.material.lights.findIndex((l) => l === -1)] = i;
                         } else {
                             const p = mesh.getPosition();
                             const distance = new Vector3(light.getPosition()).distanceToSquared(p[0], p[1], p[2]);
-                            const attenuation = Math.max(Math.min(1.0 - Math.pow(distance / light.range, 4.0), 1.0), 0.0) / Math.pow(distance, 2.0);
+                            const attenuation =
+                                Math.max(Math.min(1.0 - Math.pow(distance / light.range, 4.0), 1.0), 0.0) / Math.pow(distance, 2.0);
                             if (attenuation > 0) {
-                                mesh.material.lights[mesh.material.lights.findIndex(l => l === -1)] = i;
+                                mesh.material.lights[mesh.material.lights.findIndex((l) => l === -1)] = i;
                             }
                         }
                     }
                 });
             }
         });
-        this.scene.meshes.forEach(m => {
+        this.scene.meshes.forEach((m) => {
             if (m.material.lights[0] === -1) {
                 m.material.lights[0] = 0;
             }
@@ -501,11 +502,11 @@ export class Parse {
                         const s = target.extensions.KHR_animation_pointer.pointer.split('/');
                         if (s[1] === 'materials') {
                             const mat = this.json.materials![Number(s[2])].name;
-                            name = this.scene.meshes.find(m => m.material.name === mat)!.name;
+                            ({ name } = this.scene.meshes.find((m) => m.material.name === mat)!);
                             path = s.splice(3).join('/');
                         }
                         if (s[1] === 'nodes') {
-                            name = this.json.nodes![Number(s[2])].name;
+                            ({ name } = this.json.nodes![Number(s[2])]);
                             path = s[5];
                         }
                     }
@@ -677,11 +678,27 @@ export class Parse {
     }
 
     createTexturesWebGPU(WebGPU: WEBGPU) {
-        this.createTextures((t, textureType) => this.handleTextureLoadedWebGPU(WebGPU, t as unknown as { image: ImageBitmap; sampler?: number; srgb?: boolean; name: string }, textureType));
+        this.createTextures((t, textureType) =>
+            this.handleTextureLoadedWebGPU(
+                WebGPU,
+                t as unknown as { image: ImageBitmap; sampler?: number; srgb?: boolean; name: string },
+                textureType,
+            ),
+        );
     }
 
     createTexturesWebGL() {
-        this.createTextures((t) => this.handleTextureLoaded(t as unknown as { image: HTMLImageElement & { sampler?: WebGLSampler }; name: string; mimeType?: string; sampler?: number; srgb?: boolean }));
+        this.createTextures((t) =>
+            this.handleTextureLoaded(
+                t as unknown as {
+                    image: HTMLImageElement & { sampler?: WebGLSampler };
+                    name: string;
+                    mimeType?: string;
+                    sampler?: number;
+                    srgb?: boolean;
+                },
+            ),
+        );
     }
 
     createTextures(callback: (t: LoadedTexture, textureType: string) => unknown) {
@@ -752,22 +769,25 @@ export class Parse {
         if (hasBasisu) {
             await import(/*webpackChunkName: "libktx"*/ '../libktx');
             (globalThis as unknown as LibktxGlobal).LIBKTX({ preinitializedWebGLContext: gl }).then((module) => {
-                const transcoderConfig = (gl as WEBGPU).device ? {
-                    astcSupported: (gl as WEBGPU).features.has('texture-compression-astc'),
-                    etc1Supported: (gl as WEBGPU).features.has('texture-compression-etc2'),
-                    etc2Supported: (gl as WEBGPU).features.has('texture-compression-etc2'),
-                    bptcSupported: (gl as WEBGPU).features.has('texture-compression-bc'),
-                    dxtSupported: false,
-                    pvrtcSupported: false
-                } : {
-                    astcSupported: (gl as WebGL2RenderingContext).getExtension('WEBGL_compressed_texture_astc'),
-                    etc1Supported: (gl as WebGL2RenderingContext).getExtension('WEBGL_compressed_texture_etc1'),
-                    etc2Supported: (gl as WebGL2RenderingContext).getExtension('WEBGL_compressed_texture_etc'),
-                    dxtSupported: (gl as WebGL2RenderingContext).getExtension('WEBGL_compressed_texture_s3tc'),
-                    bptcSupported: (gl as WebGL2RenderingContext).getExtension('EXT_texture_compression_bptc'),
-                    pvrtcSupported:
-                        (gl as WebGL2RenderingContext).getExtension('WEBGL_compressed_texture_pvrtc') || (gl as WebGL2RenderingContext).getExtension('WEBKIT_WEBGL_compressed_texture_pvrtc'),
-                };
+                const transcoderConfig = (gl as WEBGPU).device
+                    ? {
+                          astcSupported: (gl as WEBGPU).features.has('texture-compression-astc'),
+                          etc1Supported: (gl as WEBGPU).features.has('texture-compression-etc2'),
+                          etc2Supported: (gl as WEBGPU).features.has('texture-compression-etc2'),
+                          bptcSupported: (gl as WEBGPU).features.has('texture-compression-bc'),
+                          dxtSupported: false,
+                          pvrtcSupported: false,
+                      }
+                    : {
+                          astcSupported: (gl as WebGL2RenderingContext).getExtension('WEBGL_compressed_texture_astc'),
+                          etc1Supported: (gl as WebGL2RenderingContext).getExtension('WEBGL_compressed_texture_etc1'),
+                          etc2Supported: (gl as WebGL2RenderingContext).getExtension('WEBGL_compressed_texture_etc'),
+                          dxtSupported: (gl as WebGL2RenderingContext).getExtension('WEBGL_compressed_texture_s3tc'),
+                          bptcSupported: (gl as WebGL2RenderingContext).getExtension('EXT_texture_compression_bptc'),
+                          pvrtcSupported:
+                              (gl as WebGL2RenderingContext).getExtension('WEBGL_compressed_texture_pvrtc') ||
+                              (gl as WebGL2RenderingContext).getExtension('WEBKIT_WEBGL_compressed_texture_pvrtc'),
+                      };
                 window.LIBKTX = module;
                 window.LIBKTX.transcoderConfig = transcoderConfig;
                 window.LIBKTX.GL.makeContextCurrent(window.LIBKTX.GL.registerContext(gl, { majorVersion: 2.0 }));
@@ -801,7 +821,7 @@ export class Parse {
     handleTextureLoadedWebGPU(
         WebGPU: WEBGPU,
         { image: bitmap, sampler, srgb, name }: { image: ImageBitmap; sampler?: number; srgb?: boolean; name: string },
-        textureType: string
+        textureType: string,
     ) {
         if (this.images.get(name)) {
             return this.images.get(name);
@@ -831,7 +851,19 @@ export class Parse {
         return tex;
     }
 
-    handleTextureLoaded({ image, name, mimeType, sampler, srgb = false }: { image: HTMLImageElement & { sampler?: WebGLSampler }; name: string; mimeType?: string; sampler?: number; srgb?: boolean }) {
+    handleTextureLoaded({
+        image,
+        name,
+        mimeType,
+        sampler,
+        srgb = false,
+    }: {
+        image: HTMLImageElement & { sampler?: WebGLSampler };
+        name: string;
+        mimeType?: string;
+        sampler?: number;
+        srgb?: boolean;
+    }) {
         const s = this.samplers![sampler !== undefined ? sampler : 0] as WebGLSampler;
         if (mimeType) {
             image.sampler = s;

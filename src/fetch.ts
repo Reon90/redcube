@@ -67,11 +67,11 @@ function IsValid(data: ArrayBufferView): boolean {
 }
 
 export function fetchJSON(url: string): Promise<GlTf> {
-    return fetch(url).then(r => r.json());
+    return fetch(url).then((r) => r.json());
 }
 
 export function fetchBinary(url: string): Promise<ArrayBuffer> {
-    return fetch(url).then(r => r.arrayBuffer());
+    return fetch(url).then((r) => r.arrayBuffer());
 }
 
 export function fetchImage(
@@ -79,38 +79,38 @@ export function fetchImage(
     s: ImageSource,
     { bufferView, mimeType, uri }: GLTFImage,
     { url, name }: { url: string; name?: string },
-    sampler: unknown
+    sampler: unknown,
 ): Promise<FetchedImage> {
     if (typeof window !== 'undefined') {
         return new Promise<FetchedImage>((resolve, reject) => {
             if (mimeType === 'image/ktx2') {
                 window
                     .fetch(url)
-                    .then(r => r.arrayBuffer())
-                    .then(b => {
+                    .then((r) => r.arrayBuffer())
+                    .then((b) => {
                         resolve({
                             sampler,
                             mimeType,
                             name,
-                            image: loadKTX(b)
+                            image: loadKTX(b),
                         });
                     });
             } else {
                 const image = new Image();
                 image.onload = () => {
                     if (isbitmap) {
-                        createImageBitmap(image, { premultiplyAlpha: 'none', colorSpaceConversion: 'none'}).then(bitmap => {
+                        createImageBitmap(image, { premultiplyAlpha: 'none', colorSpaceConversion: 'none' }).then((bitmap) => {
                             resolve({
                                 sampler,
                                 name,
-                                image: bitmap
+                                image: bitmap,
                             });
                         });
                     } else {
                         resolve({
                             sampler,
                             name,
-                            image
+                            image,
                         });
                     }
                 };
@@ -133,12 +133,12 @@ export function fetchImage(
         });
     } else {
         return fetch(url)
-            .then(r => r.arrayBuffer())
-            .then(b => ({
+            .then((r) => r.arrayBuffer())
+            .then((b) => ({
                 sampler,
                 mimeType,
                 name,
-                image: b
+                image: b,
             }));
     }
 }

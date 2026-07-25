@@ -56,8 +56,11 @@ export class Container {
 
     _updateDep(name: string, definition: unknown) {
         for (const [key, instance] of this._singletons) {
-            if (this._services.get(key)!.dependencies.some(dep => dep === name)) {
-                (instance as Record<string, (arg: unknown) => void>)[`set${name.charAt(0).toUpperCase() + name.slice(1)}`].call(instance, definition);
+            if (this._services.get(key)!.dependencies.some((dep) => dep === name)) {
+                (instance as Record<string, (arg: unknown) => void>)[`set${name.charAt(0).toUpperCase() + name.slice(1)}`].call(
+                    instance,
+                    definition,
+                );
             }
         }
         this._singletons.set(name, definition);
@@ -66,7 +69,7 @@ export class Container {
     _getResolvedDependencies(service: Entry<unknown>): [string, unknown][] {
         let classDependencies: [string, unknown][] = [];
         if (service.dependencies) {
-            classDependencies = service.dependencies.map(dep => {
+            classDependencies = service.dependencies.map((dep) => {
                 return [dep, this.get(dep)] as [string, unknown];
             });
         }

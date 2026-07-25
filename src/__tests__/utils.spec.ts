@@ -6,15 +6,27 @@ describe('calculateNormals', () => {
     it('should calculate normals for a simple triangle', () => {
         const index = [0, 1, 2];
         const vertex = [
-            0, 0, 0, // Vertex 0
-            1, 0, 0, // Vertex 1
-            0, 1, 0  // Vertex 2
+            0,
+            0,
+            0, // Vertex 0
+            1,
+            0,
+            0, // Vertex 1
+            0,
+            1,
+            0, // Vertex 2
         ];
 
         const expectedNormals = [
-            0, 0, 1, // Normal for Vertex 0
-            0, 0, 1, // Normal for Vertex 1
-            0, 0, 1  // Normal for Vertex 2
+            0,
+            0,
+            1, // Normal for Vertex 0
+            0,
+            0,
+            1, // Normal for Vertex 1
+            0,
+            0,
+            1, // Normal for Vertex 2
         ];
 
         const result = calculateNormals(index, vertex);
@@ -24,17 +36,33 @@ describe('calculateNormals', () => {
     it('should calculate normals for a square made of two triangles', () => {
         const index = [0, 1, 2, 2, 1, 3];
         const vertex = [
-            0, 0, 0, // Vertex 0
-            1, 0, 0, // Vertex 1
-            0, 1, 0, // Vertex 2
-            1, 1, 0  // Vertex 3
+            0,
+            0,
+            0, // Vertex 0
+            1,
+            0,
+            0, // Vertex 1
+            0,
+            1,
+            0, // Vertex 2
+            1,
+            1,
+            0, // Vertex 3
         ];
 
         const expectedNormals = [
-            0, 0, 1, // Normal for Vertex 0
-            0, 0, 1.7071068286895752, // Normal for Vertex 1
-            0, 0, 1.7071068286895752, // Normal for Vertex 2
-            0, 0, 0.7071067690849304  // Normal for Vertex 3
+            0,
+            0,
+            1, // Normal for Vertex 0
+            0,
+            0,
+            1.7071068286895752, // Normal for Vertex 1
+            0,
+            0,
+            1.7071068286895752, // Normal for Vertex 2
+            0,
+            0,
+            0.7071067690849304, // Normal for Vertex 3
         ];
 
         const result = calculateNormals(index, vertex);
@@ -44,19 +72,39 @@ describe('calculateNormals', () => {
     it('should calculate normals for a more complex shape', () => {
         const index = [0, 1, 2, 2, 1, 3, 3, 1, 4];
         const vertex = [
-            0, 0, 0, // Vertex 0
-            1, 0, 0, // Vertex 1
-            0, 1, 0, // Vertex 2
-            1, 1, 0, // Vertex 3
-            2, 0, 0  // Vertex 4
+            0,
+            0,
+            0, // Vertex 0
+            1,
+            0,
+            0, // Vertex 1
+            0,
+            1,
+            0, // Vertex 2
+            1,
+            1,
+            0, // Vertex 3
+            2,
+            0,
+            0, // Vertex 4
         ];
 
         const expectedNormals = [
-            0, 0, 1, // Normal for Vertex 0
-            0, 0, 2.4142136573791504, // Normal for Vertex 1
-            0, 0, 1.7071068286895752, // Normal for Vertex 2
-            0, 0, 1.4142135381698608, // Normal for Vertex 3
-            0, 0, 0.7071067690849304  // Normal for Vertex 4
+            0,
+            0,
+            1, // Normal for Vertex 0
+            0,
+            0,
+            2.4142136573791504, // Normal for Vertex 1
+            0,
+            0,
+            1.7071068286895752, // Normal for Vertex 2
+            0,
+            0,
+            1.4142135381698608, // Normal for Vertex 3
+            0,
+            0,
+            0.7071067690849304, // Normal for Vertex 4
         ];
 
         const result = calculateNormals(index, vertex);
@@ -130,7 +178,7 @@ describe('setGl', () => {
 describe('isMatrix', () => {
     it('should return true for FLOAT_MAT4, FLOAT_MAT3, FLOAT_MAT2', () => {
         const glEnum: Record<number, string> = { 0: 'FLOAT_MAT4', 1: 'FLOAT_MAT3', 2: 'FLOAT_MAT2', 3: 'FLOAT_VEC3' };
-        jest.spyOn(utils, 'getGlEnum').mockImplementation(name => glEnum[name]);
+        jest.spyOn(utils, 'getGlEnum').mockImplementation((name) => glEnum[name]);
         expect(utils.isMatrix(0)).toBe(true);
         expect(utils.isMatrix(1)).toBe(true);
         expect(utils.isMatrix(2)).toBe(true);
@@ -140,7 +188,8 @@ describe('isMatrix', () => {
 
 describe('random', () => {
     it('should return a value between min and max', () => {
-        const min = 5, max = 10;
+        const min = 5,
+            max = 10;
         for (let i = 0; i < 10; i++) {
             const val = utils.random(min, max);
             expect(val).toBeGreaterThanOrEqual(min);
@@ -160,7 +209,7 @@ describe('lerp', () => {
 describe('getMatrixType', () => {
     it('should return correct matrix class', () => {
         const glEnum: Record<number, string> = { 0: 'FLOAT_MAT4', 1: 'FLOAT_MAT3', 2: 'FLOAT_MAT2' };
-        jest.spyOn(utils, 'getGlEnum').mockImplementation(name => glEnum[name]);
+        jest.spyOn(utils, 'getGlEnum').mockImplementation((name) => glEnum[name]);
         expect(utils.getMatrixType(0)).toBe(Matrix4);
         expect(utils.getMatrixType(1)).toBe(Matrix3);
         expect(utils.getMatrixType(2)).toBe(Matrix2);
@@ -182,7 +231,7 @@ describe('getDataType', () => {
 describe('getComponentType', () => {
     it('should return correct count for vector types', () => {
         const glEnum: Record<number, string> = { 0: 'FLOAT_VEC4', 1: 'FLOAT_VEC3', 2: 'FLOAT_VEC2' };
-        jest.spyOn(utils, 'getGlEnum').mockImplementation(name => glEnum[name]);
+        jest.spyOn(utils, 'getGlEnum').mockImplementation((name) => glEnum[name]);
         expect(utils.getComponentType(0)).toBe(4);
         expect(utils.getComponentType(1)).toBe(3);
         expect(utils.getComponentType(2)).toBe(2);
@@ -192,10 +241,16 @@ describe('getComponentType', () => {
 describe('getMethod', () => {
     it('should return correct uniform method', () => {
         const glEnum: Record<number, string> = {
-            0: 'FLOAT_VEC2', 1: 'FLOAT_VEC4', 2: 'FLOAT', 3: 'FLOAT_VEC3',
-            4: 'FLOAT_MAT4', 5: 'FLOAT_MAT3', 6: 'FLOAT_MAT2', 7: 'SAMPLER_2D'
+            0: 'FLOAT_VEC2',
+            1: 'FLOAT_VEC4',
+            2: 'FLOAT',
+            3: 'FLOAT_VEC3',
+            4: 'FLOAT_MAT4',
+            5: 'FLOAT_MAT3',
+            6: 'FLOAT_MAT2',
+            7: 'SAMPLER_2D',
         };
-        jest.spyOn(utils, 'getGlEnum').mockImplementation(name => glEnum[name]);
+        jest.spyOn(utils, 'getGlEnum').mockImplementation((name) => glEnum[name]);
         expect(utils.getMethod(0)).toBe('uniform2f');
         expect(utils.getMethod(1)).toBe('uniform4f');
         expect(utils.getMethod(2)).toBe('uniform1f');
@@ -280,7 +335,7 @@ describe('sceneToArcBall', () => {
 describe('getGlEnum', () => {
     it('should return value from glEnum', () => {
         const glEnum: Record<number, string> = { 0: 'TEST' };
-        jest.spyOn(utils, 'getGlEnum').mockImplementation(name => glEnum[name]);
+        jest.spyOn(utils, 'getGlEnum').mockImplementation((name) => glEnum[name]);
         expect(utils.getGlEnum(0)).toBe('TEST');
     });
 });

@@ -5,9 +5,10 @@
       "module": "es2020",
       "target": "esnext",
       "skipLibCheck": true,
-      "types": ["jest"]
+      "types": ["jest", "@webgpu/types"]
   },
   "include": [
-      "./src/**/*"
+      "./src/**/*",
+      "./index.d.ts"
   ]
 }

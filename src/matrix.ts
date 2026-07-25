@@ -600,7 +600,7 @@ class Matrix4 {
         let out = new Vector3([
             Math.sqrt(m11 * m11 + m12 * m12 + m13 * m13),
             Math.sqrt(m21 * m21 + m22 * m22 + m23 * m23),
-            Math.sqrt(m31 * m31 + m32 * m32 + m33 * m33)
+            Math.sqrt(m31 * m31 + m32 * m32 + m33 * m33),
         ]);
         return out;
     }

@@ -6,7 +6,7 @@ import { Light } from './light';
 import type { Define } from '../parse';
 
 const defaultMaterial = {
-    baseColorFactor: [1, 0, 0, 1]
+    baseColorFactor: [1, 0, 0, 1],
 } as M;
 
 interface Uniforms {
@@ -44,7 +44,7 @@ interface Uniforms {
 const lightEnum = {
     directional: 0,
     point: 1,
-    spot: 2
+    spot: 2,
 };
 
 export class Material extends M {
@@ -128,12 +128,8 @@ export class Material extends M {
         }
 
         if (material.extensions && material.extensions.KHR_materials_sheen) {
-            const {
-                sheenColorTexture,
-                sheenColorFactor,
-                sheenRoughnessFactor,
-                sheenRoughnessTexture
-            } = material.extensions.KHR_materials_sheen;
+            const { sheenColorTexture, sheenColorFactor, sheenRoughnessFactor, sheenRoughnessTexture } =
+                material.extensions.KHR_materials_sheen;
             this.sheenColorFactor = sheenColorFactor;
             this.sheenRoughnessFactor = sheenRoughnessFactor;
             if (sheenColorTexture) {
@@ -227,7 +223,14 @@ export class Material extends M {
         }
 
         if (material.extensions && material.extensions.KHR_materials_iridescence) {
-            const { iridescenceTexture, iridescenceThicknessTexture, iridescenceFactor, iridescenceIor, iridescenceThicknessMaximum, iridescenceThicknessMinimum } = material.extensions.KHR_materials_iridescence;
+            const {
+                iridescenceTexture,
+                iridescenceThicknessTexture,
+                iridescenceFactor,
+                iridescenceIor,
+                iridescenceThicknessMaximum,
+                iridescenceThicknessMinimum,
+            } = material.extensions.KHR_materials_iridescence;
             this.iridescenceFactor = iridescenceFactor;
             this.iridescenceIOR = iridescenceIor;
             this.iridescenceThicknessMaximum = iridescenceThicknessMaximum;
@@ -255,7 +258,12 @@ export class Material extends M {
             defines.push({ name: 'IRIDESCENCE' });
         }
         if (material.extensions && material.extensions.KHR_materials_diffuse_transmission) {
-            const { diffuseTransmissionFactor, diffuseTransmissionTexture, diffuseTransmissionColorFactor, diffuseTransmissionColorTexture } = material.extensions.KHR_materials_diffuse_transmission;
+            const {
+                diffuseTransmissionFactor,
+                diffuseTransmissionTexture,
+                diffuseTransmissionColorFactor,
+                diffuseTransmissionColorTexture,
+            } = material.extensions.KHR_materials_diffuse_transmission;
             this.diffuseTransmissionFactor = diffuseTransmissionFactor;
             if (diffuseTransmissionTexture) {
                 this.diffuseTransmissionTexture = textures[diffuseTransmissionTexture.index];
@@ -274,7 +282,10 @@ export class Material extends M {
                 if (diffuseTransmissionColorTexture.extensions) {
                     const ex = diffuseTransmissionColorTexture.extensions.KHR_texture_transform;
                     if (ex) {
-                        this.matricesMap.set('diffuseTransmissionColorTexture', this.buildTrans(ex, defines, 'DIFFUSE_TRANSMISSION_COLOR_MAP'));
+                        this.matricesMap.set(
+                            'diffuseTransmissionColorTexture',
+                            this.buildTrans(ex, defines, 'DIFFUSE_TRANSMISSION_COLOR_MAP'),
+                        );
                     }
                 }
             }
@@ -287,7 +298,8 @@ export class Material extends M {
         }
 
         if (material.extensions && material.extensions.KHR_materials_specular) {
-            const { specularFactor, specularTexture, specularColorFactor, specularColorTexture } = material.extensions.KHR_materials_specular;
+            const { specularFactor, specularTexture, specularColorFactor, specularColorTexture } =
+                material.extensions.KHR_materials_specular;
             this.specularFactor = [specularFactor ?? 1, 0, 0];
             this.specularColorFactor = specularColorFactor;
             if (specularTexture) {
@@ -342,7 +354,7 @@ export class Material extends M {
             anisotropyTexture: null,
             isTone: null,
             isIBL: null,
-            isDefaultLight: null
+            isDefaultLight: null,
         };
         const { pbrMetallicRoughness } = material;
         if (pbrMetallicRoughness) {
@@ -422,7 +434,7 @@ export class Material extends M {
         if (material.alphaMode === 'MASK') {
             defines.push({
                 name: 'ALPHATEST',
-                value: material.alphaCutoff ?? 0.5
+                value: material.alphaCutoff ?? 0.5,
             });
         } else if (material.alphaMode === 'BLEND') {
             defines.push({ name: 'ALPHATEST', value: 0.01 });
@@ -589,11 +601,14 @@ export class Material extends M {
             spotDirs.set(
                 new Vector3([light.matrixWorld.elements[8], light.matrixWorld.elements[9], light.matrixWorld.elements[10]]).normalize()
                     .elements,
-                i * 4
+                i * 4,
             );
             lightPos.set(light.getPosition(), i * 4);
             lightColor.set(light.color.elements, i * 4);
-            lightProps.set([light.intensity!, light.spot.innerConeAngle ?? 0, light.spot.outerConeAngle ?? 0, lightEnum[light.type]], i * 4);
+            lightProps.set(
+                [light.intensity!, light.spot.innerConeAngle ?? 0, light.spot.outerConeAngle ?? 0, lightEnum[light.type]],
+                i * 4,
+            );
         });
         this.matrices.forEach((m, i) => {
             textureMatrices.set(m.elements, i * 16);
@@ -602,8 +617,16 @@ export class Material extends M {
         {
             const materialUniformBuffer = new UniformBuffer(isTexture);
             materialUniformBuffer.add('lights', [...this.lights]);
-            materialUniformBuffer.add('iridescence', [this.iridescenceFactor ?? 0, this.iridescenceIOR ?? 1.3, this.iridescenceThicknessMaximum ?? 400, this.iridescenceThicknessMinimum ?? 100]);
-            materialUniformBuffer.add('diffuseTransmissionFactor', [this.diffuseTransmissionFactor ?? 0, ...this.diffuseTransmissionColorFactor]);
+            materialUniformBuffer.add('iridescence', [
+                this.iridescenceFactor ?? 0,
+                this.iridescenceIOR ?? 1.3,
+                this.iridescenceThicknessMaximum ?? 400,
+                this.iridescenceThicknessMinimum ?? 100,
+            ]);
+            materialUniformBuffer.add('diffuseTransmissionFactor', [
+                this.diffuseTransmissionFactor ?? 0,
+                ...this.diffuseTransmissionColorFactor,
+            ]);
             materialUniformBuffer.add('baseColorFactor', this.baseColorFactor ?? [0.8, 0.8, 0.8, 1.0]);
             materialUniformBuffer.add('specularColorFactor', this.specularColorFactor ?? [1, 1, 1]);
             materialUniformBuffer.add('emissiveFactor', this.emissiveFactor ?? [0, 0, 0]);
@@ -631,7 +654,7 @@ export class Material extends M {
             }
             this.materialUniformBuffer = materialUniformBuffer;
         }
-        
+
         if (this.matrices.length) {
             const materialUniformBuffer = new UniformBuffer();
             materialUniformBuffer.add('textureMatrices', textureMatrices);
@@ -647,107 +670,105 @@ export class Material extends M {
         if (this.textureMatricesBuffer) {
             uniformBuffer6 = device.createBuffer({
                 size: 256 + this.textureMatricesBuffer.store.byteLength,
-                usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
+                usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
             });
             this.textureMatricesBuffer.bufferWebGPU = uniformBuffer6;
         }
-        const sampler = this.baseColorTexture
-            ? this.baseColorTexture.sampler
-            : linearSampler;
+        const sampler = this.baseColorTexture ? this.baseColorTexture.sampler : linearSampler;
 
         const uniformBindGroup1 = [
             {
                 binding: 2,
-                resource: sampler
+                resource: sampler,
             },
             {
                 binding: 37,
-                resource: nearestSampler
+                resource: nearestSampler,
             },
             {
                 binding: 24,
-                resource: linearSampler
+                resource: linearSampler,
             },
             {
                 binding: 3,
-                resource: this.baseColorTexture?.view
+                resource: this.baseColorTexture?.view,
             },
             {
                 binding: 4,
-                resource: this.metallicRoughnessTexture?.view
+                resource: this.metallicRoughnessTexture?.view,
             },
             {
                 binding: 5,
-                resource: this.normalTexture?.view
+                resource: this.normalTexture?.view,
             },
             {
                 binding: 6,
-                resource: this.emissiveTexture?.view
+                resource: this.emissiveTexture?.view,
             },
             {
                 binding: 7,
-                resource: this.occlusionTexture?.view
+                resource: this.occlusionTexture?.view,
             },
             {
                 binding: 8,
-                resource: this.clearcoatTexture?.view
+                resource: this.clearcoatTexture?.view,
             },
             {
                 binding: 9,
-                resource: this.clearcoatRoughnessTexture?.view
+                resource: this.clearcoatRoughnessTexture?.view,
             },
             {
                 binding: 10,
-                resource: this.transmissionTexture?.view
+                resource: this.transmissionTexture?.view,
             },
             {
                 binding: 11,
-                resource: this.sheenColorTexture?.view
+                resource: this.sheenColorTexture?.view,
             },
             {
                 binding: 12,
-                resource: this.sheenRoughnessTexture?.view
+                resource: this.sheenRoughnessTexture?.view,
             },
             {
                 binding: 13,
-                resource: this.clearcoatNormalTexture?.view
+                resource: this.clearcoatNormalTexture?.view,
             },
             {
                 binding: 14,
-                resource: this.specularTexture?.view
+                resource: this.specularTexture?.view,
             },
-            
+
             {
                 binding: 29,
-                resource: this.thicknessTexture?.view
+                resource: this.thicknessTexture?.view,
             },
             {
                 binding: 31,
-                resource: this.anisotropyTexture?.view
+                resource: this.anisotropyTexture?.view,
             },
             {
                 binding: 32,
-                resource: this.iridescenceThicknessTexture?.view
+                resource: this.iridescenceThicknessTexture?.view,
             },
             {
                 binding: 38,
-                resource: this.iridescenceTexture?.view
+                resource: this.iridescenceTexture?.view,
             },
             {
                 binding: 33,
-                resource: this.specularColorTexture?.view
+                resource: this.specularColorTexture?.view,
             },
             {
                 binding: 34,
-                resource: this.diffuseTransmissionTexture?.view
+                resource: this.diffuseTransmissionTexture?.view,
             },
             {
                 binding: 36,
-                resource: this.diffuseTransmissionColorTexture?.view
+                resource: this.diffuseTransmissionColorTexture?.view,
             },
             {
                 binding: 23,
-                resource: this.textureMatricesBuffer && uniformBuffer6
+                resource: this.textureMatricesBuffer && uniformBuffer6,
             },
         ];
 
@@ -757,11 +778,11 @@ export class Material extends M {
                 0,
                 this.textureMatricesBuffer.store.buffer,
                 this.textureMatricesBuffer.store.byteOffset,
-                this.textureMatricesBuffer.store.byteLength
+                this.textureMatricesBuffer.store.byteLength,
             );
         }
 
-        this.uniformBindGroup1 = uniformBindGroup1.filter(r => r.resource);
+        this.uniformBindGroup1 = uniformBindGroup1.filter((r) => r.resource);
     }
 
     hasNormal() {
@@ -772,40 +793,42 @@ export class Material extends M {
         this.materialUniformBuffer.update(gl, name, value.elements, true);
     }
 
-    setTexture(gl: WebGL2RenderingContext, name: string, type: string, value: { elements: ArrayLike<number> }) {
+    setTexture(gl: WebGL2RenderingContext, name: string, type: string, value: { elements: Float32Array }) {
         gl.bindBufferBase(gl.UNIFORM_BUFFER, 8, this.textureMatricesUniform!);
         const i = this.matricesMap.get(name)! * 16;
+        const [e0, e1] = value.elements;
         if (type === 'offset') {
-            this.textureMatricesBuffer.store[i] = value.elements[0];
-            this.textureMatricesBuffer.store[i + 1] = value.elements[1];
+            this.textureMatricesBuffer.store[i] = e0;
+            this.textureMatricesBuffer.store[i + 1] = e1;
         }
 
         if (type === 'scale') {
-            this.textureMatricesBuffer.store[i + 4] = value.elements[0];
-            this.textureMatricesBuffer.store[i + 5] = value.elements[1];
+            this.textureMatricesBuffer.store[i + 4] = e0;
+            this.textureMatricesBuffer.store[i + 5] = e1;
         }
 
         if (type === 'rotation') {
-            this.textureMatricesBuffer.store[i + 8] = value.elements[0];
+            this.textureMatricesBuffer.store[i + 8] = e0;
         }
 
         gl.bufferSubData(gl.UNIFORM_BUFFER, 0, this.textureMatricesBuffer.store);
     }
 
-    setTextureWebGPU(WebGPU: WEBGPU, name: string, type: string, value: { elements: ArrayLike<number> }) {
+    setTextureWebGPU(WebGPU: WEBGPU, name: string, type: string, value: { elements: Float32Array }) {
         const i = this.matricesMap.get(name)! * 16;
+        const [e0, e1] = value.elements;
         if (type === 'offset') {
-            this.textureMatricesBuffer.store[i] = value.elements[0];
-            this.textureMatricesBuffer.store[i + 1] = value.elements[1];
+            this.textureMatricesBuffer.store[i] = e0;
+            this.textureMatricesBuffer.store[i + 1] = e1;
         }
 
         if (type === 'scale') {
-            this.textureMatricesBuffer.store[i + 4] = value.elements[0];
-            this.textureMatricesBuffer.store[i + 5] = value.elements[1];
+            this.textureMatricesBuffer.store[i + 4] = e0;
+            this.textureMatricesBuffer.store[i + 5] = e1;
         }
 
         if (type === 'rotation') {
-            this.textureMatricesBuffer.store[i + 8] = value.elements[0];
+            this.textureMatricesBuffer.store[i + 8] = e0;
         }
 
         WebGPU.device.queue.writeBuffer(
@@ -813,7 +836,7 @@ export class Material extends M {
             0,
             this.textureMatricesBuffer.store.buffer,
             this.textureMatricesBuffer.store.byteOffset,
-            this.textureMatricesBuffer.store.byteLength
+            this.textureMatricesBuffer.store.byteLength,
         );
     }
 

@@ -14,7 +14,7 @@
   <img src="https://img.shields.io/npm/types/typescript?color=%232e58ff&style=for-the-badge" alt="typescript">
   <img src="https://img.shields.io/github/last-commit/reon90/redcube?color=2e58ff&style=for-the-badge" alt="last commit">
   <img src="https://img.shields.io/bundlephobia/min/redcube.js?color=%232e58ff&style=for-the-badge" alt="size">
-  <img src="https://img.shields.io/badge/code%20style-eslint-%232e58ff?style=for-the-badge" alt="eslint">
+  <img src="https://img.shields.io/badge/code%20style-oxlint-%232e58ff?style=for-the-badge" alt="oxlint">
 </p>
 
 <div align="center">

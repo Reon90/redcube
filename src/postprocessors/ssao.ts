@@ -51,7 +51,7 @@ export class SSAO extends PostProcessor {
         gl.uniform2f(
             gl.getUniformLocation(this.ssaoProgram, 'noiseScale'),
             this.width / this.scale / noiceSize,
-            this.height / this.scale / noiceSize
+            this.height / this.scale / noiceSize,
         );
         gl.uniform1f(gl.getUniformLocation(this.ssaoProgram, 'zFar'), cameraProps!.zfar!);
         gl.uniform1f(gl.getUniformLocation(this.ssaoProgram, 'zNear'), cameraProps!.znear!);
@@ -61,7 +61,7 @@ export class SSAO extends PostProcessor {
         gl.uniformMatrix4fv(
             gl.getUniformLocation(this.ssaoProgram, 'projI'),
             false,
-            new Matrix4().setInverseOf(this.camera.projection).elements
+            new Matrix4().setInverseOf(this.camera.projection).elements,
         );
         gl.uniform3fv(gl.getUniformLocation(this.ssaoProgram, 'kernels'), this.kernels);
 
@@ -117,7 +117,7 @@ export class SSAO extends PostProcessor {
     }
 
     buildKernels() {
-        const kernels: Vector3[] = new Array(kernelSize);
+        const kernels: Vector3[] = Array.from({ length: kernelSize });
         for (let i = 0; i < kernels.length; i++) {
             kernels[i] = new Vector3([random(0, 1) * 2 - 1, random(0, 1) * 2 - 1, random(0, 1)]);
             kernels[i].normalize();

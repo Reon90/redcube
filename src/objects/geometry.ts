@@ -13,7 +13,7 @@ import {
     fanToTriListIndices,
     convertLineLoopToLineList,
     toFloat32Normalized,
-    TypedArray
+    TypedArray,
 } from '../utils';
 import { decodeDracoData, getArray, DracoModule } from '../decoder';
 import { GlTf, MeshPrimitive, Accessor } from '../../GLTF';
@@ -52,7 +52,7 @@ const GeometryEnum = {
     WEIGHTS_0: [5, 4],
     COLOR_0: [6, 4],
     TEXCOORD_1: [7, 2],
-    TEXCOORD_2: [8, 2]
+    TEXCOORD_2: [8, 2],
 };
 
 export class Geometry {
@@ -81,7 +81,7 @@ export class Geometry {
             center: new Vector3(),
             radius: null,
             min: new Vector3([Infinity, Infinity, Infinity]),
-            max: new Vector3([-Infinity, -Infinity, -Infinity])
+            max: new Vector3([-Infinity, -Infinity, -Infinity]),
         };
         this.uniformBuffer = null;
         this.UBO = null;
@@ -101,7 +101,7 @@ export class Geometry {
         }
         const boundingBox = {
             min: vertexAccessor.get('POSITION')!.min!,
-            max: vertexAccessor.get('POSITION')!.max!
+            max: vertexAccessor.get('POSITION')!.max!,
         };
 
         const compresedMesh = primitive.extensions && primitive.extensions.KHR_draco_mesh_compression;
@@ -120,7 +120,7 @@ export class Geometry {
                     numPoints * size,
                     decodedGeometry,
                     attribute,
-                    decoder
+                    decoder,
                 );
 
                 for (let i = 0; i < numPoints * size; i += size) {
@@ -161,7 +161,7 @@ export class Geometry {
                     arrayBuffer[bufferView.buffer],
                     indicesAccessor.componentType,
                     calculateOffset(bufferView.byteOffset, indicesAccessor.byteOffset),
-                    getDataType(indicesAccessor.type)! * indicesAccessor.count
+                    getDataType(indicesAccessor.type)! * indicesAccessor.count,
                 );
                 if (primitive.mode === 6) {
                     indicesBuffer = fanToTriListIndices(indicesBuffer as Uint16Array | Uint32Array);
@@ -236,13 +236,13 @@ export class Geometry {
                     arrayBuffer[indicesBufferView.buffer],
                     accessor.sparse.indices.componentType,
                     calculateOffset(indicesBufferView.byteOffset, accessor.sparse.indices.byteOffset),
-                    accessor.sparse.count
+                    accessor.sparse.count,
                 )!;
                 const sparseValues = buildArray(
                     arrayBuffer[valuesBufferView.buffer],
                     accessor.componentType!,
                     calculateOffset(valuesBufferView.byteOffset, accessor.byteOffset),
-                    getDataType(accessor.type!)! * accessor.sparse.count
+                    getDataType(accessor.type!)! * accessor.sparse.count,
                 )!;
 
                 for (let i = 0, il = sparseIndices.length; i < il; i++) {
@@ -282,7 +282,7 @@ export class Geometry {
                 indicesBuffer,
                 vertexBuffers.POSITION!,
                 vertexBuffers.NORMAL!,
-                vertexBuffers.TEXCOORD_0!
+                vertexBuffers.TEXCOORD_0!,
             );
             vertexAccessor.set('TANGENT', { componentType: 5126 });
         }
@@ -301,7 +301,7 @@ export class Geometry {
         const count = this.attributes['POSITION']!.length / 3;
         const g = new Float32Array(
             count +
-            count * 3 +
+                count * 3 +
                 count * 2 +
                 count * 3 +
                 count * 4 +
@@ -309,7 +309,7 @@ export class Geometry {
                 (this.attributes['WEIGHTS_0']?.length ?? 0) +
                 (this.attributes['COLOR_0']?.length ?? 0) +
                 (this.attributes['TEXCOORD_1']?.length ?? 0) +
-                (this.attributes['TEXCOORD_2']?.length ?? 0)
+                (this.attributes['TEXCOORD_2']?.length ?? 0),
         );
         if (this.attributes['WEIGHTS_0']) {
             total += 8;
@@ -397,7 +397,7 @@ export class Geometry {
         const verticesBuffer = device.createBuffer({
             size: this.g!.byteLength,
             usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
-            mappedAtCreation: true
+            mappedAtCreation: true,
         });
         new Float32Array(verticesBuffer.getMappedRange()).set(this.g!);
         verticesBuffer.unmap();
@@ -408,7 +408,7 @@ export class Geometry {
             const indicesBuffer = device.createBuffer({
                 size: this.indicesBuffer.byteLength,
                 usage: GPUBufferUsage.INDEX,
-                mappedAtCreation: true
+                mappedAtCreation: true,
             });
             new Uint32Array(indicesBuffer.getMappedRange()).set(this.indicesBuffer);
             indicesBuffer.unmap();
@@ -428,13 +428,13 @@ export class Geometry {
         this.VBO = VBO;
 
         const vertexLayout = [3, 2, 3, 4];
-        if (defines.find(d => d.name === 'JOINTNUMBER')) {
+        if (defines.find((d) => d.name === 'JOINTNUMBER')) {
             vertexLayout.push(4, 4);
         }
-        if (defines.find(d => d.name === 'COLOR')) {
+        if (defines.find((d) => d.name === 'COLOR')) {
             vertexLayout.push(4);
         }
-        if (defines.find(d => d.name === 'MULTIUV')) {
+        if (defines.find((d) => d.name === 'MULTIUV')) {
             vertexLayout.push(2);
         }
         if (this.attributes['TEXCOORD_2']) {
@@ -476,15 +476,12 @@ export class Geometry {
         const vertices = this.attributes.POSITION!;
         let maxRadiusSq = 0;
 
-        this.boundingSphere.center
-            .add(this.boundingSphere.min)
-            .add(this.boundingSphere.max)
-            .scale(0.5);
+        this.boundingSphere.center.add(this.boundingSphere.min).add(this.boundingSphere.max).scale(0.5);
 
         for (let i = 0; i < vertices.length; i = i + 3) {
             maxRadiusSq = Math.max(
                 maxRadiusSq,
-                this.boundingSphere.center.distanceToSquared(vertices[i], vertices[i + 1], vertices[i + 2])
+                this.boundingSphere.center.distanceToSquared(vertices[i], vertices[i + 1], vertices[i + 2]),
             );
         }
         this.boundingSphere.radius = Math.sqrt(maxRadiusSq);
@@ -506,24 +503,18 @@ export class Geometry {
         const { device } = WebGPU;
         const uniformBuffer = device.createBuffer({
             size: uniformBufferSize,
-            usage: usage | GPUBufferUsage.COPY_DST
+            usage: usage | GPUBufferUsage.COPY_DST,
         });
         buffer.bufferWebGPU = uniformBuffer;
 
         const uniformBindGroup1 = [
             {
                 binding: 0,
-                resource: uniformBuffer
-            }
+                resource: uniformBuffer,
+            },
         ];
 
-        device.queue.writeBuffer(
-            uniformBuffer,
-            0,
-            buffer.store!.buffer,
-            buffer.store!.byteOffset,
-            buffer.store!.byteLength
-        );
+        device.queue.writeBuffer(uniformBuffer, 0, buffer.store!.buffer, buffer.store!.byteOffset, buffer.store!.byteLength);
 
         return uniformBindGroup1;
     }

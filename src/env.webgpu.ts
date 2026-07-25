@@ -30,8 +30,12 @@ const IRRADIANCE_SIZE = 32;
 
 function loadHDR(
     device: GPUDevice,
-    { data, shape, usage = GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST }: { data: Float32Array; shape: [number, number]; usage?: number },
-    mipLevelCount: number
+    {
+        data,
+        shape,
+        usage = GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
+    }: { data: Float32Array; shape: [number, number]; usage?: number },
+    mipLevelCount: number,
 ) {
     const img = new Float16Array(data.length);
     let k;
@@ -118,7 +122,7 @@ export class Env {
         return this.canvas.offsetHeight * devicePixelRatio;
     }
 
-    drawQuad(WebGPU: WEBGPU, x: unknown) {
+    drawQuad(WebGPU: WEBGPU, _x: unknown) {
         const m = new Matrix4();
         const cam = Object.assign({}, this.camera.props, {
             perspective: {
@@ -508,7 +512,14 @@ export class Env {
         ];
     }
 
-    buildPipeline(WebGPU: WEBGPU, vertex: string, fragment: string, vertexId: number, entries: GPUBindGroupLayoutEntry[], targets: GPUColorTargetState[]) {
+    buildPipeline(
+        WebGPU: WEBGPU,
+        vertex: string,
+        fragment: string,
+        vertexId: number,
+        entries: GPUBindGroupLayoutEntry[],
+        targets: GPUColorTargetState[],
+    ) {
         const { device, glslang, wgsl } = WebGPU;
 
         function convertGLSLtoWGSL(code: string, type: string) {
@@ -555,7 +566,7 @@ export class Env {
 
             primitive: {
                 topology: 'triangle-list',
-                cullMode: 'none'
+                cullMode: 'none',
             },
             depthStencil: {
                 depthWriteEnabled: false,
@@ -1027,7 +1038,7 @@ export class Env {
             format: 'rgba16float',
         });
         this.irradianceTexture.view = this.irradianceTexture.createView({
-            dimension: 'cube'
+            dimension: 'cube',
         });
 
         for (let i = 0; i < 6; i++) {
@@ -1046,7 +1057,7 @@ export class Env {
             format: 'rgba16float',
         });
         this.prefilterTexture.view = this.prefilterTexture.createView({
-            dimension: 'cube'
+            dimension: 'cube',
         });
         this.charlieTexture = device.createTexture({
             label: 'charlieTexture',
@@ -1056,7 +1067,7 @@ export class Env {
             format: 'rgba16float',
         });
         this.charlieTexture.view = this.charlieTexture.createView({
-            dimension: 'cube'
+            dimension: 'cube',
         });
 
         for (let mip = 0; mip < mipLevelCount; ++mip) {

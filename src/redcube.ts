@@ -1,5 +1,3 @@
-/// <reference path='../index.d.ts'/>
-
 import { Container } from './container';
 import { Renderer } from './renderer';
 import { Vector3 } from './matrix';
@@ -57,7 +55,7 @@ class RedCube {
         if (this.processors.length === 0) {
             defines.push({ name: 'TONE' });
         }
-        if (this.processors.some(p => p === 'shadow')) {
+        if (this.processors.some((p) => p === 'shadow')) {
             defines.push({ name: 'SHADOWMAP' });
         }
         if (mode === 'pbr') {
@@ -76,10 +74,10 @@ class RedCube {
                 zoom: 1,
                 aspect: this.canvas.offsetWidth / this.canvas.offsetHeight,
                 perspective: {
-                    yfov: (FOV * Math.PI) / 180
-                }
+                    yfov: (FOV * Math.PI) / 180,
+                },
             },
-            'perspective'
+            'perspective',
         );
         this.ioc.register('canvas', canvas);
         this.ioc.register('scene', Scene);
@@ -88,12 +86,12 @@ class RedCube {
             intensity: 5,
             color: [1, 1, 1],
             isInitial: true,
-            spot: {}
+            spot: {},
         });
         this.ioc.register('pp', PostProcessing, ['light', 'camera', 'canvas', 'gl'], this.processors, this.renderScene.bind(this));
         this.ioc.register('parser', Parse, ['scene', 'light', 'camera', 'canvas', 'gl'], url, defines, this.resize.bind(this));
         this.ioc.register('particles', Particles, ['camera', 'gl'], () => {
-            const l = this.PP.postprocessors.find(p => p instanceof PPLight) as PPLight;
+            const l = this.PP.postprocessors.find((p) => p instanceof PPLight) as PPLight;
             return l.texture.index;
         });
         this.ioc.register('renderer', Renderer, ['gl', 'parser', 'pp', 'scene', 'camera', 'particles', 'env'], this.getState.bind(this));
@@ -128,9 +126,9 @@ class RedCube {
     }
 
     setVariant(variant: string | number) {
-        this.scene.meshes.forEach(mesh => {
+        this.scene.meshes.forEach((mesh) => {
             if (variant && mesh.variants.length) {
-                mesh.material = mesh.variants.find(v => v.variants.includes(Number(variant)))!.m;
+                mesh.material = mesh.variants.find((v) => v.variants.includes(Number(variant)))!.m;
                 mesh.repaint = true;
             }
         });
@@ -184,7 +182,7 @@ class RedCube {
         const lightEnum = {
             directional: 0,
             point: 1,
-            spot: 2
+            spot: 2,
         };
         const spotDirs = new Float32Array(this.parse.lights.length * 4);
         const lightPos = new Float32Array(this.parse.lights.length * 4);
@@ -194,26 +192,29 @@ class RedCube {
             spotDirs.set(
                 new Vector3([light.matrixWorld.elements[8], light.matrixWorld.elements[9], light.matrixWorld.elements[10]]).normalize()
                     .elements,
-                i * 4
+                i * 4,
             );
             lightPos.set(light.getPosition(), i * 4);
             lightColor.set(light.color.elements, i * 4);
-            lightProps.set([light.intensity!, light.spot.innerConeAngle ?? 0, light.spot.outerConeAngle ?? 0, lightEnum[light.type]], i * 4);
+            lightProps.set(
+                [light.intensity!, light.spot.innerConeAngle ?? 0, light.spot.outerConeAngle ?? 0, lightEnum[light.type]],
+                i * 4,
+            );
         });
         const lightPosBuffer = new UniformBuffer();
         lightPosBuffer.add('lightPos', lightPos);
         lightPosBuffer.done();
         this.lightPosBuffer = lightPosBuffer;
-        
+
         const lightColorBuffer = new UniformBuffer();
         lightColorBuffer.add('lightColor', lightColor);
         lightColorBuffer.done();
         this.lightColorBuffer = lightColorBuffer;
-    
+
         const spotdirBuffer = new UniformBuffer();
         spotdirBuffer.add('spotdir', spotDirs);
         spotdirBuffer.done();
-    
+
         const lightIntensityBuffer = new UniformBuffer();
         lightIntensityBuffer.add('lightIntensity', lightProps);
         lightIntensityBuffer.done();
@@ -249,41 +250,51 @@ class RedCube {
         });
 
         this.scene.meshes.forEach((mesh) => {
-            [mesh.material, ...mesh.variants.map(m => m.m)].forEach(m => m.createUniforms(true, this.parse.lights));
+            [mesh.material, ...mesh.variants.map((m) => m.m)].forEach((m) => m.createUniforms(true, this.parse.lights));
         });
 
         gl.activeTexture(gl[`TEXTURE${31}`]);
         const texture = gl.createTexture();
         gl.bindTexture(gl.TEXTURE_2D, texture);
         gl.texImage2D(
-            gl.TEXTURE_2D, 0, gl.RGBA32F,
-            this.scene.meshes[0].geometry.uniformBuffer!.store!.length / Float32Array.BYTES_PER_ELEMENT, meshCount, 0,
-            gl.RGBA, gl.FLOAT,
-            null
+            gl.TEXTURE_2D,
+            0,
+            gl.RGBA32F,
+            this.scene.meshes[0].geometry.uniformBuffer!.store!.length / Float32Array.BYTES_PER_ELEMENT,
+            meshCount,
+            0,
+            gl.RGBA,
+            gl.FLOAT,
+            null,
         );
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-        this.storage2 = {texture: texture!};
+        this.storage2 = { texture: texture! };
 
         gl.activeTexture(gl[`TEXTURE${30}`]);
         const texture2 = gl.createTexture();
         gl.bindTexture(gl.TEXTURE_2D, texture2);
         gl.texImage2D(
-            gl.TEXTURE_2D, 0, gl.RGBA32F,
-            this.scene.meshes[0].material.materialUniformBuffer.store!.length / Float32Array.BYTES_PER_ELEMENT, this.scene.meshes.length, 0,
-            gl.RGBA, gl.FLOAT,
-            null
+            gl.TEXTURE_2D,
+            0,
+            gl.RGBA32F,
+            this.scene.meshes[0].material.materialUniformBuffer.store!.length / Float32Array.BYTES_PER_ELEMENT,
+            this.scene.meshes.length,
+            0,
+            gl.RGBA,
+            gl.FLOAT,
+            null,
         );
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-        this.storage = {texture2: texture2!};
+        this.storage = { texture2: texture2! };
 
         const hasTransmission = this.parse.json.extensionsUsed && this.parse.json.extensionsUsed.includes('KHR_materials_transmission');
-        this.scene.meshes.forEach(mesh => {
+        this.scene.meshes.forEach((mesh) => {
             mesh.geometry.createGeometryForWebGl(gl, mesh.defines!, mesh.order);
 
             const program = this.parse.createProgram(mesh.defines!);
-            [mesh.material, ...mesh.variants.map(m => m.m)].forEach(m => m.updateUniformsWebgl(gl, program));
+            [mesh.material, ...mesh.variants.map((m) => m.m)].forEach((m) => m.updateUniformsWebgl(gl, program));
             mesh.material.setHarmonics(this.env.updateUniform(gl, program));
 
             mesh.setProgram(program);
@@ -315,7 +326,7 @@ class RedCube {
         }
         // this.PP.add('scattering');
 
-        if (this.PP.postprocessors.some(p => p instanceof PPLight)) {
+        if (this.PP.postprocessors.some((p) => p instanceof PPLight)) {
             this.Particles.build();
         }
         if (this.PP.hasPostPass || this.PP.hasPrePass) {
@@ -399,7 +410,7 @@ class RedCube {
 
     glInit() {
         const context = this.canvas.getContext('webgl2', {
-            antialias: true
+            antialias: true,
         });
 
         if (!context) {
@@ -432,7 +443,7 @@ class RedCube {
     }
 
     getState() {
-        const refraction = this.PP.postprocessors.find(p => p instanceof Refraction);
+        const refraction = this.PP.postprocessors.find((p) => p instanceof Refraction);
         return {
             storage: this.storage,
             storage2: this.storage2,
@@ -459,7 +470,7 @@ class RedCube {
             Sheen_E: this.env.Sheen_E,
             prefilterMap: this.env.prefilterMap,
             charlieMap: this.env.charlieMap,
-            brdfLUT: this.env.brdfLUTTexture
+            brdfLUT: this.env.brdfLUTTexture,
         };
     }
 }

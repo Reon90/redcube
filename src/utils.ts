@@ -66,7 +66,7 @@ export const textureEnum = {
     diffuseTransmissionTexture: 20,
     diffuseTransmissionColorTexture: 21,
     anisotropyTexture: 22,
-    iridescenceTexture: 23
+    iridescenceTexture: 23,
 };
 
 export function setGl(_gl: WebGL2RenderingContext) {
@@ -348,10 +348,7 @@ export function createTexture(type: GLenum = gl.TEXTURE_2D, index: number = getT
     return texture;
 }
 
-export function walk<R extends { children?: C[] }, C extends { children?: C[] }>(
-    node: R,
-    callback: (node: R | C) => void,
-) {
+export function walk<R extends { children?: C[] }, C extends { children?: C[] }>(node: R, callback: (node: R | C) => void) {
     function _walk(node: R | C) {
         callback(node);
         if (node.children) {
@@ -773,13 +770,10 @@ export async function generateMipmaps(
     }
 }
 
-export function fanToTriListIndices(
-  fan: Uint16Array | Uint32Array
-): Uint32Array {
+export function fanToTriListIndices(fan: Uint16Array | Uint32Array): Uint32Array {
     if (fan.length < 3) return new Uint32Array(0);
-    const use32 = fan instanceof Uint32Array || Math.max(...fan) > 65535;
     const out = new Uint32Array((fan.length - 2) * 3);
-    const c = fan[0];
+    const [c] = fan;
     let o = 0;
     for (let i = 1; i < fan.length - 1; i++) {
         out[o++] = c;
@@ -797,7 +791,7 @@ export function convertLineLoopToLineList(loopIndices: Uint16Array | Uint32Array
     for (let i = 0; i < n; i++) {
         const curr = loopIndices[i];
         const next = loopIndices[(i + 1) % n]; // wrap around for closing edge
-        listIndices[i * 2]     = curr;
+        listIndices[i * 2] = curr;
         listIndices[i * 2 + 1] = next;
     }
 
@@ -811,34 +805,35 @@ export function toFloat32Normalized(
     const { length } = typedArray;
     const out = new Float32Array(length);
 
-    let scale, clampMin = -Infinity;
+    let scale,
+        clampMin = -Infinity;
 
     switch (ctor) {
-    case Uint8Array:
-        scale = 1 / 255;
-        break;
-    case Uint16Array:
-        scale = 1 / 65535;
-        break;
-    case Uint32Array:
-        scale = 1 / 4294967295;
-        break;
+        case Uint8Array:
+            scale = 1 / 255;
+            break;
+        case Uint16Array:
+            scale = 1 / 65535;
+            break;
+        case Uint32Array:
+            scale = 1 / 4294967295;
+            break;
 
-    case Int8Array:
-        scale = 1 / 127;
-        clampMin = -1;
-        break;
-    case Int16Array:
-        scale = 1 / 32767;
-        clampMin = -1;
-        break;
-    case Int32Array:
-        scale = 1 / 2147483647;
-        clampMin = -1;
-        break;
+        case Int8Array:
+            scale = 1 / 127;
+            clampMin = -1;
+            break;
+        case Int16Array:
+            scale = 1 / 32767;
+            clampMin = -1;
+            break;
+        case Int32Array:
+            scale = 1 / 2147483647;
+            clampMin = -1;
+            break;
 
-    default:
-        return typedArray;
+        default:
+            return typedArray;
     }
 
     for (let i = 0; i < length; i++) {

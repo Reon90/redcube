@@ -19,7 +19,6 @@ lint:
     enabled:
         - yamllint@1.37.1
         - checkov@3.2.490
-        - eslint@9.39.1
         - markdownlint@0.45.0
         - osv-scanner@2.2.4
         - oxipng@9.1.5
@@ -27,6 +26,7 @@ lint:
         - trufflehog@3.90.12
     disabled:
         - git-diff-check
+        - eslint
 actions:
     disabled:
         - trunk-announce

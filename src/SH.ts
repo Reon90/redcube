@@ -11,7 +11,7 @@ const SH3ylmBasisConstants = [
     -Math.sqrt(15 / (4 * Math.PI)),
     Math.sqrt(5 / (16 * Math.PI)),
     -Math.sqrt(15 / (4 * Math.PI)),
-    Math.sqrt(15 / (16 * Math.PI))
+    Math.sqrt(15 / (16 * Math.PI)),
 ];
 
 export class SphericalHarmonics {
@@ -130,14 +130,8 @@ export class SphericalPolynomial {
         result.y = harmonics.l1_1.scale2(1.02333).scale2(-1);
         result.z = harmonics.l10.scale2(1.02333);
 
-        result.xx = harmonics.l00
-            .scale2(0.886277)
-            .subtract2(harmonics.l20.scale2(0.247708))
-            .add2(harmonics.l22.scale2(0.429043));
-        result.yy = harmonics.l00
-            .scale2(0.886277)
-            .subtract2(harmonics.l20.scale2(0.247708))
-            .subtract2(harmonics.l22.scale2(0.429043));
+        result.xx = harmonics.l00.scale2(0.886277).subtract2(harmonics.l20.scale2(0.247708)).add2(harmonics.l22.scale2(0.429043));
+        result.yy = harmonics.l00.scale2(0.886277).subtract2(harmonics.l20.scale2(0.247708)).subtract2(harmonics.l22.scale2(0.429043));
         result.zz = harmonics.l00.scale2(0.886277).add2(harmonics.l20.scale2(0.495417));
 
         result.yz = harmonics.l2_1.scale2(0.858086).scale2(-1);

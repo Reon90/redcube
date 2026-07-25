@@ -53,7 +53,7 @@ export class PostProcessing {
 
     constructor(processors: ProcessorName[], renderScene: (renderState: { isprepender?: boolean; isprerefraction?: boolean }) => void) {
         this.renderScene = renderScene;
-        this.postprocessors = processors.map(name => new processorsMap[name]());
+        this.postprocessors = processors.map((name) => new processorsMap[name]());
     }
 
     add(name: ProcessorName) {
@@ -72,13 +72,13 @@ export class PostProcessing {
 
     setCamera(camera: Camera) {
         this.camera = camera;
-        this.postprocessors.forEach(postProcessor => {
+        this.postprocessors.forEach((postProcessor) => {
             postProcessor.setCamera(camera);
         });
     }
 
     setLight(light: LightObj) {
-        this.postprocessors.forEach(postProcessor => {
+        this.postprocessors.forEach((postProcessor) => {
             postProcessor.light = light;
         });
     }
@@ -87,7 +87,7 @@ export class PostProcessing {
         if (g) {
             gl = g;
             this.MSAA = gl.getParameter(gl.MAX_SAMPLES);
-            this.postprocessors.forEach(postProcessor => {
+            this.postprocessors.forEach((postProcessor) => {
                 postProcessor.setGL(gl);
             });
             this.fakeDepth = this.createNoiceTexture(1, new Float32Array([1, 1, 0]));
@@ -96,7 +96,7 @@ export class PostProcessing {
 
     setCanvas(canvas: HTMLCanvasElement) {
         this.canvas = canvas;
-        this.postprocessors.forEach(postProcessor => {
+        this.postprocessors.forEach((postProcessor) => {
             postProcessor.setCanvas(canvas);
         });
     }
@@ -118,7 +118,7 @@ export class PostProcessing {
     }
 
     preProcessing() {
-        this.postprocessors.forEach(postProcessor => postProcessor.preProcessing(this));
+        this.postprocessors.forEach((postProcessor) => postProcessor.preProcessing(this));
     }
 
     postProcessing() {
@@ -144,12 +144,12 @@ export class PostProcessing {
         // gl.blitFramebuffer(0, 0, this.width, this.height, 0, 0, this.width, this.height, gl.DEPTH_BUFFER_BIT, gl.NEAREST);
 
         gl.bindVertexArray(this.VAO);
-        this.postprocessors.forEach(postProcessor => postProcessor.postProcessing(this));
+        this.postprocessors.forEach((postProcessor) => postProcessor.postProcessing(this));
 
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
         gl.useProgram(this.program);
 
-        this.postprocessors.forEach(postProcessor => {
+        this.postprocessors.forEach((postProcessor) => {
             postProcessor.attachUniform(this.program);
         });
 
@@ -277,8 +277,8 @@ export class PostProcessing {
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, this.preDepthTexture, 0);
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
-        const defines = this.postprocessors.map(postProcessor => postProcessor.buildScreenBuffer(this));
-        const defineStr = defines.map(define => `#define ${define.name} ${define.value ?? 1}` + '\n').join('');
+        const defines = this.postprocessors.map((postProcessor) => postProcessor.buildScreenBuffer(this));
+        const defineStr = defines.map((define) => `#define ${define.name} ${define.value ?? 1}` + '\n').join('');
         this.program = createProgram(quadShader.replace(/\n/, `\n${defineStr}`), composerShader.replace(/\n/, `\n${defineStr}`));
     }
 
