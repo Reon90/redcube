@@ -177,7 +177,10 @@ describe('setGl', () => {
 
 describe('isMatrix', () => {
     it('should return true for FLOAT_MAT4, FLOAT_MAT3, FLOAT_MAT2', () => {
-        const FLOAT_MAT2 = 35674, FLOAT_MAT3 = 35675, FLOAT_MAT4 = 35676, FLOAT_VEC3 = 35665;
+        const FLOAT_MAT2 = 35674,
+            FLOAT_MAT3 = 35675,
+            FLOAT_MAT4 = 35676,
+            FLOAT_VEC3 = 35665;
         expect(utils.isMatrix(FLOAT_MAT4)).toBe(true);
         expect(utils.isMatrix(FLOAT_MAT3)).toBe(true);
         expect(utils.isMatrix(FLOAT_MAT2)).toBe(true);
@@ -207,7 +210,9 @@ describe('lerp', () => {
 
 describe('getMatrixType', () => {
     it('should return correct matrix class', () => {
-        const FLOAT_MAT2 = 35674, FLOAT_MAT3 = 35675, FLOAT_MAT4 = 35676;
+        const FLOAT_MAT2 = 35674,
+            FLOAT_MAT3 = 35675,
+            FLOAT_MAT4 = 35676;
         expect(utils.getMatrixType(FLOAT_MAT4)).toBe(Matrix4);
         expect(utils.getMatrixType(FLOAT_MAT3)).toBe(Matrix3);
         expect(utils.getMatrixType(FLOAT_MAT2)).toBe(Matrix2);
@@ -228,7 +233,9 @@ describe('getDataType', () => {
 
 describe('getComponentType', () => {
     it('should return correct count for vector types', () => {
-        const FLOAT_VEC2 = 35664, FLOAT_VEC3 = 35665, FLOAT_VEC4 = 35666;
+        const FLOAT_VEC2 = 35664,
+            FLOAT_VEC3 = 35665,
+            FLOAT_VEC4 = 35666;
         expect(utils.getComponentType(FLOAT_VEC4)).toBe(4);
         expect(utils.getComponentType(FLOAT_VEC3)).toBe(3);
         expect(utils.getComponentType(FLOAT_VEC2)).toBe(2);
@@ -237,8 +244,14 @@ describe('getComponentType', () => {
 
 describe('getMethod', () => {
     it('should return correct uniform method', () => {
-        const FLOAT = 5126, FLOAT_VEC2 = 35664, FLOAT_VEC3 = 35665, FLOAT_VEC4 = 35666;
-        const FLOAT_MAT2 = 35674, FLOAT_MAT3 = 35675, FLOAT_MAT4 = 35676, SAMPLER_2D = 35678;
+        const FLOAT = 5126,
+            FLOAT_VEC2 = 35664,
+            FLOAT_VEC3 = 35665,
+            FLOAT_VEC4 = 35666;
+        const FLOAT_MAT2 = 35674,
+            FLOAT_MAT3 = 35675,
+            FLOAT_MAT4 = 35676,
+            SAMPLER_2D = 35678;
         expect(utils.getMethod(FLOAT_VEC2)).toBe('uniform2f');
         expect(utils.getMethod(FLOAT_VEC4)).toBe('uniform4f');
         expect(utils.getMethod(FLOAT)).toBe('uniform1f');
