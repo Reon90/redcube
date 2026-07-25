@@ -3,6 +3,7 @@ node_modules
 examples/**
 dist/redcube.js.map
 dist/redcube.webgpu.js.map
+dist/redcube.node.cjs.map
 coverage/
 test-results/
 tests/

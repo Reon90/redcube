@@ -5,11 +5,20 @@ var redcube = (() => {
   var __getOwnPropNames = Object.getOwnPropertyNames;
   var __getProtoOf = Object.getPrototypeOf;
   var __hasOwnProp = Object.prototype.hasOwnProperty;
-  var __esm = (fn, res) => function __init() {
-    return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
+  var __esm = (fn, res, err) => function __init() {
+    if (err) throw err[0];
+    try {
+      return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
+    } catch (e) {
+      throw err = [e], e;
+    }
   };
   var __commonJS = (cb, mod) => function __require() {
-    return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
+    try {
+      return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
+    } catch (e) {
+      throw mod = 0, e;
+    }
   };
   var __export = (target, all) => {
     for (var name in all)
@@ -10360,7 +10369,10 @@ var redcube = (() => {
     _updateDep(name, definition) {
       for (const [key, instance] of this._singletons) {
         if (this._services.get(key).dependencies.some((dep) => dep === name)) {
-          instance[`set${name.charAt(0).toUpperCase() + name.slice(1)}`].call(instance, definition);
+          instance[`set${name.charAt(0).toUpperCase() + name.slice(1)}`].call(
+            instance,
+            definition
+          );
         }
       }
       this._singletons.set(name, definition);
@@ -10375,7 +10387,8 @@ var redcube = (() => {
       return classDependencies;
     }
     _createInstance(service) {
-      const instance = new service.definition(...service.args);
+      const Definition = service.definition;
+      const instance = new Definition(...service.args);
       this._getResolvedDependencies(service).forEach(([name, dep]) => {
         instance[`set${name.charAt(0).toUpperCase() + name.slice(1)}`].call(instance, dep);
       });
@@ -10389,6 +10402,7 @@ var redcube = (() => {
   // src/matrix.ts
   var Matrix4 = class _Matrix4 {
     elements;
+    animated;
     constructor(opt_src) {
       let i;
       let s;
@@ -10917,7 +10931,7 @@ var redcube = (() => {
     }
     projectOnVector(vector) {
       const scalar = _Vector3.dot(vector, this) / vector.lengthSq();
-      return new _Vector3(vector).scale(scalar);
+      return new _Vector3(vector.elements).scale(scalar);
     }
     applyQuaternion({ elements }) {
       const x = this.elements[0];
@@ -10970,9 +10984,9 @@ var redcube = (() => {
      * @param {Number} b amount to scale the vector by
      * @returns {vec3} out
      */
-    add(b) {
+    add(vector) {
       const a = this.elements;
-      b = b.elements;
+      const b = vector.elements;
       a[0] = a[0] + b[0];
       a[1] = a[1] + b[1];
       a[2] = a[2] + b[2];
@@ -11007,9 +11021,9 @@ var redcube = (() => {
       const dz = this.elements[2] - z;
       return dx * dx + dy * dy + dz * dz;
     }
-    subtract(b) {
+    subtract(vector) {
       const out = this.elements;
-      b = b.elements;
+      const b = vector.elements;
       out[0] = out[0] - b[0];
       out[1] = out[1] - b[1];
       out[2] = out[2] - b[2];
@@ -11060,9 +11074,9 @@ var redcube = (() => {
         return Math.acos(cosine);
       }
     }
-    static cross(a, b) {
-      a = a.elements;
-      b = b.elements;
+    static cross(vecA, vecB) {
+      const a = vecA.elements;
+      const b = vecB.elements;
       const ax = a[0];
       const ay = a[1];
       const az = a[2];
@@ -11075,9 +11089,9 @@ var redcube = (() => {
       out.elements[2] = ax * by - ay * bx;
       return out;
     }
-    static dot(a, b) {
-      a = a.elements;
-      b = b.elements;
+    static dot(vecA, vecB) {
+      const a = vecA.elements;
+      const b = vecB.elements;
       return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
     }
     length() {
@@ -11135,9 +11149,9 @@ var redcube = (() => {
       a[3] = e[3];
       return this;
     }
-    add(b) {
+    add(vector) {
       const a = this.elements;
-      b = b.elements;
+      const b = vector.elements;
       a[0] = b[0];
       a[1] = b[1];
       a[2] = b[2];
@@ -11283,9 +11297,9 @@ var redcube = (() => {
       }
       this.elements = v;
     }
-    subtract(b) {
+    subtract(vector) {
       const out = this.elements;
-      b = b.elements;
+      const b = vector.elements;
       out[0] = out[0] - b[0];
       out[1] = out[1] - b[1];
       return this;
@@ -12110,7 +12124,8 @@ var redcube = (() => {
         break;
     }
     if (length !== requiredLength) {
-      const stridedArr = new arr.constructor(requiredLength);
+      const ArrCtor = arr.constructor;
+      const stridedArr = new ArrCtor(requiredLength);
       let j = 0;
       for (let i = 0; i < stridedArr.length; i += typeofComponent) {
         for (let k = 0; k < typeofComponent; k++) {
@@ -12247,7 +12262,8 @@ var redcube = (() => {
         norm.push(normal[3 * i + c]);
       }
       const N = new Vector3(norm);
-      const components = ["x", "y", "z"].sort((a, b) => {
+      const components = ["x", "y", "z"];
+      components.sort((a, b) => {
         return Math.abs(N[a]) - Math.abs(N[b]);
       });
       const pos = new Vector3(coords);
@@ -12317,8 +12333,8 @@ var redcube = (() => {
     const tangent = new Float32Array(normal.length / 3 * 4);
     for (let i = 0; i < index.length; i += 3) {
       const faceIndexes = [index[i], index[i + 1], index[i + 2]];
-      const faceVertices = faceIndexes.map((ix) => vectorFromArray(vertex, ix));
-      const faceUVs = faceIndexes.map((ix) => vectorFromArray(uv, ix, 2));
+      const faceVertices = faceIndexes.map((ix) => vectorFromArray3(vertex, ix));
+      const faceUVs = faceIndexes.map((ix) => vectorFromArray2(uv, ix));
       const dv1 = faceVertices[1].subtract(faceVertices[0]);
       const dv2 = faceVertices[2].subtract(faceVertices[0]);
       const duv1 = faceUVs[1].subtract(faceUVs[0]);
@@ -12337,14 +12353,13 @@ var redcube = (() => {
       });
     }
     return tangent;
-    function vectorFromArray(array, index2, elements = 3) {
-      index2 = index2 * elements;
-      if (elements === 3) {
-        return new Vector3([array[index2], array[index2 + 1], array[index2 + 2]]);
-      }
-      if (elements === 2) {
-        return new Vector2([array[index2], array[index2 + 1]]);
-      }
+    function vectorFromArray3(array, index2) {
+      index2 = index2 * 3;
+      return new Vector3([array[index2], array[index2 + 1], array[index2 + 2]]);
+    }
+    function vectorFromArray2(array, index2) {
+      index2 = index2 * 2;
+      return new Vector2([array[index2], array[index2 + 1]]);
     }
     function accumulateVectorInArray(array, index2, vector, sign, elements = 4, accumulator = (acc, x) => acc + x) {
       index2 = index2 * elements;
@@ -12487,9 +12502,8 @@ var redcube = (() => {
   }
   function fanToTriListIndices(fan) {
     if (fan.length < 3) return new Uint32Array(0);
-    const use32 = fan instanceof Uint32Array || Math.max(...fan) > 65535;
     const out = new Uint32Array((fan.length - 2) * 3);
-    const c = fan[0];
+    const [c] = fan;
     let o = 0;
     for (let i = 1; i < fan.length - 1; i++) {
       out[o++] = c;
@@ -12498,16 +12512,17 @@ var redcube = (() => {
     }
     return out;
   }
-  function convertLineLoopToLineList(indices) {
-    const n = indices.length;
-    const lineIndices = new indices.constructor(n * 2);
+  function convertLineLoopToLineList(loopIndices) {
+    const n = loopIndices.length;
+    const ListCtor = loopIndices.constructor;
+    const listIndices = new ListCtor(n * 2);
     for (let i = 0; i < n; i++) {
-      const current = indices[i];
-      const next = indices[(i + 1) % n];
-      lineIndices[i * 2] = current;
-      lineIndices[i * 2 + 1] = next;
+      const curr = loopIndices[i];
+      const next = loopIndices[(i + 1) % n];
+      listIndices[i * 2] = curr;
+      listIndices[i * 2 + 1] = next;
     }
-    return lineIndices;
+    return listIndices;
   }
   function toFloat32Normalized(typedArray) {
     const ctor = typedArray.constructor;
@@ -12562,6 +12577,7 @@ var redcube = (() => {
     order;
     uniformBindGroup1;
     pipeline;
+    pipeline2;
     constructor(name, parent) {
       super(name, parent);
       this.program = null;
@@ -12578,18 +12594,34 @@ var redcube = (() => {
     setMaterial(material) {
       this.material = material;
     }
-    drawWebGPU(WebGPU, passEncoder, i, { renderState, materialStorage, transformsStorage }) {
+    drawWebGPU(WebGPU, passEncoder, i, {
+      renderState,
+      materialStorage,
+      transformsStorage
+    }) {
       const { isprerefraction } = renderState;
       if (this.defines.find((i2) => i2.name === "TRANSMISSION") && isprerefraction) {
         return;
       }
       if (this.reflow) {
         transformsStorage.store.set(this.matrixWorld.elements, i * this.geometry.uniformBuffer.store.length);
-        WebGPU.device.queue.writeBuffer(transformsStorage.bufferWebGPU, 0, transformsStorage.store.buffer, transformsStorage.store.byteOffset, transformsStorage.store.byteLength);
+        WebGPU.device.queue.writeBuffer(
+          transformsStorage.bufferWebGPU,
+          0,
+          transformsStorage.store.buffer,
+          transformsStorage.store.byteOffset,
+          transformsStorage.store.byteLength
+        );
       }
       if (this.repaint) {
         materialStorage.store.set(this.material.materialUniformBuffer.store, i * this.material.materialUniformBuffer.store.length);
-        WebGPU.device.queue.writeBuffer(materialStorage.bufferWebGPU, 0, materialStorage.store.buffer, materialStorage.store.byteOffset, materialStorage.store.byteLength);
+        WebGPU.device.queue.writeBuffer(
+          materialStorage.bufferWebGPU,
+          0,
+          materialStorage.store.buffer,
+          materialStorage.store.byteOffset,
+          materialStorage.store.byteLength
+        );
       }
       if (this instanceof SkinnedMesh) {
         if (this.bones.some((bone) => bone.reflow)) {
@@ -12600,13 +12632,7 @@ var redcube = (() => {
             matrices.set(j.elements, 0 + 16 * i2);
             i2++;
           }
-          WebGPU.device.queue.writeBuffer(
-            this.skinBuffer,
-            0 * Float32Array.BYTES_PER_ELEMENT,
-            matrices.buffer,
-            matrices.byteOffset,
-            matrices.byteLength
-          );
+          WebGPU.device.queue.writeBuffer(this.skinBuffer, 0, matrices.buffer, matrices.byteOffset, matrices.byteLength);
         }
       }
       passEncoder.setBindGroup(0, this.uniformBindGroup1);
@@ -12618,17 +12644,9 @@ var redcube = (() => {
         passEncoder.draw(this.geometry.attributes.POSITION.length / 3, this.instances, 0, i);
       }
     }
-    draw(gl14, {
-      lights,
-      camera,
-      needUpdateProjection,
-      preDepthTexture,
-      colorTexture,
-      renderState,
-      fakeDepth,
-      isIBL,
-      isDefaultLight
-    }) {
+    draw(gl14, { lights, camera, needUpdateProjection, preDepthTexture, colorTexture, renderState, fakeDepth, isIBL, isDefaultLight }) {
+      const texUnit = (n) => gl14[`TEXTURE${n}`];
+      const glTypeEnum = (ctor) => gl14[ArrayBufferMap.get(ctor)];
       const { isprepender, isprerefraction } = renderState;
       if (this.defines.find((i) => i.name === "TRANSMISSION") && isprerefraction) {
         return;
@@ -12660,101 +12678,101 @@ var redcube = (() => {
       }
       gl14.uniform1i(this.material.uniforms.depthTexture, preDepthTexture && !isprepender ? preDepthTexture.index : fakeDepth.index);
       gl14.uniform1i(this.material.uniforms.colorTexture, !isprerefraction ? colorTexture.index : fakeDepth.index);
-      gl14.uniform1f(this.material.uniforms.isTone, isprerefraction ? 0 : 1, 0);
-      gl14.uniform1f(this.material.uniforms.isIBL, isIBL ? 1 : 0, 0);
-      gl14.uniform1f(this.material.uniforms.isDefaultLight, isDefaultLight || lights.some((l) => !l.isInitial) ? 1 : 0, 0);
+      gl14.uniform1f(this.material.uniforms.isTone, isprerefraction ? 0 : 1);
+      gl14.uniform1f(this.material.uniforms.isIBL, isIBL ? 1 : 0);
+      gl14.uniform1f(this.material.uniforms.isDefaultLight, isDefaultLight || lights.some((l) => !l.isInitial) ? 1 : 0);
       if (this.material.baseColorTexture) {
-        gl14.activeTexture(gl14[`TEXTURE${0}`]);
+        gl14.activeTexture(texUnit(0));
         gl14.bindTexture(gl14.TEXTURE_2D, this.material.baseColorTexture);
         gl14.bindSampler(0, this.material.baseColorTexture.sampler);
       }
       if (this.material.metallicRoughnessTexture) {
-        gl14.activeTexture(gl14[`TEXTURE${1}`]);
+        gl14.activeTexture(texUnit(1));
         gl14.bindTexture(gl14.TEXTURE_2D, this.material.metallicRoughnessTexture);
         gl14.bindSampler(1, this.material.metallicRoughnessTexture.sampler);
       }
       if (this.material.normalTexture) {
-        gl14.activeTexture(gl14[`TEXTURE${2}`]);
+        gl14.activeTexture(texUnit(2));
         gl14.bindTexture(gl14.TEXTURE_2D, this.material.normalTexture);
         gl14.bindSampler(2, this.material.normalTexture.sampler);
       }
       if (this.material.occlusionTexture) {
-        gl14.activeTexture(gl14[`TEXTURE${3}`]);
+        gl14.activeTexture(texUnit(3));
         gl14.bindTexture(gl14.TEXTURE_2D, this.material.occlusionTexture);
         gl14.bindSampler(3, this.material.occlusionTexture.sampler);
       }
       if (this.material.emissiveTexture) {
-        gl14.activeTexture(gl14[`TEXTURE${4}`]);
+        gl14.activeTexture(texUnit(4));
         gl14.bindTexture(gl14.TEXTURE_2D, this.material.emissiveTexture);
         gl14.bindSampler(4, this.material.emissiveTexture.sampler);
       }
       if (this.material.clearcoatTexture) {
-        gl14.activeTexture(gl14[`TEXTURE${8}`]);
+        gl14.activeTexture(texUnit(8));
         gl14.bindTexture(gl14.TEXTURE_2D, this.material.clearcoatTexture);
         gl14.bindSampler(8, this.material.clearcoatTexture.sampler);
       }
       if (this.material.clearcoatRoughnessTexture) {
-        gl14.activeTexture(gl14[`TEXTURE${9}`]);
+        gl14.activeTexture(texUnit(9));
         gl14.bindTexture(gl14.TEXTURE_2D, this.material.clearcoatRoughnessTexture);
         gl14.bindSampler(9, this.material.clearcoatRoughnessTexture.sampler);
       }
       if (this.material.sheenColorTexture) {
-        gl14.activeTexture(gl14[`TEXTURE${11}`]);
+        gl14.activeTexture(texUnit(11));
         gl14.bindTexture(gl14.TEXTURE_2D, this.material.sheenColorTexture);
         gl14.bindSampler(11, this.material.sheenColorTexture.sampler);
       }
       if (this.material.sheenRoughnessTexture) {
-        gl14.activeTexture(gl14[`TEXTURE${12}`]);
+        gl14.activeTexture(texUnit(12));
         gl14.bindTexture(gl14.TEXTURE_2D, this.material.sheenRoughnessTexture);
         gl14.bindSampler(12, this.material.sheenRoughnessTexture.sampler);
       }
       if (this.material.iridescenceThicknessTexture) {
-        gl14.activeTexture(gl14[`TEXTURE${17}`]);
+        gl14.activeTexture(texUnit(17));
         gl14.bindTexture(gl14.TEXTURE_2D, this.material.iridescenceThicknessTexture);
         gl14.bindSampler(17, this.material.iridescenceThicknessTexture.sampler);
       }
       if (this.material.iridescenceTexture) {
-        gl14.activeTexture(gl14[`TEXTURE${23}`]);
+        gl14.activeTexture(texUnit(23));
         gl14.bindTexture(gl14.TEXTURE_2D, this.material.iridescenceTexture);
         gl14.bindSampler(23, this.material.iridescenceTexture.sampler);
       }
       if (this.material.diffuseTransmissionTexture) {
-        gl14.activeTexture(gl14[`TEXTURE${20}`]);
+        gl14.activeTexture(texUnit(20));
         gl14.bindTexture(gl14.TEXTURE_2D, this.material.diffuseTransmissionTexture);
         gl14.bindSampler(20, this.material.diffuseTransmissionTexture.sampler);
       }
       if (this.material.diffuseTransmissionColorTexture) {
-        gl14.activeTexture(gl14[`TEXTURE${21}`]);
+        gl14.activeTexture(texUnit(21));
         gl14.bindTexture(gl14.TEXTURE_2D, this.material.diffuseTransmissionColorTexture);
         gl14.bindSampler(21, this.material.diffuseTransmissionColorTexture.sampler);
       }
       if (this.material.anisotropyTexture) {
-        gl14.activeTexture(gl14[`TEXTURE${22}`]);
+        gl14.activeTexture(texUnit(22));
         gl14.bindTexture(gl14.TEXTURE_2D, this.material.anisotropyTexture);
         gl14.bindSampler(22, this.material.anisotropyTexture.sampler);
       }
       if (this.material.clearcoatNormalTexture) {
-        gl14.activeTexture(gl14[`TEXTURE${10}`]);
+        gl14.activeTexture(texUnit(10));
         gl14.bindTexture(gl14.TEXTURE_2D, this.material.clearcoatNormalTexture);
         gl14.bindSampler(10, this.material.clearcoatNormalTexture.sampler);
       }
       if (this.material.transmissionTexture) {
-        gl14.activeTexture(gl14[`TEXTURE${14}`]);
+        gl14.activeTexture(texUnit(14));
         gl14.bindTexture(gl14.TEXTURE_2D, this.material.transmissionTexture);
         gl14.bindSampler(14, this.material.transmissionTexture.sampler);
       }
       if (this.material.specularTexture) {
-        gl14.activeTexture(gl14[`TEXTURE${15}`]);
+        gl14.activeTexture(texUnit(15));
         gl14.bindTexture(gl14.TEXTURE_2D, this.material.specularTexture);
         gl14.bindSampler(15, this.material.specularTexture.sampler);
       }
       if (this.material.specularColorTexture) {
-        gl14.activeTexture(gl14[`TEXTURE${19}`]);
+        gl14.activeTexture(texUnit(19));
         gl14.bindTexture(gl14.TEXTURE_2D, this.material.specularColorTexture);
         gl14.bindSampler(19, this.material.specularColorTexture.sampler);
       }
       if (this.material.thicknessTexture) {
-        gl14.activeTexture(gl14[`TEXTURE${16}`]);
+        gl14.activeTexture(texUnit(16));
         gl14.bindTexture(gl14.TEXTURE_2D, this.material.thicknessTexture);
         gl14.bindSampler(16, this.material.thicknessTexture.sampler);
       }
@@ -12768,7 +12786,7 @@ var redcube = (() => {
         gl14.drawElementsInstanced(
           this.mode,
           this.geometry.indicesBuffer.length,
-          gl14[ArrayBufferMap.get(this.geometry.indicesBuffer.constructor)],
+          glTypeEnum(this.geometry.indicesBuffer.constructor),
           0,
           this.instances
         );
@@ -12777,7 +12795,7 @@ var redcube = (() => {
           gl14.drawElements(
             this.mode === 2 ? gl14.LINES : this.mode,
             this.geometry.indicesBuffer.length,
-            gl14[ArrayBufferMap.get(this.geometry.indicesBuffer.constructor)],
+            glTypeEnum(this.geometry.indicesBuffer.constructor),
             0
           );
         } else {
@@ -13246,12 +13264,7 @@ var redcube = (() => {
         }
       }
       if (material.extensions && material.extensions.KHR_materials_sheen) {
-        const {
-          sheenColorTexture,
-          sheenColorFactor,
-          sheenRoughnessFactor,
-          sheenRoughnessTexture
-        } = material.extensions.KHR_materials_sheen;
+        const { sheenColorTexture, sheenColorFactor, sheenRoughnessFactor, sheenRoughnessTexture } = material.extensions.KHR_materials_sheen;
         this.sheenColorFactor = sheenColorFactor;
         this.sheenRoughnessFactor = sheenRoughnessFactor;
         if (sheenColorTexture) {
@@ -13339,7 +13352,14 @@ var redcube = (() => {
         defines.push({ name: "DISPERSION" });
       }
       if (material.extensions && material.extensions.KHR_materials_iridescence) {
-        const { iridescenceTexture, iridescenceThicknessTexture, iridescenceFactor, iridescenceIor, iridescenceThicknessMaximum, iridescenceThicknessMinimum } = material.extensions.KHR_materials_iridescence;
+        const {
+          iridescenceTexture,
+          iridescenceThicknessTexture,
+          iridescenceFactor,
+          iridescenceIor,
+          iridescenceThicknessMaximum,
+          iridescenceThicknessMinimum
+        } = material.extensions.KHR_materials_iridescence;
         this.iridescenceFactor = iridescenceFactor;
         this.iridescenceIOR = iridescenceIor;
         this.iridescenceThicknessMaximum = iridescenceThicknessMaximum;
@@ -13367,7 +13387,12 @@ var redcube = (() => {
         defines.push({ name: "IRIDESCENCE" });
       }
       if (material.extensions && material.extensions.KHR_materials_diffuse_transmission) {
-        const { diffuseTransmissionFactor, diffuseTransmissionTexture, diffuseTransmissionColorFactor, diffuseTransmissionColorTexture } = material.extensions.KHR_materials_diffuse_transmission;
+        const {
+          diffuseTransmissionFactor,
+          diffuseTransmissionTexture,
+          diffuseTransmissionColorFactor,
+          diffuseTransmissionColorTexture
+        } = material.extensions.KHR_materials_diffuse_transmission;
         this.diffuseTransmissionFactor = diffuseTransmissionFactor;
         if (diffuseTransmissionTexture) {
           this.diffuseTransmissionTexture = textures[diffuseTransmissionTexture.index];
@@ -13386,7 +13411,10 @@ var redcube = (() => {
           if (diffuseTransmissionColorTexture.extensions) {
             const ex = diffuseTransmissionColorTexture.extensions.KHR_texture_transform;
             if (ex) {
-              this.matricesMap.set("diffuseTransmissionColorTexture", this.buildTrans(ex, defines, "DIFFUSE_TRANSMISSION_COLOR_MAP"));
+              this.matricesMap.set(
+                "diffuseTransmissionColorTexture",
+                this.buildTrans(ex, defines, "DIFFUSE_TRANSMISSION_COLOR_MAP")
+              );
             }
           }
         }
@@ -13688,7 +13716,10 @@ var redcube = (() => {
         );
         lightPos.set(light.getPosition(), i * 4);
         lightColor.set(light.color.elements, i * 4);
-        lightProps.set([light.intensity, light.spot.innerConeAngle ?? 0, light.spot.outerConeAngle ?? 0, lightEnum[light.type]], i * 4);
+        lightProps.set(
+          [light.intensity, light.spot.innerConeAngle ?? 0, light.spot.outerConeAngle ?? 0, lightEnum[light.type]],
+          i * 4
+        );
       });
       this.matrices.forEach((m, i) => {
         textureMatrices.set(m.elements, i * 16);
@@ -13696,8 +13727,16 @@ var redcube = (() => {
       {
         const materialUniformBuffer = new UniformBuffer(isTexture);
         materialUniformBuffer.add("lights", [...this.lights]);
-        materialUniformBuffer.add("iridescence", [this.iridescenceFactor ?? 0, this.iridescenceIOR ?? 1.3, this.iridescenceThicknessMaximum ?? 400, this.iridescenceThicknessMinimum ?? 100]);
-        materialUniformBuffer.add("diffuseTransmissionFactor", [this.diffuseTransmissionFactor ?? 0, ...this.diffuseTransmissionColorFactor]);
+        materialUniformBuffer.add("iridescence", [
+          this.iridescenceFactor ?? 0,
+          this.iridescenceIOR ?? 1.3,
+          this.iridescenceThicknessMaximum ?? 400,
+          this.iridescenceThicknessMinimum ?? 100
+        ]);
+        materialUniformBuffer.add("diffuseTransmissionFactor", [
+          this.diffuseTransmissionFactor ?? 0,
+          ...this.diffuseTransmissionColorFactor
+        ]);
         materialUniformBuffer.add("baseColorFactor", this.baseColorFactor ?? [0.8, 0.8, 0.8, 1]);
         materialUniformBuffer.add("specularColorFactor", this.specularColorFactor ?? [1, 1, 1]);
         materialUniformBuffer.add("emissiveFactor", this.emissiveFactor ?? [0, 0, 0]);
@@ -13857,33 +13896,35 @@ var redcube = (() => {
     setTexture(gl14, name, type, value) {
       gl14.bindBufferBase(gl14.UNIFORM_BUFFER, 8, this.textureMatricesUniform);
       const i = this.matricesMap.get(name) * 16;
+      const [e0, e1] = value.elements;
       if (type === "offset") {
-        this.textureMatricesBuffer.store[i] = value.elements[0];
-        this.textureMatricesBuffer.store[i + 1] = value.elements[1];
+        this.textureMatricesBuffer.store[i] = e0;
+        this.textureMatricesBuffer.store[i + 1] = e1;
       }
       if (type === "scale") {
-        this.textureMatricesBuffer.store[i + 4] = value.elements[0];
-        this.textureMatricesBuffer.store[i + 5] = value.elements[1];
+        this.textureMatricesBuffer.store[i + 4] = e0;
+        this.textureMatricesBuffer.store[i + 5] = e1;
       }
       if (type === "rotation") {
-        this.textureMatricesBuffer.store[i + 8] = value.elements[0];
+        this.textureMatricesBuffer.store[i + 8] = e0;
       }
       gl14.bufferSubData(gl14.UNIFORM_BUFFER, 0, this.textureMatricesBuffer.store);
     }
-    setTextureWebGPU(gl14, name, type, value) {
+    setTextureWebGPU(WebGPU, name, type, value) {
       const i = this.matricesMap.get(name) * 16;
+      const [e0, e1] = value.elements;
       if (type === "offset") {
-        this.textureMatricesBuffer.store[i] = value.elements[0];
-        this.textureMatricesBuffer.store[i + 1] = value.elements[1];
+        this.textureMatricesBuffer.store[i] = e0;
+        this.textureMatricesBuffer.store[i + 1] = e1;
       }
       if (type === "scale") {
-        this.textureMatricesBuffer.store[i + 4] = value.elements[0];
-        this.textureMatricesBuffer.store[i + 5] = value.elements[1];
+        this.textureMatricesBuffer.store[i + 4] = e0;
+        this.textureMatricesBuffer.store[i + 5] = e1;
       }
       if (type === "rotation") {
-        this.textureMatricesBuffer.store[i + 8] = value.elements[0];
+        this.textureMatricesBuffer.store[i + 8] = e0;
       }
-      gl14.device.queue.writeBuffer(
+      WebGPU.device.queue.writeBuffer(
         this.textureMatricesBuffer.bufferWebGPU,
         0,
         this.textureMatricesBuffer.store.buffer,
@@ -13891,8 +13932,8 @@ var redcube = (() => {
         this.textureMatricesBuffer.store.byteLength
       );
     }
-    setColorWebGPU(gl14, name, value) {
-      this.materialUniformBuffer.updateWebGPU(gl14, name, value.elements, true);
+    setColorWebGPU(WebGPU, name, value) {
+      this.materialUniformBuffer.updateWebGPU(WebGPU, name, value.elements, true);
     }
   };
 
@@ -15011,13 +15052,7 @@ var redcube = (() => {
               this.prefilterMap,
               mip
             );
-            gl4.framebufferTexture2D(
-              gl4.FRAMEBUFFER,
-              gl4.COLOR_ATTACHMENT1,
-              gl4.TEXTURE_CUBE_MAP_POSITIVE_X + i,
-              this.charlieMap,
-              mip
-            );
+            gl4.framebufferTexture2D(gl4.FRAMEBUFFER, gl4.COLOR_ATTACHMENT1, gl4.TEXTURE_CUBE_MAP_POSITIVE_X + i, this.charlieMap, mip);
             gl4.uniformMatrix4fv(gl4.getUniformLocation(this.mipmapcubeprogram, "view"), false, this.views2[i].elements);
             gl4.clear(gl4.COLOR_BUFFER_BIT | gl4.DEPTH_BUFFER_BIT);
             gl4.drawArrays(gl4.TRIANGLES, 0, 36);
@@ -15387,15 +15422,16 @@ var redcube = (() => {
 
   // src/decoder.ts
   var decoderModule;
-  var DecoderModule = () => new Promise(async (resolve) => {
+  var DecoderModule = () => new Promise((resolve) => {
     const dracoDecoderType = {
       onModuleLoaded(module2) {
         decoderModule = module2;
         resolve(decoderModule);
       }
     };
-    const m = await Promise.resolve().then(() => __toESM(require_draco3d(), 1));
-    m.createDecoderModule(dracoDecoderType);
+    Promise.resolve().then(() => __toESM(require_draco3d(), 1)).then((m) => {
+      m.createDecoderModule(dracoDecoderType);
+    });
   });
   function decodeDracoData(rawBuffer, decoder, offset, length) {
     const buffer = new decoderModule.DecoderBuffer();
@@ -16548,16 +16584,13 @@ void main() {\r
       this.uniformBuffer = null;
       this.UBO = null;
       this.VAO = null;
-      this.indicesBuffer = null;
-      this.attributes = null;
-      this.targets = null;
       this.blend = null;
       this.uniforms = null;
       this.SKIN = null;
       this.targets = [];
       let indicesBuffer;
       const vertexBuffers = {};
-      const indicesAccessor = json.accessors[primitive.indices];
+      const indicesAccessor = primitive.indices !== void 0 ? json.accessors[primitive.indices] : void 0;
       this.indexType = indicesAccessor?.componentType;
       const vertexAccessor = /* @__PURE__ */ new Map();
       for (const a in primitive.attributes) {
@@ -16598,17 +16631,18 @@ void main() {\r
           vertexBuffers[k] = arr;
         }
         {
-          indicesBuffer = new Uint32Array(numFaces * 3);
-          indicesBuffer.type = "UNSIGNED_INT";
+          const indices = new Uint32Array(numFaces * 3);
+          indices.type = "UNSIGNED_INT";
           const ia = new draco.DracoUInt32Array();
           for (let i = 0; i < numFaces; ++i) {
             decoder.GetFaceFromMesh(decodedGeometry, i, ia);
             const index = i * 3;
-            indicesBuffer[index] = ia.GetValue(0);
-            indicesBuffer[index + 1] = ia.GetValue(1);
-            indicesBuffer[index + 2] = ia.GetValue(2);
+            indices[index] = ia.GetValue(0);
+            indices[index + 1] = ia.GetValue(1);
+            indices[index + 2] = ia.GetValue(2);
           }
           draco.destroy(ia);
+          indicesBuffer = indices;
         }
         draco.destroy(decoder);
         draco.destroy(decodedGeometry);
@@ -16637,9 +16671,10 @@ void main() {\r
       if (primitive.targets) {
         for (const target of primitive.targets) {
           const vertexAcc = {};
+          const accessors = {};
           for (const a in target) {
-            vertexAcc[a] = json.accessors[target[a]];
-            const accessor = vertexAcc[a];
+            accessors[a] = json.accessors[target[a]];
+            const accessor = accessors[a];
             const bufferView = json.bufferViews[accessor.bufferView];
             vertexAcc[a] = buildArrayWithStride(arrayBuffer[bufferView.buffer], accessor, bufferView);
           }
@@ -16649,7 +16684,8 @@ void main() {\r
           if (this.targets[0][k]) {
             let offset = 0;
             const geometry = vertexBuffers[k];
-            vertexBuffers[k] = new geometry.constructor(geometry.length);
+            const GeometryCtor = geometry.constructor;
+            vertexBuffers[k] = new GeometryCtor(geometry.length);
             for (let i = 0; i < vertexBuffers[k].length; i++) {
               if (k === "TANGENT" && (i + 1) % 4 === 0) {
                 offset++;
@@ -16665,7 +16701,8 @@ void main() {\r
       for (const k of vertexAccessor.keys()) {
         const accessor = vertexAccessor.get(k);
         if (k === "COLOR_0" && accessor.type === "VEC3") {
-          const temp = new vertexBuffers[k].constructor(accessor.count * 4);
+          const ColorCtor = vertexBuffers[k].constructor;
+          const temp = new ColorCtor(accessor.count * 4);
           let j = 0;
           for (let i = 0; i < temp.length; i++) {
             if ((i + 1) % 4 === 0) {
@@ -16921,13 +16958,7 @@ void main() {\r
           resource: uniformBuffer
         }
       ];
-      device.queue.writeBuffer(
-        uniformBuffer,
-        0,
-        buffer.store.buffer,
-        buffer.store.byteOffset,
-        buffer.store.byteLength
-      );
+      device.queue.writeBuffer(uniformBuffer, 0, buffer.store.buffer, buffer.store.byteOffset, buffer.store.byteLength);
       return uniformBindGroup1;
     }
     updateUniformsWebGl(gl14, program) {
@@ -16946,7 +16977,7 @@ void main() {\r
       let k = 0;
       let l = 0;
       let m = 0;
-      const { g } = this;
+      const g = this.g;
       for (let i = 0; i < g.length; i += total) {
         if (geometry["POSITION"]) {
           g[i] = geometry["POSITION"][k];
@@ -16986,7 +17017,7 @@ void main() {\r
       let k = 0;
       let l = 0;
       let m = 0;
-      const { g } = this;
+      const g = this.g;
       for (let i = 0; i < g.length; i += total) {
         if (geometry["POSITION"]) {
           g[i] = geometry["POSITION"][k];
@@ -17191,22 +17222,25 @@ ${defineStr}`));
         const camera = Object.assign(
           {
             zoom: 1,
+            isInitial: false,
             aspect: this.canvas ? this.canvas.offsetWidth / this.canvas.offsetHeight : 1
           },
           this.json.cameras[el.camera]
         );
-        child = new Camera(camera, name, parent);
-        const proj = calculateProjection(child.props);
-        child.setProjection(proj);
-        this.cameras.push(child);
+        const camObj = new Camera(camera, name, parent);
+        const proj = calculateProjection(camObj.props);
+        camObj.setProjection(proj);
+        this.cameras.push(camObj);
+        child = camObj;
       } else if (el.extensions && el.extensions.KHR_lights_punctual) {
         if (this.lights.find((l) => l.id === el.name)) {
           return;
         }
         const light = this.json.extensions.KHR_lights_punctual.lights[el.extensions.KHR_lights_punctual.light];
         light.isInitial = false;
-        child = new Light(light, name, parent);
-        this.lights.push(child);
+        const lightObj = new Light(light, name, parent);
+        this.lights.push(lightObj);
+        child = lightObj;
       } else {
         if (el.isBone !== void 0) {
           child = new Bone(name, parent);
@@ -17242,7 +17276,7 @@ ${defineStr}`));
           );
           if (child.instances === 1) {
             child.instances = buffer.length / stride;
-            child.matrices = new Array(child.instances);
+            child.matrices = Array.from({ length: child.instances });
             for (let i = 0; i < child.instances; i++) {
               child.matrices[i] = new Matrix4();
             }
@@ -17371,12 +17405,12 @@ ${defineStr}`));
             if (name === void 0) {
               const s = target.extensions.KHR_animation_pointer.pointer.split("/");
               if (s[1] === "materials") {
-                const mat = this.json.materials[s[2]].name;
-                name = this.scene.meshes.find((m) => m.material.name === mat).name;
+                const mat = this.json.materials[Number(s[2])].name;
+                ({ name } = this.scene.meshes.find((m) => m.material.name === mat));
                 path = s.splice(3).join("/");
               }
               if (s[1] === "nodes") {
-                name = this.json.nodes[s[2]].name;
+                ({ name } = this.json.nodes[Number(s[2])]);
                 path = s[5];
               }
             }
@@ -17485,7 +17519,7 @@ ${defineStr}`));
       } else {
         return fetchJSON(this.url).then((json) => {
           for (const key in json.buffers) {
-            this.scene.bin.push(json.buffers[key].uri);
+            this.scene.bin.push(json.buffers[Number(key)].uri);
           }
           this.json = json;
           return true;
@@ -17493,13 +17527,14 @@ ${defineStr}`));
       }
     }
     createSamplers() {
+      const webglGl = gl5;
       const samplers = this.json.samplers || [{}];
       this.samplers = samplers.map((s) => {
-        const sampler = gl5.createSampler();
-        gl5.samplerParameteri(sampler, gl5.TEXTURE_MIN_FILTER, s.minFilter || gl5.LINEAR_MIPMAP_LINEAR);
-        gl5.samplerParameteri(sampler, gl5.TEXTURE_MAG_FILTER, s.magFilter || gl5.LINEAR);
-        gl5.samplerParameteri(sampler, gl5.TEXTURE_WRAP_S, s.wrapS || gl5.REPEAT);
-        gl5.samplerParameteri(sampler, gl5.TEXTURE_WRAP_T, s.wrapT || gl5.REPEAT);
+        const sampler = webglGl.createSampler();
+        webglGl.samplerParameteri(sampler, webglGl.TEXTURE_MIN_FILTER, s.minFilter || webglGl.LINEAR_MIPMAP_LINEAR);
+        webglGl.samplerParameteri(sampler, webglGl.TEXTURE_MAG_FILTER, s.magFilter || webglGl.LINEAR);
+        webglGl.samplerParameteri(sampler, webglGl.TEXTURE_WRAP_S, s.wrapS || webglGl.REPEAT);
+        webglGl.samplerParameteri(sampler, webglGl.TEXTURE_WRAP_T, s.wrapT || webglGl.REPEAT);
         return sampler;
       });
     }
@@ -17514,7 +17549,7 @@ ${defineStr}`));
           33648: "mirror-repeat",
           33071: "clamp-to-edge"
         };
-        return map[value];
+        return value === void 0 ? void 0 : map[value];
       }
       const samplers = this.json.samplers || [{}];
       this.samplers = samplers.map((s) => {
@@ -17531,10 +17566,20 @@ ${defineStr}`));
       });
     }
     createTexturesWebGPU(WebGPU) {
-      this.createTextures(this.handleTextureLoadedWebGPU.bind(this, WebGPU));
+      this.createTextures(
+        (t, textureType) => this.handleTextureLoadedWebGPU(
+          WebGPU,
+          t,
+          textureType
+        )
+      );
     }
     createTexturesWebGL() {
-      this.createTextures(this.handleTextureLoaded.bind(this));
+      this.createTextures(
+        (t) => this.handleTextureLoaded(
+          t
+        )
+      );
     }
     createTextures(callback) {
       this.scene.meshes.forEach((mesh) => {
@@ -17565,7 +17610,6 @@ ${defineStr}`));
           "sheenColorTexture",
           "emissiveTexture",
           "diffuseTransmissionColorTexture",
-          //@ts-ignore
           mesh.defines.find((d) => d.name === "SPECULARGLOSSINESSMAP") && "metallicRoughnessTexture"
         ];
         for (let i = 0; i < textureTypes.length; i++) {
@@ -17602,7 +17646,7 @@ ${defineStr}`));
       });
       if (hasBasisu) {
         await Promise.resolve().then(() => (init_libktx(), libktx_exports));
-        LIBKTX({ preinitializedWebGLContext: gl5 }).then((module2) => {
+        globalThis.LIBKTX({ preinitializedWebGLContext: gl5 }).then((module2) => {
           const transcoderConfig = gl5.device ? {
             astcSupported: gl5.features.has("texture-compression-astc"),
             etc1Supported: gl5.features.has("texture-compression-etc2"),
@@ -17631,7 +17675,6 @@ ${defineStr}`));
         return fetchImage(
           isbitmap,
           this,
-          //@ts-ignore
           source,
           {
             url: `${this.host}${source.uri}`,
@@ -17672,7 +17715,13 @@ ${defineStr}`));
       this.images.set(name, tex);
       return tex;
     }
-    handleTextureLoaded({ image, name, mimeType, sampler, srgb = false }) {
+    handleTextureLoaded({
+      image,
+      name,
+      mimeType,
+      sampler,
+      srgb = false
+    }) {
       const s = this.samplers[sampler !== void 0 ? sampler : 0];
       if (mimeType) {
         image.sampler = s;
@@ -17681,23 +17730,24 @@ ${defineStr}`));
       if (this.images.has(name + srgb)) {
         return this.images.get(name + srgb);
       }
-      const t = gl5.createTexture();
+      const webglGl = gl5;
+      const t = webglGl.createTexture();
       t.name = name;
       t.image = image.src.substr(image.src.lastIndexOf("/"));
       t.sampler = s;
-      gl5.activeTexture(gl5[`TEXTURE${31}`]);
-      gl5.bindTexture(gl5.TEXTURE_2D, t);
-      gl5.pixelStorei(gl5.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
-      gl5.pixelStorei(gl5.UNPACK_COLORSPACE_CONVERSION_WEBGL, gl5.NONE);
-      gl5.texImage2D(gl5.TEXTURE_2D, 0, srgb ? gl5.SRGB8_ALPHA8 : gl5.RGBA, gl5.RGBA, gl5.UNSIGNED_BYTE, image);
-      gl5.generateMipmap(gl5.TEXTURE_2D);
+      webglGl.activeTexture(webglGl[`TEXTURE${31}`]);
+      webglGl.bindTexture(webglGl.TEXTURE_2D, t);
+      webglGl.pixelStorei(webglGl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+      webglGl.pixelStorei(webglGl.UNPACK_COLORSPACE_CONVERSION_WEBGL, webglGl.NONE);
+      webglGl.texImage2D(webglGl.TEXTURE_2D, 0, srgb ? webglGl.SRGB8_ALPHA8 : webglGl.RGBA, webglGl.RGBA, webglGl.UNSIGNED_BYTE, image);
+      webglGl.generateMipmap(webglGl.TEXTURE_2D);
       this.images.set(name + srgb, t);
       return t;
     }
     async getEnv(isBuffer) {
       if (this.json.extensions && this.json.extensions.EXT_lights_image_based) {
         const [env] = this.json.extensions.EXT_lights_image_based.lights;
-        env.specularImages = env.specularImages.map((cube) => {
+        const specularImages = env.specularImages.map((cube) => {
           return cube.map((img) => {
             const accessor = this.json.images[img];
             const bufferView = this.json.bufferViews[accessor.bufferView];
@@ -17710,9 +17760,10 @@ ${defineStr}`));
             return imageEl;
           });
         });
+        env.specularImages = specularImages;
         await new Promise((r) => setTimeout(r, 200));
         if (isBuffer) {
-          for (const images of env.specularImages) {
+          for (const images of specularImages) {
             for (const image of images) {
               image.bitmap = await createImageBitmap(image);
             }
@@ -17816,7 +17867,7 @@ ${defineStr}`));
       this.noice = pp.createNoiceTexture(noiceSize, noice);
     }
     buildKernels() {
-      const kernels = new Array(kernelSize);
+      const kernels = Array.from({ length: kernelSize });
       for (let i = 0; i < kernels.length; i++) {
         kernels[i] = new Vector3([random(0, 1) * 2 - 1, random(0, 1) * 2 - 1, random(0, 1)]);
         kernels[i].normalize();
@@ -17929,15 +17980,16 @@ ${defineStr}`));
       gl9.clear(gl9.COLOR_BUFFER_BIT | gl9.DEPTH_BUFFER_BIT);
       PP.renderScene({ isprerefraction: true });
       gl9.bindFramebuffer(gl9.FRAMEBUFFER, null);
-      gl9.activeTexture(gl9[`TEXTURE${this.texture.index}`]);
-      gl9.bindTexture(gl9.TEXTURE_2D, this.texture);
+      const glTexture = this.texture;
+      gl9.activeTexture(gl9[`TEXTURE${glTexture.index}`]);
+      gl9.bindTexture(gl9.TEXTURE_2D, glTexture);
       gl9.generateMipmap(gl9.TEXTURE_2D);
     }
     preProcessingWebGPU(PP) {
+      const gpuTexture = this.texture;
       PP.target = [
         {
-          // @ts-expect-error
-          view: this.texture.view,
+          view: gpuTexture.view,
           storeOp: "store",
           loadOp: "clear",
           clearValue: { r: 0, g: 0, b: 0, a: 1 }
@@ -17946,7 +17998,7 @@ ${defineStr}`));
       ];
       PP.renderScene({ isprerefraction: true });
       const mipLevelCount = Math.max(1, Math.floor(Math.log2(Math.max(PP.width, PP.height))) - 2);
-      generateMipmaps(gl9.device, this.texture.texture, PP.width, PP.height, mipLevelCount);
+      generateMipmaps(gl9.device, gpuTexture.texture, PP.width, PP.height, mipLevelCount);
     }
     buildScreenBuffer(pp) {
       this.texture = pp.createDefaultTexture(1, true);
@@ -17996,7 +18048,6 @@ ${defineStr}`));
     attachUniformWebGPU() {
       return {
         binding: 8,
-        // @ts-expect-error
         resource: this.output.view
       };
     }
@@ -18014,20 +18065,18 @@ ${defineStr}`));
       const { device } = gl10;
       const commandEncoder = device.createCommandEncoder();
       const shadowPass = commandEncoder.beginRenderPass({
-        colorAttachments: [{
-          // @ts-expect-error
-          view: this.output.view,
-          storeOp: "store",
-          loadOp: "clear",
-          clearValue: { r: 0, g: 0, b: 0, a: 1 }
-        }]
+        colorAttachments: [
+          {
+            view: this.output.view,
+            storeOp: "store",
+            loadOp: "clear",
+            clearValue: { r: 0, g: 0, b: 0, a: 1 }
+          }
+        ]
       });
       shadowPass.setPipeline(this.pipeline);
       shadowPass.setVertexBuffer(0, PP.vertexBuffer);
-      shadowPass.setBindGroup(
-        0,
-        this.bindGroup
-      );
+      shadowPass.setBindGroup(0, this.bindGroup);
       shadowPass.draw(6);
       shadowPass.end();
       device.queue.submit([commandEncoder.finish()]);
@@ -19958,7 +20007,10 @@ ${defineStr}`));
         );
         lightPos.set(light.getPosition(), i * 4);
         lightColor.set(light.color.elements, i * 4);
-        lightProps.set([light.intensity, light.spot.innerConeAngle ?? 0, light.spot.outerConeAngle ?? 0, lightEnum2[light.type]], i * 4);
+        lightProps.set(
+          [light.intensity, light.spot.innerConeAngle ?? 0, light.spot.outerConeAngle ?? 0, lightEnum2[light.type]],
+          i * 4
+        );
       });
       const lightPosBuffer = new UniformBuffer();
       lightPosBuffer.add("lightPos", lightPos);
@@ -20086,7 +20138,7 @@ ${defineStr}`));
       cb();
     }
     buildBones(join, v, node) {
-      if (node.name === join) {
+      if (node instanceof Object3D && node.name === join) {
         v.bones.push(node);
       }
     }
@@ -20135,13 +20187,14 @@ ${defineStr}`));
       }
     }
     glInit() {
-      gl13 = this.canvas.getContext("webgl2", {
+      const context = this.canvas.getContext("webgl2", {
         antialias: true
       });
-      this.gl = gl13;
-      if (!gl13) {
+      if (!context) {
         throw new Error("Webgl 2 doesnt support");
       }
+      gl13 = context;
+      this.gl = gl13;
       setGl(gl13);
       this.ioc.register("gl", gl13);
       let ext = gl13.getExtension("EXT_color_buffer_float");
@@ -20180,7 +20233,6 @@ ${defineStr}`));
         camera: this.camera,
         light: this.light,
         preDepthTexture: this.PP.preDepthTexture,
-        // @ts-ignore
         colorTexture: refraction ? refraction.texture : this.PP.fakeDepth,
         fakeDepth: this.PP.fakeDepth,
         needUpdateView: this.renderer.needUpdateView,
