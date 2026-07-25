@@ -50,14 +50,14 @@ declare class RedCube {
     get Particles(): Particles;
     get parse(): Parse;
     setVariant(variant: string | number): void;
-    init(cb: () => void): Promise<void>;
+    init(cb: (scene: Scene) => void): Promise<void>;
     buildBones(join: number, v: Skin, node: Object3D | Scene): void;
     renderScene(renderState: {
         isprepender?: boolean;
         isprerefraction?: boolean;
     }): void;
     redraw(type: string, coordsStart?: [number, number] | number, coordsMove?: [number, number]): void;
-    resize(e: string | null): void;
+    resize(isResizeEvent?: boolean): void;
     glInit(): void;
     draw(): void;
     initialDraw(): void;

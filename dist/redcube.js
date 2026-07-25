@@ -20128,7 +20128,7 @@ ${defineStr}`));
       if (this.PP.hasPostPass || this.PP.hasPrePass) {
         this.PP.buildScreenBuffer();
       }
-      this.resize(null);
+      this.resize();
       this.parse.buildAnimation();
       this.initialDraw();
       const ext = gl13.getExtension("GMAN_webgl_memory");
@@ -20138,7 +20138,7 @@ ${defineStr}`));
         const buffers = ext.getResourcesInfo(WebGLBuffer);
         console.log(info, textures, buffers);
       }
-      cb();
+      cb(this.scene);
     }
     buildBones(join, v, node) {
       if (node instanceof Object3D && node.name === join) {
@@ -20165,12 +20165,12 @@ ${defineStr}`));
         this.renderer.needUpdateView = true;
       }
       if (type === "resize") {
-        this.resize(type);
+        this.resize(true);
         this.renderer.needUpdateProjection = true;
       }
       this.renderer.reflow = true;
     }
-    resize(e) {
+    resize(isResizeEvent = false) {
       this.camera.props.aspect = this.canvas.offsetWidth / this.canvas.offsetHeight;
       this.canvas.width = this.canvas.offsetWidth * devicePixelRatio;
       this.canvas.height = this.canvas.offsetHeight * devicePixelRatio;
@@ -20184,7 +20184,7 @@ ${defineStr}`));
       }
       this.renderer.needUpdateView = true;
       this.camera.updateNF();
-      if (e) {
+      if (isResizeEvent) {
         this.PP.clear();
         this.PP.buildScreenBuffer();
       }

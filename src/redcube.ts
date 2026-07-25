@@ -140,7 +140,7 @@ class RedCube {
         this.renderer.needUpdateProjection = true;
     }
 
-    async init(cb: () => void) {
+    async init(cb: (scene: Scene) => void) {
         await this.parse.getJson();
         this.glInit();
         await this.parse.getBuffer();
@@ -336,7 +336,7 @@ class RedCube {
             this.PP.buildScreenBuffer();
         }
 
-        this.resize(null);
+        this.resize();
         this.parse.buildAnimation();
         this.initialDraw();
 
@@ -351,7 +351,7 @@ class RedCube {
             console.log(info, textures, buffers);
         }
 
-        cb();
+        cb(this.scene);
     }
 
     buildBones(join: number, v: Skin, node: Object3D | Scene) {
@@ -381,14 +381,14 @@ class RedCube {
             this.renderer.needUpdateView = true;
         }
         if (type === 'resize') {
-            this.resize(type);
+            this.resize(true);
             this.renderer.needUpdateProjection = true;
         }
 
         this.renderer.reflow = true;
     }
 
-    resize(e: string | null) {
+    resize(isResizeEvent = false) {
         this.camera.props.aspect = this.canvas.offsetWidth / this.canvas.offsetHeight;
         this.canvas.width = this.canvas.offsetWidth * devicePixelRatio;
         this.canvas.height = this.canvas.offsetHeight * devicePixelRatio;
@@ -405,7 +405,7 @@ class RedCube {
         this.renderer.needUpdateView = true;
         this.camera.updateNF();
 
-        if (e) {
+        if (isResizeEvent) {
             this.PP.clear();
             this.PP.buildScreenBuffer();
         }
