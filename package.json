@@ -3,9 +3,25 @@
   "version": "5.0.5",
   "description": "JS renderer based on GLTF to WebGPU or WebGL backends.",
   "main": "dist/redcube",
+  "types": "./dist/types/src/redcube.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/types/src/redcube.d.ts",
+      "default": "./dist/redcube.js"
+    },
+    "./webgpu": {
+      "types": "./dist/types/src/redcube.webgpu.d.ts",
+      "default": "./dist/redcube.webgpu.js"
+    },
+    "./node": {
+      "types": "./dist/types/src/redcube.node.d.ts",
+      "default": "./dist/redcube.node.cjs"
+    },
+    "./package.json": "./package.json"
+  },
   "type": "module",
   "scripts": {
-    "build": "node esbuild.config.js",
+    "build": "node esbuild.config.js && tsc -p tsconfig.build.json",
     "serve": "node esbuild.config.js --serve",
     "lint": "tsc && oxlint --fix ./src/ && prettier --write \"src/**/*.ts\"",
     "lint:check": "tsc --noEmit && oxlint ./src/ && prettier --check \"src/**/*.ts\"",

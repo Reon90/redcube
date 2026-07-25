@@ -25309,7 +25309,7 @@ ${defineStr}`)];
     materialStorage;
     constructor(url, canvas, _pp, envUrl = "env") {
       if (!url) {
-        throw new Error("Url not found");
+        throw new Error("RedCube: a glTF url must be passed as the first constructor argument");
       }
       this.envUrl = envUrl;
       this.url = url;
@@ -25321,7 +25321,7 @@ ${defineStr}`)];
       await Promise.resolve().then(() => (init_twgsl(), twgsl_exports));
       const adapter = await navigator.gpu.requestAdapter();
       if (!adapter) {
-        throw new Error("WebGPU adapter not found");
+        throw new Error("RedCube: no WebGPU adapter was returned by navigator.gpu.requestAdapter() - the GPU may be unavailable or blocklisted on this device");
       }
       const required = ["float32-filterable"];
       if (adapter.features.has("timestamp-query")) {
@@ -25334,7 +25334,7 @@ ${defineStr}`)];
       const wgsl = await globalThis.twgsl("twgsl.wasm");
       const context = this.canvas.getContext("webgpu");
       if (!context) {
-        throw new Error("Webgpu doesnt support");
+        throw new Error("RedCube: WebGPU is not supported by this browser/canvas - use the WebGL build instead (Chrome 113+ is required for WebGPU), or check that the canvas has no other active rendering context");
       }
       context.configure({
         device,

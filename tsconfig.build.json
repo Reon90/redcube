@@ -1,0 +1,18 @@
+{
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+        "declaration": true,
+        "emitDeclarationOnly": true,
+        "declarationDir": "./dist/types",
+        "noEmitOnError": true,
+        "types": ["@webgpu/types"]
+    },
+    "include": [
+        "./src/redcube.ts",
+        "./src/redcube.webgpu.ts",
+        "./src/redcube.node.ts",
+        "./src/draco3d.d.ts",
+        "./src/parse-hdr.d.ts",
+        "./index.d.ts"
+    ]
+}
