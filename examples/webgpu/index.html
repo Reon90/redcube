@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>redcube.js — WebGPU example</title>
+    <style>
+        html, body { margin: 0; height: 100%; background: #202020; }
+        canvas { width: 100%; height: 100%; display: block; }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+
+    <!-- Requires a WebGPU-capable browser (Chrome 113+). Built by `npm run build`; see ../../dist/redcube.webgpu.js -->
+    <script src="../../dist/redcube.webgpu.js"></script>
+    <script>
+        if (!navigator.gpu) {
+            document.body.innerHTML = '<h1 style="color: #fff; font-family: sans-serif;">WebGPU is not supported by this browser.</h1>';
+        } else {
+            const canvas = document.getElementById('canvas');
+            const url = 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/DamagedHelmet/glTF/DamagedHelmet.gltf';
+
+            // (url, canvas, processors, envUrl) - processors is currently required, pass [] if unused
+            const model = new redcube.RedCube(url, canvas, [], '../../dist/env.hdr');
+
+            model.init((scene) => {
+                console.log('Model loaded:', scene);
+            }).catch((err) => {
+                console.error('Failed to load model:', err);
+            });
+        }
+    </script>
+</body>
+</html>

@@ -99,18 +99,58 @@ The javascript rendering library for [Khronos glTF 2.0 format](https://github.co
 
 &bull; [Sketchfab](https://sketchfab.com/models?features=downloadable&sort_by=-likeCount) 100,000+ models
 
-## Usage
-
-```js
-<canvas style="width: 600px; height: 600px;"></canvas>
-
-const renderer = new RedCube('./box.gltf', canvas);
-renderer.init(() => {
-    console.log('loaded');
-});
-```
-
 ## Install
 ```
 npm install redcube.js
 ```
+
+## Usage
+
+Runnable versions of all three examples below live in [`examples/`](./examples).
+
+### WebGL (browser)
+
+```html
+<canvas id="canvas" style="width: 600px; height: 600px;"></canvas>
+<script src="node_modules/redcube.js/dist/redcube.js"></script>
+<script>
+    const canvas = document.getElementById('canvas');
+    const renderer = new redcube.RedCube('./box.gltf', canvas);
+    renderer.init((scene) => {
+        console.log('loaded', scene);
+    });
+</script>
+```
+
+### WebGPU (browser, Chrome 113+)
+
+```html
+<canvas id="canvas" style="width: 600px; height: 600px;"></canvas>
+<script src="node_modules/redcube.js/dist/redcube.webgpu.js"></script>
+<script>
+    const canvas = document.getElementById('canvas');
+    const renderer = new redcube.RedCube('./box.gltf', canvas, [], 'env.hdr');
+    renderer.init((scene) => {
+        console.log('loaded', scene);
+    });
+</script>
+```
+
+### Node.js (headless, no canvas/GPU)
+
+```js
+import redcube from 'redcube.js/node';
+
+const renderer = new redcube.RedCube('./box.gltf');
+renderer.init((scene) => {
+    console.log('loaded', scene);
+});
+```
+
+The WebGL and WebGPU bundles (`dist/redcube.js` / `dist/redcube.webgpu.js`) are
+plain `<script>` globals, not ES modules — load one or the other depending on
+which backend you want, they both expose the same `redcube.RedCube` global.
+The Node build (`dist/redcube.node.cjs`, importable via the `redcube.js/node`
+subpath) is a real CommonJS module for headless parsing/validation use cases.
+TypeScript consumers get full type declarations from all three (`redcube.js`,
+`redcube.js/webgpu`, `redcube.js/node`).
