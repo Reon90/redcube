@@ -25321,7 +25321,9 @@ ${defineStr}`)];
       await Promise.resolve().then(() => (init_twgsl(), twgsl_exports));
       const adapter = await navigator.gpu.requestAdapter();
       if (!adapter) {
-        throw new Error("RedCube: no WebGPU adapter was returned by navigator.gpu.requestAdapter() - the GPU may be unavailable or blocklisted on this device");
+        throw new Error(
+          "RedCube: no WebGPU adapter was returned by navigator.gpu.requestAdapter() - the GPU may be unavailable or blocklisted on this device"
+        );
       }
       const required = ["float32-filterable"];
       if (adapter.features.has("timestamp-query")) {
@@ -25334,7 +25336,9 @@ ${defineStr}`)];
       const wgsl = await globalThis.twgsl("twgsl.wasm");
       const context = this.canvas.getContext("webgpu");
       if (!context) {
-        throw new Error("RedCube: WebGPU is not supported by this browser/canvas - use the WebGL build instead (Chrome 113+ is required for WebGPU), or check that the canvas has no other active rendering context");
+        throw new Error(
+          "RedCube: WebGPU is not supported by this browser/canvas - use the WebGL build instead (Chrome 113+ is required for WebGPU), or check that the canvas has no other active rendering context"
+        );
       }
       context.configure({
         device,
@@ -25404,290 +25408,286 @@ ${defineStr}`)];
     async init(cb) {
       const ioc = new Container();
       this.ioc = ioc;
-      try {
-        const WebGPU2 = await this.webgpuInit();
-        ioc.register("canvas", this.canvas);
-        ioc.register("gl", WebGPU2);
-        ioc.register("scene", Scene);
-        ioc.register("light", Light, [], {
-          type: "directional",
-          intensity: 5,
-          color: [1, 1, 1],
+      const WebGPU2 = await this.webgpuInit();
+      ioc.register("canvas", this.canvas);
+      ioc.register("gl", WebGPU2);
+      ioc.register("scene", Scene);
+      ioc.register("light", Light, [], {
+        type: "directional",
+        intensity: 5,
+        color: [1, 1, 1],
+        isInitial: true,
+        spot: {}
+      });
+      this.ioc.register("pp", PostProcessing, ["light", "camera", "canvas", "gl"], [], this.renderScene.bind(this));
+      ioc.register("parser", Parse, ["gl", "scene", "camera", "light"], this.url, [], () => {
+      });
+      ioc.register("env", Env, ["camera", "canvas"], this.envUrl);
+      ioc.register("renderer", RendererWebGPU, ["gl", "scene", "parser", "env", "pp"], this.getState.bind(this));
+      ioc.register(
+        "camera",
+        Camera,
+        [],
+        {
+          type: "perspective",
           isInitial: true,
-          spot: {}
-        });
-        this.ioc.register("pp", PostProcessing, ["light", "camera", "canvas", "gl"], [], this.renderScene.bind(this));
-        ioc.register("parser", Parse, ["gl", "scene", "camera", "light"], this.url, [], () => {
-        });
-        ioc.register("env", Env, ["camera", "canvas"], this.envUrl);
-        ioc.register("renderer", RendererWebGPU, ["gl", "scene", "parser", "env", "pp"], this.getState.bind(this));
-        ioc.register(
-          "camera",
-          Camera,
-          [],
-          {
-            type: "perspective",
-            isInitial: true,
-            zoom: 1,
-            aspect: this.canvas.offsetWidth / this.canvas.offsetHeight,
-            perspective: {
-              yfov: FOV * Math.PI / 180
-            }
-          },
-          "perspective"
-        );
-        await this.parse.getJson();
-        await this.parse.getBuffer();
-        await this.parse.initTextures(true);
-        this.parse.buildSkin();
-        await this.parse.buildMesh();
-        this.parse.buildAnimation();
-        this.parse.cameras.push(this.camera);
-        this.parse.createSamplersWebGPU(WebGPU2);
-        this.parse.createTexturesWebGPU(WebGPU2);
-        const envData = await this.parse.getEnv(true);
-        await this.env.createEnvironmentBuffer(envData, WebGPU2);
-        this.parse.calculateFov(this.camera.props.isInitial);
-        this.resize();
-        WebGPU2.nearestSampler = WebGPU2.device.createSampler({
-          mipmapFilter: "nearest",
-          magFilter: "nearest",
-          minFilter: "nearest",
-          addressModeU: "clamp-to-edge",
-          addressModeV: "clamp-to-edge",
-          addressModeW: "clamp-to-edge"
-        });
-        WebGPU2.linearSampler = WebGPU2.device.createSampler({
-          mipmapFilter: "linear",
-          magFilter: "linear",
-          minFilter: "linear",
-          addressModeU: "repeat",
-          addressModeV: "repeat",
-          addressModeW: "repeat"
-        });
-        await this.env.createTexture(WebGPU2);
-        this.env.drawBRDF(WebGPU2);
-        this.env.drawMips(WebGPU2);
-        this.env.drawIrradiance(WebGPU2);
-        this.env.drawPrefilter(WebGPU2);
-        const { renderState, isIBL, isDefaultLight, lights } = this.getState();
-        const stateBuffer = new UniformBuffer();
-        stateBuffer.add("isTone", renderState.isprerefraction ? 0 : 1);
-        stateBuffer.add("isIBL", isIBL ? 1 : 0);
-        stateBuffer.add("isDefaultLight", isDefaultLight || lights.some((l) => !l.isInitial) ? 1 : 0);
-        stateBuffer.done();
-        this.stateBuffer = stateBuffer;
-        const uniformBuffer = WebGPU2.device.createBuffer({
-          size: 256 + stateBuffer.store.byteLength,
-          usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
-        });
-        stateBuffer.bufferWebGPU = uniformBuffer;
-        WebGPU2.device.queue.writeBuffer(
-          uniformBuffer,
-          0,
-          stateBuffer.store.buffer,
-          stateBuffer.store.byteOffset,
-          stateBuffer.store.byteLength
-        );
-        const hasTransmission = this.parse.json.extensionsUsed && this.parse.json.extensionsUsed.includes("KHR_materials_transmission");
-        if (hasTransmission) {
-          this.PP.addPrepass("refraction");
-        }
-        if (this.PP.hasPostPass || this.PP.hasPrePass) {
-          this.PP.buildScreenBuffer();
-        }
-        const refraction = this.PP.postprocessors.find((p) => p instanceof Refraction);
-        const cameraBuffer = new UniformBuffer();
-        cameraBuffer.add("view", this.camera.matrixWorldInvert.elements);
-        cameraBuffer.add("projection", this.camera.projection.elements);
-        cameraBuffer.add("light", this.light.matrixWorldInvert.elements);
-        cameraBuffer.add("isShadow", 0);
-        cameraBuffer.done();
-        this.cameraBuffer = cameraBuffer;
-        this.scene.meshes[0].geometry.updateUniformsWebGPU(WebGPU2, cameraBuffer);
-        const lightEnum2 = {
-          directional: 0,
-          point: 1,
-          spot: 2
-        };
-        const spotDirs = new Float32Array(this.parse.lights.length * 4);
-        const lightPos = new Float32Array(this.parse.lights.length * 4);
-        const lightColor = new Float32Array(this.parse.lights.length * 4);
-        const lightProps = new Float32Array(this.parse.lights.length * 4);
-        this.parse.lights.forEach((light, i) => {
-          spotDirs.set(
-            new Vector3([light.matrixWorld.elements[8], light.matrixWorld.elements[9], light.matrixWorld.elements[10]]).normalize().elements,
-            i * 4
-          );
-          lightPos.set(light.getPosition(), i * 4);
-          lightColor.set(light.color.elements, i * 4);
-          lightProps.set(
-            [light.intensity, light.spot.innerConeAngle ?? 0, light.spot.outerConeAngle ?? 0, lightEnum2[light.type]],
-            i * 4
-          );
-        });
-        const lightPosBuffer = new UniformBuffer();
-        lightPosBuffer.add("lightPos", lightPos);
-        lightPosBuffer.done();
-        this.lightPosBuffer = lightPosBuffer;
-        const lightColorBuffer = new UniformBuffer();
-        lightColorBuffer.add("lightColor", lightColor);
-        lightColorBuffer.done();
-        this.lightColorBuffer = lightColorBuffer;
-        const spotdirBuffer = new UniformBuffer();
-        spotdirBuffer.add("spotdir", spotDirs);
-        spotdirBuffer.done();
-        const lightIntensityBuffer = new UniformBuffer();
-        lightIntensityBuffer.add("lightIntensity", lightProps);
-        lightIntensityBuffer.done();
-        this.scene.meshes[0].geometry.updateUniformsWebGPU(WebGPU2, lightPosBuffer);
-        this.scene.meshes[0].geometry.updateUniformsWebGPU(WebGPU2, lightColorBuffer);
-        this.scene.meshes[0].geometry.updateUniformsWebGPU(WebGPU2, spotdirBuffer);
-        this.scene.meshes[0].geometry.updateUniformsWebGPU(WebGPU2, lightIntensityBuffer);
-        this.scene.meshes.forEach((mesh) => {
-          [mesh.material, ...mesh.variants.map((m) => m.m)].forEach((m) => m.createUniforms(false, this.parse.lights));
-        });
-        const materialStorage = new Float32Array(
-          this.scene.meshes.length * this.scene.meshes[0].material.materialUniformBuffer.store.length
-        );
-        this.scene.meshes.forEach((mesh, i) => {
-          materialStorage.set(mesh.material.materialUniformBuffer.store, i * mesh.material.materialUniformBuffer.store.length);
-        });
-        const storageBuffer = { store: materialStorage };
-        this.scene.meshes[0].geometry.updateUniformsWebGPU(WebGPU2, storageBuffer, GPUBufferUsage.STORAGE);
-        let meshCount = this.scene.meshes.length;
-        this.scene.meshes.forEach((mesh) => {
-          mesh.geometry.createUniforms(mesh.matrixWorld);
-          if (mesh.matrices.length) {
-            meshCount += mesh.matrices.length;
+          zoom: 1,
+          aspect: this.canvas.offsetWidth / this.canvas.offsetHeight,
+          perspective: {
+            yfov: FOV * Math.PI / 180
           }
-        });
-        const transformsStorage = new Float32Array(meshCount * this.scene.meshes[0].geometry.uniformBuffer.store.length);
-        this.scene.meshes.forEach((mesh, i) => {
-          mesh.order = i;
-          transformsStorage.set(mesh.geometry.uniformBuffer.store, i * mesh.geometry.uniformBuffer.store.length);
-          if (mesh.matrices.length) {
-            mesh.matrices.forEach((matrix, j) => {
-              transformsStorage.set(matrix.elements, (i + j + 1) * mesh.geometry.uniformBuffer.store.length);
-            });
-          }
-        });
-        const storageBuffer2 = { store: transformsStorage };
-        this.scene.meshes[0].geometry.updateUniformsWebGPU(WebGPU2, storageBuffer2, GPUBufferUsage.STORAGE);
-        this.transformsStorage = storageBuffer2;
-        this.materialStorage = storageBuffer;
-        const uniformBindGroup1 = [
-          {
-            binding: 0,
-            resource: storageBuffer2.bufferWebGPU
-          },
-          {
-            binding: 1,
-            resource: storageBuffer.bufferWebGPU
-          },
-          {
-            binding: 39,
-            resource: cameraBuffer.bufferWebGPU
-          },
-          {
-            binding: 16,
-            resource: lightPosBuffer.bufferWebGPU
-          },
-          {
-            binding: 15,
-            resource: lightColorBuffer.bufferWebGPU
-          },
-          {
-            binding: 17,
-            resource: spotdirBuffer.bufferWebGPU
-          },
-          {
-            binding: 18,
-            resource: lightIntensityBuffer.bufferWebGPU
-          }
-        ];
-        const prevProgramHash = /* @__PURE__ */ new Map();
-        const uniformBindGroup2 = [];
-        this.scene.meshes.forEach((mesh) => {
-          mesh.geometry.createGeometryForWebGPU(WebGPU2, mesh.order);
-          mesh.geometry.uniformBindGroup1 = [];
-          mesh.material.updateUniformsWebGPU(WebGPU2);
-          mesh.material.uniformBindGroup1.push(
-            {
-              binding: 19,
-              resource: this.env.prefilterTexture.view
-            },
-            {
-              binding: 20,
-              resource: this.env.irradianceTexture.view
-            },
-            {
-              binding: 21,
-              resource: this.env.bdrfTexture.view
-            },
-            {
-              binding: 28,
-              resource: this.env.Sheen_E.view
-            },
-            {
-              binding: 26,
-              resource: mesh.defines.find((i) => i.name === "TRANSMISSION") ? refraction.texture.texture.createView() : this.PP.fakeDepth.view
-            },
-            {
-              binding: 35,
-              resource: this.env.charlieTexture.view
-            },
-            {
-              binding: 30,
-              resource: uniformBuffer
-            }
-          );
-          if (this.env.uniformBuffer) {
-            mesh.material.uniformBindGroup1.push({
-              binding: 27,
-              resource: this.env.uniformBuffer.bufferWebGPU
-            });
-          }
-          if (mesh instanceof SkinnedMesh) {
-            for (const join of this.parse.skins[mesh.skin].jointNames) {
-              walk(this.scene, this.buildBones.bind(this, join, this.parse.skins[mesh.skin]));
-            }
-            mesh.geometry.uniformBindGroup1.push(mesh.setSkinWebGPU(WebGPU2, this.parse.skins[mesh.skin]));
-          }
-          const id = mesh.material.baseColorTexture ? mesh.material.baseColorTexture.sampler.id : "";
-          const programHash = mesh.mode + id + mesh.material.defines.map((define2) => `${define2.name}${define2.value ?? 1}`).join("");
-          if (!prevProgramHash.has(programHash)) {
-            prevProgramHash.set(
-              programHash,
-              create(
-                WebGPU2.device,
-                WebGPU2.glslang,
-                WebGPU2.wgsl,
-                mesh.material.uniformBindGroup1,
-                mesh.defines,
-                mesh.mode,
-                mesh.frontFace
-              )
-            );
-          }
-          let group = check(uniformBindGroup2, mesh.material.uniformBindGroup1);
-          if (!group) {
-            group = {
-              k: mesh.material.uniformBindGroup1,
-              v: WebGPU2.device.createBindGroup({
-                layout: prevProgramHash.get(programHash)[0].getBindGroupLayout(0),
-                entries: [...uniformBindGroup1, ...mesh.geometry.uniformBindGroup1, ...mesh.material.uniformBindGroup1]
-              })
-            };
-            uniformBindGroup2.push(group);
-          }
-          mesh.pipeline = prevProgramHash.get(programHash)[0];
-          mesh.pipeline2 = prevProgramHash.get(programHash)[1];
-          mesh.uniformBindGroup1 = group.v;
-        });
-      } catch (e) {
-        console.log(e);
+        },
+        "perspective"
+      );
+      await this.parse.getJson();
+      await this.parse.getBuffer();
+      await this.parse.initTextures(true);
+      this.parse.buildSkin();
+      await this.parse.buildMesh();
+      this.parse.buildAnimation();
+      this.parse.cameras.push(this.camera);
+      this.parse.createSamplersWebGPU(WebGPU2);
+      this.parse.createTexturesWebGPU(WebGPU2);
+      const envData = await this.parse.getEnv(true);
+      await this.env.createEnvironmentBuffer(envData, WebGPU2);
+      this.parse.calculateFov(this.camera.props.isInitial);
+      this.resize();
+      WebGPU2.nearestSampler = WebGPU2.device.createSampler({
+        mipmapFilter: "nearest",
+        magFilter: "nearest",
+        minFilter: "nearest",
+        addressModeU: "clamp-to-edge",
+        addressModeV: "clamp-to-edge",
+        addressModeW: "clamp-to-edge"
+      });
+      WebGPU2.linearSampler = WebGPU2.device.createSampler({
+        mipmapFilter: "linear",
+        magFilter: "linear",
+        minFilter: "linear",
+        addressModeU: "repeat",
+        addressModeV: "repeat",
+        addressModeW: "repeat"
+      });
+      await this.env.createTexture(WebGPU2);
+      this.env.drawBRDF(WebGPU2);
+      this.env.drawMips(WebGPU2);
+      this.env.drawIrradiance(WebGPU2);
+      this.env.drawPrefilter(WebGPU2);
+      const { renderState, isIBL, isDefaultLight, lights } = this.getState();
+      const stateBuffer = new UniformBuffer();
+      stateBuffer.add("isTone", renderState.isprerefraction ? 0 : 1);
+      stateBuffer.add("isIBL", isIBL ? 1 : 0);
+      stateBuffer.add("isDefaultLight", isDefaultLight || lights.some((l) => !l.isInitial) ? 1 : 0);
+      stateBuffer.done();
+      this.stateBuffer = stateBuffer;
+      const uniformBuffer = WebGPU2.device.createBuffer({
+        size: 256 + stateBuffer.store.byteLength,
+        usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
+      });
+      stateBuffer.bufferWebGPU = uniformBuffer;
+      WebGPU2.device.queue.writeBuffer(
+        uniformBuffer,
+        0,
+        stateBuffer.store.buffer,
+        stateBuffer.store.byteOffset,
+        stateBuffer.store.byteLength
+      );
+      const hasTransmission = this.parse.json.extensionsUsed && this.parse.json.extensionsUsed.includes("KHR_materials_transmission");
+      if (hasTransmission) {
+        this.PP.addPrepass("refraction");
       }
+      if (this.PP.hasPostPass || this.PP.hasPrePass) {
+        this.PP.buildScreenBuffer();
+      }
+      const refraction = this.PP.postprocessors.find((p) => p instanceof Refraction);
+      const cameraBuffer = new UniformBuffer();
+      cameraBuffer.add("view", this.camera.matrixWorldInvert.elements);
+      cameraBuffer.add("projection", this.camera.projection.elements);
+      cameraBuffer.add("light", this.light.matrixWorldInvert.elements);
+      cameraBuffer.add("isShadow", 0);
+      cameraBuffer.done();
+      this.cameraBuffer = cameraBuffer;
+      this.scene.meshes[0].geometry.updateUniformsWebGPU(WebGPU2, cameraBuffer);
+      const lightEnum2 = {
+        directional: 0,
+        point: 1,
+        spot: 2
+      };
+      const spotDirs = new Float32Array(this.parse.lights.length * 4);
+      const lightPos = new Float32Array(this.parse.lights.length * 4);
+      const lightColor = new Float32Array(this.parse.lights.length * 4);
+      const lightProps = new Float32Array(this.parse.lights.length * 4);
+      this.parse.lights.forEach((light, i) => {
+        spotDirs.set(
+          new Vector3([light.matrixWorld.elements[8], light.matrixWorld.elements[9], light.matrixWorld.elements[10]]).normalize().elements,
+          i * 4
+        );
+        lightPos.set(light.getPosition(), i * 4);
+        lightColor.set(light.color.elements, i * 4);
+        lightProps.set(
+          [light.intensity, light.spot.innerConeAngle ?? 0, light.spot.outerConeAngle ?? 0, lightEnum2[light.type]],
+          i * 4
+        );
+      });
+      const lightPosBuffer = new UniformBuffer();
+      lightPosBuffer.add("lightPos", lightPos);
+      lightPosBuffer.done();
+      this.lightPosBuffer = lightPosBuffer;
+      const lightColorBuffer = new UniformBuffer();
+      lightColorBuffer.add("lightColor", lightColor);
+      lightColorBuffer.done();
+      this.lightColorBuffer = lightColorBuffer;
+      const spotdirBuffer = new UniformBuffer();
+      spotdirBuffer.add("spotdir", spotDirs);
+      spotdirBuffer.done();
+      const lightIntensityBuffer = new UniformBuffer();
+      lightIntensityBuffer.add("lightIntensity", lightProps);
+      lightIntensityBuffer.done();
+      this.scene.meshes[0].geometry.updateUniformsWebGPU(WebGPU2, lightPosBuffer);
+      this.scene.meshes[0].geometry.updateUniformsWebGPU(WebGPU2, lightColorBuffer);
+      this.scene.meshes[0].geometry.updateUniformsWebGPU(WebGPU2, spotdirBuffer);
+      this.scene.meshes[0].geometry.updateUniformsWebGPU(WebGPU2, lightIntensityBuffer);
+      this.scene.meshes.forEach((mesh) => {
+        [mesh.material, ...mesh.variants.map((m) => m.m)].forEach((m) => m.createUniforms(false, this.parse.lights));
+      });
+      const materialStorage = new Float32Array(
+        this.scene.meshes.length * this.scene.meshes[0].material.materialUniformBuffer.store.length
+      );
+      this.scene.meshes.forEach((mesh, i) => {
+        materialStorage.set(mesh.material.materialUniformBuffer.store, i * mesh.material.materialUniformBuffer.store.length);
+      });
+      const storageBuffer = { store: materialStorage };
+      this.scene.meshes[0].geometry.updateUniformsWebGPU(WebGPU2, storageBuffer, GPUBufferUsage.STORAGE);
+      let meshCount = this.scene.meshes.length;
+      this.scene.meshes.forEach((mesh) => {
+        mesh.geometry.createUniforms(mesh.matrixWorld);
+        if (mesh.matrices.length) {
+          meshCount += mesh.matrices.length;
+        }
+      });
+      const transformsStorage = new Float32Array(meshCount * this.scene.meshes[0].geometry.uniformBuffer.store.length);
+      this.scene.meshes.forEach((mesh, i) => {
+        mesh.order = i;
+        transformsStorage.set(mesh.geometry.uniformBuffer.store, i * mesh.geometry.uniformBuffer.store.length);
+        if (mesh.matrices.length) {
+          mesh.matrices.forEach((matrix, j) => {
+            transformsStorage.set(matrix.elements, (i + j + 1) * mesh.geometry.uniformBuffer.store.length);
+          });
+        }
+      });
+      const storageBuffer2 = { store: transformsStorage };
+      this.scene.meshes[0].geometry.updateUniformsWebGPU(WebGPU2, storageBuffer2, GPUBufferUsage.STORAGE);
+      this.transformsStorage = storageBuffer2;
+      this.materialStorage = storageBuffer;
+      const uniformBindGroup1 = [
+        {
+          binding: 0,
+          resource: storageBuffer2.bufferWebGPU
+        },
+        {
+          binding: 1,
+          resource: storageBuffer.bufferWebGPU
+        },
+        {
+          binding: 39,
+          resource: cameraBuffer.bufferWebGPU
+        },
+        {
+          binding: 16,
+          resource: lightPosBuffer.bufferWebGPU
+        },
+        {
+          binding: 15,
+          resource: lightColorBuffer.bufferWebGPU
+        },
+        {
+          binding: 17,
+          resource: spotdirBuffer.bufferWebGPU
+        },
+        {
+          binding: 18,
+          resource: lightIntensityBuffer.bufferWebGPU
+        }
+      ];
+      const prevProgramHash = /* @__PURE__ */ new Map();
+      const uniformBindGroup2 = [];
+      this.scene.meshes.forEach((mesh) => {
+        mesh.geometry.createGeometryForWebGPU(WebGPU2, mesh.order);
+        mesh.geometry.uniformBindGroup1 = [];
+        mesh.material.updateUniformsWebGPU(WebGPU2);
+        mesh.material.uniformBindGroup1.push(
+          {
+            binding: 19,
+            resource: this.env.prefilterTexture.view
+          },
+          {
+            binding: 20,
+            resource: this.env.irradianceTexture.view
+          },
+          {
+            binding: 21,
+            resource: this.env.bdrfTexture.view
+          },
+          {
+            binding: 28,
+            resource: this.env.Sheen_E.view
+          },
+          {
+            binding: 26,
+            resource: mesh.defines.find((i) => i.name === "TRANSMISSION") ? refraction.texture.texture.createView() : this.PP.fakeDepth.view
+          },
+          {
+            binding: 35,
+            resource: this.env.charlieTexture.view
+          },
+          {
+            binding: 30,
+            resource: uniformBuffer
+          }
+        );
+        if (this.env.uniformBuffer) {
+          mesh.material.uniformBindGroup1.push({
+            binding: 27,
+            resource: this.env.uniformBuffer.bufferWebGPU
+          });
+        }
+        if (mesh instanceof SkinnedMesh) {
+          for (const join of this.parse.skins[mesh.skin].jointNames) {
+            walk(this.scene, this.buildBones.bind(this, join, this.parse.skins[mesh.skin]));
+          }
+          mesh.geometry.uniformBindGroup1.push(mesh.setSkinWebGPU(WebGPU2, this.parse.skins[mesh.skin]));
+        }
+        const id = mesh.material.baseColorTexture ? mesh.material.baseColorTexture.sampler.id : "";
+        const programHash = mesh.mode + id + mesh.material.defines.map((define2) => `${define2.name}${define2.value ?? 1}`).join("");
+        if (!prevProgramHash.has(programHash)) {
+          prevProgramHash.set(
+            programHash,
+            create(
+              WebGPU2.device,
+              WebGPU2.glslang,
+              WebGPU2.wgsl,
+              mesh.material.uniformBindGroup1,
+              mesh.defines,
+              mesh.mode,
+              mesh.frontFace
+            )
+          );
+        }
+        let group = check(uniformBindGroup2, mesh.material.uniformBindGroup1);
+        if (!group) {
+          group = {
+            k: mesh.material.uniformBindGroup1,
+            v: WebGPU2.device.createBindGroup({
+              layout: prevProgramHash.get(programHash)[0].getBindGroupLayout(0),
+              entries: [...uniformBindGroup1, ...mesh.geometry.uniformBindGroup1, ...mesh.material.uniformBindGroup1]
+            })
+          };
+          uniformBindGroup2.push(group);
+        }
+        mesh.pipeline = prevProgramHash.get(programHash)[0];
+        mesh.pipeline2 = prevProgramHash.get(programHash)[1];
+        mesh.uniformBindGroup1 = group.v;
+      });
       this.scene.tracks = this.parse.tracks;
       this.scene.cameras = this.parse.cameras;
       this.scene.lights = this.parse.lights;

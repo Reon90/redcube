@@ -417,7 +417,9 @@ class RedCube {
         });
 
         if (!context) {
-            throw new Error('RedCube: WebGL2 is not supported by this browser/canvas - use the WebGPU or Node build instead, or check that the canvas has no other active rendering context');
+            throw new Error(
+                'RedCube: WebGL2 is not supported by this browser/canvas - use the WebGPU or Node build instead, or check that the canvas has no other active rendering context',
+            );
         }
 
         gl = context;
