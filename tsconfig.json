@@ -5,7 +5,7 @@
       "module": "es2020",
       "target": "esnext",
       "skipLibCheck": true,
-      "types": ["jest", "@webgpu/types"]
+      "types": ["vitest/globals", "@webgpu/types"]
   },
   "include": [
       "./src/**/*",
