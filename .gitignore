@@ -5,4 +5,4 @@ dist/redcube.webgpu.js.map
 dist/redcube.node.cjs.map
 coverage/
 test-results/
-tests/
+tests/diffs/
