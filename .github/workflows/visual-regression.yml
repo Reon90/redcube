@@ -1,0 +1,61 @@
+name: Visual Regression (WebGL)
+
+on:
+    pull_request:
+    workflow_dispatch:
+
+permissions:
+    contents: read
+
+jobs:
+    visual-regression:
+        runs-on: ubuntu-latest
+        strategy:
+            fail-fast: false
+            matrix:
+                shard: [1, 2, 3, 4]
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: '22'
+                  cache: npm
+
+            - run: npm ci
+
+            - run: npx playwright install --with-deps chromium
+
+            - run: npm run build
+
+            - name: Start dev server
+              run: |
+                  npm run serve &
+                  for i in $(seq 1 30); do
+                    curl -sf http://localhost:8080/index.html -o /dev/null && exit 0
+                    sleep 1
+                  done
+                  echo "server never became ready" >&2
+                  exit 1
+
+            # The tracked playwright.config.ts intentionally runs headed Chromium
+            # (headless: false) - headless rendering was verified to NOT match
+            # these baselines (different WebGL output, different page theme), so
+            # we run headed under a virtual display instead of switching to
+            # headless mode.
+            - name: Install xvfb
+              run: sudo apt-get update && sudo apt-get install -y xvfb
+
+            - name: Run visual regression tests (shard ${{ matrix.shard }}/4)
+              env:
+                  MODE: webgl
+              run: xvfb-run --auto-servernum -- npx playwright test --shard=${{ matrix.shard }}/4
+
+            - name: Upload diffs on failure
+              if: failure()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: visual-diffs-shard-${{ matrix.shard }}
+                  path: tests/diffs/
+                  retention-days: 14
+                  if-no-files-found: ignore

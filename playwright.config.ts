@@ -3,6 +3,13 @@ import { defineConfig, devices } from 'playwright/test';
 export default defineConfig({
     testDir: './tests',
     timeout: 60_000,
+    // Required for --shard to actually split work: without this, Playwright
+    // keeps each file's tests together on one shard, and since all models
+    // live in one spec file, every shard but one gets zero tests. workers is
+    // capped rather than left to auto-detect CPU count, since running many
+    // WebGL renders concurrently on one machine/runner risks GPU contention.
+    fullyParallel: true,
+    workers: 2,
     use: {
         headless: false,
         viewport: { width: 1280, height: 720 },
