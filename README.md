@@ -34,41 +34,51 @@ The javascript rendering library for [Khronos glTF 2.0 format](https://github.co
 &bull; KHR_draco_mesh_compression
 
 &bull; KHR_materials_dispersion
+
 <p><img src="./img/dispersion.webp" alt="KHR_materials_dispersion"></p>
 
 &bull; KHR_materials_anisotropy
+
 <p><img src="./img/anisotropy.webp" alt="KHR_materials_anisotropy"></p>
 
 &bull; KHR_materials_diffuse_transmission
+
 <p><img src="./img/translucency.webp" alt="KHR_materials_diffuse_transmission"></p>
 &bull; KHR_materials_diffuse_transmission + subsurface scatering
 <p><img src="./img/sss.webp" alt="sss"></p>
 
 &bull; KHR_lights_punctual
+
 <p><img src="./img/lights.webp" alt="KHR_lights_punctual"></p>
 
 &bull; KHR_materials_clearcoat
+
 <p><img src="./img/clearcoat.webp" alt="KHR_materials_clearcoat"></p>
 
 &bull; KHR_materials_pbrSpecularGlossiness
 
 &bull; KHR_materials_sheen
+
 <p><img src="./img/sheen.webp" alt="KHR_materials_sheen"></p>
 
 &bull; KHR_materials_transmission
+
 <p><img src="./img/transmission.webp" alt="KHR_materials_transmission"></p>
 
 &bull; KHR_materials_volume
+
 <p><img src="./img/volume.webp" alt="KHR_materials_volume"></p>
 
 &bull; KHR_materials_emissive_strength
 
 &bull; KHR_materials_iridescence
+
 <p><img src="./img/iridescence.webp" alt="KHR_materials_iridescence"></p>
 
 &bull; KHR_materials_unlit
 
 &bull; KHR_materials_variants
+
 <p><img src="./img/variants.webp" alt="KHR_materials_variants"></p>
 
 &bull; KHR_mesh_quantization
@@ -78,9 +88,11 @@ The javascript rendering library for [Khronos glTF 2.0 format](https://github.co
 &bull; KHR_texture_transform
 
 &bull; EXT_lights_image_based
+
 <p><img src="./img/ibl.webp" alt="EXT_lights_image_based"></p>
 
 &bull; KHR_materials_ior
+
 <p><img src="./img/ior.webp" alt="KHR_materials_ior"></p>
 
 [Check list](https://github.com/cx20/gltf-test)
@@ -100,6 +112,7 @@ The javascript rendering library for [Khronos glTF 2.0 format](https://github.co
 &bull; [Sketchfab](https://sketchfab.com/models?features=downloadable&sort_by=-likeCount) 100,000+ models
 
 ## Install
+
 ```
 npm install redcube.js
 ```
@@ -154,3 +167,13 @@ The Node build (`dist/redcube.node.cjs`, importable via the `redcube.js/node`
 subpath) is a real CommonJS module for headless parsing/validation use cases.
 TypeScript consumers get full type declarations from all three (`redcube.js`,
 `redcube.js/webgpu`, `redcube.js/node`).
+
+## Known limitations
+
+&bull; **One `RedCube` instance per page.** The renderer currently keeps its
+WebGL/WebGPU context and related state in module-level variables rather than
+per-instance. Creating a second `RedCube` (e.g. a second canvas on the same
+page) will have its `init()` overwrite the first instance's rendering state,
+causing silent corruption rather than an error. This is a known architectural
+issue, not an intentional design choice — fixing it (moving to per-instance
+state) is on the roadmap.
