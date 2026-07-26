@@ -1,14 +1,11 @@
 {
-  "compilerOptions": {
-      "outDir": "./dist",
-      "allowJs": true,
-      "module": "es2020",
-      "target": "esnext",
-      "skipLibCheck": true,
-      "types": ["vitest/globals", "@webgpu/types"]
-  },
-  "include": [
-      "./src/**/*",
-      "./index.d.ts"
-  ]
+    "compilerOptions": {
+        "outDir": "./dist",
+        "allowJs": true,
+        "module": "es2020",
+        "target": "esnext",
+        "skipLibCheck": true,
+        "types": ["vitest/globals", "@webgpu/types"]
+    },
+    "include": ["./src/**/*", "./index.d.ts"]
 }

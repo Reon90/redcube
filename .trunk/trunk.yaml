@@ -27,6 +27,24 @@ lint:
     disabled:
         - git-diff-check
         - eslint
+    ignore:
+        # Generated build output - regenerated on every `npm run build`,
+        # reformatting it is pointless and it'll drift again immediately.
+        - linters: [prettier]
+          paths:
+              - dist/**
+        # Vendored/third-party code we don't reformat (same reasoning as
+        # oxlint's src/perlin.js exclusion) and a one-off, unreferenced
+        # manual HDR-conversion utility script.
+        - linters: [prettier]
+          paths:
+              - glslang.js
+              - libktx.js
+              - twgsl.js
+              - webgl-memory.js
+              - webgpu-memory.js
+              - src/perlin.js
+              - hdr.js
 actions:
     disabled:
         - trunk-announce

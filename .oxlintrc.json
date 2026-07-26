@@ -1,37 +1,29 @@
 {
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": [
-    "typescript",
-    "unicorn",
-    "oxc"
-  ],
-  "categories": {
-    "correctness": "error"
-  },
-  "rules": {
-    "eqeqeq": "error",
-    "no-empty": "error",
-    "no-redeclare": "error",
-    "no-var": "error",
-    "prefer-arrow-callback": "error",
-    "prefer-const": "error",
-    "prefer-destructuring": ["error", {
-      "VariableDeclarator": { "array": true, "object": true },
-      "AssignmentExpression": { "array": false, "object": true }
-    }],
-    "prefer-rest-params": "error",
-    "prefer-spread": "error",
-    "prefer-template": "error"
-  },
-  "env": {
-    "builtin": true
-  },
-  "ignorePatterns": [
-    "dist/**",
-    "examples/**",
-    "tests/**",
-    "coverage/**",
-    "test-results/**",
-    "**/*.js"
-  ]
+    "$schema": "./node_modules/oxlint/configuration_schema.json",
+    "plugins": ["typescript", "unicorn", "oxc"],
+    "categories": {
+        "correctness": "error"
+    },
+    "rules": {
+        "eqeqeq": "error",
+        "no-empty": "error",
+        "no-redeclare": "error",
+        "no-var": "error",
+        "prefer-arrow-callback": "error",
+        "prefer-const": "error",
+        "prefer-destructuring": [
+            "error",
+            {
+                "VariableDeclarator": { "array": true, "object": true },
+                "AssignmentExpression": { "array": false, "object": true }
+            }
+        ],
+        "prefer-rest-params": "error",
+        "prefer-spread": "error",
+        "prefer-template": "error"
+    },
+    "env": {
+        "builtin": true
+    },
+    "ignorePatterns": ["dist/**", "examples/**", "tests/**", "coverage/**", "test-results/**", "**/*.js"]
 }

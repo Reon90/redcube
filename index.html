@@ -1,226 +1,227 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-
-<head>
-    <meta charset="UTF-8">
-    <title>Document</title>
-    <style type="text/css">
-        body {
-            background: #000;
-            margin: 0;
-            color: #fff;
-            font-family: Helvetica, Arial;
-        }
-        canvas {
-            width: 100%;
-            height: 100vh;
-            vertical-align: top;
-        }
-        input,
-        select {
-            vertical-align: middle;
-        }
-        #selector {
-            position: absolute;
-            top: 0;
-            left: 0;
-        }
-    </style>
-    <script>
-        const url = new URL(location);
-        if (url.searchParams.get('webgpu') === '1') {
-            if (!navigator.gpu) {
-                document.write('<h1>WebGPU is not supported on your platform so far.</h1>');
+    <head>
+        <meta charset="UTF-8" />
+        <title>Document</title>
+        <style type="text/css">
+            body {
+                background: #000;
+                margin: 0;
+                color: #fff;
+                font-family: Helvetica, Arial;
             }
-            document.write('<script src="./redcube.webgpu.js"><\/script>');
-        } else {
-            document.write('<script src="./redcube.js"><\/script>');
-        }
-    </script>
-</head>
+            canvas {
+                width: 100%;
+                height: 100vh;
+                vertical-align: top;
+            }
+            input,
+            select {
+                vertical-align: middle;
+            }
+            #selector {
+                position: absolute;
+                top: 0;
+                left: 0;
+            }
+        </style>
+        <script>
+            const url = new URL(location);
+            if (url.searchParams.get('webgpu') === '1') {
+                if (!navigator.gpu) {
+                    document.write('<h1>WebGPU is not supported on your platform so far.</h1>');
+                }
+                document.write('<script src="./redcube.webgpu.js"><\/script>');
+            } else {
+                document.write('<script src="./redcube.js"><\/script>');
+            }
+        </script>
+    </head>
 
-<body>
-    <div>
-        <canvas id="canvas"></canvas>
-        <div id="selector"></div>
-    </div>
-    <script>
-        fetch('https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/model-index.json')
-            .then(r => r.json())
-            .then(samples => {
-                const name = new URL(location).searchParams.get('model') || localStorage.getItem('sample') || 'DamagedHelmet';
-                const canvas = document.getElementById('canvas');
-                const select = document.createElement('select');
-                select.onchange = () => {
-                    localStorage.setItem('sample', select.value);
-                    localStorage.removeItem('variant');
-                    window.location.reload();
-                }
-                samples.forEach((it) => {
-                    const option = document.createElement('option');
-                    option.innerHTML = it.name;
-                    option.value = it.name;
-                    select.appendChild(option);
-                });
-                select.value = name;
-                selector.appendChild(select);
-
-                const model = samples.find(s => s.name === name);
-                let url;
-                if (model.variants['glTF-Binary']) {
-                    url = name + '/glTF-Binary/' + name + '.glb';
-                }
-                if (model.variants.glTF) {
-                    url = name + '/glTF/' + name + '.gltf';
-                }
-                if (localStorage.getItem('variant')) {
-                    url = name + '/' + localStorage.getItem('variant');
-                }
-
-                {
+    <body>
+        <div>
+            <canvas id="canvas"></canvas>
+            <div id="selector"></div>
+        </div>
+        <script>
+            fetch('https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/model-index.json')
+                .then((r) => r.json())
+                .then((samples) => {
+                    const name = new URL(location).searchParams.get('model') || localStorage.getItem('sample') || 'DamagedHelmet';
+                    const canvas = document.getElementById('canvas');
                     const select = document.createElement('select');
                     select.onchange = () => {
-                        localStorage.setItem('variant', select.value);
+                        localStorage.setItem('sample', select.value);
+                        localStorage.removeItem('variant');
                         window.location.reload();
-                    }
-                    Object.entries(model.variants).forEach(([k,v]) => {
+                    };
+                    samples.forEach((it) => {
                         const option = document.createElement('option');
-                        option.innerHTML = k;
-                        option.value = k+'/'+v;
+                        option.innerHTML = it.name;
+                        option.value = it.name;
                         select.appendChild(option);
                     });
+                    select.value = name;
+                    selector.appendChild(select);
+
+                    const model = samples.find((s) => s.name === name);
+                    let url;
+                    if (model.variants['glTF-Binary']) {
+                        url = name + '/glTF-Binary/' + name + '.glb';
+                    }
+                    if (model.variants.glTF) {
+                        url = name + '/glTF/' + name + '.gltf';
+                    }
                     if (localStorage.getItem('variant')) {
-                        select.value = localStorage.getItem('variant');
+                        url = name + '/' + localStorage.getItem('variant');
                     }
-                    selector.appendChild(select);
-                }
-                // ['bloom', 'ssao', 'shadow', 'light'].forEach(name => {
-                //     const label = document.createElement('label');
-                //     label.style.padding = '0 0 0 10px';
-                //     label.innerHTML = name;
-                //     const checkbox = document.createElement('input');
-                //     checkbox.type = 'checkbox';
-                //     checkbox.title = name;
-                //     checkbox.checked = Boolean(localStorage.getItem(name));
-                //     checkbox.onchange = () => {
-                //         if (checkbox.checked) {
-                //             localStorage.setItem(name, name);
-                //         } else {
-                //             localStorage.removeItem(name);
-                //         }
-                //         window.location.reload();
-                //     };
-                //     label.prepend(checkbox);
-                //     selector.appendChild(label);
-                // });
-                const span = document.createElement('span');
-                span.style.padding = '0 10px';
-                span.innerHTML = 'light position';
-                const slider = document.createElement('input');
-                slider.oninput = () => {
-                    renderer.light.update(Number(slider.value));
-                    renderer.renderer.reflow = true;
-                    renderer.renderer.needUpdateView = true;
-                };
-                slider.type = 'range';
-                slider.min = '0';
-                slider.max = `${Math.PI*2}`;
-                slider.step = '0.1';
-                slider.title = 'light';
-                span.prepend(slider);
-                selector.appendChild(span);
-                slider.value = 0;
 
-                const envname = localStorage.getItem('env') || 'env';
-                {
-                    const select = document.createElement('select');
-                    select.onchange = () => {
-                        localStorage.setItem('env', select.value);
-                        window.location.reload();
-                    }
-                    ['env', 'env1', 'env2', 'env3', 'env4', 'env5'].forEach((it) => {
-                        const option = document.createElement('option');
-                        option.innerHTML = it;
-                        option.value = it;
-                        select.appendChild(option);
-                    });
-                    select.value = envname;
-                    selector.appendChild(select);
-                }
-
-                const mode = localStorage.getItem('mode') || 'pbr';
-                {
-                    const select = document.createElement('select');
-                    select.onchange = () => {
-                        localStorage.setItem('mode', select.value);
-                        window.location.reload();
-                    }
-                    ['phong', 'pbr'].forEach((it) => {
-                        const option = document.createElement('option');
-                        option.innerHTML = it;
-                        option.value = it;
-                        select.appendChild(option);
-                    });
-                    select.value = mode;
-                    selector.appendChild(select);
-                }
-
-                //https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/
-                window.renderer = new redcube.RedCube(
-                    'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/' + url,
-                    canvas, 
-                    [],
-                    `${localStorage.getItem('env') || 'env'}.hdr`,
-                    mode
-                );
-                renderer.init(() => {
-                    if (renderer.parse.cameras.length) {
-                        const animations = document.createElement('select');
-                        animations.innerHTML = '<option hidden>animations</option>';
-                        renderer.parse.tracks.forEach((it, i) => {
-                            const option = document.createElement('option');
-                            option.innerHTML = `animation${i}`;
-                            option.value = i;
-                            animations.appendChild(option);
-                        });
-                        animations.onchange = () => {
-                            renderer.renderer.currentTrack = animations.value;
-                        }
-
-                        const variants = document.createElement('select');
-                        variants.innerHTML = '<option hidden>variants</option>';
-                        renderer.scene.variants.forEach((it,i) => {
-                            const option = document.createElement('option');
-                            option.innerHTML = it.name;
-                            option.value = i;
-                            variants.appendChild(option);
-                        });
-                        variants.onchange = () => {
-                            renderer.setVariant(variants.value);
-                        }
-
+                    {
                         const select = document.createElement('select');
                         select.onchange = () => {
-                            renderer.ioc._updateDep('camera', renderer.parse.cameras.find((it) => { 
-                                return Number(select.value) === it.name; 
-                            }));
-                            renderer.renderer.needUpdateView = true;
-                            renderer.draw();
-                        }
-                        renderer.parse.cameras.forEach((it) => {
+                            localStorage.setItem('variant', select.value);
+                            window.location.reload();
+                        };
+                        Object.entries(model.variants).forEach(([k, v]) => {
                             const option = document.createElement('option');
-                            option.innerHTML = it.name;
-                            option.value = it.name;
+                            option.innerHTML = k;
+                            option.value = k + '/' + v;
                             select.appendChild(option);
                         });
-                        select.value =  renderer.parse.cameras[ renderer.parse.cameras.length - 1].name;
+                        if (localStorage.getItem('variant')) {
+                            select.value = localStorage.getItem('variant');
+                        }
                         selector.appendChild(select);
-                        selector.appendChild(animations);
-                        selector.appendChild(variants);
                     }
-                });
-            });
-    </script>
-</body>
+                    // ['bloom', 'ssao', 'shadow', 'light'].forEach(name => {
+                    //     const label = document.createElement('label');
+                    //     label.style.padding = '0 0 0 10px';
+                    //     label.innerHTML = name;
+                    //     const checkbox = document.createElement('input');
+                    //     checkbox.type = 'checkbox';
+                    //     checkbox.title = name;
+                    //     checkbox.checked = Boolean(localStorage.getItem(name));
+                    //     checkbox.onchange = () => {
+                    //         if (checkbox.checked) {
+                    //             localStorage.setItem(name, name);
+                    //         } else {
+                    //             localStorage.removeItem(name);
+                    //         }
+                    //         window.location.reload();
+                    //     };
+                    //     label.prepend(checkbox);
+                    //     selector.appendChild(label);
+                    // });
+                    const span = document.createElement('span');
+                    span.style.padding = '0 10px';
+                    span.innerHTML = 'light position';
+                    const slider = document.createElement('input');
+                    slider.oninput = () => {
+                        renderer.light.update(Number(slider.value));
+                        renderer.renderer.reflow = true;
+                        renderer.renderer.needUpdateView = true;
+                    };
+                    slider.type = 'range';
+                    slider.min = '0';
+                    slider.max = `${Math.PI * 2}`;
+                    slider.step = '0.1';
+                    slider.title = 'light';
+                    span.prepend(slider);
+                    selector.appendChild(span);
+                    slider.value = 0;
 
+                    const envname = localStorage.getItem('env') || 'env';
+                    {
+                        const select = document.createElement('select');
+                        select.onchange = () => {
+                            localStorage.setItem('env', select.value);
+                            window.location.reload();
+                        };
+                        ['env', 'env1', 'env2', 'env3', 'env4', 'env5'].forEach((it) => {
+                            const option = document.createElement('option');
+                            option.innerHTML = it;
+                            option.value = it;
+                            select.appendChild(option);
+                        });
+                        select.value = envname;
+                        selector.appendChild(select);
+                    }
+
+                    const mode = localStorage.getItem('mode') || 'pbr';
+                    {
+                        const select = document.createElement('select');
+                        select.onchange = () => {
+                            localStorage.setItem('mode', select.value);
+                            window.location.reload();
+                        };
+                        ['phong', 'pbr'].forEach((it) => {
+                            const option = document.createElement('option');
+                            option.innerHTML = it;
+                            option.value = it;
+                            select.appendChild(option);
+                        });
+                        select.value = mode;
+                        selector.appendChild(select);
+                    }
+
+                    //https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/
+                    window.renderer = new redcube.RedCube(
+                        'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/' + url,
+                        canvas,
+                        [],
+                        `${localStorage.getItem('env') || 'env'}.hdr`,
+                        mode,
+                    );
+                    renderer.init(() => {
+                        if (renderer.parse.cameras.length) {
+                            const animations = document.createElement('select');
+                            animations.innerHTML = '<option hidden>animations</option>';
+                            renderer.parse.tracks.forEach((it, i) => {
+                                const option = document.createElement('option');
+                                option.innerHTML = `animation${i}`;
+                                option.value = i;
+                                animations.appendChild(option);
+                            });
+                            animations.onchange = () => {
+                                renderer.renderer.currentTrack = animations.value;
+                            };
+
+                            const variants = document.createElement('select');
+                            variants.innerHTML = '<option hidden>variants</option>';
+                            renderer.scene.variants.forEach((it, i) => {
+                                const option = document.createElement('option');
+                                option.innerHTML = it.name;
+                                option.value = i;
+                                variants.appendChild(option);
+                            });
+                            variants.onchange = () => {
+                                renderer.setVariant(variants.value);
+                            };
+
+                            const select = document.createElement('select');
+                            select.onchange = () => {
+                                renderer.ioc._updateDep(
+                                    'camera',
+                                    renderer.parse.cameras.find((it) => {
+                                        return Number(select.value) === it.name;
+                                    }),
+                                );
+                                renderer.renderer.needUpdateView = true;
+                                renderer.draw();
+                            };
+                            renderer.parse.cameras.forEach((it) => {
+                                const option = document.createElement('option');
+                                option.innerHTML = it.name;
+                                option.value = it.name;
+                                select.appendChild(option);
+                            });
+                            select.value = renderer.parse.cameras[renderer.parse.cameras.length - 1].name;
+                            selector.appendChild(select);
+                            selector.appendChild(animations);
+                            selector.appendChild(variants);
+                        }
+                    });
+                });
+        </script>
+    </body>
 </html>

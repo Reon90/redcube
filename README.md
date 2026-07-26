@@ -113,7 +113,7 @@ The javascript rendering library for [Khronos glTF 2.0 format](https://github.co
 
 ## Install
 
-```
+```sh
 npm install redcube.js
 ```
 

@@ -22,7 +22,7 @@ declare module '*.hdr' {
 }
 
 interface WEBGPU {
-    features: GPUSupportedFeatures,
+    features: GPUSupportedFeatures;
     glslang: any;
     wgsl: any;
     context: GPUCanvasContext;
