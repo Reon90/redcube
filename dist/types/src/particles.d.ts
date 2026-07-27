@@ -2,6 +2,7 @@ import { GLTexture } from './utils';
 import { Camera } from './objects/index';
 type Texture = GLTexture;
 export declare class Particles {
+    gl: WebGL2RenderingContext;
     currentSourceIdx: number;
     program: WebGLProgram;
     program2: WebGLProgram;

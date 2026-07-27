@@ -94,8 +94,8 @@ export class SSAO extends PostProcessor {
         this.ssaoBlurTexture = pp.createOneChannelTexture(this.scale);
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.ssaoTexture, 0);
 
-        this.ssaoProgram = createProgram(quadShader, ssaoShader);
-        this.ssaoBlurProgram = createProgram(quadShader, ssaoBlurShader);
+        this.ssaoProgram = createProgram(gl, quadShader, ssaoShader);
+        this.ssaoBlurProgram = createProgram(gl, quadShader, ssaoBlurShader);
 
         this.buildNoice(pp);
         this.buildKernels();

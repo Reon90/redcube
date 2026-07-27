@@ -10,10 +10,10 @@ import instanceTransShader from './shaders/instance-trans.glsl';
 
 type Texture = GLTexture;
 
-let gl: WebGL2RenderingContext;
 const amount = 1000;
 
 export class Particles {
+    gl!: WebGL2RenderingContext;
     currentSourceIdx!: number;
     program!: WebGLProgram;
     program2!: WebGLProgram;
@@ -28,7 +28,7 @@ export class Particles {
     }
 
     setGl(g: WebGL2RenderingContext) {
-        gl = g;
+        this.gl = g;
     }
 
     setCamera(camera: Camera) {
@@ -36,10 +36,11 @@ export class Particles {
     }
 
     build() {
+        const { gl } = this;
         this.currentSourceIdx = 0;
         const program = gl.createProgram()!;
-        compileShader(gl.VERTEX_SHADER, instanceTransShader, program);
-        compileShader(gl.FRAGMENT_SHADER, instanceFragShader2, program);
+        compileShader(gl, gl.VERTEX_SHADER, instanceTransShader, program);
+        compileShader(gl, gl.FRAGMENT_SHADER, instanceFragShader2, program);
 
         const varyings = ['v_position', 'v_velocity', 'v_spawntime', 'v_lifetime'];
         gl.transformFeedbackVaryings(program, varyings, gl.SEPARATE_ATTRIBS);
@@ -47,7 +48,7 @@ export class Particles {
         gl.linkProgram(program);
         this.program = program;
 
-        const program2 = createProgram(instanceShader, instanceFragShader);
+        const program2 = createProgram(gl, instanceShader, instanceFragShader);
         this.program2 = program2;
 
         const VAO = [gl.createVertexArray()!, gl.createVertexArray()!];
@@ -138,7 +139,7 @@ export class Particles {
             }
         }
 
-        this.texture3d = createTexture(gl.TEXTURE_3D);
+        this.texture3d = createTexture(gl, gl.TEXTURE_3D);
         gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_BASE_LEVEL, 0);
         gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MAX_LEVEL, Math.log2(SIZE));
         gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
@@ -159,6 +160,7 @@ export class Particles {
     }
 
     draw(time: number) {
+        const { gl } = this;
         gl.enable(gl.BLEND);
         gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 

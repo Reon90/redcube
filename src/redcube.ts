@@ -7,7 +7,7 @@ import { Env } from './env';
 import { Parse, Define, Skin } from './parse';
 import { PostProcessing } from './postprocessing';
 import { Particles } from './particles';
-import { setGl, clearColor, walk, GLTexture } from './utils';
+import { clearColor, walk, GLTexture } from './utils';
 import { Light as PPLight } from './postprocessors/light';
 import { Refraction } from './postprocessors/refraction';
 import '../webgl-memory';
@@ -425,7 +425,6 @@ class RedCube {
         gl = context;
         this.gl = gl;
 
-        setGl(gl);
         this.ioc.register('gl', gl);
 
         let ext = gl.getExtension('EXT_color_buffer_float');

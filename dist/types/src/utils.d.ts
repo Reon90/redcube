@@ -57,7 +57,6 @@ export declare const textureEnum: {
     anisotropyTexture: number;
     iridescenceTexture: number;
 };
-export declare function setGl(_gl: WebGL2RenderingContext): void;
 export declare function isMatrix(type: number): boolean;
 export declare function random(min: number, max: number): number;
 export declare function lerp(a: number, b: number, f: number): number;
@@ -72,9 +71,9 @@ export declare function interpolation(time: number, frames: {
 export declare const ArrayBufferMap: Map<any, any>;
 export declare function buildArrayWithStride(arrayBuffer: ArrayBufferLike, accessor: Accessor, bufferView: BufferView): TypedArray | undefined;
 export declare function buildArray(arrayBuffer: ArrayBufferLike, type: number, offset: number, length: number): TypedArray | undefined;
-export declare function compileShader(type: GLenum, shaderSource: string, program: WebGLProgram): void;
-export declare function createProgram(vertex: string, fragment: string): WebGLProgram;
-export declare function createTexture(type?: GLenum, index?: number): GLTexture;
+export declare function compileShader(gl: WebGL2RenderingContext, type: GLenum, shaderSource: string, program: WebGLProgram): void;
+export declare function createProgram(gl: WebGL2RenderingContext, vertex: string, fragment: string): WebGLProgram;
+export declare function createTexture(gl: WebGL2RenderingContext, type?: GLenum, index?: number): GLTexture;
 export declare function walk<R extends {
     children?: C[];
 }, C extends {
@@ -89,7 +88,7 @@ export declare function calculateUVs(vertex: ArrayLike<number>, normal: ArrayLik
 export declare function calculateNormals2(vertex: ArrayLike<number>): Float32Array<ArrayBuffer>;
 export declare function calculateNormals(index: ArrayLike<number>, vertex: ArrayLike<number>): Float32Array<ArrayBuffer>;
 export declare function calculateBinormals(index: ArrayLike<number>, vertex: ArrayLike<number>, normal: ArrayLike<number>, uv: ArrayLike<number>): Float32Array<ArrayBuffer>;
-export declare function measureGPU(): void;
+export declare function measureGPU(gl: WebGL2RenderingContext): void;
 export declare function getGlEnum(name: number): string;
 export declare function normalize(array: Uint8Array | Int8Array | Uint16Array | Int16Array | Uint32Array | Float32Array | number[]): Float32Array | Uint8Array | Int8Array | Uint16Array | Int16Array | Uint32Array | number[];
 export declare function generateMipmaps(device: GPUDevice, texture: GPUTexture, width: number, height: number, mipLevelCount: number, { isCube }?: {

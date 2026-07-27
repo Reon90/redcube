@@ -163,7 +163,7 @@ export class PostProcessing {
     }
 
     createByteTexture() {
-        const texture = createTexture();
+        const texture = createTexture(gl);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, this.width, this.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
@@ -171,7 +171,7 @@ export class PostProcessing {
     }
 
     createDefaultTexture(scale: number = 1, hasMipmap = false) {
-        const texture = createTexture();
+        const texture = createTexture(gl);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
         if (hasMipmap) {
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
@@ -184,7 +184,7 @@ export class PostProcessing {
     }
 
     createOneChannelTexture(scale: number = 1) {
-        const texture = createTexture();
+        const texture = createTexture(gl);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, this.width / scale, this.height / scale, 0, gl.RED, gl.UNSIGNED_BYTE, null);
@@ -192,7 +192,7 @@ export class PostProcessing {
     }
 
     createDepthTexture() {
-        const texture = createTexture();
+        const texture = createTexture(gl);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.DEPTH_COMPONENT24, this.width, this.height, 0, gl.DEPTH_COMPONENT, gl.UNSIGNED_INT, null);
@@ -200,7 +200,7 @@ export class PostProcessing {
     }
 
     createNoiceTexture(size: number, data: Float32Array) {
-        const texture = createTexture();
+        const texture = createTexture(gl);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
@@ -279,7 +279,7 @@ export class PostProcessing {
 
         const defines = this.postprocessors.map((postProcessor) => postProcessor.buildScreenBuffer(this));
         const defineStr = defines.map((define) => `#define ${define.name} ${define.value ?? 1}` + '\n').join('');
-        this.program = createProgram(quadShader.replace(/\n/, `\n${defineStr}`), composerShader.replace(/\n/, `\n${defineStr}`));
+        this.program = createProgram(gl, quadShader.replace(/\n/, `\n${defineStr}`), composerShader.replace(/\n/, `\n${defineStr}`));
     }
 
     clear() {

@@ -167,14 +167,6 @@ describe('getTextureIndex', () => {
     });
 });
 
-describe('setGl', () => {
-    it('should set the gl variable', () => {
-        const fakeGl = {} as WebGL2RenderingContext;
-        utils.setGl(fakeGl);
-        // No error means pass; gl is module-scoped
-    });
-});
-
 describe('isMatrix', () => {
     it('should return true for FLOAT_MAT4, FLOAT_MAT3, FLOAT_MAT2', () => {
         const FLOAT_MAT2 = 35674,

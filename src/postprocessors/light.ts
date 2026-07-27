@@ -62,7 +62,7 @@ export class Light extends PostProcessor {
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
         this.texture = PP.createOneChannelTexture(this.scale);
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.texture, 0);
-        this.program = createProgram(lightVertShader, lightShader);
+        this.program = createProgram(gl, lightVertShader, lightShader);
 
         this.quadVAO = gl.createVertexArray()!;
         gl.bindVertexArray(this.quadVAO);

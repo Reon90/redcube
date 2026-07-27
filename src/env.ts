@@ -101,17 +101,18 @@ export class Env {
         gl.enable(gl.CULL_FACE);
         const program = gl.createProgram();
         compileShader(
+            gl,
             gl.VERTEX_SHADER,
             `#version 300 es
         precision highp float;
-        
+
         layout (location = 0) in vec2 inPosition;
-        
+
         out vec2 outUV;
 
         uniform mat4 projection;
         uniform mat4 view;
-        
+
         void main() {
             outUV = inPosition * 0.5 + 0.5;
             gl_Position = vec4(inPosition, 0.0, 1.0);
@@ -120,18 +121,19 @@ export class Env {
             program,
         );
         compileShader(
+            gl,
             gl.FRAGMENT_SHADER,
             `#version 300 es
         precision highp float;
-        
+
         in vec2 outUV;
         layout (location = 0) out vec4 color;
 
         uniform sampler2D environmentMap;
-        
+
         void main() {
             vec3 c = texture(environmentMap, vec2(0.0, 1.0)).rgb;
-            
+
             color = vec4(c, 1.0);
         }
         `,
@@ -160,6 +162,7 @@ export class Env {
         gl.enable(gl.CULL_FACE);
         const program = gl.createProgram();
         compileShader(
+            gl,
             gl.VERTEX_SHADER,
             `#version 300 es
         precision highp float;
@@ -180,6 +183,7 @@ export class Env {
             program,
         );
         compileShader(
+            gl,
             gl.FRAGMENT_SHADER,
             `#version 300 es
         precision highp float;
@@ -397,7 +401,7 @@ export class Env {
             this.irradiancebuffer.size = size;
             gl.bindFramebuffer(gl.FRAMEBUFFER, captureFBO);
 
-            const texture = createTexture(gl.TEXTURE_CUBE_MAP, textureEnum.irradianceTexture);
+            const texture = createTexture(gl, gl.TEXTURE_CUBE_MAP, textureEnum.irradianceTexture);
             for (let i = 0; i < 6; i++) {
                 gl.texImage2D(gl.TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, gl.RGBA16F, size, size, 0, gl.RGBA, gl.FLOAT, null);
                 gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_CUBE_MAP_POSITIVE_X + i, texture, 0);
@@ -417,7 +421,7 @@ export class Env {
             this.framebuffer.size = size;
             gl.bindFramebuffer(gl.FRAMEBUFFER, captureFBO);
 
-            const texture = createTexture(gl.TEXTURE_CUBE_MAP);
+            const texture = createTexture(gl, gl.TEXTURE_CUBE_MAP);
             for (let i = 0; i < 6; i++) {
                 gl.texImage2D(gl.TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, gl.RGBA16F, size, size, 0, gl.RGBA, gl.FLOAT, null);
                 gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_CUBE_MAP_POSITIVE_X + i, texture, 0);
@@ -434,7 +438,7 @@ export class Env {
             this.prefilterbuffer.size = size;
             gl.bindFramebuffer(gl.FRAMEBUFFER, captureFBO);
 
-            const texture = createTexture(gl.TEXTURE_CUBE_MAP, textureEnum.prefilterTexture);
+            const texture = createTexture(gl, gl.TEXTURE_CUBE_MAP, textureEnum.prefilterTexture);
             if (this.envData) {
                 const x = [
                     gl.TEXTURE_CUBE_MAP_POSITIVE_X,
@@ -462,7 +466,7 @@ export class Env {
                 gl.bindSampler(texture.index, this.samplerCube);
                 gl.generateMipmap(gl.TEXTURE_CUBE_MAP);
 
-                const texture2 = createTexture(gl.TEXTURE_CUBE_MAP, textureEnum.charlieTexture);
+                const texture2 = createTexture(gl, gl.TEXTURE_CUBE_MAP, textureEnum.charlieTexture);
                 gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
                 for (let i = 0; i < 6; i++) {
                     gl.texImage2D(gl.TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, gl.RGBA16F, size, size, 0, gl.RGBA, gl.FLOAT, null);
@@ -483,7 +487,7 @@ export class Env {
             this.brdfbuffer.size = size;
             gl.bindFramebuffer(gl.FRAMEBUFFER, captureFBO);
 
-            const texture = createTexture(gl.TEXTURE_2D, textureEnum.brdfLUTTexture);
+            const texture = createTexture(gl, gl.TEXTURE_2D, textureEnum.brdfLUTTexture);
             gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, size, size, 0, gl.RGBA, gl.FLOAT, null);
             gl.bindSampler(texture.index, this.sampler);
             this.brdfLUTTexture = texture;
@@ -566,17 +570,17 @@ export class Env {
         }
         gl.bindVertexArray(null);
 
-        this.cubeprogram = createProgram(vertex, cube);
-        this.irradianceprogram = createProgram(vertex, irradiance);
-        this.mipmapcubeprogram = createProgram(vertex, cubeMipmap);
-        this.bdrfprogram = createProgram(quad, bdrf);
+        this.cubeprogram = createProgram(gl, vertex, cube);
+        this.irradianceprogram = createProgram(gl, vertex, irradiance);
+        this.mipmapcubeprogram = createProgram(gl, vertex, cubeMipmap);
+        this.bdrfprogram = createProgram(gl, quad, bdrf);
 
         await fetch(this.url)
             .then((res) => res.arrayBuffer())
             .then((buffer) => {
                 const { data, shape } = parseHDR(buffer);
 
-                this.original2DTexture = createTexture();
+                this.original2DTexture = createTexture(gl);
                 //gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
                 gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, shape[0], shape[1], 0, gl.RGBA, gl.FLOAT, data);
                 gl.bindSampler(this.original2DTexture.index, this.sampler);
@@ -590,7 +594,7 @@ export class Env {
             .then((buffer) => {
                 const { data, shape } = parseHDR(buffer);
 
-                this.Sheen_E = createTexture(gl.TEXTURE_2D, textureEnum.Sheen_E);
+                this.Sheen_E = createTexture(gl, gl.TEXTURE_2D, textureEnum.Sheen_E);
                 gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
                 gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, shape[0], shape[1], 0, gl.RGBA, gl.FLOAT, data);
                 gl.bindSampler(this.Sheen_E.index, this.sampler);

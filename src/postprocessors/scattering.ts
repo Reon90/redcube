@@ -76,7 +76,7 @@ export class Scattering extends PostProcessor {
         this.output = pp.createByteTexture();
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
-        this.program = createProgram(quadShader, blurShader);
+        this.program = createProgram(gl, quadShader, blurShader);
 
         return { name: 'SCATTERING' };
     }

@@ -216,7 +216,7 @@ export class Parse {
                     }),
                 )
                 .map((p) => p.replace(/\n/, `\n${defineStr}`));
-            this.programs[programHash] = createProgram(shaders[0], shaders[1]);
+            this.programs[programHash] = createProgram(gl as WebGL2RenderingContext, shaders[0], shaders[1]);
             program = this.programs[programHash];
         }
 

@@ -11664,7 +11664,6 @@ var glEnum_default = {
 };
 
 // src/utils.ts
-var gl;
 var textureEnum = {
   baseColorTexture: 0,
   metallicRoughnessTexture: 1,
@@ -11814,24 +11813,24 @@ function buildArray(arrayBuffer, type, offset, length) {
   }
   return arr;
 }
-function compileShader(type, shaderSource, program) {
-  const shader = gl.createShader(type);
-  gl.shaderSource(shader, shaderSource);
-  gl.compileShader(shader);
-  gl.attachShader(program, shader);
-  const log = gl.getShaderInfoLog(shader);
+function compileShader(gl2, type, shaderSource, program) {
+  const shader = gl2.createShader(type);
+  gl2.shaderSource(shader, shaderSource);
+  gl2.compileShader(shader);
+  gl2.attachShader(program, shader);
+  const log = gl2.getShaderInfoLog(shader);
   if (log) {
     throw new Error(log);
   }
 }
-function createProgram(vertex, fragment) {
-  const program = gl.createProgram();
-  compileShader(gl.VERTEX_SHADER, vertex, program);
-  compileShader(gl.FRAGMENT_SHADER, fragment, program);
-  gl.linkProgram(program);
-  gl.validateProgram(program);
-  if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-    const info = gl.getProgramInfoLog(program);
+function createProgram(gl2, vertex, fragment) {
+  const program = gl2.createProgram();
+  compileShader(gl2, gl2.VERTEX_SHADER, vertex, program);
+  compileShader(gl2, gl2.FRAGMENT_SHADER, fragment, program);
+  gl2.linkProgram(program);
+  gl2.validateProgram(program);
+  if (!gl2.getProgramParameter(program, gl2.LINK_STATUS)) {
+    const info = gl2.getProgramInfoLog(program);
     throw new Error(`Could not compile WebGL program. ${info}`);
   }
   return program;
@@ -12289,21 +12288,21 @@ var Mesh = class extends Object3D {
       passEncoder.draw(this.geometry.attributes.POSITION.length / 3, this.instances, 0, i);
     }
   }
-  draw(gl3, { lights, camera, needUpdateProjection, preDepthTexture, colorTexture, renderState, fakeDepth, isIBL, isDefaultLight }) {
-    const texUnit = (n) => gl3[`TEXTURE${n}`];
-    const glTypeEnum = (ctor) => gl3[ArrayBufferMap.get(ctor)];
+  draw(gl2, { lights, camera, needUpdateProjection, preDepthTexture, colorTexture, renderState, fakeDepth, isIBL, isDefaultLight }) {
+    const texUnit = (n) => gl2[`TEXTURE${n}`];
+    const glTypeEnum = (ctor) => gl2[ArrayBufferMap.get(ctor)];
     const { isprepender, isprerefraction } = renderState;
     if (this.defines.find((i) => i.name === "TRANSMISSION") && isprerefraction) {
       return;
     }
-    gl3.useProgram(this.program);
-    gl3.bindVertexArray(this.geometry.VAO);
+    gl2.useProgram(this.program);
+    gl2.bindVertexArray(this.geometry.VAO);
     if (needUpdateProjection) {
-      this.geometry.uniformBuffer.update(gl3, "projection", camera.projection.elements);
+      this.geometry.uniformBuffer.update(gl2, "projection", camera.projection.elements);
     }
-    this.geometry.uniformBuffer.update(gl3, "isShadow", isprepender ? 1 : 0);
+    this.geometry.uniformBuffer.update(gl2, "isShadow", isprepender ? 1 : 0);
     if (this instanceof SkinnedMesh) {
-      gl3.bindBufferBase(gl3.UNIFORM_BUFFER, 2, this.geometry.SKIN);
+      gl2.bindBufferBase(gl2.UNIFORM_BUFFER, 2, this.geometry.SKIN);
       if (this.bones.some((bone) => bone.reflow)) {
         const jointMatrix = this.getJointMatrix();
         const matrices = new Float32Array(jointMatrix.length * 16);
@@ -12312,123 +12311,123 @@ var Mesh = class extends Object3D {
           matrices.set(j.elements, 0 + 16 * i);
           i++;
         }
-        gl3.bufferSubData(gl3.UNIFORM_BUFFER, 0, matrices);
+        gl2.bufferSubData(gl2.UNIFORM_BUFFER, 0, matrices);
       }
     }
     if (this.material.matrices.length) {
-      gl3.bindBufferBase(gl3.UNIFORM_BUFFER, 8, this.material.textureMatricesUniform);
+      gl2.bindBufferBase(gl2.UNIFORM_BUFFER, 8, this.material.textureMatricesUniform);
     }
     if (this.material.sphericalHarmonics) {
-      gl3.bindBufferBase(gl3.UNIFORM_BUFFER, 7, this.material.sphericalHarmonics);
+      gl2.bindBufferBase(gl2.UNIFORM_BUFFER, 7, this.material.sphericalHarmonics);
     }
-    gl3.uniform1i(this.material.uniforms.depthTexture, preDepthTexture && !isprepender ? preDepthTexture.index : fakeDepth.index);
-    gl3.uniform1i(this.material.uniforms.colorTexture, !isprerefraction ? colorTexture.index : fakeDepth.index);
-    gl3.uniform1f(this.material.uniforms.isTone, isprerefraction ? 0 : 1);
-    gl3.uniform1f(this.material.uniforms.isIBL, isIBL ? 1 : 0);
-    gl3.uniform1f(this.material.uniforms.isDefaultLight, isDefaultLight || lights.some((l) => !l.isInitial) ? 1 : 0);
+    gl2.uniform1i(this.material.uniforms.depthTexture, preDepthTexture && !isprepender ? preDepthTexture.index : fakeDepth.index);
+    gl2.uniform1i(this.material.uniforms.colorTexture, !isprerefraction ? colorTexture.index : fakeDepth.index);
+    gl2.uniform1f(this.material.uniforms.isTone, isprerefraction ? 0 : 1);
+    gl2.uniform1f(this.material.uniforms.isIBL, isIBL ? 1 : 0);
+    gl2.uniform1f(this.material.uniforms.isDefaultLight, isDefaultLight || lights.some((l) => !l.isInitial) ? 1 : 0);
     if (this.material.baseColorTexture) {
-      gl3.activeTexture(texUnit(0));
-      gl3.bindTexture(gl3.TEXTURE_2D, this.material.baseColorTexture);
-      gl3.bindSampler(0, this.material.baseColorTexture.sampler);
+      gl2.activeTexture(texUnit(0));
+      gl2.bindTexture(gl2.TEXTURE_2D, this.material.baseColorTexture);
+      gl2.bindSampler(0, this.material.baseColorTexture.sampler);
     }
     if (this.material.metallicRoughnessTexture) {
-      gl3.activeTexture(texUnit(1));
-      gl3.bindTexture(gl3.TEXTURE_2D, this.material.metallicRoughnessTexture);
-      gl3.bindSampler(1, this.material.metallicRoughnessTexture.sampler);
+      gl2.activeTexture(texUnit(1));
+      gl2.bindTexture(gl2.TEXTURE_2D, this.material.metallicRoughnessTexture);
+      gl2.bindSampler(1, this.material.metallicRoughnessTexture.sampler);
     }
     if (this.material.normalTexture) {
-      gl3.activeTexture(texUnit(2));
-      gl3.bindTexture(gl3.TEXTURE_2D, this.material.normalTexture);
-      gl3.bindSampler(2, this.material.normalTexture.sampler);
+      gl2.activeTexture(texUnit(2));
+      gl2.bindTexture(gl2.TEXTURE_2D, this.material.normalTexture);
+      gl2.bindSampler(2, this.material.normalTexture.sampler);
     }
     if (this.material.occlusionTexture) {
-      gl3.activeTexture(texUnit(3));
-      gl3.bindTexture(gl3.TEXTURE_2D, this.material.occlusionTexture);
-      gl3.bindSampler(3, this.material.occlusionTexture.sampler);
+      gl2.activeTexture(texUnit(3));
+      gl2.bindTexture(gl2.TEXTURE_2D, this.material.occlusionTexture);
+      gl2.bindSampler(3, this.material.occlusionTexture.sampler);
     }
     if (this.material.emissiveTexture) {
-      gl3.activeTexture(texUnit(4));
-      gl3.bindTexture(gl3.TEXTURE_2D, this.material.emissiveTexture);
-      gl3.bindSampler(4, this.material.emissiveTexture.sampler);
+      gl2.activeTexture(texUnit(4));
+      gl2.bindTexture(gl2.TEXTURE_2D, this.material.emissiveTexture);
+      gl2.bindSampler(4, this.material.emissiveTexture.sampler);
     }
     if (this.material.clearcoatTexture) {
-      gl3.activeTexture(texUnit(8));
-      gl3.bindTexture(gl3.TEXTURE_2D, this.material.clearcoatTexture);
-      gl3.bindSampler(8, this.material.clearcoatTexture.sampler);
+      gl2.activeTexture(texUnit(8));
+      gl2.bindTexture(gl2.TEXTURE_2D, this.material.clearcoatTexture);
+      gl2.bindSampler(8, this.material.clearcoatTexture.sampler);
     }
     if (this.material.clearcoatRoughnessTexture) {
-      gl3.activeTexture(texUnit(9));
-      gl3.bindTexture(gl3.TEXTURE_2D, this.material.clearcoatRoughnessTexture);
-      gl3.bindSampler(9, this.material.clearcoatRoughnessTexture.sampler);
+      gl2.activeTexture(texUnit(9));
+      gl2.bindTexture(gl2.TEXTURE_2D, this.material.clearcoatRoughnessTexture);
+      gl2.bindSampler(9, this.material.clearcoatRoughnessTexture.sampler);
     }
     if (this.material.sheenColorTexture) {
-      gl3.activeTexture(texUnit(11));
-      gl3.bindTexture(gl3.TEXTURE_2D, this.material.sheenColorTexture);
-      gl3.bindSampler(11, this.material.sheenColorTexture.sampler);
+      gl2.activeTexture(texUnit(11));
+      gl2.bindTexture(gl2.TEXTURE_2D, this.material.sheenColorTexture);
+      gl2.bindSampler(11, this.material.sheenColorTexture.sampler);
     }
     if (this.material.sheenRoughnessTexture) {
-      gl3.activeTexture(texUnit(12));
-      gl3.bindTexture(gl3.TEXTURE_2D, this.material.sheenRoughnessTexture);
-      gl3.bindSampler(12, this.material.sheenRoughnessTexture.sampler);
+      gl2.activeTexture(texUnit(12));
+      gl2.bindTexture(gl2.TEXTURE_2D, this.material.sheenRoughnessTexture);
+      gl2.bindSampler(12, this.material.sheenRoughnessTexture.sampler);
     }
     if (this.material.iridescenceThicknessTexture) {
-      gl3.activeTexture(texUnit(17));
-      gl3.bindTexture(gl3.TEXTURE_2D, this.material.iridescenceThicknessTexture);
-      gl3.bindSampler(17, this.material.iridescenceThicknessTexture.sampler);
+      gl2.activeTexture(texUnit(17));
+      gl2.bindTexture(gl2.TEXTURE_2D, this.material.iridescenceThicknessTexture);
+      gl2.bindSampler(17, this.material.iridescenceThicknessTexture.sampler);
     }
     if (this.material.iridescenceTexture) {
-      gl3.activeTexture(texUnit(23));
-      gl3.bindTexture(gl3.TEXTURE_2D, this.material.iridescenceTexture);
-      gl3.bindSampler(23, this.material.iridescenceTexture.sampler);
+      gl2.activeTexture(texUnit(23));
+      gl2.bindTexture(gl2.TEXTURE_2D, this.material.iridescenceTexture);
+      gl2.bindSampler(23, this.material.iridescenceTexture.sampler);
     }
     if (this.material.diffuseTransmissionTexture) {
-      gl3.activeTexture(texUnit(20));
-      gl3.bindTexture(gl3.TEXTURE_2D, this.material.diffuseTransmissionTexture);
-      gl3.bindSampler(20, this.material.diffuseTransmissionTexture.sampler);
+      gl2.activeTexture(texUnit(20));
+      gl2.bindTexture(gl2.TEXTURE_2D, this.material.diffuseTransmissionTexture);
+      gl2.bindSampler(20, this.material.diffuseTransmissionTexture.sampler);
     }
     if (this.material.diffuseTransmissionColorTexture) {
-      gl3.activeTexture(texUnit(21));
-      gl3.bindTexture(gl3.TEXTURE_2D, this.material.diffuseTransmissionColorTexture);
-      gl3.bindSampler(21, this.material.diffuseTransmissionColorTexture.sampler);
+      gl2.activeTexture(texUnit(21));
+      gl2.bindTexture(gl2.TEXTURE_2D, this.material.diffuseTransmissionColorTexture);
+      gl2.bindSampler(21, this.material.diffuseTransmissionColorTexture.sampler);
     }
     if (this.material.anisotropyTexture) {
-      gl3.activeTexture(texUnit(22));
-      gl3.bindTexture(gl3.TEXTURE_2D, this.material.anisotropyTexture);
-      gl3.bindSampler(22, this.material.anisotropyTexture.sampler);
+      gl2.activeTexture(texUnit(22));
+      gl2.bindTexture(gl2.TEXTURE_2D, this.material.anisotropyTexture);
+      gl2.bindSampler(22, this.material.anisotropyTexture.sampler);
     }
     if (this.material.clearcoatNormalTexture) {
-      gl3.activeTexture(texUnit(10));
-      gl3.bindTexture(gl3.TEXTURE_2D, this.material.clearcoatNormalTexture);
-      gl3.bindSampler(10, this.material.clearcoatNormalTexture.sampler);
+      gl2.activeTexture(texUnit(10));
+      gl2.bindTexture(gl2.TEXTURE_2D, this.material.clearcoatNormalTexture);
+      gl2.bindSampler(10, this.material.clearcoatNormalTexture.sampler);
     }
     if (this.material.transmissionTexture) {
-      gl3.activeTexture(texUnit(14));
-      gl3.bindTexture(gl3.TEXTURE_2D, this.material.transmissionTexture);
-      gl3.bindSampler(14, this.material.transmissionTexture.sampler);
+      gl2.activeTexture(texUnit(14));
+      gl2.bindTexture(gl2.TEXTURE_2D, this.material.transmissionTexture);
+      gl2.bindSampler(14, this.material.transmissionTexture.sampler);
     }
     if (this.material.specularTexture) {
-      gl3.activeTexture(texUnit(15));
-      gl3.bindTexture(gl3.TEXTURE_2D, this.material.specularTexture);
-      gl3.bindSampler(15, this.material.specularTexture.sampler);
+      gl2.activeTexture(texUnit(15));
+      gl2.bindTexture(gl2.TEXTURE_2D, this.material.specularTexture);
+      gl2.bindSampler(15, this.material.specularTexture.sampler);
     }
     if (this.material.specularColorTexture) {
-      gl3.activeTexture(texUnit(19));
-      gl3.bindTexture(gl3.TEXTURE_2D, this.material.specularColorTexture);
-      gl3.bindSampler(19, this.material.specularColorTexture.sampler);
+      gl2.activeTexture(texUnit(19));
+      gl2.bindTexture(gl2.TEXTURE_2D, this.material.specularColorTexture);
+      gl2.bindSampler(19, this.material.specularColorTexture.sampler);
     }
     if (this.material.thicknessTexture) {
-      gl3.activeTexture(texUnit(16));
-      gl3.bindTexture(gl3.TEXTURE_2D, this.material.thicknessTexture);
-      gl3.bindSampler(16, this.material.thicknessTexture.sampler);
+      gl2.activeTexture(texUnit(16));
+      gl2.bindTexture(gl2.TEXTURE_2D, this.material.thicknessTexture);
+      gl2.bindSampler(16, this.material.thicknessTexture.sampler);
     }
     if (this.material.doubleSided) {
-      gl3.disable(gl3.CULL_FACE);
+      gl2.disable(gl2.CULL_FACE);
     }
     if (this.frontFace) {
-      gl3.frontFace(gl3.CW);
+      gl2.frontFace(gl2.CW);
     }
     if (this.instances > 1) {
-      gl3.drawElementsInstanced(
+      gl2.drawElementsInstanced(
         this.mode,
         this.geometry.indicesBuffer.length,
         glTypeEnum(this.geometry.indicesBuffer.constructor),
@@ -12437,21 +12436,21 @@ var Mesh = class extends Object3D {
       );
     } else {
       if (this.geometry.indicesBuffer) {
-        gl3.drawElements(
-          this.mode === 2 ? gl3.LINES : this.mode,
+        gl2.drawElements(
+          this.mode === 2 ? gl2.LINES : this.mode,
           this.geometry.indicesBuffer.length,
           glTypeEnum(this.geometry.indicesBuffer.constructor),
           0
         );
       } else {
-        gl3.drawArrays(this.mode, 0, this.geometry.attributes.POSITION.length / 3);
+        gl2.drawArrays(this.mode, 0, this.geometry.attributes.POSITION.length / 3);
       }
     }
     if (this.material.doubleSided) {
-      gl3.enable(gl3.CULL_FACE);
+      gl2.enable(gl2.CULL_FACE);
     }
     if (this.frontFace) {
-      gl3.frontFace(gl3.CCW);
+      gl2.frontFace(gl2.CCW);
     }
   }
   setGeometry(geometry) {
@@ -12528,7 +12527,7 @@ var SkinnedMesh = class extends Mesh {
     device.queue.writeBuffer(uniformBuffer, 0, matrices.buffer, matrices.byteOffset, matrices.byteLength);
     return uniformBindGroup1;
   }
-  setSkin(gl3, skin) {
+  setSkin(gl2, skin) {
     this.bones = skin.bones;
     this.boneInverses = skin.boneInverses;
     const jointMatrix = this.getJointMatrix();
@@ -12538,13 +12537,13 @@ var SkinnedMesh = class extends Mesh {
       matrices.set(j.elements, 0 + 16 * i);
       i++;
     }
-    const uIndex = gl3.getUniformBlockIndex(this.program, "Skin");
-    gl3.uniformBlockBinding(this.program, uIndex, 2);
-    const UBO = gl3.createBuffer();
-    gl3.bindBuffer(gl3.UNIFORM_BUFFER, UBO);
-    gl3.bufferData(gl3.UNIFORM_BUFFER, matrices, gl3.DYNAMIC_DRAW);
+    const uIndex = gl2.getUniformBlockIndex(this.program, "Skin");
+    gl2.uniformBlockBinding(this.program, uIndex, 2);
+    const UBO = gl2.createBuffer();
+    gl2.bindBuffer(gl2.UNIFORM_BUFFER, UBO);
+    gl2.bufferData(gl2.UNIFORM_BUFFER, matrices, gl2.DYNAMIC_DRAW);
     this.geometry.SKIN = UBO;
-    gl3.bindBuffer(gl3.UNIFORM_BUFFER, null);
+    gl2.bindBuffer(gl2.UNIFORM_BUFFER, null);
     return this;
   }
   getJointMatrix() {
@@ -12742,7 +12741,7 @@ var UniformBuffer = class {
       this.offset += buffer.length;
     }
   }
-  update(gl3, name, value, skip = false) {
+  update(gl2, name, value, skip = false) {
     if (value.length === void 0) {
       value = new Float32Array([value]);
     }
@@ -12755,7 +12754,7 @@ var UniformBuffer = class {
     if (skip) {
       return;
     }
-    gl3.bufferSubData(gl3.UNIFORM_BUFFER, offset * Float32Array.BYTES_PER_ELEMENT, buffer);
+    gl2.bufferSubData(gl2.UNIFORM_BUFFER, offset * Float32Array.BYTES_PER_ELEMENT, buffer);
   }
   updateWebGPU(WebGPU, name, value, skip = false) {
     const { device } = WebGPU;
@@ -13230,121 +13229,121 @@ var Material2 = class extends Material {
   setHarmonics(sphericalHarmonics) {
     this.sphericalHarmonics = sphericalHarmonics;
   }
-  updateUniformsWebgl(gl3, program) {
-    gl3.useProgram(program);
-    this.uniforms.isTone = gl3.getUniformLocation(program, "isTone");
-    this.uniforms.isIBL = gl3.getUniformLocation(program, "isIBL");
-    this.uniforms.isDefaultLight = gl3.getUniformLocation(program, "isDefaultLight");
+  updateUniformsWebgl(gl2, program) {
+    gl2.useProgram(program);
+    this.uniforms.isTone = gl2.getUniformLocation(program, "isTone");
+    this.uniforms.isIBL = gl2.getUniformLocation(program, "isIBL");
+    this.uniforms.isDefaultLight = gl2.getUniformLocation(program, "isDefaultLight");
     if (this.baseColorTexture) {
-      this.uniforms.baseColorTexture = gl3.getUniformLocation(program, "baseColorTexture");
-      gl3.uniform1i(this.uniforms.baseColorTexture, textureEnum.baseColorTexture);
+      this.uniforms.baseColorTexture = gl2.getUniformLocation(program, "baseColorTexture");
+      gl2.uniform1i(this.uniforms.baseColorTexture, textureEnum.baseColorTexture);
     }
     if (this.metallicRoughnessTexture) {
-      this.uniforms.metallicRoughnessTexture = gl3.getUniformLocation(program, "metallicRoughnessTexture");
-      gl3.uniform1i(this.uniforms.metallicRoughnessTexture, textureEnum.metallicRoughnessTexture);
+      this.uniforms.metallicRoughnessTexture = gl2.getUniformLocation(program, "metallicRoughnessTexture");
+      gl2.uniform1i(this.uniforms.metallicRoughnessTexture, textureEnum.metallicRoughnessTexture);
     }
     if (this.normalTexture) {
-      this.uniforms.normalTexture = gl3.getUniformLocation(program, "normalTexture");
-      gl3.uniform1i(this.uniforms.normalTexture, textureEnum.normalTexture);
+      this.uniforms.normalTexture = gl2.getUniformLocation(program, "normalTexture");
+      gl2.uniform1i(this.uniforms.normalTexture, textureEnum.normalTexture);
     }
     if (this.occlusionTexture) {
-      this.uniforms.occlusionTexture = gl3.getUniformLocation(program, "occlusionTexture");
-      gl3.uniform1i(this.uniforms.occlusionTexture, textureEnum.occlusionTexture);
+      this.uniforms.occlusionTexture = gl2.getUniformLocation(program, "occlusionTexture");
+      gl2.uniform1i(this.uniforms.occlusionTexture, textureEnum.occlusionTexture);
     }
     if (this.emissiveTexture) {
-      this.uniforms.emissiveTexture = gl3.getUniformLocation(program, "emissiveTexture");
-      gl3.uniform1i(this.uniforms.emissiveTexture, textureEnum.emissiveTexture);
+      this.uniforms.emissiveTexture = gl2.getUniformLocation(program, "emissiveTexture");
+      gl2.uniform1i(this.uniforms.emissiveTexture, textureEnum.emissiveTexture);
     }
     if (this.clearcoatTexture) {
-      this.uniforms.clearcoatTexture = gl3.getUniformLocation(program, "clearcoatTexture");
-      gl3.uniform1i(this.uniforms.clearcoatTexture, textureEnum.clearcoatTexture);
+      this.uniforms.clearcoatTexture = gl2.getUniformLocation(program, "clearcoatTexture");
+      gl2.uniform1i(this.uniforms.clearcoatTexture, textureEnum.clearcoatTexture);
     }
     if (this.clearcoatRoughnessTexture) {
-      this.uniforms.clearcoatRoughnessTexture = gl3.getUniformLocation(program, "clearcoatRoughnessTexture");
-      gl3.uniform1i(this.uniforms.clearcoatRoughnessTexture, textureEnum.clearcoatRoughnessTexture);
+      this.uniforms.clearcoatRoughnessTexture = gl2.getUniformLocation(program, "clearcoatRoughnessTexture");
+      gl2.uniform1i(this.uniforms.clearcoatRoughnessTexture, textureEnum.clearcoatRoughnessTexture);
     }
     if (this.clearcoatNormalTexture) {
-      this.uniforms.clearcoatNormalTexture = gl3.getUniformLocation(program, "clearcoatNormalTexture");
-      gl3.uniform1i(this.uniforms.clearcoatNormalTexture, textureEnum.clearcoatNormalTexture);
+      this.uniforms.clearcoatNormalTexture = gl2.getUniformLocation(program, "clearcoatNormalTexture");
+      gl2.uniform1i(this.uniforms.clearcoatNormalTexture, textureEnum.clearcoatNormalTexture);
     }
     if (this.sheenRoughnessTexture) {
-      this.uniforms.sheenRoughnessTexture = gl3.getUniformLocation(program, "sheenRoughnessTexture");
-      gl3.uniform1i(this.uniforms.sheenRoughnessTexture, textureEnum.sheenRoughnessTexture);
+      this.uniforms.sheenRoughnessTexture = gl2.getUniformLocation(program, "sheenRoughnessTexture");
+      gl2.uniform1i(this.uniforms.sheenRoughnessTexture, textureEnum.sheenRoughnessTexture);
     }
     if (this.iridescenceThicknessTexture) {
-      this.uniforms.iridescenceThicknessTexture = gl3.getUniformLocation(program, "iridescenceThicknessTexture");
-      gl3.uniform1i(this.uniforms.iridescenceThicknessTexture, textureEnum.iridescenceThicknessTexture);
+      this.uniforms.iridescenceThicknessTexture = gl2.getUniformLocation(program, "iridescenceThicknessTexture");
+      gl2.uniform1i(this.uniforms.iridescenceThicknessTexture, textureEnum.iridescenceThicknessTexture);
     }
     if (this.iridescenceTexture) {
-      this.uniforms.iridescenceTexture = gl3.getUniformLocation(program, "iridescenceTexture");
-      gl3.uniform1i(this.uniforms.iridescenceTexture, textureEnum.iridescenceTexture);
+      this.uniforms.iridescenceTexture = gl2.getUniformLocation(program, "iridescenceTexture");
+      gl2.uniform1i(this.uniforms.iridescenceTexture, textureEnum.iridescenceTexture);
     }
     if (this.anisotropyTexture) {
-      this.uniforms.anisotropyTexture = gl3.getUniformLocation(program, "anisotropyTexture");
-      gl3.uniform1i(this.uniforms.anisotropyTexture, textureEnum.anisotropyTexture);
+      this.uniforms.anisotropyTexture = gl2.getUniformLocation(program, "anisotropyTexture");
+      gl2.uniform1i(this.uniforms.anisotropyTexture, textureEnum.anisotropyTexture);
     }
     if (this.diffuseTransmissionColorTexture) {
-      this.uniforms.diffuseTransmissionColorTexture = gl3.getUniformLocation(program, "diffuseTransmissionColorTexture");
-      gl3.uniform1i(this.uniforms.diffuseTransmissionColorTexture, textureEnum.diffuseTransmissionColorTexture);
+      this.uniforms.diffuseTransmissionColorTexture = gl2.getUniformLocation(program, "diffuseTransmissionColorTexture");
+      gl2.uniform1i(this.uniforms.diffuseTransmissionColorTexture, textureEnum.diffuseTransmissionColorTexture);
     }
     if (this.diffuseTransmissionTexture) {
-      this.uniforms.diffuseTransmissionTexture = gl3.getUniformLocation(program, "diffuseTransmissionTexture");
-      gl3.uniform1i(this.uniforms.diffuseTransmissionTexture, textureEnum.diffuseTransmissionTexture);
+      this.uniforms.diffuseTransmissionTexture = gl2.getUniformLocation(program, "diffuseTransmissionTexture");
+      gl2.uniform1i(this.uniforms.diffuseTransmissionTexture, textureEnum.diffuseTransmissionTexture);
     }
     if (this.sheenColorTexture) {
-      this.uniforms.sheenColorTexture = gl3.getUniformLocation(program, "sheenColorTexture");
-      gl3.uniform1i(this.uniforms.sheenColorTexture, textureEnum.sheenColorTexture);
+      this.uniforms.sheenColorTexture = gl2.getUniformLocation(program, "sheenColorTexture");
+      gl2.uniform1i(this.uniforms.sheenColorTexture, textureEnum.sheenColorTexture);
     }
     if (this.transmissionTexture) {
-      this.uniforms.transmissionTexture = gl3.getUniformLocation(program, "transmissionTexture");
-      gl3.uniform1i(this.uniforms.transmissionTexture, textureEnum.transmissionTexture);
+      this.uniforms.transmissionTexture = gl2.getUniformLocation(program, "transmissionTexture");
+      gl2.uniform1i(this.uniforms.transmissionTexture, textureEnum.transmissionTexture);
     }
     if (this.specularTexture) {
-      this.uniforms.specularTexture = gl3.getUniformLocation(program, "specularTexture");
-      gl3.uniform1i(this.uniforms.specularTexture, textureEnum.specularTexture);
+      this.uniforms.specularTexture = gl2.getUniformLocation(program, "specularTexture");
+      gl2.uniform1i(this.uniforms.specularTexture, textureEnum.specularTexture);
     }
     if (this.specularColorTexture) {
-      this.uniforms.specularColorTexture = gl3.getUniformLocation(program, "specularColorTexture");
-      gl3.uniform1i(this.uniforms.specularColorTexture, textureEnum.specularColorTexture);
+      this.uniforms.specularColorTexture = gl2.getUniformLocation(program, "specularColorTexture");
+      gl2.uniform1i(this.uniforms.specularColorTexture, textureEnum.specularColorTexture);
     }
     if (this.thicknessTexture) {
-      this.uniforms.thicknessTexture = gl3.getUniformLocation(program, "thicknessTexture");
-      gl3.uniform1i(this.uniforms.thicknessTexture, textureEnum.thicknessTexture);
+      this.uniforms.thicknessTexture = gl2.getUniformLocation(program, "thicknessTexture");
+      gl2.uniform1i(this.uniforms.thicknessTexture, textureEnum.thicknessTexture);
     }
-    this.uniforms.prefilterMap = gl3.getUniformLocation(program, "prefilterMap");
-    this.uniforms.charlieMap = gl3.getUniformLocation(program, "charlieMap");
-    this.uniforms.brdfLUT = gl3.getUniformLocation(program, "brdfLUT");
-    this.uniforms.irradianceMap = gl3.getUniformLocation(program, "irradianceMap");
-    this.uniforms.depthTexture = gl3.getUniformLocation(program, "depthTexture");
-    this.uniforms.colorTexture = gl3.getUniformLocation(program, "colorTexture");
-    this.uniforms.Sheen_E = gl3.getUniformLocation(program, "Sheen_E");
-    gl3.uniform1i(this.uniforms.prefilterMap, textureEnum.prefilterTexture);
-    gl3.uniform1i(this.uniforms.charlieMap, textureEnum.charlieTexture);
-    gl3.uniform1i(this.uniforms.brdfLUT, textureEnum.brdfLUTTexture);
-    gl3.uniform1i(this.uniforms.irradianceMap, textureEnum.irradianceTexture);
-    gl3.uniform1i(this.uniforms.Sheen_E, textureEnum.Sheen_E);
+    this.uniforms.prefilterMap = gl2.getUniformLocation(program, "prefilterMap");
+    this.uniforms.charlieMap = gl2.getUniformLocation(program, "charlieMap");
+    this.uniforms.brdfLUT = gl2.getUniformLocation(program, "brdfLUT");
+    this.uniforms.irradianceMap = gl2.getUniformLocation(program, "irradianceMap");
+    this.uniforms.depthTexture = gl2.getUniformLocation(program, "depthTexture");
+    this.uniforms.colorTexture = gl2.getUniformLocation(program, "colorTexture");
+    this.uniforms.Sheen_E = gl2.getUniformLocation(program, "Sheen_E");
+    gl2.uniform1i(this.uniforms.prefilterMap, textureEnum.prefilterTexture);
+    gl2.uniform1i(this.uniforms.charlieMap, textureEnum.charlieTexture);
+    gl2.uniform1i(this.uniforms.brdfLUT, textureEnum.brdfLUTTexture);
+    gl2.uniform1i(this.uniforms.irradianceMap, textureEnum.irradianceTexture);
+    gl2.uniform1i(this.uniforms.Sheen_E, textureEnum.Sheen_E);
     {
-      const mIndex = gl3.getUniformBlockIndex(program, "LightColor");
-      gl3.uniformBlockBinding(program, mIndex, 4);
-    }
-    {
-      const mIndex = gl3.getUniformBlockIndex(program, "LightPos");
-      gl3.uniformBlockBinding(program, mIndex, 3);
+      const mIndex = gl2.getUniformBlockIndex(program, "LightColor");
+      gl2.uniformBlockBinding(program, mIndex, 4);
     }
     {
-      const mIndex = gl3.getUniformBlockIndex(program, "Spotdir");
-      gl3.uniformBlockBinding(program, mIndex, 5);
+      const mIndex = gl2.getUniformBlockIndex(program, "LightPos");
+      gl2.uniformBlockBinding(program, mIndex, 3);
     }
     {
-      const mIndex = gl3.getUniformBlockIndex(program, "LightIntensity");
-      gl3.uniformBlockBinding(program, mIndex, 6);
+      const mIndex = gl2.getUniformBlockIndex(program, "Spotdir");
+      gl2.uniformBlockBinding(program, mIndex, 5);
+    }
+    {
+      const mIndex = gl2.getUniformBlockIndex(program, "LightIntensity");
+      gl2.uniformBlockBinding(program, mIndex, 6);
     }
     if (this.matrices.length) {
-      const mIndex = gl3.getUniformBlockIndex(program, "TextureMatrices");
-      gl3.uniformBlockBinding(program, mIndex, 8);
-      const textureMatricesUniform = gl3.createBuffer();
-      gl3.bindBuffer(gl3.UNIFORM_BUFFER, textureMatricesUniform);
-      gl3.bufferData(gl3.UNIFORM_BUFFER, this.textureMatricesBuffer.store, gl3.STATIC_DRAW);
+      const mIndex = gl2.getUniformBlockIndex(program, "TextureMatrices");
+      gl2.uniformBlockBinding(program, mIndex, 8);
+      const textureMatricesUniform = gl2.createBuffer();
+      gl2.bindBuffer(gl2.UNIFORM_BUFFER, textureMatricesUniform);
+      gl2.bufferData(gl2.UNIFORM_BUFFER, this.textureMatricesBuffer.store, gl2.STATIC_DRAW);
       this.textureMatricesUniform = textureMatricesUniform;
     }
   }
@@ -13535,11 +13534,11 @@ var Material2 = class extends Material {
   hasNormal() {
     return Boolean(this.normalTexture) || Boolean(this.clearcoatNormalTexture);
   }
-  setColor(gl3, name, value) {
-    this.materialUniformBuffer.update(gl3, name, value.elements, true);
+  setColor(gl2, name, value) {
+    this.materialUniformBuffer.update(gl2, name, value.elements, true);
   }
-  setTexture(gl3, name, type, value) {
-    gl3.bindBufferBase(gl3.UNIFORM_BUFFER, 8, this.textureMatricesUniform);
+  setTexture(gl2, name, type, value) {
+    gl2.bindBufferBase(gl2.UNIFORM_BUFFER, 8, this.textureMatricesUniform);
     const i = this.matricesMap.get(name) * 16;
     const [e0, e1] = value.elements;
     if (type === "offset") {
@@ -13553,7 +13552,7 @@ var Material2 = class extends Material {
     if (type === "rotation") {
       this.textureMatricesBuffer.store[i + 8] = e0;
     }
-    gl3.bufferSubData(gl3.UNIFORM_BUFFER, 0, this.textureMatricesBuffer.store);
+    gl2.bufferSubData(gl2.UNIFORM_BUFFER, 0, this.textureMatricesBuffer.store);
   }
   setTextureWebGPU(WebGPU, name, type, value) {
     const i = this.matricesMap.get(name) * 16;
@@ -15137,13 +15136,13 @@ var Geometry = class {
       this.indicesWebGPUBuffer = indicesBuffer;
     }
   }
-  createGeometryForWebGl(gl3, defines, order) {
-    const VAO = gl3.createVertexArray();
-    gl3.bindVertexArray(VAO);
+  createGeometryForWebGl(gl2, defines, order) {
+    const VAO = gl2.createVertexArray();
+    gl2.bindVertexArray(VAO);
     this.compose(order);
-    const VBO = gl3.createBuffer();
-    gl3.bindBuffer(gl3.ARRAY_BUFFER, VBO);
-    gl3.bufferData(gl3.ARRAY_BUFFER, this.g, gl3.STATIC_DRAW);
+    const VBO = gl2.createBuffer();
+    gl2.bindBuffer(gl2.ARRAY_BUFFER, VBO);
+    gl2.bufferData(gl2.ARRAY_BUFFER, this.g, gl2.STATIC_DRAW);
     this.VBO = VBO;
     const vertexLayout = [3, 2, 3, 4];
     if (defines.find((d) => d.name === "JOINTNUMBER")) {
@@ -15165,20 +15164,20 @@ var Geometry = class {
     for (const k in GeometryEnum) {
       if (k in this.attributes || k === "TANGENT" || k === "TEXCOORD_0") {
         const index = GeometryEnum[k];
-        gl3.enableVertexAttribArray(index[0]);
-        gl3.vertexAttribPointer(index[0], index[1], gl3.FLOAT, false, cubeVertexSize, Float32Array.BYTES_PER_ELEMENT * offset);
+        gl2.enableVertexAttribArray(index[0]);
+        gl2.vertexAttribPointer(index[0], index[1], gl2.FLOAT, false, cubeVertexSize, Float32Array.BYTES_PER_ELEMENT * offset);
         offset += index[1];
       }
     }
-    gl3.enableVertexAttribArray(9);
-    gl3.vertexAttribPointer(9, 1, gl3.FLOAT, false, cubeVertexSize, Float32Array.BYTES_PER_ELEMENT * offset);
+    gl2.enableVertexAttribArray(9);
+    gl2.vertexAttribPointer(9, 1, gl2.FLOAT, false, cubeVertexSize, Float32Array.BYTES_PER_ELEMENT * offset);
     if (this.indicesBuffer) {
-      const VBO2 = gl3.createBuffer();
-      gl3.bindBuffer(gl3.ELEMENT_ARRAY_BUFFER, VBO2);
-      gl3.bufferData(gl3.ELEMENT_ARRAY_BUFFER, this.indicesBuffer, gl3.STATIC_DRAW);
+      const VBO2 = gl2.createBuffer();
+      gl2.bindBuffer(gl2.ELEMENT_ARRAY_BUFFER, VBO2);
+      gl2.bufferData(gl2.ELEMENT_ARRAY_BUFFER, this.indicesBuffer, gl2.STATIC_DRAW);
     }
     this.VAO = VAO;
-    gl3.bindVertexArray(null);
+    gl2.bindVertexArray(null);
   }
   calculateBounding(matrix) {
     const box = new Box();
@@ -15224,9 +15223,9 @@ var Geometry = class {
     device.queue.writeBuffer(uniformBuffer, 0, buffer.store.buffer, buffer.store.byteOffset, buffer.store.byteLength);
     return uniformBindGroup1;
   }
-  updateUniformsWebGl(gl3, program) {
-    const uIndex2 = gl3.getUniformBlockIndex(program, "Matrices2");
-    gl3.uniformBlockBinding(program, uIndex2, 1);
+  updateUniformsWebGl(gl2, program) {
+    const uIndex2 = gl2.getUniformBlockIndex(program, "Matrices2");
+    gl2.uniformBlockBinding(program, uIndex2, 1);
   }
   async updateWebGPU(WebGPU, geometry) {
     const { device } = WebGPU;
@@ -15268,8 +15267,8 @@ var Geometry = class {
     }
     device.queue.writeBuffer(this.verticesWebGPUBuffer, 0, g.buffer, g.byteOffset, g.byteLength);
   }
-  update(gl3, geometry) {
-    gl3.bindVertexArray(this.VAO);
+  update(gl2, geometry) {
+    gl2.bindVertexArray(this.VAO);
     let total = 13;
     if (this.attributes["COLOR_0"]) {
       total += 4;
@@ -15306,14 +15305,14 @@ var Geometry = class {
       l += 2;
       m += 4;
     }
-    gl3.bindBuffer(gl3.ARRAY_BUFFER, this.VBO);
-    gl3.bufferData(gl3.ARRAY_BUFFER, g, gl3.STATIC_DRAW);
-    gl3.bindVertexArray(null);
+    gl2.bindBuffer(gl2.ARRAY_BUFFER, this.VBO);
+    gl2.bufferData(gl2.ARRAY_BUFFER, g, gl2.STATIC_DRAW);
+    gl2.bindVertexArray(null);
   }
 };
 
 // src/parse.ts
-var gl2;
+var gl;
 var BASE64_MARKER = ";base64,";
 var Parse = class {
   tracks;
@@ -15356,7 +15355,7 @@ var Parse = class {
     this.scene = scene;
   }
   setGl(g) {
-    gl2 = g;
+    gl = g;
   }
   setCamera(camera) {
     this.camera = camera;
@@ -15411,7 +15410,7 @@ var Parse = class {
         })
       ).map((p) => p.replace(/\n/, `
 ${defineStr}`));
-      this.programs[programHash] = createProgram(shaders[0], shaders[1]);
+      this.programs[programHash] = createProgram(gl, shaders[0], shaders[1]);
       program = this.programs[programHash];
     }
     return program;
@@ -15790,7 +15789,7 @@ ${defineStr}`));
     }
   }
   createSamplers() {
-    const webglGl = gl2;
+    const webglGl = gl;
     const samplers = this.json.samplers || [{}];
     this.samplers = samplers.map((s) => {
       const sampler = webglGl.createSampler();
@@ -15909,25 +15908,25 @@ ${defineStr}`));
     });
     if (hasBasisu) {
       await Promise.resolve().then(() => (init_libktx(), libktx_exports));
-      globalThis.LIBKTX({ preinitializedWebGLContext: gl2 }).then((module2) => {
-        const transcoderConfig = gl2.device ? {
-          astcSupported: gl2.features.has("texture-compression-astc"),
-          etc1Supported: gl2.features.has("texture-compression-etc2"),
-          etc2Supported: gl2.features.has("texture-compression-etc2"),
-          bptcSupported: gl2.features.has("texture-compression-bc"),
+      globalThis.LIBKTX({ preinitializedWebGLContext: gl }).then((module2) => {
+        const transcoderConfig = gl.device ? {
+          astcSupported: gl.features.has("texture-compression-astc"),
+          etc1Supported: gl.features.has("texture-compression-etc2"),
+          etc2Supported: gl.features.has("texture-compression-etc2"),
+          bptcSupported: gl.features.has("texture-compression-bc"),
           dxtSupported: false,
           pvrtcSupported: false
         } : {
-          astcSupported: gl2.getExtension("WEBGL_compressed_texture_astc"),
-          etc1Supported: gl2.getExtension("WEBGL_compressed_texture_etc1"),
-          etc2Supported: gl2.getExtension("WEBGL_compressed_texture_etc"),
-          dxtSupported: gl2.getExtension("WEBGL_compressed_texture_s3tc"),
-          bptcSupported: gl2.getExtension("EXT_texture_compression_bptc"),
-          pvrtcSupported: gl2.getExtension("WEBGL_compressed_texture_pvrtc") || gl2.getExtension("WEBKIT_WEBGL_compressed_texture_pvrtc")
+          astcSupported: gl.getExtension("WEBGL_compressed_texture_astc"),
+          etc1Supported: gl.getExtension("WEBGL_compressed_texture_etc1"),
+          etc2Supported: gl.getExtension("WEBGL_compressed_texture_etc"),
+          dxtSupported: gl.getExtension("WEBGL_compressed_texture_s3tc"),
+          bptcSupported: gl.getExtension("EXT_texture_compression_bptc"),
+          pvrtcSupported: gl.getExtension("WEBGL_compressed_texture_pvrtc") || gl.getExtension("WEBKIT_WEBGL_compressed_texture_pvrtc")
         };
         window.LIBKTX = module2;
         window.LIBKTX.transcoderConfig = transcoderConfig;
-        window.LIBKTX.GL.makeContextCurrent(window.LIBKTX.GL.registerContext(gl2, { majorVersion: 2 }));
+        window.LIBKTX.GL.makeContextCurrent(window.LIBKTX.GL.registerContext(gl, { majorVersion: 2 }));
       });
       await new Promise((resolve) => setTimeout(resolve, 1e3));
     }
@@ -15993,7 +15992,7 @@ ${defineStr}`));
     if (this.images.has(name + srgb)) {
       return this.images.get(name + srgb);
     }
-    const webglGl = gl2;
+    const webglGl = gl;
     const t = webglGl.createTexture();
     t.name = name;
     t.image = image.src.substr(image.src.lastIndexOf("/"));

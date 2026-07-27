@@ -3,7 +3,6 @@ import glEnum from './glEnum';
 import { Accessor, BufferView } from '../GLTF';
 
 //const glEnum = {};
-let gl: WebGL2RenderingContext;
 let screenTextureCount = 31;
 export const clearColor = [0, 0, 0, 1];
 
@@ -68,16 +67,6 @@ export const textureEnum = {
     anisotropyTexture: 22,
     iridescenceTexture: 23,
 };
-
-export function setGl(_gl: WebGL2RenderingContext) {
-    gl = _gl;
-    // for (const k in gl) {
-    //     const v = gl[k];
-    //     if (typeof v === 'number') {
-    //         glEnum[v] = k;
-    //     }
-    // }
-}
 
 export function isMatrix(type: number) {
     return glEnum[type] === 'FLOAT_MAT4' || glEnum[type] === 'FLOAT_MAT3' || glEnum[type] === 'FLOAT_MAT2';
@@ -313,7 +302,7 @@ export function buildArray(arrayBuffer: ArrayBufferLike, type: number, offset: n
     return arr;
 }
 
-export function compileShader(type: GLenum, shaderSource: string, program: WebGLProgram) {
+export function compileShader(gl: WebGL2RenderingContext, type: GLenum, shaderSource: string, program: WebGLProgram) {
     const shader = gl.createShader(type)!;
     gl.shaderSource(shader, shaderSource);
     gl.compileShader(shader);
@@ -324,10 +313,10 @@ export function compileShader(type: GLenum, shaderSource: string, program: WebGL
     }
 }
 
-export function createProgram(vertex: string, fragment: string) {
+export function createProgram(gl: WebGL2RenderingContext, vertex: string, fragment: string) {
     const program = gl.createProgram()!;
-    compileShader(gl.VERTEX_SHADER, vertex, program);
-    compileShader(gl.FRAGMENT_SHADER, fragment, program);
+    compileShader(gl, gl.VERTEX_SHADER, vertex, program);
+    compileShader(gl, gl.FRAGMENT_SHADER, fragment, program);
     gl.linkProgram(program);
 
     gl.validateProgram(program);
@@ -339,7 +328,7 @@ export function createProgram(vertex: string, fragment: string) {
     return program;
 }
 
-export function createTexture(type: GLenum = gl.TEXTURE_2D, index: number = getTextureIndex()): GLTexture {
+export function createTexture(gl: WebGL2RenderingContext, type: GLenum = gl.TEXTURE_2D, index: number = getTextureIndex()): GLTexture {
     const texture = gl.createTexture() as GLTexture;
     gl.activeTexture((gl as unknown as Record<string, number>)[`TEXTURE${index}`]);
     gl.bindTexture(type, texture);
@@ -604,7 +593,7 @@ export function calculateBinormals(index: ArrayLike<number>, vertex: ArrayLike<n
     }
 }
 
-export function measureGPU() {
+export function measureGPU(gl: WebGL2RenderingContext) {
     const ext = gl.getExtension('EXT_disjoint_timer_query');
     const query = ext.createQueryEXT();
 

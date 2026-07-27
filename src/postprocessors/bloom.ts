@@ -56,8 +56,8 @@ export class Bloom extends PostProcessor {
         this.hdrTexture = pp.createByteTexture();
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
-        this.program = createProgram(quadShader, blurShader);
-        this.bloorProgram = createProgram(quadShader, bloomShader);
+        this.program = createProgram(gl, quadShader, blurShader);
+        this.bloorProgram = createProgram(gl, quadShader, bloomShader);
 
         return { name: 'BLOOM' };
     }
