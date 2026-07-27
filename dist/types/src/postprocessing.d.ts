@@ -19,6 +19,7 @@ declare const processorsMap: {
 type ProcessorName = keyof typeof processorsMap;
 type Texture = GLTexture;
 export declare class PostProcessing {
+    gl: WebGL2RenderingContext;
     screenTexture: Texture;
     normalTexture: Texture;
     irradianceTexture: Texture;

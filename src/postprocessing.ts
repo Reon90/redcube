@@ -13,8 +13,6 @@ import composerShader from './shaders/composer.glsl';
 import { quadVertex } from './vertex';
 import { Scattering } from './postprocessors/scattering';
 
-let gl: WebGL2RenderingContext;
-
 const processorsMap = {
     bloom: Bloom,
     ssao: SSAO,
@@ -28,6 +26,7 @@ type ProcessorName = keyof typeof processorsMap;
 type Texture = GLTexture;
 
 export class PostProcessing {
+    gl!: WebGL2RenderingContext;
     screenTexture!: Texture;
     normalTexture!: Texture;
     irradianceTexture!: Texture;
@@ -58,14 +57,14 @@ export class PostProcessing {
 
     add(name: ProcessorName) {
         const p = new processorsMap[name]();
-        p.setGL(gl);
+        p.setGL(this.gl);
         this.postprocessors.push(p);
         this.hasPostPass = true;
     }
 
     addPrepass(name: ProcessorName) {
         const p = new processorsMap[name]();
-        p.setGL(gl);
+        p.setGL(this.gl);
         this.postprocessors.push(p);
         this.hasPrePass = true;
     }
@@ -85,10 +84,10 @@ export class PostProcessing {
 
     setGl(g: WebGL2RenderingContext) {
         if (g) {
-            gl = g;
-            this.MSAA = gl.getParameter(gl.MAX_SAMPLES);
+            this.gl = g;
+            this.MSAA = g.getParameter(g.MAX_SAMPLES);
             this.postprocessors.forEach((postProcessor) => {
-                postProcessor.setGL(gl);
+                postProcessor.setGL(g);
             });
             this.fakeDepth = this.createNoiceTexture(1, new Float32Array([1, 1, 0]));
         }
@@ -110,10 +109,12 @@ export class PostProcessing {
     }
 
     bindPrePass() {
+        const { gl } = this;
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.preframebuffer);
     }
 
     bindPostPass() {
+        const { gl } = this;
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
     }
 
@@ -122,6 +123,7 @@ export class PostProcessing {
     }
 
     postProcessing() {
+        const { gl } = this;
         // gl.bindFramebuffer(gl.READ_FRAMEBUFFER, this.renderframebuffer);
         // gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, this.framebuffer);
 
@@ -163,6 +165,7 @@ export class PostProcessing {
     }
 
     createByteTexture() {
+        const { gl } = this;
         const texture = createTexture(gl);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
@@ -171,6 +174,7 @@ export class PostProcessing {
     }
 
     createDefaultTexture(scale: number = 1, hasMipmap = false) {
+        const { gl } = this;
         const texture = createTexture(gl);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
         if (hasMipmap) {
@@ -184,6 +188,7 @@ export class PostProcessing {
     }
 
     createOneChannelTexture(scale: number = 1) {
+        const { gl } = this;
         const texture = createTexture(gl);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
@@ -192,6 +197,7 @@ export class PostProcessing {
     }
 
     createDepthTexture() {
+        const { gl } = this;
         const texture = createTexture(gl);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
@@ -200,6 +206,7 @@ export class PostProcessing {
     }
 
     createNoiceTexture(size: number, data: Float32Array) {
+        const { gl } = this;
         const texture = createTexture(gl);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
@@ -214,6 +221,7 @@ export class PostProcessing {
             return true;
         }
 
+        const { gl } = this;
         this.VAO = gl.createVertexArray();
         gl.bindVertexArray(this.VAO);
         const VBO = gl.createBuffer();
