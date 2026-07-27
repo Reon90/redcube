@@ -3,19 +3,19 @@ import { PostProcessor } from './base';
 import type { PostProcessing as PostProcessingWebGL } from '../postprocessing';
 import type { PostProcessing as PostProcessingWebGPU } from '../postprocessing.webgpu';
 
-let gl: WebGL2RenderingContext & { device?: GPUDevice };
-
 type Texture = GLTexture;
 type GPUTextureSet = { texture: GPUTexture; sampler: GPUSampler; view: GPUTextureView };
 
 export class Refraction extends PostProcessor {
+    gl!: WebGL2RenderingContext & { device?: GPUDevice };
     texture!: Texture | GPUTextureSet;
 
     setGL(g: WebGL2RenderingContext & { device?: GPUDevice }) {
-        gl = g;
+        this.gl = g;
     }
 
     preProcessing(PP: PostProcessingWebGL) {
+        const { gl } = this;
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
         PP.renderScene({ isprerefraction: true });
@@ -28,6 +28,7 @@ export class Refraction extends PostProcessor {
         gl.generateMipmap(gl.TEXTURE_2D);
     }
     preProcessingWebGPU(PP: PostProcessingWebGPU) {
+        const { gl } = this;
         const gpuTexture = this.texture as GPUTextureSet;
         PP.target = [
             {
@@ -45,6 +46,7 @@ export class Refraction extends PostProcessor {
     }
 
     buildScreenBuffer(pp: PostProcessingWebGL) {
+        const { gl } = this;
         this.texture = pp.createDefaultTexture(1, true);
         gl.generateMipmap(gl.TEXTURE_2D);
         gl.bindFramebuffer(gl.FRAMEBUFFER, pp.preframebuffer);

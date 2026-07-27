@@ -3,6 +3,7 @@ import { GLTexture } from '../utils';
 import type { PostProcessing } from '../postprocessing';
 type Texture = GLTexture;
 export declare class SSAO extends PostProcessor {
+    gl: WebGL2RenderingContext;
     ssaoBlurTexture: Texture;
     ssaoTexture: Texture;
     noice: Texture;

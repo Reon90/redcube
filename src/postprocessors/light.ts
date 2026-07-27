@@ -8,11 +8,10 @@ import { calculateProjection } from './../utils';
 import { quadVertex } from '../vertex';
 import type { PostProcessing } from '../postprocessing';
 
-let gl: WebGL2RenderingContext;
-
 type Texture = GLTexture;
 
 export class Light extends PostProcessor {
+    gl!: WebGL2RenderingContext;
     texture!: Texture;
     program!: WebGLProgram;
     scale: number;
@@ -25,10 +24,11 @@ export class Light extends PostProcessor {
     }
 
     setGL(g: WebGL2RenderingContext) {
-        gl = g;
+        this.gl = g;
     }
 
     preProcessing(PP: PostProcessing) {
+        const { gl } = this;
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
         PP.renderScene({ isprepender: true });
 
@@ -58,6 +58,7 @@ export class Light extends PostProcessor {
     }
 
     buildScreenBuffer(PP: PostProcessing) {
+        const { gl } = this;
         this.framebuffer = gl.createFramebuffer()!;
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
         this.texture = PP.createOneChannelTexture(this.scale);
@@ -77,6 +78,7 @@ export class Light extends PostProcessor {
     }
 
     attachUniform(program: WebGLProgram) {
+        const { gl } = this;
         gl.uniform1i(gl.getUniformLocation(program, 'light'), this.texture.index);
     }
 

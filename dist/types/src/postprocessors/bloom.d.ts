@@ -3,6 +3,7 @@ import { GLTexture } from '../utils';
 import type { PostProcessing } from '../postprocessing';
 type Texture = GLTexture;
 export declare class Bloom extends PostProcessor {
+    gl: WebGL2RenderingContext;
     tempBlurTexture: Texture;
     blurTexture: Texture;
     blurTexture2?: Texture;

@@ -3,6 +3,7 @@ import { GLTexture } from '../utils';
 import type { PostProcessing } from '../postprocessing';
 type Texture = GLTexture;
 export declare class Light extends PostProcessor {
+    gl: WebGL2RenderingContext;
     texture: Texture;
     program: WebGLProgram;
     scale: number;

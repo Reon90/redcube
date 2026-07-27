@@ -8,22 +8,22 @@ import quadShader2 from '../shaders/quad.webgpu.glsl';
 import blurShader from '../shaders/scattering.glsl';
 import blurShader2 from '../shaders/scattering.webgpu.glsl';
 
-let gl: WebGL2RenderingContext & { device?: GPUDevice };
-
 type Texture = GLTexture;
 type GPUTextureSet = { texture: GPUTexture; sampler: GPUSampler; view: GPUTextureView };
 
 export class Scattering extends PostProcessor {
+    gl!: WebGL2RenderingContext & { device?: GPUDevice };
     output!: Texture | GPUTextureSet;
     program!: WebGLProgram;
     pipeline!: GPURenderPipeline;
     bindGroup!: GPUBindGroup;
 
     setGL(g: WebGL2RenderingContext & { device?: GPUDevice }) {
-        gl = g;
+        this.gl = g;
     }
 
     attachUniform(program: WebGLProgram) {
+        const { gl } = this;
         gl.uniform1i(gl.getUniformLocation(program, 'scattering'), (this.output as Texture).index);
     }
 
@@ -35,6 +35,7 @@ export class Scattering extends PostProcessor {
     }
 
     postProcessing(PP: PostProcessingWebGL) {
+        const { gl } = this;
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
 
         gl.useProgram(this.program);
@@ -49,7 +50,7 @@ export class Scattering extends PostProcessor {
     }
 
     postProcessingWebGPU(PP: PostProcessingWebGPU) {
-        const { device } = gl;
+        const { device } = this.gl;
         const commandEncoder = device!.createCommandEncoder();
         const shadowPass = commandEncoder.beginRenderPass({
             colorAttachments: [
@@ -71,6 +72,7 @@ export class Scattering extends PostProcessor {
     }
 
     buildScreenBuffer(pp: PostProcessingWebGL) {
+        const { gl } = this;
         this.framebuffer = gl.createFramebuffer()!;
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
         this.output = pp.createByteTexture();
@@ -82,6 +84,7 @@ export class Scattering extends PostProcessor {
     }
 
     buildScreenBufferWebGPU(pp: PostProcessingWebGPU) {
+        const { gl } = this;
         const entries = [
             {
                 binding: 4,

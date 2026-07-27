@@ -16025,24 +16025,24 @@ var redcube = (() => {
     }
     return arr;
   }
-  function compileShader(gl10, type, shaderSource, program) {
-    const shader = gl10.createShader(type);
-    gl10.shaderSource(shader, shaderSource);
-    gl10.compileShader(shader);
-    gl10.attachShader(program, shader);
-    const log = gl10.getShaderInfoLog(shader);
+  function compileShader(gl4, type, shaderSource, program) {
+    const shader = gl4.createShader(type);
+    gl4.shaderSource(shader, shaderSource);
+    gl4.compileShader(shader);
+    gl4.attachShader(program, shader);
+    const log = gl4.getShaderInfoLog(shader);
     if (log) {
       throw new Error(log);
     }
   }
-  function createProgram(gl10, vertex, fragment) {
-    const program = gl10.createProgram();
-    compileShader(gl10, gl10.VERTEX_SHADER, vertex, program);
-    compileShader(gl10, gl10.FRAGMENT_SHADER, fragment, program);
-    gl10.linkProgram(program);
-    gl10.validateProgram(program);
-    if (!gl10.getProgramParameter(program, gl10.LINK_STATUS)) {
-      const info = gl10.getProgramInfoLog(program);
+  function createProgram(gl4, vertex, fragment) {
+    const program = gl4.createProgram();
+    compileShader(gl4, gl4.VERTEX_SHADER, vertex, program);
+    compileShader(gl4, gl4.FRAGMENT_SHADER, fragment, program);
+    gl4.linkProgram(program);
+    gl4.validateProgram(program);
+    if (!gl4.getProgramParameter(program, gl4.LINK_STATUS)) {
+      const info = gl4.getProgramInfoLog(program);
       throw new Error(`Could not compile WebGL program. ${info}`);
     }
     return program;
@@ -16500,21 +16500,21 @@ var redcube = (() => {
         passEncoder.draw(this.geometry.attributes.POSITION.length / 3, this.instances, 0, i);
       }
     }
-    draw(gl10, { lights, camera, needUpdateProjection, preDepthTexture, colorTexture, renderState, fakeDepth, isIBL, isDefaultLight }) {
-      const texUnit = (n) => gl10[`TEXTURE${n}`];
-      const glTypeEnum = (ctor) => gl10[ArrayBufferMap.get(ctor)];
+    draw(gl4, { lights, camera, needUpdateProjection, preDepthTexture, colorTexture, renderState, fakeDepth, isIBL, isDefaultLight }) {
+      const texUnit = (n) => gl4[`TEXTURE${n}`];
+      const glTypeEnum = (ctor) => gl4[ArrayBufferMap.get(ctor)];
       const { isprepender, isprerefraction } = renderState;
       if (this.defines.find((i) => i.name === "TRANSMISSION") && isprerefraction) {
         return;
       }
-      gl10.useProgram(this.program);
-      gl10.bindVertexArray(this.geometry.VAO);
+      gl4.useProgram(this.program);
+      gl4.bindVertexArray(this.geometry.VAO);
       if (needUpdateProjection) {
-        this.geometry.uniformBuffer.update(gl10, "projection", camera.projection.elements);
+        this.geometry.uniformBuffer.update(gl4, "projection", camera.projection.elements);
       }
-      this.geometry.uniformBuffer.update(gl10, "isShadow", isprepender ? 1 : 0);
+      this.geometry.uniformBuffer.update(gl4, "isShadow", isprepender ? 1 : 0);
       if (this instanceof SkinnedMesh) {
-        gl10.bindBufferBase(gl10.UNIFORM_BUFFER, 2, this.geometry.SKIN);
+        gl4.bindBufferBase(gl4.UNIFORM_BUFFER, 2, this.geometry.SKIN);
         if (this.bones.some((bone) => bone.reflow)) {
           const jointMatrix = this.getJointMatrix();
           const matrices = new Float32Array(jointMatrix.length * 16);
@@ -16523,123 +16523,123 @@ var redcube = (() => {
             matrices.set(j.elements, 0 + 16 * i);
             i++;
           }
-          gl10.bufferSubData(gl10.UNIFORM_BUFFER, 0, matrices);
+          gl4.bufferSubData(gl4.UNIFORM_BUFFER, 0, matrices);
         }
       }
       if (this.material.matrices.length) {
-        gl10.bindBufferBase(gl10.UNIFORM_BUFFER, 8, this.material.textureMatricesUniform);
+        gl4.bindBufferBase(gl4.UNIFORM_BUFFER, 8, this.material.textureMatricesUniform);
       }
       if (this.material.sphericalHarmonics) {
-        gl10.bindBufferBase(gl10.UNIFORM_BUFFER, 7, this.material.sphericalHarmonics);
+        gl4.bindBufferBase(gl4.UNIFORM_BUFFER, 7, this.material.sphericalHarmonics);
       }
-      gl10.uniform1i(this.material.uniforms.depthTexture, preDepthTexture && !isprepender ? preDepthTexture.index : fakeDepth.index);
-      gl10.uniform1i(this.material.uniforms.colorTexture, !isprerefraction ? colorTexture.index : fakeDepth.index);
-      gl10.uniform1f(this.material.uniforms.isTone, isprerefraction ? 0 : 1);
-      gl10.uniform1f(this.material.uniforms.isIBL, isIBL ? 1 : 0);
-      gl10.uniform1f(this.material.uniforms.isDefaultLight, isDefaultLight || lights.some((l) => !l.isInitial) ? 1 : 0);
+      gl4.uniform1i(this.material.uniforms.depthTexture, preDepthTexture && !isprepender ? preDepthTexture.index : fakeDepth.index);
+      gl4.uniform1i(this.material.uniforms.colorTexture, !isprerefraction ? colorTexture.index : fakeDepth.index);
+      gl4.uniform1f(this.material.uniforms.isTone, isprerefraction ? 0 : 1);
+      gl4.uniform1f(this.material.uniforms.isIBL, isIBL ? 1 : 0);
+      gl4.uniform1f(this.material.uniforms.isDefaultLight, isDefaultLight || lights.some((l) => !l.isInitial) ? 1 : 0);
       if (this.material.baseColorTexture) {
-        gl10.activeTexture(texUnit(0));
-        gl10.bindTexture(gl10.TEXTURE_2D, this.material.baseColorTexture);
-        gl10.bindSampler(0, this.material.baseColorTexture.sampler);
+        gl4.activeTexture(texUnit(0));
+        gl4.bindTexture(gl4.TEXTURE_2D, this.material.baseColorTexture);
+        gl4.bindSampler(0, this.material.baseColorTexture.sampler);
       }
       if (this.material.metallicRoughnessTexture) {
-        gl10.activeTexture(texUnit(1));
-        gl10.bindTexture(gl10.TEXTURE_2D, this.material.metallicRoughnessTexture);
-        gl10.bindSampler(1, this.material.metallicRoughnessTexture.sampler);
+        gl4.activeTexture(texUnit(1));
+        gl4.bindTexture(gl4.TEXTURE_2D, this.material.metallicRoughnessTexture);
+        gl4.bindSampler(1, this.material.metallicRoughnessTexture.sampler);
       }
       if (this.material.normalTexture) {
-        gl10.activeTexture(texUnit(2));
-        gl10.bindTexture(gl10.TEXTURE_2D, this.material.normalTexture);
-        gl10.bindSampler(2, this.material.normalTexture.sampler);
+        gl4.activeTexture(texUnit(2));
+        gl4.bindTexture(gl4.TEXTURE_2D, this.material.normalTexture);
+        gl4.bindSampler(2, this.material.normalTexture.sampler);
       }
       if (this.material.occlusionTexture) {
-        gl10.activeTexture(texUnit(3));
-        gl10.bindTexture(gl10.TEXTURE_2D, this.material.occlusionTexture);
-        gl10.bindSampler(3, this.material.occlusionTexture.sampler);
+        gl4.activeTexture(texUnit(3));
+        gl4.bindTexture(gl4.TEXTURE_2D, this.material.occlusionTexture);
+        gl4.bindSampler(3, this.material.occlusionTexture.sampler);
       }
       if (this.material.emissiveTexture) {
-        gl10.activeTexture(texUnit(4));
-        gl10.bindTexture(gl10.TEXTURE_2D, this.material.emissiveTexture);
-        gl10.bindSampler(4, this.material.emissiveTexture.sampler);
+        gl4.activeTexture(texUnit(4));
+        gl4.bindTexture(gl4.TEXTURE_2D, this.material.emissiveTexture);
+        gl4.bindSampler(4, this.material.emissiveTexture.sampler);
       }
       if (this.material.clearcoatTexture) {
-        gl10.activeTexture(texUnit(8));
-        gl10.bindTexture(gl10.TEXTURE_2D, this.material.clearcoatTexture);
-        gl10.bindSampler(8, this.material.clearcoatTexture.sampler);
+        gl4.activeTexture(texUnit(8));
+        gl4.bindTexture(gl4.TEXTURE_2D, this.material.clearcoatTexture);
+        gl4.bindSampler(8, this.material.clearcoatTexture.sampler);
       }
       if (this.material.clearcoatRoughnessTexture) {
-        gl10.activeTexture(texUnit(9));
-        gl10.bindTexture(gl10.TEXTURE_2D, this.material.clearcoatRoughnessTexture);
-        gl10.bindSampler(9, this.material.clearcoatRoughnessTexture.sampler);
+        gl4.activeTexture(texUnit(9));
+        gl4.bindTexture(gl4.TEXTURE_2D, this.material.clearcoatRoughnessTexture);
+        gl4.bindSampler(9, this.material.clearcoatRoughnessTexture.sampler);
       }
       if (this.material.sheenColorTexture) {
-        gl10.activeTexture(texUnit(11));
-        gl10.bindTexture(gl10.TEXTURE_2D, this.material.sheenColorTexture);
-        gl10.bindSampler(11, this.material.sheenColorTexture.sampler);
+        gl4.activeTexture(texUnit(11));
+        gl4.bindTexture(gl4.TEXTURE_2D, this.material.sheenColorTexture);
+        gl4.bindSampler(11, this.material.sheenColorTexture.sampler);
       }
       if (this.material.sheenRoughnessTexture) {
-        gl10.activeTexture(texUnit(12));
-        gl10.bindTexture(gl10.TEXTURE_2D, this.material.sheenRoughnessTexture);
-        gl10.bindSampler(12, this.material.sheenRoughnessTexture.sampler);
+        gl4.activeTexture(texUnit(12));
+        gl4.bindTexture(gl4.TEXTURE_2D, this.material.sheenRoughnessTexture);
+        gl4.bindSampler(12, this.material.sheenRoughnessTexture.sampler);
       }
       if (this.material.iridescenceThicknessTexture) {
-        gl10.activeTexture(texUnit(17));
-        gl10.bindTexture(gl10.TEXTURE_2D, this.material.iridescenceThicknessTexture);
-        gl10.bindSampler(17, this.material.iridescenceThicknessTexture.sampler);
+        gl4.activeTexture(texUnit(17));
+        gl4.bindTexture(gl4.TEXTURE_2D, this.material.iridescenceThicknessTexture);
+        gl4.bindSampler(17, this.material.iridescenceThicknessTexture.sampler);
       }
       if (this.material.iridescenceTexture) {
-        gl10.activeTexture(texUnit(23));
-        gl10.bindTexture(gl10.TEXTURE_2D, this.material.iridescenceTexture);
-        gl10.bindSampler(23, this.material.iridescenceTexture.sampler);
+        gl4.activeTexture(texUnit(23));
+        gl4.bindTexture(gl4.TEXTURE_2D, this.material.iridescenceTexture);
+        gl4.bindSampler(23, this.material.iridescenceTexture.sampler);
       }
       if (this.material.diffuseTransmissionTexture) {
-        gl10.activeTexture(texUnit(20));
-        gl10.bindTexture(gl10.TEXTURE_2D, this.material.diffuseTransmissionTexture);
-        gl10.bindSampler(20, this.material.diffuseTransmissionTexture.sampler);
+        gl4.activeTexture(texUnit(20));
+        gl4.bindTexture(gl4.TEXTURE_2D, this.material.diffuseTransmissionTexture);
+        gl4.bindSampler(20, this.material.diffuseTransmissionTexture.sampler);
       }
       if (this.material.diffuseTransmissionColorTexture) {
-        gl10.activeTexture(texUnit(21));
-        gl10.bindTexture(gl10.TEXTURE_2D, this.material.diffuseTransmissionColorTexture);
-        gl10.bindSampler(21, this.material.diffuseTransmissionColorTexture.sampler);
+        gl4.activeTexture(texUnit(21));
+        gl4.bindTexture(gl4.TEXTURE_2D, this.material.diffuseTransmissionColorTexture);
+        gl4.bindSampler(21, this.material.diffuseTransmissionColorTexture.sampler);
       }
       if (this.material.anisotropyTexture) {
-        gl10.activeTexture(texUnit(22));
-        gl10.bindTexture(gl10.TEXTURE_2D, this.material.anisotropyTexture);
-        gl10.bindSampler(22, this.material.anisotropyTexture.sampler);
+        gl4.activeTexture(texUnit(22));
+        gl4.bindTexture(gl4.TEXTURE_2D, this.material.anisotropyTexture);
+        gl4.bindSampler(22, this.material.anisotropyTexture.sampler);
       }
       if (this.material.clearcoatNormalTexture) {
-        gl10.activeTexture(texUnit(10));
-        gl10.bindTexture(gl10.TEXTURE_2D, this.material.clearcoatNormalTexture);
-        gl10.bindSampler(10, this.material.clearcoatNormalTexture.sampler);
+        gl4.activeTexture(texUnit(10));
+        gl4.bindTexture(gl4.TEXTURE_2D, this.material.clearcoatNormalTexture);
+        gl4.bindSampler(10, this.material.clearcoatNormalTexture.sampler);
       }
       if (this.material.transmissionTexture) {
-        gl10.activeTexture(texUnit(14));
-        gl10.bindTexture(gl10.TEXTURE_2D, this.material.transmissionTexture);
-        gl10.bindSampler(14, this.material.transmissionTexture.sampler);
+        gl4.activeTexture(texUnit(14));
+        gl4.bindTexture(gl4.TEXTURE_2D, this.material.transmissionTexture);
+        gl4.bindSampler(14, this.material.transmissionTexture.sampler);
       }
       if (this.material.specularTexture) {
-        gl10.activeTexture(texUnit(15));
-        gl10.bindTexture(gl10.TEXTURE_2D, this.material.specularTexture);
-        gl10.bindSampler(15, this.material.specularTexture.sampler);
+        gl4.activeTexture(texUnit(15));
+        gl4.bindTexture(gl4.TEXTURE_2D, this.material.specularTexture);
+        gl4.bindSampler(15, this.material.specularTexture.sampler);
       }
       if (this.material.specularColorTexture) {
-        gl10.activeTexture(texUnit(19));
-        gl10.bindTexture(gl10.TEXTURE_2D, this.material.specularColorTexture);
-        gl10.bindSampler(19, this.material.specularColorTexture.sampler);
+        gl4.activeTexture(texUnit(19));
+        gl4.bindTexture(gl4.TEXTURE_2D, this.material.specularColorTexture);
+        gl4.bindSampler(19, this.material.specularColorTexture.sampler);
       }
       if (this.material.thicknessTexture) {
-        gl10.activeTexture(texUnit(16));
-        gl10.bindTexture(gl10.TEXTURE_2D, this.material.thicknessTexture);
-        gl10.bindSampler(16, this.material.thicknessTexture.sampler);
+        gl4.activeTexture(texUnit(16));
+        gl4.bindTexture(gl4.TEXTURE_2D, this.material.thicknessTexture);
+        gl4.bindSampler(16, this.material.thicknessTexture.sampler);
       }
       if (this.material.doubleSided) {
-        gl10.disable(gl10.CULL_FACE);
+        gl4.disable(gl4.CULL_FACE);
       }
       if (this.frontFace) {
-        gl10.frontFace(gl10.CW);
+        gl4.frontFace(gl4.CW);
       }
       if (this.instances > 1) {
-        gl10.drawElementsInstanced(
+        gl4.drawElementsInstanced(
           this.mode,
           this.geometry.indicesBuffer.length,
           glTypeEnum(this.geometry.indicesBuffer.constructor),
@@ -16648,21 +16648,21 @@ var redcube = (() => {
         );
       } else {
         if (this.geometry.indicesBuffer) {
-          gl10.drawElements(
-            this.mode === 2 ? gl10.LINES : this.mode,
+          gl4.drawElements(
+            this.mode === 2 ? gl4.LINES : this.mode,
             this.geometry.indicesBuffer.length,
             glTypeEnum(this.geometry.indicesBuffer.constructor),
             0
           );
         } else {
-          gl10.drawArrays(this.mode, 0, this.geometry.attributes.POSITION.length / 3);
+          gl4.drawArrays(this.mode, 0, this.geometry.attributes.POSITION.length / 3);
         }
       }
       if (this.material.doubleSided) {
-        gl10.enable(gl10.CULL_FACE);
+        gl4.enable(gl4.CULL_FACE);
       }
       if (this.frontFace) {
-        gl10.frontFace(gl10.CCW);
+        gl4.frontFace(gl4.CCW);
       }
     }
     setGeometry(geometry) {
@@ -16739,7 +16739,7 @@ var redcube = (() => {
       device.queue.writeBuffer(uniformBuffer, 0, matrices.buffer, matrices.byteOffset, matrices.byteLength);
       return uniformBindGroup1;
     }
-    setSkin(gl10, skin) {
+    setSkin(gl4, skin) {
       this.bones = skin.bones;
       this.boneInverses = skin.boneInverses;
       const jointMatrix = this.getJointMatrix();
@@ -16749,13 +16749,13 @@ var redcube = (() => {
         matrices.set(j.elements, 0 + 16 * i);
         i++;
       }
-      const uIndex = gl10.getUniformBlockIndex(this.program, "Skin");
-      gl10.uniformBlockBinding(this.program, uIndex, 2);
-      const UBO = gl10.createBuffer();
-      gl10.bindBuffer(gl10.UNIFORM_BUFFER, UBO);
-      gl10.bufferData(gl10.UNIFORM_BUFFER, matrices, gl10.DYNAMIC_DRAW);
+      const uIndex = gl4.getUniformBlockIndex(this.program, "Skin");
+      gl4.uniformBlockBinding(this.program, uIndex, 2);
+      const UBO = gl4.createBuffer();
+      gl4.bindBuffer(gl4.UNIFORM_BUFFER, UBO);
+      gl4.bufferData(gl4.UNIFORM_BUFFER, matrices, gl4.DYNAMIC_DRAW);
       this.geometry.SKIN = UBO;
-      gl10.bindBuffer(gl10.UNIFORM_BUFFER, null);
+      gl4.bindBuffer(gl4.UNIFORM_BUFFER, null);
       return this;
     }
     getJointMatrix() {
@@ -16953,7 +16953,7 @@ var redcube = (() => {
         this.offset += buffer.length;
       }
     }
-    update(gl10, name, value, skip = false) {
+    update(gl4, name, value, skip = false) {
       if (value.length === void 0) {
         value = new Float32Array([value]);
       }
@@ -16966,7 +16966,7 @@ var redcube = (() => {
       if (skip) {
         return;
       }
-      gl10.bufferSubData(gl10.UNIFORM_BUFFER, offset * Float32Array.BYTES_PER_ELEMENT, buffer);
+      gl4.bufferSubData(gl4.UNIFORM_BUFFER, offset * Float32Array.BYTES_PER_ELEMENT, buffer);
     }
     updateWebGPU(WebGPU2, name, value, skip = false) {
       const { device } = WebGPU2;
@@ -17441,121 +17441,121 @@ var redcube = (() => {
     setHarmonics(sphericalHarmonics) {
       this.sphericalHarmonics = sphericalHarmonics;
     }
-    updateUniformsWebgl(gl10, program) {
-      gl10.useProgram(program);
-      this.uniforms.isTone = gl10.getUniformLocation(program, "isTone");
-      this.uniforms.isIBL = gl10.getUniformLocation(program, "isIBL");
-      this.uniforms.isDefaultLight = gl10.getUniformLocation(program, "isDefaultLight");
+    updateUniformsWebgl(gl4, program) {
+      gl4.useProgram(program);
+      this.uniforms.isTone = gl4.getUniformLocation(program, "isTone");
+      this.uniforms.isIBL = gl4.getUniformLocation(program, "isIBL");
+      this.uniforms.isDefaultLight = gl4.getUniformLocation(program, "isDefaultLight");
       if (this.baseColorTexture) {
-        this.uniforms.baseColorTexture = gl10.getUniformLocation(program, "baseColorTexture");
-        gl10.uniform1i(this.uniforms.baseColorTexture, textureEnum.baseColorTexture);
+        this.uniforms.baseColorTexture = gl4.getUniformLocation(program, "baseColorTexture");
+        gl4.uniform1i(this.uniforms.baseColorTexture, textureEnum.baseColorTexture);
       }
       if (this.metallicRoughnessTexture) {
-        this.uniforms.metallicRoughnessTexture = gl10.getUniformLocation(program, "metallicRoughnessTexture");
-        gl10.uniform1i(this.uniforms.metallicRoughnessTexture, textureEnum.metallicRoughnessTexture);
+        this.uniforms.metallicRoughnessTexture = gl4.getUniformLocation(program, "metallicRoughnessTexture");
+        gl4.uniform1i(this.uniforms.metallicRoughnessTexture, textureEnum.metallicRoughnessTexture);
       }
       if (this.normalTexture) {
-        this.uniforms.normalTexture = gl10.getUniformLocation(program, "normalTexture");
-        gl10.uniform1i(this.uniforms.normalTexture, textureEnum.normalTexture);
+        this.uniforms.normalTexture = gl4.getUniformLocation(program, "normalTexture");
+        gl4.uniform1i(this.uniforms.normalTexture, textureEnum.normalTexture);
       }
       if (this.occlusionTexture) {
-        this.uniforms.occlusionTexture = gl10.getUniformLocation(program, "occlusionTexture");
-        gl10.uniform1i(this.uniforms.occlusionTexture, textureEnum.occlusionTexture);
+        this.uniforms.occlusionTexture = gl4.getUniformLocation(program, "occlusionTexture");
+        gl4.uniform1i(this.uniforms.occlusionTexture, textureEnum.occlusionTexture);
       }
       if (this.emissiveTexture) {
-        this.uniforms.emissiveTexture = gl10.getUniformLocation(program, "emissiveTexture");
-        gl10.uniform1i(this.uniforms.emissiveTexture, textureEnum.emissiveTexture);
+        this.uniforms.emissiveTexture = gl4.getUniformLocation(program, "emissiveTexture");
+        gl4.uniform1i(this.uniforms.emissiveTexture, textureEnum.emissiveTexture);
       }
       if (this.clearcoatTexture) {
-        this.uniforms.clearcoatTexture = gl10.getUniformLocation(program, "clearcoatTexture");
-        gl10.uniform1i(this.uniforms.clearcoatTexture, textureEnum.clearcoatTexture);
+        this.uniforms.clearcoatTexture = gl4.getUniformLocation(program, "clearcoatTexture");
+        gl4.uniform1i(this.uniforms.clearcoatTexture, textureEnum.clearcoatTexture);
       }
       if (this.clearcoatRoughnessTexture) {
-        this.uniforms.clearcoatRoughnessTexture = gl10.getUniformLocation(program, "clearcoatRoughnessTexture");
-        gl10.uniform1i(this.uniforms.clearcoatRoughnessTexture, textureEnum.clearcoatRoughnessTexture);
+        this.uniforms.clearcoatRoughnessTexture = gl4.getUniformLocation(program, "clearcoatRoughnessTexture");
+        gl4.uniform1i(this.uniforms.clearcoatRoughnessTexture, textureEnum.clearcoatRoughnessTexture);
       }
       if (this.clearcoatNormalTexture) {
-        this.uniforms.clearcoatNormalTexture = gl10.getUniformLocation(program, "clearcoatNormalTexture");
-        gl10.uniform1i(this.uniforms.clearcoatNormalTexture, textureEnum.clearcoatNormalTexture);
+        this.uniforms.clearcoatNormalTexture = gl4.getUniformLocation(program, "clearcoatNormalTexture");
+        gl4.uniform1i(this.uniforms.clearcoatNormalTexture, textureEnum.clearcoatNormalTexture);
       }
       if (this.sheenRoughnessTexture) {
-        this.uniforms.sheenRoughnessTexture = gl10.getUniformLocation(program, "sheenRoughnessTexture");
-        gl10.uniform1i(this.uniforms.sheenRoughnessTexture, textureEnum.sheenRoughnessTexture);
+        this.uniforms.sheenRoughnessTexture = gl4.getUniformLocation(program, "sheenRoughnessTexture");
+        gl4.uniform1i(this.uniforms.sheenRoughnessTexture, textureEnum.sheenRoughnessTexture);
       }
       if (this.iridescenceThicknessTexture) {
-        this.uniforms.iridescenceThicknessTexture = gl10.getUniformLocation(program, "iridescenceThicknessTexture");
-        gl10.uniform1i(this.uniforms.iridescenceThicknessTexture, textureEnum.iridescenceThicknessTexture);
+        this.uniforms.iridescenceThicknessTexture = gl4.getUniformLocation(program, "iridescenceThicknessTexture");
+        gl4.uniform1i(this.uniforms.iridescenceThicknessTexture, textureEnum.iridescenceThicknessTexture);
       }
       if (this.iridescenceTexture) {
-        this.uniforms.iridescenceTexture = gl10.getUniformLocation(program, "iridescenceTexture");
-        gl10.uniform1i(this.uniforms.iridescenceTexture, textureEnum.iridescenceTexture);
+        this.uniforms.iridescenceTexture = gl4.getUniformLocation(program, "iridescenceTexture");
+        gl4.uniform1i(this.uniforms.iridescenceTexture, textureEnum.iridescenceTexture);
       }
       if (this.anisotropyTexture) {
-        this.uniforms.anisotropyTexture = gl10.getUniformLocation(program, "anisotropyTexture");
-        gl10.uniform1i(this.uniforms.anisotropyTexture, textureEnum.anisotropyTexture);
+        this.uniforms.anisotropyTexture = gl4.getUniformLocation(program, "anisotropyTexture");
+        gl4.uniform1i(this.uniforms.anisotropyTexture, textureEnum.anisotropyTexture);
       }
       if (this.diffuseTransmissionColorTexture) {
-        this.uniforms.diffuseTransmissionColorTexture = gl10.getUniformLocation(program, "diffuseTransmissionColorTexture");
-        gl10.uniform1i(this.uniforms.diffuseTransmissionColorTexture, textureEnum.diffuseTransmissionColorTexture);
+        this.uniforms.diffuseTransmissionColorTexture = gl4.getUniformLocation(program, "diffuseTransmissionColorTexture");
+        gl4.uniform1i(this.uniforms.diffuseTransmissionColorTexture, textureEnum.diffuseTransmissionColorTexture);
       }
       if (this.diffuseTransmissionTexture) {
-        this.uniforms.diffuseTransmissionTexture = gl10.getUniformLocation(program, "diffuseTransmissionTexture");
-        gl10.uniform1i(this.uniforms.diffuseTransmissionTexture, textureEnum.diffuseTransmissionTexture);
+        this.uniforms.diffuseTransmissionTexture = gl4.getUniformLocation(program, "diffuseTransmissionTexture");
+        gl4.uniform1i(this.uniforms.diffuseTransmissionTexture, textureEnum.diffuseTransmissionTexture);
       }
       if (this.sheenColorTexture) {
-        this.uniforms.sheenColorTexture = gl10.getUniformLocation(program, "sheenColorTexture");
-        gl10.uniform1i(this.uniforms.sheenColorTexture, textureEnum.sheenColorTexture);
+        this.uniforms.sheenColorTexture = gl4.getUniformLocation(program, "sheenColorTexture");
+        gl4.uniform1i(this.uniforms.sheenColorTexture, textureEnum.sheenColorTexture);
       }
       if (this.transmissionTexture) {
-        this.uniforms.transmissionTexture = gl10.getUniformLocation(program, "transmissionTexture");
-        gl10.uniform1i(this.uniforms.transmissionTexture, textureEnum.transmissionTexture);
+        this.uniforms.transmissionTexture = gl4.getUniformLocation(program, "transmissionTexture");
+        gl4.uniform1i(this.uniforms.transmissionTexture, textureEnum.transmissionTexture);
       }
       if (this.specularTexture) {
-        this.uniforms.specularTexture = gl10.getUniformLocation(program, "specularTexture");
-        gl10.uniform1i(this.uniforms.specularTexture, textureEnum.specularTexture);
+        this.uniforms.specularTexture = gl4.getUniformLocation(program, "specularTexture");
+        gl4.uniform1i(this.uniforms.specularTexture, textureEnum.specularTexture);
       }
       if (this.specularColorTexture) {
-        this.uniforms.specularColorTexture = gl10.getUniformLocation(program, "specularColorTexture");
-        gl10.uniform1i(this.uniforms.specularColorTexture, textureEnum.specularColorTexture);
+        this.uniforms.specularColorTexture = gl4.getUniformLocation(program, "specularColorTexture");
+        gl4.uniform1i(this.uniforms.specularColorTexture, textureEnum.specularColorTexture);
       }
       if (this.thicknessTexture) {
-        this.uniforms.thicknessTexture = gl10.getUniformLocation(program, "thicknessTexture");
-        gl10.uniform1i(this.uniforms.thicknessTexture, textureEnum.thicknessTexture);
+        this.uniforms.thicknessTexture = gl4.getUniformLocation(program, "thicknessTexture");
+        gl4.uniform1i(this.uniforms.thicknessTexture, textureEnum.thicknessTexture);
       }
-      this.uniforms.prefilterMap = gl10.getUniformLocation(program, "prefilterMap");
-      this.uniforms.charlieMap = gl10.getUniformLocation(program, "charlieMap");
-      this.uniforms.brdfLUT = gl10.getUniformLocation(program, "brdfLUT");
-      this.uniforms.irradianceMap = gl10.getUniformLocation(program, "irradianceMap");
-      this.uniforms.depthTexture = gl10.getUniformLocation(program, "depthTexture");
-      this.uniforms.colorTexture = gl10.getUniformLocation(program, "colorTexture");
-      this.uniforms.Sheen_E = gl10.getUniformLocation(program, "Sheen_E");
-      gl10.uniform1i(this.uniforms.prefilterMap, textureEnum.prefilterTexture);
-      gl10.uniform1i(this.uniforms.charlieMap, textureEnum.charlieTexture);
-      gl10.uniform1i(this.uniforms.brdfLUT, textureEnum.brdfLUTTexture);
-      gl10.uniform1i(this.uniforms.irradianceMap, textureEnum.irradianceTexture);
-      gl10.uniform1i(this.uniforms.Sheen_E, textureEnum.Sheen_E);
+      this.uniforms.prefilterMap = gl4.getUniformLocation(program, "prefilterMap");
+      this.uniforms.charlieMap = gl4.getUniformLocation(program, "charlieMap");
+      this.uniforms.brdfLUT = gl4.getUniformLocation(program, "brdfLUT");
+      this.uniforms.irradianceMap = gl4.getUniformLocation(program, "irradianceMap");
+      this.uniforms.depthTexture = gl4.getUniformLocation(program, "depthTexture");
+      this.uniforms.colorTexture = gl4.getUniformLocation(program, "colorTexture");
+      this.uniforms.Sheen_E = gl4.getUniformLocation(program, "Sheen_E");
+      gl4.uniform1i(this.uniforms.prefilterMap, textureEnum.prefilterTexture);
+      gl4.uniform1i(this.uniforms.charlieMap, textureEnum.charlieTexture);
+      gl4.uniform1i(this.uniforms.brdfLUT, textureEnum.brdfLUTTexture);
+      gl4.uniform1i(this.uniforms.irradianceMap, textureEnum.irradianceTexture);
+      gl4.uniform1i(this.uniforms.Sheen_E, textureEnum.Sheen_E);
       {
-        const mIndex = gl10.getUniformBlockIndex(program, "LightColor");
-        gl10.uniformBlockBinding(program, mIndex, 4);
-      }
-      {
-        const mIndex = gl10.getUniformBlockIndex(program, "LightPos");
-        gl10.uniformBlockBinding(program, mIndex, 3);
+        const mIndex = gl4.getUniformBlockIndex(program, "LightColor");
+        gl4.uniformBlockBinding(program, mIndex, 4);
       }
       {
-        const mIndex = gl10.getUniformBlockIndex(program, "Spotdir");
-        gl10.uniformBlockBinding(program, mIndex, 5);
+        const mIndex = gl4.getUniformBlockIndex(program, "LightPos");
+        gl4.uniformBlockBinding(program, mIndex, 3);
       }
       {
-        const mIndex = gl10.getUniformBlockIndex(program, "LightIntensity");
-        gl10.uniformBlockBinding(program, mIndex, 6);
+        const mIndex = gl4.getUniformBlockIndex(program, "Spotdir");
+        gl4.uniformBlockBinding(program, mIndex, 5);
+      }
+      {
+        const mIndex = gl4.getUniformBlockIndex(program, "LightIntensity");
+        gl4.uniformBlockBinding(program, mIndex, 6);
       }
       if (this.matrices.length) {
-        const mIndex = gl10.getUniformBlockIndex(program, "TextureMatrices");
-        gl10.uniformBlockBinding(program, mIndex, 8);
-        const textureMatricesUniform = gl10.createBuffer();
-        gl10.bindBuffer(gl10.UNIFORM_BUFFER, textureMatricesUniform);
-        gl10.bufferData(gl10.UNIFORM_BUFFER, this.textureMatricesBuffer.store, gl10.STATIC_DRAW);
+        const mIndex = gl4.getUniformBlockIndex(program, "TextureMatrices");
+        gl4.uniformBlockBinding(program, mIndex, 8);
+        const textureMatricesUniform = gl4.createBuffer();
+        gl4.bindBuffer(gl4.UNIFORM_BUFFER, textureMatricesUniform);
+        gl4.bufferData(gl4.UNIFORM_BUFFER, this.textureMatricesBuffer.store, gl4.STATIC_DRAW);
         this.textureMatricesUniform = textureMatricesUniform;
       }
     }
@@ -17746,11 +17746,11 @@ var redcube = (() => {
     hasNormal() {
       return Boolean(this.normalTexture) || Boolean(this.clearcoatNormalTexture);
     }
-    setColor(gl10, name, value) {
-      this.materialUniformBuffer.update(gl10, name, value.elements, true);
+    setColor(gl4, name, value) {
+      this.materialUniformBuffer.update(gl4, name, value.elements, true);
     }
-    setTexture(gl10, name, type, value) {
-      gl10.bindBufferBase(gl10.UNIFORM_BUFFER, 8, this.textureMatricesUniform);
+    setTexture(gl4, name, type, value) {
+      gl4.bindBufferBase(gl4.UNIFORM_BUFFER, 8, this.textureMatricesUniform);
       const i = this.matricesMap.get(name) * 16;
       const [e0, e1] = value.elements;
       if (type === "offset") {
@@ -17764,7 +17764,7 @@ var redcube = (() => {
       if (type === "rotation") {
         this.textureMatricesBuffer.store[i + 8] = e0;
       }
-      gl10.bufferSubData(gl10.UNIFORM_BUFFER, 0, this.textureMatricesBuffer.store);
+      gl4.bufferSubData(gl4.UNIFORM_BUFFER, 0, this.textureMatricesBuffer.store);
     }
     setTextureWebGPU(WebGPU2, name, type, value) {
       const i = this.matricesMap.get(name) * 16;
@@ -20627,13 +20627,13 @@ void main() {\r
         this.indicesWebGPUBuffer = indicesBuffer;
       }
     }
-    createGeometryForWebGl(gl10, defines, order) {
-      const VAO = gl10.createVertexArray();
-      gl10.bindVertexArray(VAO);
+    createGeometryForWebGl(gl4, defines, order) {
+      const VAO = gl4.createVertexArray();
+      gl4.bindVertexArray(VAO);
       this.compose(order);
-      const VBO = gl10.createBuffer();
-      gl10.bindBuffer(gl10.ARRAY_BUFFER, VBO);
-      gl10.bufferData(gl10.ARRAY_BUFFER, this.g, gl10.STATIC_DRAW);
+      const VBO = gl4.createBuffer();
+      gl4.bindBuffer(gl4.ARRAY_BUFFER, VBO);
+      gl4.bufferData(gl4.ARRAY_BUFFER, this.g, gl4.STATIC_DRAW);
       this.VBO = VBO;
       const vertexLayout = [3, 2, 3, 4];
       if (defines.find((d) => d.name === "JOINTNUMBER")) {
@@ -20655,20 +20655,20 @@ void main() {\r
       for (const k in GeometryEnum) {
         if (k in this.attributes || k === "TANGENT" || k === "TEXCOORD_0") {
           const index = GeometryEnum[k];
-          gl10.enableVertexAttribArray(index[0]);
-          gl10.vertexAttribPointer(index[0], index[1], gl10.FLOAT, false, cubeVertexSize, Float32Array.BYTES_PER_ELEMENT * offset);
+          gl4.enableVertexAttribArray(index[0]);
+          gl4.vertexAttribPointer(index[0], index[1], gl4.FLOAT, false, cubeVertexSize, Float32Array.BYTES_PER_ELEMENT * offset);
           offset += index[1];
         }
       }
-      gl10.enableVertexAttribArray(9);
-      gl10.vertexAttribPointer(9, 1, gl10.FLOAT, false, cubeVertexSize, Float32Array.BYTES_PER_ELEMENT * offset);
+      gl4.enableVertexAttribArray(9);
+      gl4.vertexAttribPointer(9, 1, gl4.FLOAT, false, cubeVertexSize, Float32Array.BYTES_PER_ELEMENT * offset);
       if (this.indicesBuffer) {
-        const VBO2 = gl10.createBuffer();
-        gl10.bindBuffer(gl10.ELEMENT_ARRAY_BUFFER, VBO2);
-        gl10.bufferData(gl10.ELEMENT_ARRAY_BUFFER, this.indicesBuffer, gl10.STATIC_DRAW);
+        const VBO2 = gl4.createBuffer();
+        gl4.bindBuffer(gl4.ELEMENT_ARRAY_BUFFER, VBO2);
+        gl4.bufferData(gl4.ELEMENT_ARRAY_BUFFER, this.indicesBuffer, gl4.STATIC_DRAW);
       }
       this.VAO = VAO;
-      gl10.bindVertexArray(null);
+      gl4.bindVertexArray(null);
     }
     calculateBounding(matrix) {
       const box = new Box();
@@ -20714,9 +20714,9 @@ void main() {\r
       device.queue.writeBuffer(uniformBuffer, 0, buffer.store.buffer, buffer.store.byteOffset, buffer.store.byteLength);
       return uniformBindGroup1;
     }
-    updateUniformsWebGl(gl10, program) {
-      const uIndex2 = gl10.getUniformBlockIndex(program, "Matrices2");
-      gl10.uniformBlockBinding(program, uIndex2, 1);
+    updateUniformsWebGl(gl4, program) {
+      const uIndex2 = gl4.getUniformBlockIndex(program, "Matrices2");
+      gl4.uniformBlockBinding(program, uIndex2, 1);
     }
     async updateWebGPU(WebGPU2, geometry) {
       const { device } = WebGPU2;
@@ -20758,8 +20758,8 @@ void main() {\r
       }
       device.queue.writeBuffer(this.verticesWebGPUBuffer, 0, g.buffer, g.byteOffset, g.byteLength);
     }
-    update(gl10, geometry) {
-      gl10.bindVertexArray(this.VAO);
+    update(gl4, geometry) {
+      gl4.bindVertexArray(this.VAO);
       let total = 13;
       if (this.attributes["COLOR_0"]) {
         total += 4;
@@ -20796,9 +20796,9 @@ void main() {\r
         l += 2;
         m += 4;
       }
-      gl10.bindBuffer(gl10.ARRAY_BUFFER, this.VBO);
-      gl10.bufferData(gl10.ARRAY_BUFFER, g, gl10.STATIC_DRAW);
-      gl10.bindVertexArray(null);
+      gl4.bindBuffer(gl4.ARRAY_BUFFER, this.VBO);
+      gl4.bufferData(gl4.ARRAY_BUFFER, g, gl4.STATIC_DRAW);
+      gl4.bindVertexArray(null);
     }
   };
 
@@ -21748,8 +21748,8 @@ ${defineStr}`));
   var light_vert_default = "#version 300 es\r\nprecision highp float;\r\n\r\nlayout (location = 0) in vec2 pos;\r\n\r\nout vec2 uv;\r\nout vec4 vPosLight1;\r\nout vec4 vPosLight2;\r\nout vec3 outPositionView;\r\nout vec3 outPositionLight;\r\n\r\nuniform mat4 proj;\r\nuniform mat4 light;\r\nuniform mat4 Iproj;\r\nuniform mat4 Iview;\r\nuniform mat4 view;\r\n\r\nvoid main() {\r\n    vec4 p1 = Iview * Iproj * vec4(pos, -1.0/16.0, 1.0);\r\n    vec4 p2 = Iview * Iproj * vec4(pos, 1.0/16.0, 1.0);\r\n\r\n	vPosLight1 = proj * light * p1;\r\n    vPosLight2 = proj * light * p2;\r\n    outPositionLight = vec3(light * p1);\r\n    outPositionView = vec3(view * p1);\r\n\r\n	uv = pos * 0.5 + 0.5;\r\n	gl_Position = vec4(pos, 0.0, 1.0);\r\n}\r\n";
 
   // src/postprocessors/light.ts
-  var gl2;
   var Light2 = class extends PostProcessor {
+    gl;
     texture;
     program;
     scale;
@@ -21759,57 +21759,60 @@ ${defineStr}`));
       this.scale = 2;
     }
     setGL(g) {
-      gl2 = g;
+      this.gl = g;
     }
     preProcessing(PP) {
-      gl2.clear(gl2.COLOR_BUFFER_BIT | gl2.DEPTH_BUFFER_BIT);
+      const { gl: gl4 } = this;
+      gl4.clear(gl4.COLOR_BUFFER_BIT | gl4.DEPTH_BUFFER_BIT);
       PP.renderScene({ isprepender: true });
-      gl2.bindFramebuffer(gl2.FRAMEBUFFER, this.framebuffer);
-      gl2.framebufferTexture2D(gl2.FRAMEBUFFER, gl2.COLOR_ATTACHMENT0, gl2.TEXTURE_2D, this.texture, 0);
-      gl2.useProgram(this.program);
-      gl2.viewport(0, 0, this.width / this.scale, this.height / this.scale);
-      gl2.bindVertexArray(this.quadVAO);
+      gl4.bindFramebuffer(gl4.FRAMEBUFFER, this.framebuffer);
+      gl4.framebufferTexture2D(gl4.FRAMEBUFFER, gl4.COLOR_ATTACHMENT0, gl4.TEXTURE_2D, this.texture, 0);
+      gl4.useProgram(this.program);
+      gl4.viewport(0, 0, this.width / this.scale, this.height / this.scale);
+      gl4.bindVertexArray(this.quadVAO);
       const cam = Object.assign({}, this.camera.props, { zoom: 1 });
       const proj = calculateProjection(cam);
-      gl2.uniformMatrix4fv(gl2.getUniformLocation(this.program, "Iproj"), false, new Matrix4().setInverseOf(proj).elements);
-      gl2.uniformMatrix4fv(gl2.getUniformLocation(this.program, "proj"), false, proj.elements);
-      gl2.uniformMatrix4fv(gl2.getUniformLocation(this.program, "Iview"), false, this.camera.matrixWorld.elements);
-      gl2.uniformMatrix4fv(gl2.getUniformLocation(this.program, "view"), false, this.camera.matrixWorldInvert.elements);
-      gl2.uniformMatrix4fv(gl2.getUniformLocation(this.program, "light"), false, this.light.matrixWorldInvert.elements);
-      gl2.uniform1i(gl2.getUniformLocation(this.program, "lightTexture"), PP.preDepthTexture.index);
-      gl2.uniform1i(gl2.getUniformLocation(this.program, "cameraTexture"), PP.depthTexture.index);
-      gl2.uniform3fv(gl2.getUniformLocation(this.program, "viewPos"), this.camera.getPosition());
-      gl2.uniform3fv(gl2.getUniformLocation(this.program, "lightPos"), this.light.getPosition());
-      gl2.drawArrays(gl2.TRIANGLE_STRIP, 0, 4);
-      gl2.bindFramebuffer(gl2.FRAMEBUFFER, null);
-      gl2.viewport(0, 0, this.width, this.height);
+      gl4.uniformMatrix4fv(gl4.getUniformLocation(this.program, "Iproj"), false, new Matrix4().setInverseOf(proj).elements);
+      gl4.uniformMatrix4fv(gl4.getUniformLocation(this.program, "proj"), false, proj.elements);
+      gl4.uniformMatrix4fv(gl4.getUniformLocation(this.program, "Iview"), false, this.camera.matrixWorld.elements);
+      gl4.uniformMatrix4fv(gl4.getUniformLocation(this.program, "view"), false, this.camera.matrixWorldInvert.elements);
+      gl4.uniformMatrix4fv(gl4.getUniformLocation(this.program, "light"), false, this.light.matrixWorldInvert.elements);
+      gl4.uniform1i(gl4.getUniformLocation(this.program, "lightTexture"), PP.preDepthTexture.index);
+      gl4.uniform1i(gl4.getUniformLocation(this.program, "cameraTexture"), PP.depthTexture.index);
+      gl4.uniform3fv(gl4.getUniformLocation(this.program, "viewPos"), this.camera.getPosition());
+      gl4.uniform3fv(gl4.getUniformLocation(this.program, "lightPos"), this.light.getPosition());
+      gl4.drawArrays(gl4.TRIANGLE_STRIP, 0, 4);
+      gl4.bindFramebuffer(gl4.FRAMEBUFFER, null);
+      gl4.viewport(0, 0, this.width, this.height);
     }
     buildScreenBuffer(PP) {
-      this.framebuffer = gl2.createFramebuffer();
-      gl2.bindFramebuffer(gl2.FRAMEBUFFER, this.framebuffer);
+      const { gl: gl4 } = this;
+      this.framebuffer = gl4.createFramebuffer();
+      gl4.bindFramebuffer(gl4.FRAMEBUFFER, this.framebuffer);
       this.texture = PP.createOneChannelTexture(this.scale);
-      gl2.framebufferTexture2D(gl2.FRAMEBUFFER, gl2.COLOR_ATTACHMENT0, gl2.TEXTURE_2D, this.texture, 0);
-      this.program = createProgram(gl2, light_vert_default, light_default);
-      this.quadVAO = gl2.createVertexArray();
-      gl2.bindVertexArray(this.quadVAO);
-      const quadVBO = gl2.createBuffer();
-      gl2.bindBuffer(gl2.ARRAY_BUFFER, quadVBO);
-      gl2.bufferData(gl2.ARRAY_BUFFER, new Float32Array(quadVertex), gl2.STATIC_DRAW);
-      gl2.enableVertexAttribArray(0);
-      gl2.vertexAttribPointer(0, 2, gl2.FLOAT, false, 0, 0);
-      gl2.bindVertexArray(null);
-      gl2.bindFramebuffer(gl2.FRAMEBUFFER, null);
+      gl4.framebufferTexture2D(gl4.FRAMEBUFFER, gl4.COLOR_ATTACHMENT0, gl4.TEXTURE_2D, this.texture, 0);
+      this.program = createProgram(gl4, light_vert_default, light_default);
+      this.quadVAO = gl4.createVertexArray();
+      gl4.bindVertexArray(this.quadVAO);
+      const quadVBO = gl4.createBuffer();
+      gl4.bindBuffer(gl4.ARRAY_BUFFER, quadVBO);
+      gl4.bufferData(gl4.ARRAY_BUFFER, new Float32Array(quadVertex), gl4.STATIC_DRAW);
+      gl4.enableVertexAttribArray(0);
+      gl4.vertexAttribPointer(0, 2, gl4.FLOAT, false, 0, 0);
+      gl4.bindVertexArray(null);
+      gl4.bindFramebuffer(gl4.FRAMEBUFFER, null);
       return { name: "LIGHT" };
     }
     attachUniform(program) {
-      gl2.uniform1i(gl2.getUniformLocation(program, "light"), this.texture.index);
+      const { gl: gl4 } = this;
+      gl4.uniform1i(gl4.getUniformLocation(program, "light"), this.texture.index);
     }
     postProcessing() {
     }
   };
 
   // src/renderer.ts
-  var gl3;
+  var gl2;
   var Renderer = class {
     parse;
     PP;
@@ -21845,7 +21848,7 @@ ${defineStr}`));
       this.PP = pp;
     }
     setGl(g) {
-      gl3 = g;
+      gl2 = g;
     }
     setParser(parser) {
       this.parse = parser;
@@ -21944,7 +21947,7 @@ ${defineStr}`));
       }
     }
     updateGeometry(mesh, geometry) {
-      mesh.geometry.update(gl3, geometry);
+      mesh.geometry.update(gl2, geometry);
     }
     interpolation(sec, v) {
       const val = interpolation(sec, v.keys);
@@ -22027,10 +22030,10 @@ ${defineStr}`));
       const last = s[s.length - 1];
       if (last === "offset" || last === "rotation" || last === "scale") {
         const name = s[s.length - 4];
-        mesh.material.setTexture(gl3, name, last, out);
+        mesh.material.setTexture(gl2, name, last, out);
       } else {
         mesh.repaint = true;
-        mesh.material.setColor(gl3, s[s.length - 1], out);
+        mesh.material.setColor(gl2, s[s.length - 1], out);
       }
     }
     animate(sec) {
@@ -22094,14 +22097,14 @@ ${defineStr}`));
         if (this.PP.hasPostPass) {
           this.PP.bindPostPass();
         }
-        gl3.clear(gl3.COLOR_BUFFER_BIT | gl3.DEPTH_BUFFER_BIT);
+        gl2.clear(gl2.COLOR_BUFFER_BIT | gl2.DEPTH_BUFFER_BIT);
         if (this.parse.json.extensions && this.parse.json.extensions.EXT_lights_image_based) {
           this.env.draw();
         }
         this.renderScene();
         this.clean();
         if (this.PP.postprocessors.some((p) => p instanceof Light2)) {
-          gl3.bindFramebuffer(gl3.DRAW_FRAMEBUFFER, null);
+          gl2.bindFramebuffer(gl2.DRAW_FRAMEBUFFER, null);
           this.Particles.draw(time);
           this.reflow = true;
         }
@@ -22121,33 +22124,33 @@ ${defineStr}`));
       }
       const s = this.getState();
       if (s.needUpdateView) {
-        gl3.bindBufferBase(gl3.UNIFORM_BUFFER, 1, s.UBO);
-        s.cameraBuffer.update(gl3, "view", s.camera.matrixWorldInvert.elements);
-        s.cameraBuffer.update(gl3, "light", s.light.matrixWorldInvert.elements);
-        gl3.bindBufferBase(gl3.UNIFORM_BUFFER, 3, s.lightPosUniform);
+        gl2.bindBufferBase(gl2.UNIFORM_BUFFER, 1, s.UBO);
+        s.cameraBuffer.update(gl2, "view", s.camera.matrixWorldInvert.elements);
+        s.cameraBuffer.update(gl2, "light", s.light.matrixWorldInvert.elements);
+        gl2.bindBufferBase(gl2.UNIFORM_BUFFER, 3, s.lightPosUniform);
         this.parse.lights.forEach((light, i) => {
           s.lightPosBuffer.store.set(light.getPosition(), i * 4);
         });
-        gl3.bufferSubData(gl3.UNIFORM_BUFFER, 0, s.lightPosBuffer.store);
+        gl2.bufferSubData(gl2.UNIFORM_BUFFER, 0, s.lightPosBuffer.store);
       }
       if (s.needUpdateProjection) {
-        gl3.bindBufferBase(gl3.UNIFORM_BUFFER, 1, s.UBO);
-        s.cameraBuffer.update(gl3, "projection", s.camera.projection.elements);
+        gl2.bindBufferBase(gl2.UNIFORM_BUFFER, 1, s.UBO);
+        s.cameraBuffer.update(gl2, "projection", s.camera.projection.elements);
       }
-      gl3.bindBufferBase(gl3.UNIFORM_BUFFER, 4, s.lightColorUniform);
-      gl3.bufferSubData(gl3.UNIFORM_BUFFER, 0, s.lightColorBuffer.store);
+      gl2.bindBufferBase(gl2.UNIFORM_BUFFER, 4, s.lightColorUniform);
+      gl2.bufferSubData(gl2.UNIFORM_BUFFER, 0, s.lightColorBuffer.store);
       s.lights.forEach((light, i) => {
         const offset = i * 4 * Float32Array.BYTES_PER_ELEMENT;
         if (light.visible === false) {
-          gl3.bufferSubData(gl3.UNIFORM_BUFFER, offset, new Float32Array([0, 0, 0, 0]));
+          gl2.bufferSubData(gl2.UNIFORM_BUFFER, offset, new Float32Array([0, 0, 0, 0]));
         }
       });
       this.scene.meshes.forEach((mesh, i) => {
         if (mesh.reflow) {
-          gl3.activeTexture(gl3[`TEXTURE${31}`]);
-          gl3.bindTexture(gl3.TEXTURE_2D, s.storage2.texture);
-          gl3.texSubImage2D(
-            gl3.TEXTURE_2D,
+          gl2.activeTexture(gl2[`TEXTURE${31}`]);
+          gl2.bindTexture(gl2.TEXTURE_2D, s.storage2.texture);
+          gl2.texSubImage2D(
+            gl2.TEXTURE_2D,
             0,
             // Mipmap level
             0,
@@ -22156,14 +22159,14 @@ ${defineStr}`));
             // yoffset
             this.scene.meshes[0].geometry.uniformBuffer.store.length / Float32Array.BYTES_PER_ELEMENT,
             1,
-            gl3.RGBA,
-            gl3.FLOAT,
+            gl2.RGBA,
+            gl2.FLOAT,
             mesh.matrixWorld.elements
           );
           if (mesh.matrices.length) {
             mesh.matrices.forEach((matrix, j) => {
-              gl3.texSubImage2D(
-                gl3.TEXTURE_2D,
+              gl2.texSubImage2D(
+                gl2.TEXTURE_2D,
                 0,
                 // Mipmap level
                 0,
@@ -22172,8 +22175,8 @@ ${defineStr}`));
                 // yoffset
                 this.scene.meshes[0].geometry.uniformBuffer.store.length / Float32Array.BYTES_PER_ELEMENT,
                 1,
-                gl3.RGBA,
-                gl3.FLOAT,
+                gl2.RGBA,
+                gl2.FLOAT,
                 matrix.elements
               );
             });
@@ -22181,10 +22184,10 @@ ${defineStr}`));
           mesh.reflow = false;
         }
         if (mesh.repaint) {
-          gl3.activeTexture(gl3[`TEXTURE${30}`]);
-          gl3.bindTexture(gl3.TEXTURE_2D, s.storage.texture2);
-          gl3.texSubImage2D(
-            gl3.TEXTURE_2D,
+          gl2.activeTexture(gl2[`TEXTURE${30}`]);
+          gl2.bindTexture(gl2.TEXTURE_2D, s.storage.texture2);
+          gl2.texSubImage2D(
+            gl2.TEXTURE_2D,
             0,
             // Mipmap level
             0,
@@ -22193,8 +22196,8 @@ ${defineStr}`));
             // yoffset
             this.scene.meshes[0].material.materialUniformBuffer.store.length / Float32Array.BYTES_PER_ELEMENT,
             1,
-            gl3.RGBA,
-            gl3.FLOAT,
+            gl2.RGBA,
+            gl2.FLOAT,
             mesh.material.materialUniformBuffer.store
           );
           mesh.repaint = false;
@@ -22202,19 +22205,19 @@ ${defineStr}`));
       });
       this.scene.opaqueChildren.forEach((mesh) => {
         if (mesh.visible) {
-          mesh.draw(gl3, this.getState());
+          mesh.draw(gl2, this.getState());
         }
       });
       if (this.scene.transparentChildren.length) {
-        gl3.enable(gl3.BLEND);
-        gl3.blendFunc(gl3.SRC_ALPHA, gl3.ONE_MINUS_SRC_ALPHA);
+        gl2.enable(gl2.BLEND);
+        gl2.blendFunc(gl2.SRC_ALPHA, gl2.ONE_MINUS_SRC_ALPHA);
         this.scene.transparentChildren.forEach((mesh) => {
           if (mesh.visible) {
-            mesh.draw(gl3, this.getState());
+            mesh.draw(gl2, this.getState());
           }
         });
-        gl3.disable(gl3.BLEND);
-        gl3.blendFunc(gl3.ONE, gl3.ZERO);
+        gl2.disable(gl2.BLEND);
+        gl2.blendFunc(gl2.ONE, gl2.ZERO);
       }
     }
     clean() {
@@ -22682,10 +22685,10 @@ ${defineStr}`));
   var blur_default = "#version 300 es\r\nprecision highp float;\r\n\r\nin vec2 uv;\r\nout vec4 color;\r\n\r\nuniform vec2 denom;\r\nuniform sampler2D uTexture;\r\n\r\nconst float weight[5] = float[] (0.227027, 0.1945946, 0.1216216, 0.054054, 0.016216);\r\n\r\nvoid main() {             \r\n    vec2 offset = 1.0 / vec2(textureSize(uTexture, 0));\r\n    vec3 result = texture(uTexture, uv).rgb * weight[0];\r\n\r\n    for (int i = 1; i < 5; ++i) {\r\n        result += texture(uTexture, uv + denom * (offset * float(i))).rgb * weight[i];\r\n        result += texture(uTexture, uv - denom * (offset * float(i))).rgb * weight[i];\r\n    }\r\n\r\n    color = vec4(result, 1.0);\r\n}\r\n";
 
   // src/postprocessors/ssao.ts
-  var gl4;
   var noiceSize = 4;
   var kernelSize = 32;
   var SSAO = class extends PostProcessor {
+    gl;
     ssaoBlurTexture;
     ssaoTexture;
     noice;
@@ -22698,12 +22701,14 @@ ${defineStr}`));
       this.scale = 2;
     }
     setGL(g) {
-      gl4 = g;
+      this.gl = g;
     }
     attachUniform(program) {
+      const { gl: gl4 } = this;
       gl4.uniform1i(gl4.getUniformLocation(program, "ssao"), this.ssaoTexture.index);
     }
     postProcessing(PP) {
+      const { gl: gl4 } = this;
       gl4.bindFramebuffer(gl4.FRAMEBUFFER, this.framebuffer);
       gl4.framebufferTexture2D(gl4.FRAMEBUFFER, gl4.COLOR_ATTACHMENT0, gl4.TEXTURE_2D, this.ssaoTexture, 0);
       gl4.clearColor(...clearColor);
@@ -22745,6 +22750,7 @@ ${defineStr}`));
       gl4.viewport(0, 0, this.width, this.height);
     }
     buildScreenBuffer(pp) {
+      const { gl: gl4 } = this;
       this.framebuffer = gl4.createFramebuffer();
       gl4.bindFramebuffer(gl4.FRAMEBUFFER, this.framebuffer);
       this.ssaoTexture = pp.createOneChannelTexture(this.scale);
@@ -22792,8 +22798,8 @@ ${defineStr}`));
   var bloom_default = "#version 300 es\r\nprecision highp float;\r\n\r\nin vec2 uv;\r\nout vec4 color;\r\n\r\nuniform sampler2D diff;\r\n\r\nconst vec3 hdrColor = vec3(0.2126, 0.7152, 0.0722);\r\nconst float brightnessThreshold = 0.8;\r\n\r\nvoid main() {\r\n    vec3 c = texture(diff, uv).rgb;\r\n    float brightness = dot(c, hdrColor);\r\n    if (brightness > brightnessThreshold) {\r\n        color = vec4(c, 1.0);\r\n    } else {\r\n        color = vec4(0.0, 0.0, 0.0, 1.0);\r\n    }\r\n}\r\n";
 
   // src/postprocessors/bloom.ts
-  var gl5;
   var Bloom = class extends PostProcessor {
+    gl;
     tempBlurTexture;
     blurTexture;
     blurTexture2;
@@ -22803,62 +22809,67 @@ ${defineStr}`));
     bloorProgram;
     hdrTexture;
     setGL(g) {
-      gl5 = g;
+      this.gl = g;
     }
     attachUniform(program) {
-      gl5.uniform1i(gl5.getUniformLocation(program, "bloom"), this.blurTexture.index);
+      const { gl: gl4 } = this;
+      gl4.uniform1i(gl4.getUniformLocation(program, "bloom"), this.blurTexture.index);
     }
     postProcessing(PP) {
-      gl5.bindFramebuffer(gl5.FRAMEBUFFER, this.framebuffer);
-      gl5.useProgram(this.bloorProgram);
-      gl5.framebufferTexture2D(gl5.FRAMEBUFFER, gl5.COLOR_ATTACHMENT0, gl5.TEXTURE_2D, this.hdrTexture, 0);
-      gl5.uniform1i(gl5.getUniformLocation(this.bloorProgram, "diff"), PP.screenTexture.index);
-      gl5.drawArrays(gl5.TRIANGLE_STRIP, 0, 4);
-      gl5.useProgram(this.program);
-      gl5.viewport(0, 0, this.width / 2, this.height / 2);
+      const { gl: gl4 } = this;
+      gl4.bindFramebuffer(gl4.FRAMEBUFFER, this.framebuffer);
+      gl4.useProgram(this.bloorProgram);
+      gl4.framebufferTexture2D(gl4.FRAMEBUFFER, gl4.COLOR_ATTACHMENT0, gl4.TEXTURE_2D, this.hdrTexture, 0);
+      gl4.uniform1i(gl4.getUniformLocation(this.bloorProgram, "diff"), PP.screenTexture.index);
+      gl4.drawArrays(gl4.TRIANGLE_STRIP, 0, 4);
+      gl4.useProgram(this.program);
+      gl4.viewport(0, 0, this.width / 2, this.height / 2);
       this.renderBlur(this.hdrTexture, this.program);
       this.renderBlur(this.blurTexture, this.program);
       this.renderBlur(this.blurTexture, this.program);
       this.renderBlur(this.blurTexture, this.program);
       this.renderBlur(this.blurTexture, this.program);
-      gl5.bindFramebuffer(gl5.FRAMEBUFFER, null);
-      gl5.viewport(0, 0, this.width, this.height);
+      gl4.bindFramebuffer(gl4.FRAMEBUFFER, null);
+      gl4.viewport(0, 0, this.width, this.height);
     }
     buildScreenBuffer(pp) {
-      this.framebuffer = gl5.createFramebuffer();
-      gl5.bindFramebuffer(gl5.FRAMEBUFFER, this.framebuffer);
+      const { gl: gl4 } = this;
+      this.framebuffer = gl4.createFramebuffer();
+      gl4.bindFramebuffer(gl4.FRAMEBUFFER, this.framebuffer);
       this.tempBlurTexture = pp.createDefaultTexture(2);
       this.blurTexture = pp.createDefaultTexture(2);
       this.hdrTexture = pp.createByteTexture();
-      gl5.bindFramebuffer(gl5.FRAMEBUFFER, null);
-      this.program = createProgram(gl5, quad_default, blur_default);
-      this.bloorProgram = createProgram(gl5, quad_default, bloom_default);
+      gl4.bindFramebuffer(gl4.FRAMEBUFFER, null);
+      this.program = createProgram(gl4, quad_default, blur_default);
+      this.bloorProgram = createProgram(gl4, quad_default, bloom_default);
       return { name: "BLOOM" };
     }
     renderBlur(inTexture, program) {
-      gl5.framebufferTexture2D(gl5.FRAMEBUFFER, gl5.COLOR_ATTACHMENT0, gl5.TEXTURE_2D, this.tempBlurTexture, 0);
-      gl5.clearColor(...clearColor);
-      gl5.clear(gl5.COLOR_BUFFER_BIT | gl5.DEPTH_BUFFER_BIT | gl5.STENSIL_BUFFER_BIT);
-      gl5.uniform1i(gl5.getUniformLocation(program, "uTexture"), inTexture.index);
-      gl5.uniform2f(gl5.getUniformLocation(program, "denom"), 1, 0);
-      gl5.drawArrays(gl5.TRIANGLE_STRIP, 0, 4);
-      gl5.framebufferTexture2D(gl5.FRAMEBUFFER, gl5.COLOR_ATTACHMENT0, gl5.TEXTURE_2D, this.blurTexture, 0);
-      gl5.uniform1i(gl5.getUniformLocation(program, "uTexture"), this.tempBlurTexture.index);
-      gl5.uniform2f(gl5.getUniformLocation(program, "denom"), 0, 1);
-      gl5.drawArrays(gl5.TRIANGLE_STRIP, 0, 4);
+      const { gl: gl4 } = this;
+      gl4.framebufferTexture2D(gl4.FRAMEBUFFER, gl4.COLOR_ATTACHMENT0, gl4.TEXTURE_2D, this.tempBlurTexture, 0);
+      gl4.clearColor(...clearColor);
+      gl4.clear(gl4.COLOR_BUFFER_BIT | gl4.DEPTH_BUFFER_BIT | gl4.STENSIL_BUFFER_BIT);
+      gl4.uniform1i(gl4.getUniformLocation(program, "uTexture"), inTexture.index);
+      gl4.uniform2f(gl4.getUniformLocation(program, "denom"), 1, 0);
+      gl4.drawArrays(gl4.TRIANGLE_STRIP, 0, 4);
+      gl4.framebufferTexture2D(gl4.FRAMEBUFFER, gl4.COLOR_ATTACHMENT0, gl4.TEXTURE_2D, this.blurTexture, 0);
+      gl4.uniform1i(gl4.getUniformLocation(program, "uTexture"), this.tempBlurTexture.index);
+      gl4.uniform2f(gl4.getUniformLocation(program, "denom"), 0, 1);
+      gl4.drawArrays(gl4.TRIANGLE_STRIP, 0, 4);
     }
     preProcessing() {
     }
   };
 
   // src/postprocessors/shadow.ts
-  var gl6;
   var Shadow = class extends PostProcessor {
+    gl;
     setGL(g) {
-      gl6 = g;
+      this.gl = g;
     }
     preProcessing(PP) {
-      gl6.clear(gl6.COLOR_BUFFER_BIT | gl6.DEPTH_BUFFER_BIT);
+      const { gl: gl4 } = this;
+      gl4.clear(gl4.COLOR_BUFFER_BIT | gl4.DEPTH_BUFFER_BIT);
       PP.renderScene({ isprepender: true });
     }
     buildScreenBuffer() {
@@ -22871,22 +22882,24 @@ ${defineStr}`));
   };
 
   // src/postprocessors/refraction.ts
-  var gl7;
   var Refraction = class extends PostProcessor {
+    gl;
     texture;
     setGL(g) {
-      gl7 = g;
+      this.gl = g;
     }
     preProcessing(PP) {
-      gl7.clear(gl7.COLOR_BUFFER_BIT | gl7.DEPTH_BUFFER_BIT);
+      const { gl: gl4 } = this;
+      gl4.clear(gl4.COLOR_BUFFER_BIT | gl4.DEPTH_BUFFER_BIT);
       PP.renderScene({ isprerefraction: true });
-      gl7.bindFramebuffer(gl7.FRAMEBUFFER, null);
+      gl4.bindFramebuffer(gl4.FRAMEBUFFER, null);
       const glTexture = this.texture;
-      gl7.activeTexture(gl7[`TEXTURE${glTexture.index}`]);
-      gl7.bindTexture(gl7.TEXTURE_2D, glTexture);
-      gl7.generateMipmap(gl7.TEXTURE_2D);
+      gl4.activeTexture(gl4[`TEXTURE${glTexture.index}`]);
+      gl4.bindTexture(gl4.TEXTURE_2D, glTexture);
+      gl4.generateMipmap(gl4.TEXTURE_2D);
     }
     preProcessingWebGPU(PP) {
+      const { gl: gl4 } = this;
       const gpuTexture = this.texture;
       PP.target = [
         {
@@ -22899,14 +22912,15 @@ ${defineStr}`));
       ];
       PP.renderScene({ isprerefraction: true });
       const mipLevelCount = Math.max(1, Math.floor(Math.log2(Math.max(PP.width, PP.height))) - 2);
-      generateMipmaps(gl7.device, gpuTexture.texture, PP.width, PP.height, mipLevelCount);
+      generateMipmaps(gl4.device, gpuTexture.texture, PP.width, PP.height, mipLevelCount);
     }
     buildScreenBuffer(pp) {
+      const { gl: gl4 } = this;
       this.texture = pp.createDefaultTexture(1, true);
-      gl7.generateMipmap(gl7.TEXTURE_2D);
-      gl7.bindFramebuffer(gl7.FRAMEBUFFER, pp.preframebuffer);
-      gl7.framebufferTexture2D(gl7.FRAMEBUFFER, gl7.COLOR_ATTACHMENT0, gl7.TEXTURE_2D, this.texture, 0);
-      gl7.bindFramebuffer(gl7.FRAMEBUFFER, null);
+      gl4.generateMipmap(gl4.TEXTURE_2D);
+      gl4.bindFramebuffer(gl4.FRAMEBUFFER, pp.preframebuffer);
+      gl4.framebufferTexture2D(gl4.FRAMEBUFFER, gl4.COLOR_ATTACHMENT0, gl4.TEXTURE_2D, this.texture, 0);
+      gl4.bindFramebuffer(gl4.FRAMEBUFFER, null);
       return { name: "REFRACTION" };
     }
     buildScreenBufferWebGPU(pp) {
@@ -22931,17 +22945,18 @@ ${defineStr}`));
   var scattering_webgpu_default = "#version 460\r\nprecision highp float;\r\n\r\n#define DISABLE_UNIFORMITY_ANALYSIS\r\n\r\n#extension GL_EXT_samplerless_texture_functions:require\r\n\r\nlayout(location = 0) in vec2 inuv;\r\nlayout(location = 0) out vec4 color;\r\n\r\n#define rcp(x) 1./x\r\n#define GOLDEN_RATIO 1.618033988749895\r\n#define TWO_PI 6.2831855\r\nvec2 Golden2dSeq(int i, float n) {\r\n    return vec2(float(i) / n + (0.5f / n), fract(float(i) * rcp(GOLDEN_RATIO)));\r\n}\r\nvec2 SampleDiskGolden(int i, int sampleCount) {\r\n    vec2 f = Golden2dSeq(i, float(sampleCount));\r\n    return vec2(sqrt(f.x), TWO_PI * f.y);\r\n}\r\nconst float PI = 3.1415926535897932384626433832795f;\r\nconst float RECIPROCAL_PI = 0.3183098861837907f;\r\nconst float RECIPROCAL_PI2 = 0.15915494309189535f;\r\nconst float HALF_MIN = 5.96046448e-08f;\r\nconst float LinearEncodePowerApprox = 2.2f;\r\nconst float GammaEncodePowerApprox = 1.0f / LinearEncodePowerApprox;\r\nconst vec3 LuminanceEncodeApprox = vec3(0.2126f, 0.7152f, 0.0722f);\r\nconst float Epsilon = 0.0000001f;\r\n#define saturate(x) clamp(x, 0.0, 1.0)\r\n#define absEps(x) abs(x)+Epsilon\r\n#define maxEps(x) max(x, Epsilon)\r\n#define saturateEps(x) clamp(x, Epsilon, 1.0)\r\nmat3 transposeMat3(mat3 inMatrix) {\r\n    vec3 i0 = inMatrix[0];\r\n    vec3 i1 = inMatrix[1];\r\n    vec3 i2 = inMatrix[2];\r\n    mat3 outMatrix = mat3(vec3(i0.x, i1.x, i2.x), vec3(i0.y, i1.y, i2.y), vec3(i0.z, i1.z, i2.z));\r\n    return outMatrix;\r\n}\r\nmat3 inverseMat3(mat3 inMatrix) {\r\n    float a00 = inMatrix[0][0], a01 = inMatrix[0][1], a02 = inMatrix[0][2];\r\n    float a10 = inMatrix[1][0], a11 = inMatrix[1][1], a12 = inMatrix[1][2];\r\n    float a20 = inMatrix[2][0], a21 = inMatrix[2][1], a22 = inMatrix[2][2];\r\n    float b01 = a22 * a11 - a12 * a21;\r\n    float b11 = -a22 * a10 + a12 * a20;\r\n    float b21 = a21 * a10 - a11 * a20;\r\n    float det = a00 * b01 + a01 * b11 + a02 * b21;\r\n    return mat3(b01, (-a22 * a01 + a02 * a21), (a12 * a01 - a02 * a11), b11, (a22 * a00 - a02 * a20), (-a12 * a00 + a02 * a10), b21, (-a21 * a00 + a01 * a20), (a11 * a00 - a01 * a10)) / det;\r\n}\r\nfloat toLinearSpace(float color) {\r\n    return pow(color, LinearEncodePowerApprox);\r\n}\r\nvec3 toLinearSpace(vec3 color) {\r\n    return pow(color, vec3(LinearEncodePowerApprox));\r\n}\r\nvec4 toLinearSpace(vec4 color) {\r\n    return vec4(pow(color.rgb, vec3(LinearEncodePowerApprox)), color.a);\r\n}\r\nfloat toGammaSpace(float color) {\r\n    return pow(color, GammaEncodePowerApprox);\r\n}\r\nvec3 toGammaSpace(vec3 color) {\r\n    return pow(color, vec3(GammaEncodePowerApprox));\r\n}\r\nvec4 toGammaSpace(vec4 color) {\r\n    return vec4(pow(color.rgb, vec3(GammaEncodePowerApprox)), color.a);\r\n}\r\nfloat square(float value) {\r\n    return value * value;\r\n}\r\nvec3 square(vec3 value) {\r\n    return value * value;\r\n}\r\nfloat pow5(float value) {\r\n    float sq = value * value;\r\n    return sq * sq * value;\r\n}\r\nfloat getLuminance(vec3 color) {\r\n    return clamp(dot(color, LuminanceEncodeApprox), 0.f, 1.f);\r\n}\r\nfloat getRand(vec2 seed) {\r\n    return fract(sin(dot(seed.xy, vec2(12.9898f, 78.233f))) * 43758.5453f);\r\n}\r\nfloat dither(vec2 seed, float varianceAmount) {\r\n    float rand = getRand(seed);\r\n    float normVariance = varianceAmount / 255.0f;\r\n    float dither = mix(-normVariance, normVariance, rand);\r\n    return dither;\r\n}\r\nconst float rgbdMaxRange = 255.0f;\r\nvec4 toRGBD(vec3 color) {\r\n    float maxRGB = maxEps(max(color.r, max(color.g, color.b)));\r\n    float D = max(rgbdMaxRange / maxRGB, 1.f);\r\n    D = clamp(floor(D) / 255.0f, 0.f, 1.f);\r\n    vec3 rgb = color.rgb * D;\r\n    rgb = toGammaSpace(rgb);\r\n    return vec4(clamp(rgb, 0.f, 1.f), D);\r\n}\r\nvec3 fromRGBD(vec4 rgbd) {\r\n    rgbd.rgb = toLinearSpace(rgbd.rgb);\r\n    return rgbd.rgb / rgbd.a;\r\n}\r\nvec3 parallaxCorrectNormal(vec3 vertexPos, vec3 origVec, vec3 cubeSize, vec3 cubePos) {\r\n    vec3 invOrigVec = vec3(1.0f, 1.0f, 1.0f) / origVec;\r\n    vec3 halfSize = cubeSize * 0.5f;\r\n    vec3 intersecAtMaxPlane = (cubePos + halfSize - vertexPos) * invOrigVec;\r\n    vec3 intersecAtMinPlane = (cubePos - halfSize - vertexPos) * invOrigVec;\r\n    vec3 largestIntersec = max(intersecAtMaxPlane, intersecAtMinPlane);\r\n    float distance = min(min(largestIntersec.x, largestIntersec.y), largestIntersec.z);\r\n    vec3 intersectPositionWS = vertexPos + origVec * distance;\r\n    return intersectPositionWS - cubePos;\r\n}\r\nbool testLightingForSSS(float diffusionProfile) {\r\n    return diffusionProfile < 1.f;\r\n}\r\n\r\nconst vec3 diffusionS = vec3(1.0);\r\nconst float diffusionD = 1.0;\r\nconst float filterRadii = 16.5644;\r\n\r\nlayout(set = 0, binding = 0) uniform texture2D textureSampler;\r\nlayout(set = 0, binding = 3) uniform texture2D irradianceSampler;\r\nlayout(set = 0, binding = 1) uniform texture2D depthSampler;\r\nlayout(set = 0, binding = 2) uniform texture2D albedoSampler;\r\nlayout(set = 0, binding = 4) uniform sampler baseSampler2;\r\nlayout(set = 0, binding = 5) uniform sampler baseSampler;\r\nconst float metersPerUnit = 0.1;\r\n\r\nconst float LOG2_E = 1.4426950408889634f;\r\nconst float SSS_PIXELS_PER_SAMPLE = 4.f;\r\nconst int _SssSampleBudget = 40;\r\n#define rcp(x) 1./x\r\n#define Sq(x) x*x\r\n#define SSS_BILATERAL_FILTER true\r\nvec3 EvalBurleyDiffusionProfile(float r, vec3 S) {\r\n    vec3 exp_13 = exp2(((LOG2_E * (-1.0f / 3.0f)) * r) * S);\r\n    vec3 expSum = exp_13 * (1.f + exp_13 * exp_13);\r\n    return (S * rcp(8.f * PI)) * expSum;\r\n}\r\nvec2 SampleBurleyDiffusionProfile(float u, float rcpS) {\r\n    u = 1.f - u;\r\n    float g = 1.f + (4.f * u) * (2.f * u + sqrt(1.f + (4.f * u) * u));\r\n    float n = exp2(log2(g) * (-1.0f / 3.0f));\r\n    float p = (g * n) * n;\r\n    float c = 1.f + p + n;\r\n    float d = (3.f / LOG2_E * 2.f) + (3.f / LOG2_E) * log2(u);\r\n    float x = (3.f / LOG2_E) * log2(c) - d;\r\n    float rcpExp = ((c * c) * c) * rcp((4.f * u) * ((c * c) + (4.f * u) * (4.f * u)));\r\n    float r = x * rcpS;\r\n    float rcpPdf = (8.f * PI * rcpS) * rcpExp;\r\n    return vec2(r, rcpPdf);\r\n}\r\nvec3 ComputeBilateralWeight(float xy2, float z, float mmPerUnit, vec3 S, float rcpPdf) {\r\n    float r = sqrt(xy2 + (z * mmPerUnit) * (z * mmPerUnit));\r\n    float area = rcpPdf;\r\n    return EvalBurleyDiffusionProfile(r, S) * area;\r\n}\r\n\r\nvoid main(void) {\r\n    vec2 uv = inuv;\r\n    uv.y = 1.0 - inuv.y;\r\n    vec4 irradianceAndDiffusionProfile = texture(sampler2D(irradianceSampler, baseSampler), uv);\r\n    vec3 centerIrradiance = irradianceAndDiffusionProfile.rgb;\r\n    int diffusionProfileIndex = int(round(irradianceAndDiffusionProfile.a * 255.f));\r\n    float centerDepth = 0.f;\r\n    vec4 inputColor = texture(sampler2D(textureSampler, baseSampler), uv);\r\n    bool passedStencilTest = testLightingForSSS(irradianceAndDiffusionProfile.a);\r\n    //if(passedStencilTest) {\r\n        centerDepth = texture(sampler2D(depthSampler, baseSampler2), uv).x;\r\n    //}\r\n    if(!passedStencilTest) {\r\n        color = inputColor;\r\n        //return;\r\n    }\r\n    float distScale = 1.f;\r\n    vec3 S = diffusionS;\r\n    float d = diffusionD;\r\n    float filterRadius = filterRadii;\r\n    vec2 centerPosNDC = uv;\r\n    vec2 viewportSize = vec2(0.6520661863788713, 0.5773502691896256);\r\n    vec2 texelSize = 1.0 / vec2(textureSize(depthSampler, 0));\r\n    vec2 cornerPosNDC = uv + 0.5f * texelSize;\r\n    vec3 centerPosVS = vec3(centerPosNDC * viewportSize, 1.0f) * centerDepth;\r\n    vec3 cornerPosVS = vec3(cornerPosNDC * viewportSize, 1.0f) * centerDepth;\r\n    float mmPerUnit = 1000.f * (metersPerUnit * rcp(distScale));\r\n    float unitsPerMm = rcp(mmPerUnit);\r\n    float unitsPerPixel = 2.f * abs(cornerPosVS.x - centerPosVS.x);\r\n    float pixelsPerMm = rcp(unitsPerPixel) * unitsPerMm;\r\n    float filterArea = PI * Sq(filterRadius * pixelsPerMm);\r\n    int sampleCount = int(filterArea * rcp(SSS_PIXELS_PER_SAMPLE));\r\n    int sampleBudget = _SssSampleBudget;\r\n    int texturingMode = 0;\r\n    vec3 albedo = texture(sampler2D(albedoSampler, baseSampler), uv).rgb;\r\n    if(distScale == 0.f || sampleCount < 1) {\r\n        color = vec4(inputColor.rgb + albedo * centerIrradiance, 1.0f);\r\n        //return;\r\n    }\r\n    float phase = 0.f;\r\n    int n = min(sampleCount, sampleBudget);\r\n    vec3 centerWeight = vec3(0.f);\r\n    vec3 totalIrradiance = vec3(0.f);\r\n    vec3 totalWeight = vec3(0.f);\r\n    for(int i = 0; i < n; i++) {\r\n        float scale = rcp(float(n));\r\n        float offset = rcp(float(n)) * 0.5f;\r\n        float sinPhase, cosPhase;\r\n        sinPhase = sin(phase);\r\n        cosPhase = cos(phase);\r\n        vec2 bdp = SampleBurleyDiffusionProfile(float(i) * scale + offset, d);\r\n        float r = bdp.x;\r\n        float rcpPdf = bdp.y;\r\n        float phi = SampleDiskGolden(i, n).y;\r\n        float sinPhi, cosPhi;\r\n        sinPhi = sin(phi);\r\n        cosPhi = cos(phi);\r\n        float sinPsi = cosPhase * sinPhi + sinPhase * cosPhi;\r\n        float cosPsi = cosPhase * cosPhi - sinPhase * sinPhi;\r\n        vec2 vec = r * vec2(cosPsi, sinPsi);\r\n        vec2 position;\r\n        float xy2;\r\n        vec2 texelSize = 1.0 / vec2(textureSize(depthSampler, 0));\r\n        position = uv + round((pixelsPerMm * r) * vec2(cosPsi, sinPsi)) * texelSize;\r\n        xy2 = r * r;\r\n        vec3 irradiance = texture(sampler2D(irradianceSampler, baseSampler), position).rgb;\r\n        float viewZ = texture(sampler2D(depthSampler, baseSampler2), position).r;\r\n        //if(testLightingForSSS(textureSample.a)) {\r\n            float relZ = viewZ - centerPosVS.z;\r\n            vec3 weight = ComputeBilateralWeight(xy2, relZ, mmPerUnit, S, rcpPdf);\r\n            totalIrradiance += weight * irradiance;\r\n            totalWeight += weight;\r\n        // } else {\r\n\r\n        // }\r\n    }\r\n    totalWeight = max(totalWeight, HALF_MIN);\r\n    color = vec4(inputColor.rgb + albedo * max(totalIrradiance / totalWeight, vec3(0.0f)), 1.f);\r\n    //color = vec4(inputColor.rgb, 1.f);\r\n}\r\n";
 
   // src/postprocessors/scattering.ts
-  var gl8;
   var Scattering = class extends PostProcessor {
+    gl;
     output;
     program;
     pipeline;
     bindGroup;
     setGL(g) {
-      gl8 = g;
+      this.gl = g;
     }
     attachUniform(program) {
-      gl8.uniform1i(gl8.getUniformLocation(program, "scattering"), this.output.index);
+      const { gl: gl4 } = this;
+      gl4.uniform1i(gl4.getUniformLocation(program, "scattering"), this.output.index);
     }
     attachUniformWebGPU() {
       return {
@@ -22950,17 +22965,18 @@ ${defineStr}`));
       };
     }
     postProcessing(PP) {
-      gl8.bindFramebuffer(gl8.FRAMEBUFFER, this.framebuffer);
-      gl8.useProgram(this.program);
-      gl8.framebufferTexture2D(gl8.FRAMEBUFFER, gl8.COLOR_ATTACHMENT0, gl8.TEXTURE_2D, this.output, 0);
-      gl8.uniform1i(gl8.getUniformLocation(this.program, "textureSampler"), PP.screenTexture.index);
-      gl8.uniform1i(gl8.getUniformLocation(this.program, "depthSampler"), PP.depthTexture.index);
-      gl8.uniform1i(gl8.getUniformLocation(this.program, "albedoSampler"), PP.albedoTexture.index);
-      gl8.uniform1i(gl8.getUniformLocation(this.program, "irradianceSampler"), PP.irradianceTexture.index);
-      gl8.drawArrays(gl8.TRIANGLE_STRIP, 0, 4);
+      const { gl: gl4 } = this;
+      gl4.bindFramebuffer(gl4.FRAMEBUFFER, this.framebuffer);
+      gl4.useProgram(this.program);
+      gl4.framebufferTexture2D(gl4.FRAMEBUFFER, gl4.COLOR_ATTACHMENT0, gl4.TEXTURE_2D, this.output, 0);
+      gl4.uniform1i(gl4.getUniformLocation(this.program, "textureSampler"), PP.screenTexture.index);
+      gl4.uniform1i(gl4.getUniformLocation(this.program, "depthSampler"), PP.depthTexture.index);
+      gl4.uniform1i(gl4.getUniformLocation(this.program, "albedoSampler"), PP.albedoTexture.index);
+      gl4.uniform1i(gl4.getUniformLocation(this.program, "irradianceSampler"), PP.irradianceTexture.index);
+      gl4.drawArrays(gl4.TRIANGLE_STRIP, 0, 4);
     }
     postProcessingWebGPU(PP) {
-      const { device } = gl8;
+      const { device } = this.gl;
       const commandEncoder = device.createCommandEncoder();
       const shadowPass = commandEncoder.beginRenderPass({
         colorAttachments: [
@@ -22980,14 +22996,16 @@ ${defineStr}`));
       device.queue.submit([commandEncoder.finish()]);
     }
     buildScreenBuffer(pp) {
-      this.framebuffer = gl8.createFramebuffer();
-      gl8.bindFramebuffer(gl8.FRAMEBUFFER, this.framebuffer);
+      const { gl: gl4 } = this;
+      this.framebuffer = gl4.createFramebuffer();
+      gl4.bindFramebuffer(gl4.FRAMEBUFFER, this.framebuffer);
       this.output = pp.createByteTexture();
-      gl8.bindFramebuffer(gl8.FRAMEBUFFER, null);
-      this.program = createProgram(gl8, quad_default, scattering_default);
+      gl4.bindFramebuffer(gl4.FRAMEBUFFER, null);
+      this.program = createProgram(gl4, quad_default, scattering_default);
       return { name: "SCATTERING" };
     }
     buildScreenBufferWebGPU(pp) {
+      const { gl: gl4 } = this;
       const entries = [
         {
           binding: 4,
@@ -23015,7 +23033,7 @@ ${defineStr}`));
         }
       ];
       this.pipeline = pp.buildPipeline(
-        gl8,
+        gl4,
         quad_webgpu_default,
         scattering_webgpu_default,
         2,
@@ -23058,7 +23076,7 @@ ${defineStr}`));
         false,
         "scaterring"
       );
-      this.bindGroup = gl8.device.createBindGroup({
+      this.bindGroup = gl4.device.createBindGroup({
         layout: this.pipeline.getBindGroupLayout(0),
         entries
       });
@@ -23072,7 +23090,7 @@ ${defineStr}`));
   };
 
   // src/postprocessing.webgpu.ts
-  var gl9;
+  var gl3;
   var processorsMap = {
     bloom: Bloom,
     ssao: SSAO,
@@ -23113,13 +23131,13 @@ ${defineStr}`));
     }
     add(name) {
       const p = new processorsMap[name]();
-      p.setGL(gl9);
+      p.setGL(gl3);
       this.postprocessors.push(p);
       this.hasPostPass = true;
     }
     addPrepass(name) {
       const p = new processorsMap[name]();
-      p.setGL(gl9);
+      p.setGL(gl3);
       this.postprocessors.push(p);
       this.hasPrePass = true;
     }
@@ -23136,9 +23154,9 @@ ${defineStr}`));
     }
     setGl(g) {
       if (g) {
-        gl9 = g;
+        gl3 = g;
         this.postprocessors.forEach((postProcessor) => {
-          postProcessor.setGL(gl9);
+          postProcessor.setGL(gl3);
         });
         this.fakeDepth = this.createNoiceTexture(1);
         this.fakeDepth.view = this.fakeDepth.texture.createView();
@@ -23165,7 +23183,7 @@ ${defineStr}`));
       this.postprocessors.forEach((postProcessor) => postProcessor.preProcessingWebGPU(this));
     }
     postProcessing() {
-      const { device, context } = gl9;
+      const { device, context } = gl3;
       this.postprocessors.forEach((postProcessor) => postProcessor.postProcessingWebGPU(this));
       const commandEncoder = device.createCommandEncoder({ label: "compose-command-encoder" });
       const shadowPass = commandEncoder.beginRenderPass({
@@ -23193,11 +23211,11 @@ ${defineStr}`));
       device.queue.submit([commandEncoder.finish()]);
     }
     createByteTexture(label) {
-      const sampler = gl9.device.createSampler({
+      const sampler = gl3.device.createSampler({
         magFilter: "nearest",
         minFilter: "nearest"
       });
-      const texture = gl9.device.createTexture({
+      const texture = gl3.device.createTexture({
         size: [this.width, this.height, 1],
         usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
         format: "bgra8unorm",
@@ -23206,13 +23224,13 @@ ${defineStr}`));
       return { texture, sampler, view: texture.createView() };
     }
     createDefaultTexture(label, scale = 1, hasMipmap = false) {
-      const sampler = gl9.device.createSampler({
+      const sampler = gl3.device.createSampler({
         magFilter: "linear",
         minFilter: "linear",
         mipmapFilter: hasMipmap ? "linear" : void 0
       });
       const mipLevelCount = Math.max(1, Math.floor(Math.log2(Math.max(this.width, this.height))) - 2);
-      const texture = gl9.device.createTexture({
+      const texture = gl3.device.createTexture({
         label,
         mipLevelCount,
         size: [this.width / scale, this.height / scale, 1],
@@ -23229,11 +23247,11 @@ ${defineStr}`));
       };
     }
     createOneChannelTexture(scale = 1) {
-      const sampler = gl9.device.createSampler({
+      const sampler = gl3.device.createSampler({
         magFilter: "linear",
         minFilter: "linear"
       });
-      const texture = gl9.device.createTexture({
+      const texture = gl3.device.createTexture({
         size: [this.width / scale, this.height / scale, 1],
         usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
         format: "r8uint"
@@ -23241,11 +23259,11 @@ ${defineStr}`));
       return { texture, sampler, view: texture.createView() };
     }
     createDepthTexture(label) {
-      const sampler = gl9.device.createSampler({
+      const sampler = gl3.device.createSampler({
         magFilter: "nearest",
         minFilter: "nearest"
       });
-      const texture = gl9.device.createTexture({
+      const texture = gl3.device.createTexture({
         size: [this.width, this.height, 1],
         usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
         format: "depth32float",
@@ -23254,13 +23272,13 @@ ${defineStr}`));
       return { texture, sampler, view: texture.createView() };
     }
     createNoiceTexture(size) {
-      const sampler = gl9.device.createSampler({
+      const sampler = gl3.device.createSampler({
         magFilter: "nearest",
         minFilter: "nearest",
         addressModeU: "repeat",
         addressModeV: "repeat"
       });
-      const texture = gl9.device.createTexture({
+      const texture = gl3.device.createTexture({
         size: [size, size, 1],
         usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
         format: "rgba16float"
@@ -23343,7 +23361,7 @@ ${convertGLSLtoWGSL(fragment, "fragment")}`;
       if (this.postprocessors.length === 0) {
         return true;
       }
-      this.vertexBuffer = this.buildVertex(gl9, quadFull);
+      this.vertexBuffer = this.buildVertex(gl3, quadFull);
       this.screenTexture = this.createDefaultTexture("screenTexture");
       this.normalTexture = this.createByteTexture("normalTexture");
       this.irradianceTexture = this.createDefaultTexture("irradianceTexture");
@@ -23390,7 +23408,7 @@ ${convertGLSLtoWGSL(fragment, "fragment")}`;
 ${defineStr}`), composer_webgpu_default.replace(/\n/, `
 ${defineStr}`)];
       this.pipeline = this.buildPipeline(
-        gl9,
+        gl3,
         this.program[0],
         this.program[1],
         2,
@@ -23444,7 +23462,7 @@ ${defineStr}`)];
         },
         ...entriesExternal
       ];
-      this.bindGroup = gl9.device.createBindGroup({
+      this.bindGroup = gl3.device.createBindGroup({
         layout: this.pipeline.getBindGroupLayout(0),
         entries
       });

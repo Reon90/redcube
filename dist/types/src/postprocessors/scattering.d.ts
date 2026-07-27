@@ -9,6 +9,9 @@ type GPUTextureSet = {
     view: GPUTextureView;
 };
 export declare class Scattering extends PostProcessor {
+    gl: WebGL2RenderingContext & {
+        device?: GPUDevice;
+    };
     output: Texture | GPUTextureSet;
     program: WebGLProgram;
     pipeline: GPURenderPipeline;

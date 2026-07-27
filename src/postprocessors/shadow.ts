@@ -1,14 +1,15 @@
 import { PostProcessor } from './base';
 import type { PostProcessing } from '../postprocessing';
 
-let gl: WebGL2RenderingContext;
-
 export class Shadow extends PostProcessor {
+    gl!: WebGL2RenderingContext;
+
     setGL(g: WebGL2RenderingContext) {
-        gl = g;
+        this.gl = g;
     }
 
     preProcessing(PP: PostProcessing) {
+        const { gl } = this;
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
         //gl.enable(gl.RASTERIZER_DISCARD);
 

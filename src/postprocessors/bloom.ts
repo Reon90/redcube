@@ -8,9 +8,8 @@ import bloomShader from '../shaders/bloom.glsl';
 
 type Texture = GLTexture;
 
-let gl: WebGL2RenderingContext;
-
 export class Bloom extends PostProcessor {
+    gl!: WebGL2RenderingContext;
     tempBlurTexture!: Texture;
     blurTexture!: Texture;
     blurTexture2?: Texture;
@@ -21,14 +20,16 @@ export class Bloom extends PostProcessor {
     hdrTexture!: Texture;
 
     setGL(g: WebGL2RenderingContext) {
-        gl = g;
+        this.gl = g;
     }
 
     attachUniform(program: WebGLProgram) {
+        const { gl } = this;
         gl.uniform1i(gl.getUniformLocation(program, 'bloom'), this.blurTexture.index);
     }
 
     postProcessing(PP: PostProcessing) {
+        const { gl } = this;
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
 
         gl.useProgram(this.bloorProgram);
@@ -49,6 +50,7 @@ export class Bloom extends PostProcessor {
     }
 
     buildScreenBuffer(pp: PostProcessing) {
+        const { gl } = this;
         this.framebuffer = gl.createFramebuffer()!;
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
         this.tempBlurTexture = pp.createDefaultTexture(2);
@@ -63,6 +65,7 @@ export class Bloom extends PostProcessor {
     }
 
     renderBlur(inTexture: Texture, program: WebGLProgram) {
+        const { gl } = this;
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.tempBlurTexture, 0);
         gl.clearColor(...(clearColor as [number, number, number, number]));
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | (gl as unknown as Record<string, number>).STENSIL_BUFFER_BIT);

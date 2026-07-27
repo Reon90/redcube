@@ -9,6 +9,9 @@ type GPUTextureSet = {
     view: GPUTextureView;
 };
 export declare class Refraction extends PostProcessor {
+    gl: WebGL2RenderingContext & {
+        device?: GPUDevice;
+    };
     texture: Texture | GPUTextureSet;
     setGL(g: WebGL2RenderingContext & {
         device?: GPUDevice;

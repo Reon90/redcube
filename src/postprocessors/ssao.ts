@@ -7,13 +7,13 @@ import quadShader from '../shaders/quad.glsl';
 import ssaoShader from '../shaders/ssao.glsl';
 import ssaoBlurShader from '../shaders/blur.glsl';
 
-let gl: WebGL2RenderingContext;
 const noiceSize = 4;
 const kernelSize = 32;
 
 type Texture = GLTexture;
 
 export class SSAO extends PostProcessor {
+    gl!: WebGL2RenderingContext;
     ssaoBlurTexture!: Texture;
     ssaoTexture!: Texture;
     noice!: Texture;
@@ -29,14 +29,16 @@ export class SSAO extends PostProcessor {
     }
 
     setGL(g: WebGL2RenderingContext) {
-        gl = g;
+        this.gl = g;
     }
 
     attachUniform(program: WebGLProgram) {
+        const { gl } = this;
         gl.uniform1i(gl.getUniformLocation(program, 'ssao'), this.ssaoTexture.index);
     }
 
     postProcessing(PP: PostProcessing) {
+        const { gl } = this;
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.ssaoTexture, 0);
 
@@ -88,6 +90,7 @@ export class SSAO extends PostProcessor {
     }
 
     buildScreenBuffer(pp: PostProcessing) {
+        const { gl } = this;
         this.framebuffer = gl.createFramebuffer()!;
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
         this.ssaoTexture = pp.createOneChannelTexture(this.scale);
