@@ -169,6 +169,18 @@ test.describe('visual: renderer — all models', () => {
             await waitForRendererReady(page);
             await page.waitForTimeout(50);
 
+            // #selector is position: absolute; top: 0; left: 0 - it sits
+            // directly on top of the canvas. Its native form controls
+            // (select/range) render differently across OS/platform, which
+            // shows up as spurious diffs in that corner unrelated to the
+            // actual 3D-rendered content. Hide it before capturing.
+            await page.evaluate(() => {
+                const selector = document.getElementById('selector');
+                if (selector) {
+                    selector.style.display = 'none';
+                }
+            });
+
             const canvas = await page.locator('canvas').first();
             const buffer = await canvas.screenshot({ type: 'png' });
 
