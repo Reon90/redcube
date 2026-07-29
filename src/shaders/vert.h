@@ -20,7 +20,7 @@ out vec2 outUV2;
 out vec2 outUV3;
 out vec3 outPosition;
 out vec4 outPositionView;
-out float id;
+flat out int id;
 #ifdef TANGENT
     out mat3 outTBN;
 #else

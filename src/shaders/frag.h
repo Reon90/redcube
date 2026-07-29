@@ -19,7 +19,7 @@ in vec2 outUV2;
 in vec2 outUV3;
 in vec3 outPosition;
 in vec4 outPositionView;
-in float id;
+flat in int id;
 #ifdef TANGENT
     in mat3 outTBN;
 #else
