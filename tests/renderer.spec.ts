@@ -222,6 +222,7 @@ test.describe('visual: renderer — all models', () => {
             const buffer = await canvas.screenshot({ type: 'png' });
 
             const result = await compareScreenshot(`model-${model}`, buffer);
+            expect(result.reason, result.reason).toBeUndefined();
             expect(result.matched, `Visual diff: ${result.diffPath}`).toBeTruthy();
         });
     }

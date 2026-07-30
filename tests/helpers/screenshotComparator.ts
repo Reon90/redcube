@@ -40,7 +40,7 @@ export async function compareScreenshot(name: string, imageBuffer: Buffer, opts?
         // write diff showing mismatch sizes
         const diff = new PNG({ width: Math.max(baseline.width, actual.width), height: Math.max(baseline.height, actual.height) });
         // Fill with red background for clarity
-        await fs.writeFile(diffPath, PNG.sync.write(diff));
+        await fs.writeFile(diffPath, PNG.sync.write(actual));
         return { matched: false, reason: 'size-mismatch', baselinePath, diffPath };
     }
 
@@ -52,7 +52,7 @@ export async function compareScreenshot(name: string, imageBuffer: Buffer, opts?
     const matched = numDiffPixels <= options.failureThresholdPx;
     if (!matched) {
         diffPath = path.join(options.diffsDir, `${name}.${numDiffPixels}.png`);
-        await fs.writeFile(diffPath, PNG.sync.write(diff));
+        await fs.writeFile(diffPath, PNG.sync.write(actual));
     }
 
     return { matched, numDiffPixels, baselinePath, diffPath };
