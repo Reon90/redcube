@@ -202,12 +202,6 @@ async function waitForCanvasStable(page, timeout = 60000, pollInterval = 300) {
 test.describe('visual: renderer — all models', () => {
     for (const model of MODELS) {
         test(`model: ${model}`, async ({ page }) => {
-            // CI runners are resource-constrained enough that the renderer
-            // tab can crash outright, or the WebGL context can be lost mid-run
-            // (independent of the app's own error handling). Fail fast and
-            // clearly in either case, instead of hanging until the test
-            // timeout - a clear, fast failure is what lets Playwright's
-            // `retries` config actually retry with a fresh page.
             let crashed: string | null = null;
             page.on('crash', () => {
                 crashed = 'page crashed';
@@ -241,11 +235,6 @@ test.describe('visual: renderer — all models', () => {
 
             await page.waitForTimeout(50);
 
-            // #selector is position: absolute; top: 0; left: 0 - it sits
-            // directly on top of the canvas. Its native form controls
-            // (select/range) render differently across OS/platform, which
-            // shows up as spurious diffs in that corner unrelated to the
-            // actual 3D-rendered content. Hide it before capturing.
             await page.evaluate(() => {
                 const selector = document.getElementById('selector');
                 if (selector) {

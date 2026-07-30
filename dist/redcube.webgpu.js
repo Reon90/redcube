@@ -19655,7 +19655,7 @@ vec3 IBLAmbient(vec3 baseColor, float metallic, vec3 n, float roughness, vec3 vi
 \r
     #if defined SHEEN\r
     float charliebrdf = textureLod2D(brdfLUT, vec2(saturate(dot(n, viewDir)), sheenRoughness), 0.0).b;\r
-    vec3 sheenSample = textureLodCube(charlieMap, R, sheenRoughness * MAX_REFLECTION_LOD).rgb;\r
+    vec3 sheenSample = textureLodCube(charlieMap, R, max(sheenRoughness * MAX_REFLECTION_LOD, 1.0)).rgb;\r
     f_sheen += sheenSample * sheenColor * charliebrdf;\r
     #endif\r
 \r
