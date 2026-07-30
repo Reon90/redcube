@@ -14,8 +14,6 @@ import { SphericalHarmonics, SphericalPolynomial } from './SH';
 import { UniformBuffer } from './objects/uniform';
 import Sheen_E from '../src/images/Sheen_E.hdr';
 
-let gl: WebGL2RenderingContext;
-
 type Texture = GLTexture;
 type FrameBuffer = WebGLFramebuffer & { size: number };
 
@@ -28,6 +26,7 @@ interface IBLData {
 }
 
 export class Env {
+    gl!: WebGL2RenderingContext;
     camera!: Camera;
     envMatrix: Matrix4;
     VAO!: WebGLVertexArrayObject;
@@ -72,7 +71,7 @@ export class Env {
     }
 
     setGl(g: WebGL2RenderingContext) {
-        gl = g;
+        this.gl = g;
     }
 
     setCanvas(canvas: HTMLCanvasElement) {
@@ -88,6 +87,7 @@ export class Env {
     }
 
     drawQuad() {
+        const { gl } = this;
         const m = new Matrix4();
         const cam = Object.assign({}, this.camera.props, {
             perspective: {
@@ -149,6 +149,7 @@ export class Env {
     }
 
     draw() {
+        const { gl } = this;
         const m = new Matrix4();
         const cam = Object.assign({}, this.camera.props, {
             perspective: {
@@ -221,6 +222,7 @@ export class Env {
     }
 
     createEnvironment() {
+        const { gl } = this;
         gl.enable(gl.CULL_FACE);
         const m = new Matrix4();
         const cam = Object.assign({}, this.camera.props, {
@@ -350,6 +352,7 @@ export class Env {
     }
 
     async createEnvironmentBuffer(envData: IBLData) {
+        const { gl } = this;
         this.envData = envData;
 
         if (envData) {

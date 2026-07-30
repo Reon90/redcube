@@ -16,8 +16,6 @@ declare global {
     }
 }
 
-let gl: WebGL2RenderingContext;
-
 export interface RenderPassState {
     isprepender?: boolean;
     isprerefraction?: boolean;
@@ -49,6 +47,7 @@ export interface State {
 }
 
 export class Renderer {
+    gl!: WebGL2RenderingContext | WEBGPU;
     parse!: Parse;
     PP!: PostProcessing;
     scene!: Scene;
@@ -90,7 +89,7 @@ export class Renderer {
     }
 
     setGl(g: WebGL2RenderingContext | WEBGPU) {
-        gl = g as WebGL2RenderingContext;
+        this.gl = g;
     }
 
     setParser(parser: Parse) {
@@ -209,7 +208,7 @@ export class Renderer {
     }
 
     updateGeometry(mesh: Mesh, geometry: Attributes) {
-        mesh.geometry.update(gl, geometry);
+        mesh.geometry.update(this.gl as WebGL2RenderingContext, geometry);
     }
 
     interpolation(sec: number, v: Track) {
@@ -308,6 +307,7 @@ export class Renderer {
     }
 
     updateMaterial(mesh: Mesh, type: string, out: { elements: Float32Array }) {
+        const gl = this.gl as WebGL2RenderingContext;
         const s = type.split('/');
         const last = s[s.length - 1];
 
@@ -377,6 +377,7 @@ export class Renderer {
     }
 
     render(time = 0) {
+        const gl = this.gl as WebGL2RenderingContext;
         const sec = time / 1000;
 
         if (!window.__FORCE_DETERMINISTIC__) {
@@ -419,6 +420,7 @@ export class Renderer {
     }
 
     renderScene() {
+        const gl = this.gl as WebGL2RenderingContext;
         if (this.needUpdateView || this.reflow) {
             const planes = Frustum(this.camera.getViewProjMatrix());
 

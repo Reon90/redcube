@@ -11813,24 +11813,24 @@ function buildArray(arrayBuffer, type, offset, length) {
   }
   return arr;
 }
-function compileShader(gl2, type, shaderSource, program) {
-  const shader = gl2.createShader(type);
-  gl2.shaderSource(shader, shaderSource);
-  gl2.compileShader(shader);
-  gl2.attachShader(program, shader);
-  const log = gl2.getShaderInfoLog(shader);
+function compileShader(gl, type, shaderSource, program) {
+  const shader = gl.createShader(type);
+  gl.shaderSource(shader, shaderSource);
+  gl.compileShader(shader);
+  gl.attachShader(program, shader);
+  const log = gl.getShaderInfoLog(shader);
   if (log) {
     throw new Error(log);
   }
 }
-function createProgram(gl2, vertex, fragment) {
-  const program = gl2.createProgram();
-  compileShader(gl2, gl2.VERTEX_SHADER, vertex, program);
-  compileShader(gl2, gl2.FRAGMENT_SHADER, fragment, program);
-  gl2.linkProgram(program);
-  gl2.validateProgram(program);
-  if (!gl2.getProgramParameter(program, gl2.LINK_STATUS)) {
-    const info = gl2.getProgramInfoLog(program);
+function createProgram(gl, vertex, fragment) {
+  const program = gl.createProgram();
+  compileShader(gl, gl.VERTEX_SHADER, vertex, program);
+  compileShader(gl, gl.FRAGMENT_SHADER, fragment, program);
+  gl.linkProgram(program);
+  gl.validateProgram(program);
+  if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+    const info = gl.getProgramInfoLog(program);
     throw new Error(`Could not compile WebGL program. ${info}`);
   }
   return program;
@@ -12288,21 +12288,21 @@ var Mesh = class extends Object3D {
       passEncoder.draw(this.geometry.attributes.POSITION.length / 3, this.instances, 0, i);
     }
   }
-  draw(gl2, { lights, camera, needUpdateProjection, preDepthTexture, colorTexture, renderState, fakeDepth, isIBL, isDefaultLight }) {
-    const texUnit = (n) => gl2[`TEXTURE${n}`];
-    const glTypeEnum = (ctor) => gl2[ArrayBufferMap.get(ctor)];
+  draw(gl, { lights, camera, needUpdateProjection, preDepthTexture, colorTexture, renderState, fakeDepth, isIBL, isDefaultLight }) {
+    const texUnit = (n) => gl[`TEXTURE${n}`];
+    const glTypeEnum = (ctor) => gl[ArrayBufferMap.get(ctor)];
     const { isprepender, isprerefraction } = renderState;
     if (this.defines.find((i) => i.name === "TRANSMISSION") && isprerefraction) {
       return;
     }
-    gl2.useProgram(this.program);
-    gl2.bindVertexArray(this.geometry.VAO);
+    gl.useProgram(this.program);
+    gl.bindVertexArray(this.geometry.VAO);
     if (needUpdateProjection) {
-      this.geometry.uniformBuffer.update(gl2, "projection", camera.projection.elements);
+      this.geometry.uniformBuffer.update(gl, "projection", camera.projection.elements);
     }
-    this.geometry.uniformBuffer.update(gl2, "isShadow", isprepender ? 1 : 0);
+    this.geometry.uniformBuffer.update(gl, "isShadow", isprepender ? 1 : 0);
     if (this instanceof SkinnedMesh) {
-      gl2.bindBufferBase(gl2.UNIFORM_BUFFER, 2, this.geometry.SKIN);
+      gl.bindBufferBase(gl.UNIFORM_BUFFER, 2, this.geometry.SKIN);
       if (this.bones.some((bone) => bone.reflow)) {
         const jointMatrix = this.getJointMatrix();
         const matrices = new Float32Array(jointMatrix.length * 16);
@@ -12311,123 +12311,123 @@ var Mesh = class extends Object3D {
           matrices.set(j.elements, 0 + 16 * i);
           i++;
         }
-        gl2.bufferSubData(gl2.UNIFORM_BUFFER, 0, matrices);
+        gl.bufferSubData(gl.UNIFORM_BUFFER, 0, matrices);
       }
     }
     if (this.material.matrices.length) {
-      gl2.bindBufferBase(gl2.UNIFORM_BUFFER, 8, this.material.textureMatricesUniform);
+      gl.bindBufferBase(gl.UNIFORM_BUFFER, 8, this.material.textureMatricesUniform);
     }
     if (this.material.sphericalHarmonics) {
-      gl2.bindBufferBase(gl2.UNIFORM_BUFFER, 7, this.material.sphericalHarmonics);
+      gl.bindBufferBase(gl.UNIFORM_BUFFER, 7, this.material.sphericalHarmonics);
     }
-    gl2.uniform1i(this.material.uniforms.depthTexture, preDepthTexture && !isprepender ? preDepthTexture.index : fakeDepth.index);
-    gl2.uniform1i(this.material.uniforms.colorTexture, !isprerefraction ? colorTexture.index : fakeDepth.index);
-    gl2.uniform1f(this.material.uniforms.isTone, isprerefraction ? 0 : 1);
-    gl2.uniform1f(this.material.uniforms.isIBL, isIBL ? 1 : 0);
-    gl2.uniform1f(this.material.uniforms.isDefaultLight, isDefaultLight || lights.some((l) => !l.isInitial) ? 1 : 0);
+    gl.uniform1i(this.material.uniforms.depthTexture, preDepthTexture && !isprepender ? preDepthTexture.index : fakeDepth.index);
+    gl.uniform1i(this.material.uniforms.colorTexture, !isprerefraction ? colorTexture.index : fakeDepth.index);
+    gl.uniform1f(this.material.uniforms.isTone, isprerefraction ? 0 : 1);
+    gl.uniform1f(this.material.uniforms.isIBL, isIBL ? 1 : 0);
+    gl.uniform1f(this.material.uniforms.isDefaultLight, isDefaultLight || lights.some((l) => !l.isInitial) ? 1 : 0);
     if (this.material.baseColorTexture) {
-      gl2.activeTexture(texUnit(0));
-      gl2.bindTexture(gl2.TEXTURE_2D, this.material.baseColorTexture);
-      gl2.bindSampler(0, this.material.baseColorTexture.sampler);
+      gl.activeTexture(texUnit(0));
+      gl.bindTexture(gl.TEXTURE_2D, this.material.baseColorTexture);
+      gl.bindSampler(0, this.material.baseColorTexture.sampler);
     }
     if (this.material.metallicRoughnessTexture) {
-      gl2.activeTexture(texUnit(1));
-      gl2.bindTexture(gl2.TEXTURE_2D, this.material.metallicRoughnessTexture);
-      gl2.bindSampler(1, this.material.metallicRoughnessTexture.sampler);
+      gl.activeTexture(texUnit(1));
+      gl.bindTexture(gl.TEXTURE_2D, this.material.metallicRoughnessTexture);
+      gl.bindSampler(1, this.material.metallicRoughnessTexture.sampler);
     }
     if (this.material.normalTexture) {
-      gl2.activeTexture(texUnit(2));
-      gl2.bindTexture(gl2.TEXTURE_2D, this.material.normalTexture);
-      gl2.bindSampler(2, this.material.normalTexture.sampler);
+      gl.activeTexture(texUnit(2));
+      gl.bindTexture(gl.TEXTURE_2D, this.material.normalTexture);
+      gl.bindSampler(2, this.material.normalTexture.sampler);
     }
     if (this.material.occlusionTexture) {
-      gl2.activeTexture(texUnit(3));
-      gl2.bindTexture(gl2.TEXTURE_2D, this.material.occlusionTexture);
-      gl2.bindSampler(3, this.material.occlusionTexture.sampler);
+      gl.activeTexture(texUnit(3));
+      gl.bindTexture(gl.TEXTURE_2D, this.material.occlusionTexture);
+      gl.bindSampler(3, this.material.occlusionTexture.sampler);
     }
     if (this.material.emissiveTexture) {
-      gl2.activeTexture(texUnit(4));
-      gl2.bindTexture(gl2.TEXTURE_2D, this.material.emissiveTexture);
-      gl2.bindSampler(4, this.material.emissiveTexture.sampler);
+      gl.activeTexture(texUnit(4));
+      gl.bindTexture(gl.TEXTURE_2D, this.material.emissiveTexture);
+      gl.bindSampler(4, this.material.emissiveTexture.sampler);
     }
     if (this.material.clearcoatTexture) {
-      gl2.activeTexture(texUnit(8));
-      gl2.bindTexture(gl2.TEXTURE_2D, this.material.clearcoatTexture);
-      gl2.bindSampler(8, this.material.clearcoatTexture.sampler);
+      gl.activeTexture(texUnit(8));
+      gl.bindTexture(gl.TEXTURE_2D, this.material.clearcoatTexture);
+      gl.bindSampler(8, this.material.clearcoatTexture.sampler);
     }
     if (this.material.clearcoatRoughnessTexture) {
-      gl2.activeTexture(texUnit(9));
-      gl2.bindTexture(gl2.TEXTURE_2D, this.material.clearcoatRoughnessTexture);
-      gl2.bindSampler(9, this.material.clearcoatRoughnessTexture.sampler);
+      gl.activeTexture(texUnit(9));
+      gl.bindTexture(gl.TEXTURE_2D, this.material.clearcoatRoughnessTexture);
+      gl.bindSampler(9, this.material.clearcoatRoughnessTexture.sampler);
     }
     if (this.material.sheenColorTexture) {
-      gl2.activeTexture(texUnit(11));
-      gl2.bindTexture(gl2.TEXTURE_2D, this.material.sheenColorTexture);
-      gl2.bindSampler(11, this.material.sheenColorTexture.sampler);
+      gl.activeTexture(texUnit(11));
+      gl.bindTexture(gl.TEXTURE_2D, this.material.sheenColorTexture);
+      gl.bindSampler(11, this.material.sheenColorTexture.sampler);
     }
     if (this.material.sheenRoughnessTexture) {
-      gl2.activeTexture(texUnit(12));
-      gl2.bindTexture(gl2.TEXTURE_2D, this.material.sheenRoughnessTexture);
-      gl2.bindSampler(12, this.material.sheenRoughnessTexture.sampler);
+      gl.activeTexture(texUnit(12));
+      gl.bindTexture(gl.TEXTURE_2D, this.material.sheenRoughnessTexture);
+      gl.bindSampler(12, this.material.sheenRoughnessTexture.sampler);
     }
     if (this.material.iridescenceThicknessTexture) {
-      gl2.activeTexture(texUnit(17));
-      gl2.bindTexture(gl2.TEXTURE_2D, this.material.iridescenceThicknessTexture);
-      gl2.bindSampler(17, this.material.iridescenceThicknessTexture.sampler);
+      gl.activeTexture(texUnit(17));
+      gl.bindTexture(gl.TEXTURE_2D, this.material.iridescenceThicknessTexture);
+      gl.bindSampler(17, this.material.iridescenceThicknessTexture.sampler);
     }
     if (this.material.iridescenceTexture) {
-      gl2.activeTexture(texUnit(23));
-      gl2.bindTexture(gl2.TEXTURE_2D, this.material.iridescenceTexture);
-      gl2.bindSampler(23, this.material.iridescenceTexture.sampler);
+      gl.activeTexture(texUnit(23));
+      gl.bindTexture(gl.TEXTURE_2D, this.material.iridescenceTexture);
+      gl.bindSampler(23, this.material.iridescenceTexture.sampler);
     }
     if (this.material.diffuseTransmissionTexture) {
-      gl2.activeTexture(texUnit(20));
-      gl2.bindTexture(gl2.TEXTURE_2D, this.material.diffuseTransmissionTexture);
-      gl2.bindSampler(20, this.material.diffuseTransmissionTexture.sampler);
+      gl.activeTexture(texUnit(20));
+      gl.bindTexture(gl.TEXTURE_2D, this.material.diffuseTransmissionTexture);
+      gl.bindSampler(20, this.material.diffuseTransmissionTexture.sampler);
     }
     if (this.material.diffuseTransmissionColorTexture) {
-      gl2.activeTexture(texUnit(21));
-      gl2.bindTexture(gl2.TEXTURE_2D, this.material.diffuseTransmissionColorTexture);
-      gl2.bindSampler(21, this.material.diffuseTransmissionColorTexture.sampler);
+      gl.activeTexture(texUnit(21));
+      gl.bindTexture(gl.TEXTURE_2D, this.material.diffuseTransmissionColorTexture);
+      gl.bindSampler(21, this.material.diffuseTransmissionColorTexture.sampler);
     }
     if (this.material.anisotropyTexture) {
-      gl2.activeTexture(texUnit(22));
-      gl2.bindTexture(gl2.TEXTURE_2D, this.material.anisotropyTexture);
-      gl2.bindSampler(22, this.material.anisotropyTexture.sampler);
+      gl.activeTexture(texUnit(22));
+      gl.bindTexture(gl.TEXTURE_2D, this.material.anisotropyTexture);
+      gl.bindSampler(22, this.material.anisotropyTexture.sampler);
     }
     if (this.material.clearcoatNormalTexture) {
-      gl2.activeTexture(texUnit(10));
-      gl2.bindTexture(gl2.TEXTURE_2D, this.material.clearcoatNormalTexture);
-      gl2.bindSampler(10, this.material.clearcoatNormalTexture.sampler);
+      gl.activeTexture(texUnit(10));
+      gl.bindTexture(gl.TEXTURE_2D, this.material.clearcoatNormalTexture);
+      gl.bindSampler(10, this.material.clearcoatNormalTexture.sampler);
     }
     if (this.material.transmissionTexture) {
-      gl2.activeTexture(texUnit(14));
-      gl2.bindTexture(gl2.TEXTURE_2D, this.material.transmissionTexture);
-      gl2.bindSampler(14, this.material.transmissionTexture.sampler);
+      gl.activeTexture(texUnit(14));
+      gl.bindTexture(gl.TEXTURE_2D, this.material.transmissionTexture);
+      gl.bindSampler(14, this.material.transmissionTexture.sampler);
     }
     if (this.material.specularTexture) {
-      gl2.activeTexture(texUnit(15));
-      gl2.bindTexture(gl2.TEXTURE_2D, this.material.specularTexture);
-      gl2.bindSampler(15, this.material.specularTexture.sampler);
+      gl.activeTexture(texUnit(15));
+      gl.bindTexture(gl.TEXTURE_2D, this.material.specularTexture);
+      gl.bindSampler(15, this.material.specularTexture.sampler);
     }
     if (this.material.specularColorTexture) {
-      gl2.activeTexture(texUnit(19));
-      gl2.bindTexture(gl2.TEXTURE_2D, this.material.specularColorTexture);
-      gl2.bindSampler(19, this.material.specularColorTexture.sampler);
+      gl.activeTexture(texUnit(19));
+      gl.bindTexture(gl.TEXTURE_2D, this.material.specularColorTexture);
+      gl.bindSampler(19, this.material.specularColorTexture.sampler);
     }
     if (this.material.thicknessTexture) {
-      gl2.activeTexture(texUnit(16));
-      gl2.bindTexture(gl2.TEXTURE_2D, this.material.thicknessTexture);
-      gl2.bindSampler(16, this.material.thicknessTexture.sampler);
+      gl.activeTexture(texUnit(16));
+      gl.bindTexture(gl.TEXTURE_2D, this.material.thicknessTexture);
+      gl.bindSampler(16, this.material.thicknessTexture.sampler);
     }
     if (this.material.doubleSided) {
-      gl2.disable(gl2.CULL_FACE);
+      gl.disable(gl.CULL_FACE);
     }
     if (this.frontFace) {
-      gl2.frontFace(gl2.CW);
+      gl.frontFace(gl.CW);
     }
     if (this.instances > 1) {
-      gl2.drawElementsInstanced(
+      gl.drawElementsInstanced(
         this.mode,
         this.geometry.indicesBuffer.length,
         glTypeEnum(this.geometry.indicesBuffer.constructor),
@@ -12436,21 +12436,21 @@ var Mesh = class extends Object3D {
       );
     } else {
       if (this.geometry.indicesBuffer) {
-        gl2.drawElements(
-          this.mode === 2 ? gl2.LINES : this.mode,
+        gl.drawElements(
+          this.mode === 2 ? gl.LINES : this.mode,
           this.geometry.indicesBuffer.length,
           glTypeEnum(this.geometry.indicesBuffer.constructor),
           0
         );
       } else {
-        gl2.drawArrays(this.mode, 0, this.geometry.attributes.POSITION.length / 3);
+        gl.drawArrays(this.mode, 0, this.geometry.attributes.POSITION.length / 3);
       }
     }
     if (this.material.doubleSided) {
-      gl2.enable(gl2.CULL_FACE);
+      gl.enable(gl.CULL_FACE);
     }
     if (this.frontFace) {
-      gl2.frontFace(gl2.CCW);
+      gl.frontFace(gl.CCW);
     }
   }
   setGeometry(geometry) {
@@ -12527,7 +12527,7 @@ var SkinnedMesh = class extends Mesh {
     device.queue.writeBuffer(uniformBuffer, 0, matrices.buffer, matrices.byteOffset, matrices.byteLength);
     return uniformBindGroup1;
   }
-  setSkin(gl2, skin) {
+  setSkin(gl, skin) {
     this.bones = skin.bones;
     this.boneInverses = skin.boneInverses;
     const jointMatrix = this.getJointMatrix();
@@ -12537,13 +12537,13 @@ var SkinnedMesh = class extends Mesh {
       matrices.set(j.elements, 0 + 16 * i);
       i++;
     }
-    const uIndex = gl2.getUniformBlockIndex(this.program, "Skin");
-    gl2.uniformBlockBinding(this.program, uIndex, 2);
-    const UBO = gl2.createBuffer();
-    gl2.bindBuffer(gl2.UNIFORM_BUFFER, UBO);
-    gl2.bufferData(gl2.UNIFORM_BUFFER, matrices, gl2.DYNAMIC_DRAW);
+    const uIndex = gl.getUniformBlockIndex(this.program, "Skin");
+    gl.uniformBlockBinding(this.program, uIndex, 2);
+    const UBO = gl.createBuffer();
+    gl.bindBuffer(gl.UNIFORM_BUFFER, UBO);
+    gl.bufferData(gl.UNIFORM_BUFFER, matrices, gl.DYNAMIC_DRAW);
     this.geometry.SKIN = UBO;
-    gl2.bindBuffer(gl2.UNIFORM_BUFFER, null);
+    gl.bindBuffer(gl.UNIFORM_BUFFER, null);
     return this;
   }
   getJointMatrix() {
@@ -12741,7 +12741,7 @@ var UniformBuffer = class {
       this.offset += buffer.length;
     }
   }
-  update(gl2, name, value, skip = false) {
+  update(gl, name, value, skip = false) {
     if (value.length === void 0) {
       value = new Float32Array([value]);
     }
@@ -12754,7 +12754,7 @@ var UniformBuffer = class {
     if (skip) {
       return;
     }
-    gl2.bufferSubData(gl2.UNIFORM_BUFFER, offset * Float32Array.BYTES_PER_ELEMENT, buffer);
+    gl.bufferSubData(gl.UNIFORM_BUFFER, offset * Float32Array.BYTES_PER_ELEMENT, buffer);
   }
   updateWebGPU(WebGPU, name, value, skip = false) {
     const { device } = WebGPU;
@@ -13229,121 +13229,121 @@ var Material2 = class extends Material {
   setHarmonics(sphericalHarmonics) {
     this.sphericalHarmonics = sphericalHarmonics;
   }
-  updateUniformsWebgl(gl2, program) {
-    gl2.useProgram(program);
-    this.uniforms.isTone = gl2.getUniformLocation(program, "isTone");
-    this.uniforms.isIBL = gl2.getUniformLocation(program, "isIBL");
-    this.uniforms.isDefaultLight = gl2.getUniformLocation(program, "isDefaultLight");
+  updateUniformsWebgl(gl, program) {
+    gl.useProgram(program);
+    this.uniforms.isTone = gl.getUniformLocation(program, "isTone");
+    this.uniforms.isIBL = gl.getUniformLocation(program, "isIBL");
+    this.uniforms.isDefaultLight = gl.getUniformLocation(program, "isDefaultLight");
     if (this.baseColorTexture) {
-      this.uniforms.baseColorTexture = gl2.getUniformLocation(program, "baseColorTexture");
-      gl2.uniform1i(this.uniforms.baseColorTexture, textureEnum.baseColorTexture);
+      this.uniforms.baseColorTexture = gl.getUniformLocation(program, "baseColorTexture");
+      gl.uniform1i(this.uniforms.baseColorTexture, textureEnum.baseColorTexture);
     }
     if (this.metallicRoughnessTexture) {
-      this.uniforms.metallicRoughnessTexture = gl2.getUniformLocation(program, "metallicRoughnessTexture");
-      gl2.uniform1i(this.uniforms.metallicRoughnessTexture, textureEnum.metallicRoughnessTexture);
+      this.uniforms.metallicRoughnessTexture = gl.getUniformLocation(program, "metallicRoughnessTexture");
+      gl.uniform1i(this.uniforms.metallicRoughnessTexture, textureEnum.metallicRoughnessTexture);
     }
     if (this.normalTexture) {
-      this.uniforms.normalTexture = gl2.getUniformLocation(program, "normalTexture");
-      gl2.uniform1i(this.uniforms.normalTexture, textureEnum.normalTexture);
+      this.uniforms.normalTexture = gl.getUniformLocation(program, "normalTexture");
+      gl.uniform1i(this.uniforms.normalTexture, textureEnum.normalTexture);
     }
     if (this.occlusionTexture) {
-      this.uniforms.occlusionTexture = gl2.getUniformLocation(program, "occlusionTexture");
-      gl2.uniform1i(this.uniforms.occlusionTexture, textureEnum.occlusionTexture);
+      this.uniforms.occlusionTexture = gl.getUniformLocation(program, "occlusionTexture");
+      gl.uniform1i(this.uniforms.occlusionTexture, textureEnum.occlusionTexture);
     }
     if (this.emissiveTexture) {
-      this.uniforms.emissiveTexture = gl2.getUniformLocation(program, "emissiveTexture");
-      gl2.uniform1i(this.uniforms.emissiveTexture, textureEnum.emissiveTexture);
+      this.uniforms.emissiveTexture = gl.getUniformLocation(program, "emissiveTexture");
+      gl.uniform1i(this.uniforms.emissiveTexture, textureEnum.emissiveTexture);
     }
     if (this.clearcoatTexture) {
-      this.uniforms.clearcoatTexture = gl2.getUniformLocation(program, "clearcoatTexture");
-      gl2.uniform1i(this.uniforms.clearcoatTexture, textureEnum.clearcoatTexture);
+      this.uniforms.clearcoatTexture = gl.getUniformLocation(program, "clearcoatTexture");
+      gl.uniform1i(this.uniforms.clearcoatTexture, textureEnum.clearcoatTexture);
     }
     if (this.clearcoatRoughnessTexture) {
-      this.uniforms.clearcoatRoughnessTexture = gl2.getUniformLocation(program, "clearcoatRoughnessTexture");
-      gl2.uniform1i(this.uniforms.clearcoatRoughnessTexture, textureEnum.clearcoatRoughnessTexture);
+      this.uniforms.clearcoatRoughnessTexture = gl.getUniformLocation(program, "clearcoatRoughnessTexture");
+      gl.uniform1i(this.uniforms.clearcoatRoughnessTexture, textureEnum.clearcoatRoughnessTexture);
     }
     if (this.clearcoatNormalTexture) {
-      this.uniforms.clearcoatNormalTexture = gl2.getUniformLocation(program, "clearcoatNormalTexture");
-      gl2.uniform1i(this.uniforms.clearcoatNormalTexture, textureEnum.clearcoatNormalTexture);
+      this.uniforms.clearcoatNormalTexture = gl.getUniformLocation(program, "clearcoatNormalTexture");
+      gl.uniform1i(this.uniforms.clearcoatNormalTexture, textureEnum.clearcoatNormalTexture);
     }
     if (this.sheenRoughnessTexture) {
-      this.uniforms.sheenRoughnessTexture = gl2.getUniformLocation(program, "sheenRoughnessTexture");
-      gl2.uniform1i(this.uniforms.sheenRoughnessTexture, textureEnum.sheenRoughnessTexture);
+      this.uniforms.sheenRoughnessTexture = gl.getUniformLocation(program, "sheenRoughnessTexture");
+      gl.uniform1i(this.uniforms.sheenRoughnessTexture, textureEnum.sheenRoughnessTexture);
     }
     if (this.iridescenceThicknessTexture) {
-      this.uniforms.iridescenceThicknessTexture = gl2.getUniformLocation(program, "iridescenceThicknessTexture");
-      gl2.uniform1i(this.uniforms.iridescenceThicknessTexture, textureEnum.iridescenceThicknessTexture);
+      this.uniforms.iridescenceThicknessTexture = gl.getUniformLocation(program, "iridescenceThicknessTexture");
+      gl.uniform1i(this.uniforms.iridescenceThicknessTexture, textureEnum.iridescenceThicknessTexture);
     }
     if (this.iridescenceTexture) {
-      this.uniforms.iridescenceTexture = gl2.getUniformLocation(program, "iridescenceTexture");
-      gl2.uniform1i(this.uniforms.iridescenceTexture, textureEnum.iridescenceTexture);
+      this.uniforms.iridescenceTexture = gl.getUniformLocation(program, "iridescenceTexture");
+      gl.uniform1i(this.uniforms.iridescenceTexture, textureEnum.iridescenceTexture);
     }
     if (this.anisotropyTexture) {
-      this.uniforms.anisotropyTexture = gl2.getUniformLocation(program, "anisotropyTexture");
-      gl2.uniform1i(this.uniforms.anisotropyTexture, textureEnum.anisotropyTexture);
+      this.uniforms.anisotropyTexture = gl.getUniformLocation(program, "anisotropyTexture");
+      gl.uniform1i(this.uniforms.anisotropyTexture, textureEnum.anisotropyTexture);
     }
     if (this.diffuseTransmissionColorTexture) {
-      this.uniforms.diffuseTransmissionColorTexture = gl2.getUniformLocation(program, "diffuseTransmissionColorTexture");
-      gl2.uniform1i(this.uniforms.diffuseTransmissionColorTexture, textureEnum.diffuseTransmissionColorTexture);
+      this.uniforms.diffuseTransmissionColorTexture = gl.getUniformLocation(program, "diffuseTransmissionColorTexture");
+      gl.uniform1i(this.uniforms.diffuseTransmissionColorTexture, textureEnum.diffuseTransmissionColorTexture);
     }
     if (this.diffuseTransmissionTexture) {
-      this.uniforms.diffuseTransmissionTexture = gl2.getUniformLocation(program, "diffuseTransmissionTexture");
-      gl2.uniform1i(this.uniforms.diffuseTransmissionTexture, textureEnum.diffuseTransmissionTexture);
+      this.uniforms.diffuseTransmissionTexture = gl.getUniformLocation(program, "diffuseTransmissionTexture");
+      gl.uniform1i(this.uniforms.diffuseTransmissionTexture, textureEnum.diffuseTransmissionTexture);
     }
     if (this.sheenColorTexture) {
-      this.uniforms.sheenColorTexture = gl2.getUniformLocation(program, "sheenColorTexture");
-      gl2.uniform1i(this.uniforms.sheenColorTexture, textureEnum.sheenColorTexture);
+      this.uniforms.sheenColorTexture = gl.getUniformLocation(program, "sheenColorTexture");
+      gl.uniform1i(this.uniforms.sheenColorTexture, textureEnum.sheenColorTexture);
     }
     if (this.transmissionTexture) {
-      this.uniforms.transmissionTexture = gl2.getUniformLocation(program, "transmissionTexture");
-      gl2.uniform1i(this.uniforms.transmissionTexture, textureEnum.transmissionTexture);
+      this.uniforms.transmissionTexture = gl.getUniformLocation(program, "transmissionTexture");
+      gl.uniform1i(this.uniforms.transmissionTexture, textureEnum.transmissionTexture);
     }
     if (this.specularTexture) {
-      this.uniforms.specularTexture = gl2.getUniformLocation(program, "specularTexture");
-      gl2.uniform1i(this.uniforms.specularTexture, textureEnum.specularTexture);
+      this.uniforms.specularTexture = gl.getUniformLocation(program, "specularTexture");
+      gl.uniform1i(this.uniforms.specularTexture, textureEnum.specularTexture);
     }
     if (this.specularColorTexture) {
-      this.uniforms.specularColorTexture = gl2.getUniformLocation(program, "specularColorTexture");
-      gl2.uniform1i(this.uniforms.specularColorTexture, textureEnum.specularColorTexture);
+      this.uniforms.specularColorTexture = gl.getUniformLocation(program, "specularColorTexture");
+      gl.uniform1i(this.uniforms.specularColorTexture, textureEnum.specularColorTexture);
     }
     if (this.thicknessTexture) {
-      this.uniforms.thicknessTexture = gl2.getUniformLocation(program, "thicknessTexture");
-      gl2.uniform1i(this.uniforms.thicknessTexture, textureEnum.thicknessTexture);
+      this.uniforms.thicknessTexture = gl.getUniformLocation(program, "thicknessTexture");
+      gl.uniform1i(this.uniforms.thicknessTexture, textureEnum.thicknessTexture);
     }
-    this.uniforms.prefilterMap = gl2.getUniformLocation(program, "prefilterMap");
-    this.uniforms.charlieMap = gl2.getUniformLocation(program, "charlieMap");
-    this.uniforms.brdfLUT = gl2.getUniformLocation(program, "brdfLUT");
-    this.uniforms.irradianceMap = gl2.getUniformLocation(program, "irradianceMap");
-    this.uniforms.depthTexture = gl2.getUniformLocation(program, "depthTexture");
-    this.uniforms.colorTexture = gl2.getUniformLocation(program, "colorTexture");
-    this.uniforms.Sheen_E = gl2.getUniformLocation(program, "Sheen_E");
-    gl2.uniform1i(this.uniforms.prefilterMap, textureEnum.prefilterTexture);
-    gl2.uniform1i(this.uniforms.charlieMap, textureEnum.charlieTexture);
-    gl2.uniform1i(this.uniforms.brdfLUT, textureEnum.brdfLUTTexture);
-    gl2.uniform1i(this.uniforms.irradianceMap, textureEnum.irradianceTexture);
-    gl2.uniform1i(this.uniforms.Sheen_E, textureEnum.Sheen_E);
+    this.uniforms.prefilterMap = gl.getUniformLocation(program, "prefilterMap");
+    this.uniforms.charlieMap = gl.getUniformLocation(program, "charlieMap");
+    this.uniforms.brdfLUT = gl.getUniformLocation(program, "brdfLUT");
+    this.uniforms.irradianceMap = gl.getUniformLocation(program, "irradianceMap");
+    this.uniforms.depthTexture = gl.getUniformLocation(program, "depthTexture");
+    this.uniforms.colorTexture = gl.getUniformLocation(program, "colorTexture");
+    this.uniforms.Sheen_E = gl.getUniformLocation(program, "Sheen_E");
+    gl.uniform1i(this.uniforms.prefilterMap, textureEnum.prefilterTexture);
+    gl.uniform1i(this.uniforms.charlieMap, textureEnum.charlieTexture);
+    gl.uniform1i(this.uniforms.brdfLUT, textureEnum.brdfLUTTexture);
+    gl.uniform1i(this.uniforms.irradianceMap, textureEnum.irradianceTexture);
+    gl.uniform1i(this.uniforms.Sheen_E, textureEnum.Sheen_E);
     {
-      const mIndex = gl2.getUniformBlockIndex(program, "LightColor");
-      gl2.uniformBlockBinding(program, mIndex, 4);
-    }
-    {
-      const mIndex = gl2.getUniformBlockIndex(program, "LightPos");
-      gl2.uniformBlockBinding(program, mIndex, 3);
+      const mIndex = gl.getUniformBlockIndex(program, "LightColor");
+      gl.uniformBlockBinding(program, mIndex, 4);
     }
     {
-      const mIndex = gl2.getUniformBlockIndex(program, "Spotdir");
-      gl2.uniformBlockBinding(program, mIndex, 5);
+      const mIndex = gl.getUniformBlockIndex(program, "LightPos");
+      gl.uniformBlockBinding(program, mIndex, 3);
     }
     {
-      const mIndex = gl2.getUniformBlockIndex(program, "LightIntensity");
-      gl2.uniformBlockBinding(program, mIndex, 6);
+      const mIndex = gl.getUniformBlockIndex(program, "Spotdir");
+      gl.uniformBlockBinding(program, mIndex, 5);
+    }
+    {
+      const mIndex = gl.getUniformBlockIndex(program, "LightIntensity");
+      gl.uniformBlockBinding(program, mIndex, 6);
     }
     if (this.matrices.length) {
-      const mIndex = gl2.getUniformBlockIndex(program, "TextureMatrices");
-      gl2.uniformBlockBinding(program, mIndex, 8);
-      const textureMatricesUniform = gl2.createBuffer();
-      gl2.bindBuffer(gl2.UNIFORM_BUFFER, textureMatricesUniform);
-      gl2.bufferData(gl2.UNIFORM_BUFFER, this.textureMatricesBuffer.store, gl2.STATIC_DRAW);
+      const mIndex = gl.getUniformBlockIndex(program, "TextureMatrices");
+      gl.uniformBlockBinding(program, mIndex, 8);
+      const textureMatricesUniform = gl.createBuffer();
+      gl.bindBuffer(gl.UNIFORM_BUFFER, textureMatricesUniform);
+      gl.bufferData(gl.UNIFORM_BUFFER, this.textureMatricesBuffer.store, gl.STATIC_DRAW);
       this.textureMatricesUniform = textureMatricesUniform;
     }
   }
@@ -13534,11 +13534,11 @@ var Material2 = class extends Material {
   hasNormal() {
     return Boolean(this.normalTexture) || Boolean(this.clearcoatNormalTexture);
   }
-  setColor(gl2, name, value) {
-    this.materialUniformBuffer.update(gl2, name, value.elements, true);
+  setColor(gl, name, value) {
+    this.materialUniformBuffer.update(gl, name, value.elements, true);
   }
-  setTexture(gl2, name, type, value) {
-    gl2.bindBufferBase(gl2.UNIFORM_BUFFER, 8, this.textureMatricesUniform);
+  setTexture(gl, name, type, value) {
+    gl.bindBufferBase(gl.UNIFORM_BUFFER, 8, this.textureMatricesUniform);
     const i = this.matricesMap.get(name) * 16;
     const [e0, e1] = value.elements;
     if (type === "offset") {
@@ -13552,7 +13552,7 @@ var Material2 = class extends Material {
     if (type === "rotation") {
       this.textureMatricesBuffer.store[i + 8] = e0;
     }
-    gl2.bufferSubData(gl2.UNIFORM_BUFFER, 0, this.textureMatricesBuffer.store);
+    gl.bufferSubData(gl.UNIFORM_BUFFER, 0, this.textureMatricesBuffer.store);
   }
   setTextureWebGPU(WebGPU, name, type, value) {
     const i = this.matricesMap.get(name) * 16;
@@ -15136,13 +15136,13 @@ var Geometry = class {
       this.indicesWebGPUBuffer = indicesBuffer;
     }
   }
-  createGeometryForWebGl(gl2, defines, order) {
-    const VAO = gl2.createVertexArray();
-    gl2.bindVertexArray(VAO);
+  createGeometryForWebGl(gl, defines, order) {
+    const VAO = gl.createVertexArray();
+    gl.bindVertexArray(VAO);
     this.compose(order);
-    const VBO = gl2.createBuffer();
-    gl2.bindBuffer(gl2.ARRAY_BUFFER, VBO);
-    gl2.bufferData(gl2.ARRAY_BUFFER, this.g, gl2.STATIC_DRAW);
+    const VBO = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, VBO);
+    gl.bufferData(gl.ARRAY_BUFFER, this.g, gl.STATIC_DRAW);
     this.VBO = VBO;
     const vertexLayout = [3, 2, 3, 4];
     if (defines.find((d) => d.name === "JOINTNUMBER")) {
@@ -15164,20 +15164,20 @@ var Geometry = class {
     for (const k in GeometryEnum) {
       if (k in this.attributes || k === "TANGENT" || k === "TEXCOORD_0") {
         const index = GeometryEnum[k];
-        gl2.enableVertexAttribArray(index[0]);
-        gl2.vertexAttribPointer(index[0], index[1], gl2.FLOAT, false, cubeVertexSize, Float32Array.BYTES_PER_ELEMENT * offset);
+        gl.enableVertexAttribArray(index[0]);
+        gl.vertexAttribPointer(index[0], index[1], gl.FLOAT, false, cubeVertexSize, Float32Array.BYTES_PER_ELEMENT * offset);
         offset += index[1];
       }
     }
-    gl2.enableVertexAttribArray(9);
-    gl2.vertexAttribPointer(9, 1, gl2.FLOAT, false, cubeVertexSize, Float32Array.BYTES_PER_ELEMENT * offset);
+    gl.enableVertexAttribArray(9);
+    gl.vertexAttribPointer(9, 1, gl.FLOAT, false, cubeVertexSize, Float32Array.BYTES_PER_ELEMENT * offset);
     if (this.indicesBuffer) {
-      const VBO2 = gl2.createBuffer();
-      gl2.bindBuffer(gl2.ELEMENT_ARRAY_BUFFER, VBO2);
-      gl2.bufferData(gl2.ELEMENT_ARRAY_BUFFER, this.indicesBuffer, gl2.STATIC_DRAW);
+      const VBO2 = gl.createBuffer();
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, VBO2);
+      gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, this.indicesBuffer, gl.STATIC_DRAW);
     }
     this.VAO = VAO;
-    gl2.bindVertexArray(null);
+    gl.bindVertexArray(null);
   }
   calculateBounding(matrix) {
     const box = new Box();
@@ -15223,9 +15223,9 @@ var Geometry = class {
     device.queue.writeBuffer(uniformBuffer, 0, buffer.store.buffer, buffer.store.byteOffset, buffer.store.byteLength);
     return uniformBindGroup1;
   }
-  updateUniformsWebGl(gl2, program) {
-    const uIndex2 = gl2.getUniformBlockIndex(program, "Matrices2");
-    gl2.uniformBlockBinding(program, uIndex2, 1);
+  updateUniformsWebGl(gl, program) {
+    const uIndex2 = gl.getUniformBlockIndex(program, "Matrices2");
+    gl.uniformBlockBinding(program, uIndex2, 1);
   }
   async updateWebGPU(WebGPU, geometry) {
     const { device } = WebGPU;
@@ -15267,8 +15267,8 @@ var Geometry = class {
     }
     device.queue.writeBuffer(this.verticesWebGPUBuffer, 0, g.buffer, g.byteOffset, g.byteLength);
   }
-  update(gl2, geometry) {
-    gl2.bindVertexArray(this.VAO);
+  update(gl, geometry) {
+    gl.bindVertexArray(this.VAO);
     let total = 13;
     if (this.attributes["COLOR_0"]) {
       total += 4;
@@ -15305,16 +15305,16 @@ var Geometry = class {
       l += 2;
       m += 4;
     }
-    gl2.bindBuffer(gl2.ARRAY_BUFFER, this.VBO);
-    gl2.bufferData(gl2.ARRAY_BUFFER, g, gl2.STATIC_DRAW);
-    gl2.bindVertexArray(null);
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.VBO);
+    gl.bufferData(gl.ARRAY_BUFFER, g, gl.STATIC_DRAW);
+    gl.bindVertexArray(null);
   }
 };
 
 // src/parse.ts
-var gl;
 var BASE64_MARKER = ";base64,";
 var Parse = class {
+  gl;
   tracks;
   url;
   host;
@@ -15355,7 +15355,7 @@ var Parse = class {
     this.scene = scene;
   }
   setGl(g) {
-    gl = g;
+    this.gl = g;
   }
   setCamera(camera) {
     this.camera = camera;
@@ -15410,7 +15410,7 @@ var Parse = class {
         })
       ).map((p) => p.replace(/\n/, `
 ${defineStr}`));
-      this.programs[programHash] = createProgram(gl, shaders[0], shaders[1]);
+      this.programs[programHash] = createProgram(this.gl, shaders[0], shaders[1]);
       program = this.programs[programHash];
     }
     return program;
@@ -15789,7 +15789,7 @@ ${defineStr}`));
     }
   }
   createSamplers() {
-    const webglGl = gl;
+    const webglGl = this.gl;
     const samplers = this.json.samplers || [{}];
     this.samplers = samplers.map((s) => {
       const sampler = webglGl.createSampler();
@@ -15907,6 +15907,7 @@ ${defineStr}`));
       t.name = name;
     });
     if (hasBasisu) {
+      const { gl } = this;
       await Promise.resolve().then(() => (init_libktx(), libktx_exports));
       globalThis.LIBKTX({ preinitializedWebGLContext: gl }).then((module2) => {
         const transcoderConfig = gl.device ? {
@@ -15992,7 +15993,7 @@ ${defineStr}`));
     if (this.images.has(name + srgb)) {
       return this.images.get(name + srgb);
     }
-    const webglGl = gl;
+    const webglGl = this.gl;
     const t = webglGl.createTexture();
     t.name = name;
     t.image = image.src.substr(image.src.lastIndexOf("/"));

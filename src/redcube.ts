@@ -18,7 +18,6 @@ declare global {
     }
 }
 
-let gl: WebGL2RenderingContext;
 const FOV = 60; // degrees
 
 class RedCube {
@@ -143,6 +142,7 @@ class RedCube {
     async init(cb: (scene: Scene) => void) {
         await this.parse.getJson();
         this.glInit();
+        const { gl } = this;
         await this.parse.getBuffer();
         await this.parse.initTextures(false);
         this.parse.buildSkin();
@@ -389,6 +389,7 @@ class RedCube {
     }
 
     resize(isResizeEvent = false) {
+        const { gl } = this;
         this.camera.props.aspect = this.canvas.offsetWidth / this.canvas.offsetHeight;
         this.canvas.width = this.canvas.offsetWidth * devicePixelRatio;
         this.canvas.height = this.canvas.offsetHeight * devicePixelRatio;
@@ -422,14 +423,13 @@ class RedCube {
             );
         }
 
-        gl = context;
-        this.gl = gl;
+        this.gl = context;
 
-        this.ioc.register('gl', gl);
+        this.ioc.register('gl', context);
 
-        let ext = gl.getExtension('EXT_color_buffer_float');
-        ext = gl.getExtension('OES_texture_float_linear');
-        ext = gl.getExtension('OES_texture_buffer');
+        let ext = context.getExtension('EXT_color_buffer_float');
+        ext = context.getExtension('OES_texture_float_linear');
+        ext = context.getExtension('OES_texture_buffer');
         console.log(ext);
     }
 
@@ -437,6 +437,7 @@ class RedCube {
         this.renderer.reflow = true;
     }
     initialDraw() {
+        const { gl } = this;
         gl.clearColor(...(clearColor as [number, number, number, number]));
         gl.enable(gl.DEPTH_TEST);
         gl.enable(gl.CULL_FACE);

@@ -45,6 +45,7 @@ export interface State {
     transformsStorage: UniformBufferLike;
 }
 export declare class Renderer {
+    gl: WebGL2RenderingContext | WEBGPU;
     parse: Parse;
     PP: PostProcessing;
     scene: Scene;

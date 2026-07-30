@@ -6,7 +6,6 @@ import { PostProcessing } from './postprocessing.webgpu';
 import { Mesh } from './objects/index';
 import { Attributes } from './objects/geometry';
 
-let WebGPU: WEBGPU;
 const DEBUG_PROFILING = false;
 
 export class RendererWebGPU extends Renderer {
@@ -17,7 +16,7 @@ export class RendererWebGPU extends Renderer {
     }
 
     setGl(g: WebGL2RenderingContext | WEBGPU) {
-        WebGPU = g as WEBGPU;
+        this.gl = g;
         this.profiler = new WebGPUProfiler((g as WEBGPU).device, { maxTimestampWrites: 64 });
     }
 
@@ -56,10 +55,12 @@ export class RendererWebGPU extends Renderer {
     }
 
     updateGeometry(mesh: Mesh, geometry: Attributes) {
+        const WebGPU = this.gl as WEBGPU;
         mesh.geometry.updateWebGPU(WebGPU, geometry);
     }
 
     updateMaterial(mesh: Mesh, type: string, out: { elements: Float32Array }) {
+        const WebGPU = this.gl as WEBGPU;
         const s = type.split('/');
         const last = s[s.length - 1];
 
@@ -73,6 +74,7 @@ export class RendererWebGPU extends Renderer {
     }
 
     async renderScene() {
+        const WebGPU = this.gl as WEBGPU;
         const { context, device, newRenderTarget } = WebGPU;
         let { renderPassDescriptor } = WebGPU;
 

@@ -12,8 +12,6 @@ import composerShader from './shaders/composer.webgpu.glsl';
 import { quadFull } from './vertex';
 import { Scattering } from './postprocessors/scattering';
 
-let gl: WEBGPU;
-
 const processorsMap = {
     bloom: Bloom,
     ssao: SSAO,
@@ -34,6 +32,7 @@ interface WebGPUProcessor {
 }
 
 export class PostProcessing {
+    gl!: WEBGPU;
     screenTexture!: GPUTextureSet;
     normalTexture!: GPUTextureSet;
     irradianceTexture!: GPUTextureSet;
@@ -68,14 +67,14 @@ export class PostProcessing {
 
     add(name: ProcessorName) {
         const p: PostProcessor = new processorsMap[name]();
-        p.setGL(gl);
+        p.setGL(this.gl);
         this.postprocessors.push(p);
         this.hasPostPass = true;
     }
 
     addPrepass(name: ProcessorName) {
         const p: PostProcessor = new processorsMap[name]();
-        p.setGL(gl);
+        p.setGL(this.gl);
         this.postprocessors.push(p);
         this.hasPrePass = true;
     }
@@ -95,9 +94,9 @@ export class PostProcessing {
 
     setGl(g: WEBGPU) {
         if (g) {
-            gl = g;
+            this.gl = g;
             this.postprocessors.forEach((postProcessor) => {
-                postProcessor.setGL(gl);
+                postProcessor.setGL(g);
             });
             this.fakeDepth = this.createNoiceTexture(1);
             this.fakeDepth.view = this.fakeDepth.texture.createView();
@@ -130,7 +129,7 @@ export class PostProcessing {
     }
 
     postProcessing() {
-        const { device, context } = gl;
+        const { device, context } = this.gl;
         this.postprocessors.forEach((postProcessor) => postProcessor.postProcessingWebGPU!(this));
 
         const commandEncoder = device.createCommandEncoder({ label: 'compose-command-encoder' });
@@ -161,6 +160,7 @@ export class PostProcessing {
     }
 
     createByteTexture(label: string) {
+        const { gl } = this;
         const sampler = gl.device.createSampler({
             magFilter: 'nearest',
             minFilter: 'nearest',
@@ -175,6 +175,7 @@ export class PostProcessing {
     }
 
     createDefaultTexture(label?: string, scale = 1, hasMipmap = false) {
+        const { gl } = this;
         const sampler = gl.device.createSampler({
             magFilter: 'linear',
             minFilter: 'linear',
@@ -199,6 +200,7 @@ export class PostProcessing {
     }
 
     createOneChannelTexture(scale = 1) {
+        const { gl } = this;
         const sampler = gl.device.createSampler({
             magFilter: 'linear',
             minFilter: 'linear',
@@ -212,6 +214,7 @@ export class PostProcessing {
     }
 
     createDepthTexture(label: string) {
+        const { gl } = this;
         const sampler = gl.device.createSampler({
             magFilter: 'nearest',
             minFilter: 'nearest',
@@ -226,6 +229,7 @@ export class PostProcessing {
     }
 
     createNoiceTexture(size: number) {
+        const { gl } = this;
         const sampler = gl.device.createSampler({
             magFilter: 'nearest',
             minFilter: 'nearest',
@@ -331,6 +335,7 @@ export class PostProcessing {
             return true;
         }
 
+        const { gl } = this;
         this.vertexBuffer = this.buildVertex(gl, quadFull);
 
         this.screenTexture = this.createDefaultTexture('screenTexture');

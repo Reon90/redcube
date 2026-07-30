@@ -31,6 +31,7 @@ interface WebGPUProcessor {
     attachUniformWebGPU?(): GPUBindGroupEntry;
 }
 export declare class PostProcessing {
+    gl: WEBGPU;
     screenTexture: GPUTextureSet;
     normalTexture: GPUTextureSet;
     irradianceTexture: GPUTextureSet;

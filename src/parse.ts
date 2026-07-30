@@ -81,7 +81,6 @@ interface LibktxGlobal {
     LIBKTX(config: { preinitializedWebGLContext: unknown }): Promise<Window['LIBKTX']>;
 }
 
-let gl: WebGL2RenderingContext | WEBGPU;
 const BASE64_MARKER = ';base64,';
 
 export interface Track {
@@ -113,6 +112,7 @@ export interface Define {
 }
 
 export class Parse {
+    gl!: WebGL2RenderingContext | WEBGPU;
     tracks: Array<Track[]>;
     url: string;
     host: string;
@@ -156,7 +156,7 @@ export class Parse {
     }
 
     setGl(g: WebGL2RenderingContext | WEBGPU) {
-        gl = g;
+        this.gl = g;
     }
 
     setCamera(camera: Camera) {
@@ -216,7 +216,7 @@ export class Parse {
                     }),
                 )
                 .map((p) => p.replace(/\n/, `\n${defineStr}`));
-            this.programs[programHash] = createProgram(gl as WebGL2RenderingContext, shaders[0], shaders[1]);
+            this.programs[programHash] = createProgram(this.gl as WebGL2RenderingContext, shaders[0], shaders[1]);
             program = this.programs[programHash];
         }
 
@@ -637,7 +637,7 @@ export class Parse {
     }
 
     createSamplers() {
-        const webglGl = gl as WebGL2RenderingContext;
+        const webglGl = this.gl as WebGL2RenderingContext;
         const samplers = this.json.samplers || [{}];
         this.samplers = samplers.map((s) => {
             const sampler = webglGl.createSampler()!;
@@ -767,6 +767,7 @@ export class Parse {
             t.name = name;
         });
         if (hasBasisu) {
+            const { gl } = this;
             await import(/*webpackChunkName: "libktx"*/ '../libktx');
             (globalThis as unknown as LibktxGlobal).LIBKTX({ preinitializedWebGLContext: gl }).then((module) => {
                 const transcoderConfig = (gl as WEBGPU).device
@@ -872,7 +873,7 @@ export class Parse {
         if (this.images.has(name + srgb)) {
             return this.images.get(name + srgb);
         }
-        const webglGl = gl as WebGL2RenderingContext;
+        const webglGl = this.gl as WebGL2RenderingContext;
         const t = webglGl.createTexture() as LoadedTexture;
         t.name = name;
         t.image = image.src.substr(image.src.lastIndexOf('/'));

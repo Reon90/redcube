@@ -83,6 +83,7 @@ export interface Define {
     value?: number;
 }
 export declare class Parse {
+    gl: WebGL2RenderingContext | WEBGPU;
     tracks: Array<Track[]>;
     url: string;
     host: string;

@@ -14,6 +14,7 @@ interface IBLData {
     specularImages: Array<Array<HTMLImageElement>>;
 }
 export declare class Env {
+    gl: WebGL2RenderingContext;
     camera: Camera;
     envMatrix: Matrix4;
     VAO: WebGLVertexArrayObject;
