@@ -3,6 +3,10 @@ import { defineConfig, devices } from 'playwright/test';
 export default defineConfig({
     testDir: './tests',
     timeout: 60_000,
+    // CI runners are resource-constrained enough that the renderer tab can
+    // crash or lose its WebGL context outright (not just be slow) - retry
+    // with a fresh page/context rather than treating that as a real failure.
+    retries: process.env.CI ? 2 : 0,
     // Required for --shard to actually split work: without this, Playwright
     // keeps each file's tests together on one shard, and since all models
     // live in one spec file, every shard but one gets zero tests. workers is

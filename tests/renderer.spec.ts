@@ -183,6 +183,11 @@ async function waitForCanvasStable(page, timeout = 60000, pollInterval = 300) {
     let lastPixels: Buffer | null = null;
 
     while (Date.now() - start < timeout) {
+        const contextLost = await page.evaluate(() => (window as any).__WEBGL_CONTEXT_LOST__);
+        if (contextLost) {
+            throw new Error('WebGL context lost during render');
+        }
+
         const buffer = await canvas.screenshot({ type: 'png' });
         const pixels = PNG.sync.read(buffer).data;
 
@@ -197,6 +202,27 @@ async function waitForCanvasStable(page, timeout = 60000, pollInterval = 300) {
 test.describe('visual: renderer — all models', () => {
     for (const model of MODELS) {
         test(`model: ${model}`, async ({ page }) => {
+            // CI runners are resource-constrained enough that the renderer
+            // tab can crash outright, or the WebGL context can be lost mid-run
+            // (independent of the app's own error handling). Fail fast and
+            // clearly in either case, instead of hanging until the test
+            // timeout - a clear, fast failure is what lets Playwright's
+            // `retries` config actually retry with a fresh page.
+            let crashed: string | null = null;
+            page.on('crash', () => {
+                crashed = 'page crashed';
+            });
+            await page.addInitScript(() => {
+                (window as any).__WEBGL_CONTEXT_LOST__ = false;
+                document.addEventListener(
+                    'webglcontextlost',
+                    () => {
+                        (window as any).__WEBGL_CONTEXT_LOST__ = true;
+                    },
+                    true,
+                );
+            });
+
             await page.goto(`${APP_URL}?model=${model}&webgpu=${MODE}`);
 
             await page.evaluate(() => {
@@ -204,6 +230,15 @@ test.describe('visual: renderer — all models', () => {
             });
 
             await waitForRendererReady(page);
+
+            if (crashed) {
+                throw new Error(crashed);
+            }
+            const contextLost = await page.evaluate(() => (window as any).__WEBGL_CONTEXT_LOST__);
+            if (contextLost) {
+                throw new Error('WebGL context lost during render');
+            }
+
             await page.waitForTimeout(50);
 
             // #selector is position: absolute; top: 0; left: 0 - it sits
