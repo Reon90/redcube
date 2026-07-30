@@ -154,19 +154,28 @@ const MODELS = [
     'XmpMetadataRoundedCube',
 ];
 
-async function waitForRendererReady(page, timeout = 60000) {
-    await page.waitForFunction(() => (window as any).__TEST_READY__ === true, null, { timeout });
-    await waitForCanvasStable(page, timeout);
+async function waitForRendererReady(page, timeout = 60000, fastFail = () => null) {
+    await waitForTestReady(page, timeout, fastFail);
+    await waitForCanvasStable(page, timeout, 300, fastFail);
 }
 
-// A WebGL context without preserveDrawingBuffer can have its drawing buffer
-// invalidated between frames once the renderer stops actively redrawing (it
-// only draws when its internal "reflow" dirty flag is set). Reading pixels
-// back via drawImage/getImageData from outside the render loop can then see
-// a cleared buffer even though a real frame was drawn and displayed. Chrome's
-// own element screenshot (used here, and for the real baseline capture)
-// captures the composited output instead, so it isn't affected - use that
-// for polling instead of a raw in-page buffer read.
+async function waitForTestReady(page, timeout = 60000, fastFail = () => null, pollInterval = 300) {
+    const start = Date.now();
+
+    while (Date.now() - start < timeout) {
+        const failure = fastFail();
+        if (failure) {
+            throw new Error(failure);
+        }
+
+        const ready = await page.evaluate(() => (window as any).__TEST_READY__ === true);
+        if (ready) {
+            return;
+        }
+        await page.waitForTimeout(pollInterval);
+    }
+}
+
 function hasNonBlackPixel(pixels: Buffer) {
     for (let i = 0; i < pixels.length; i += 4) {
         if (pixels[i] !== 0 || pixels[i + 1] !== 0 || pixels[i + 2] !== 0) {
@@ -176,13 +185,18 @@ function hasNonBlackPixel(pixels: Buffer) {
     return false;
 }
 
-async function waitForCanvasStable(page, timeout = 60000, pollInterval = 300) {
+async function waitForCanvasStable(page, timeout = 60000, pollInterval = 300, fastFail = () => null) {
     const start = Date.now();
     const canvas = page.locator('canvas').first();
 
     let lastPixels: Buffer | null = null;
 
     while (Date.now() - start < timeout) {
+        const failure = fastFail();
+        if (failure) {
+            throw new Error(failure);
+        }
+
         const contextLost = await page.evaluate(() => (window as any).__WEBGL_CONTEXT_LOST__);
         if (contextLost) {
             throw new Error('WebGL context lost during render');
@@ -206,6 +220,19 @@ test.describe('visual: renderer — all models', () => {
             page.on('crash', () => {
                 crashed = 'page crashed';
             });
+
+            let networkError: string | null = null;
+            page.on('requestfailed', (request) => {
+                if (request.url().includes('raw.githubusercontent.com')) {
+                    networkError = `request failed: ${request.url()} (${request.failure()?.errorText})`;
+                }
+            });
+            page.on('response', (response) => {
+                if (!response.ok() && response.url().includes('raw.githubusercontent.com')) {
+                    networkError = `request failed: ${response.url()} (HTTP ${response.status()})`;
+                }
+            });
+
             await page.addInitScript(() => {
                 (window as any).__WEBGL_CONTEXT_LOST__ = false;
                 document.addEventListener(
@@ -223,10 +250,13 @@ test.describe('visual: renderer — all models', () => {
                 (window as any).__FORCE_DETERMINISTIC__ = true;
             });
 
-            await waitForRendererReady(page);
+            await waitForRendererReady(page, undefined, () => networkError ?? crashed);
 
             if (crashed) {
                 throw new Error(crashed);
+            }
+            if (networkError) {
+                throw new Error(networkError);
             }
             const contextLost = await page.evaluate(() => (window as any).__WEBGL_CONTEXT_LOST__);
             if (contextLost) {

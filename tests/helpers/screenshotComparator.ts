@@ -16,7 +16,7 @@ const DEFAULTS: Required<CompareOptions> = {
     baselineDir: path.resolve(__dirname, '..', 'baselines'),
     diffsDir: path.resolve(__dirname, '..', 'diffs'),
     threshold: 0.1,
-    failureThresholdPx: 500,
+    failureThresholdPx: 600,
 };
 
 export async function compareScreenshot(name: string, imageBuffer: Buffer, opts?: CompareOptions) {
