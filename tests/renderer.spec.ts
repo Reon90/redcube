@@ -1,4 +1,5 @@
 import { test, expect } from 'playwright/test';
+import { PNG } from 'pngjs';
 import { compareScreenshot } from './helpers/screenshotComparator';
 
 const APP_URL = process.env.APP_URL ?? 'http://localhost:8080';
@@ -153,8 +154,44 @@ const MODELS = [
     'XmpMetadataRoundedCube',
 ];
 
-async function waitForRendererReady(page, timeout = 600000) {
+async function waitForRendererReady(page, timeout = 60000) {
     await page.waitForFunction(() => (window as any).__TEST_READY__ === true, null, { timeout });
+    await waitForCanvasStable(page, timeout);
+}
+
+// A WebGL context without preserveDrawingBuffer can have its drawing buffer
+// invalidated between frames once the renderer stops actively redrawing (it
+// only draws when its internal "reflow" dirty flag is set). Reading pixels
+// back via drawImage/getImageData from outside the render loop can then see
+// a cleared buffer even though a real frame was drawn and displayed. Chrome's
+// own element screenshot (used here, and for the real baseline capture)
+// captures the composited output instead, so it isn't affected - use that
+// for polling instead of a raw in-page buffer read.
+function hasNonBlackPixel(pixels: Buffer) {
+    for (let i = 0; i < pixels.length; i += 4) {
+        if (pixels[i] !== 0 || pixels[i + 1] !== 0 || pixels[i + 2] !== 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+async function waitForCanvasStable(page, timeout = 60000, pollInterval = 300) {
+    const start = Date.now();
+    const canvas = page.locator('canvas').first();
+
+    let lastPixels: Buffer | null = null;
+
+    while (Date.now() - start < timeout) {
+        const buffer = await canvas.screenshot({ type: 'png' });
+        const pixels = PNG.sync.read(buffer).data;
+
+        if (lastPixels !== null && pixels.equals(lastPixels) && hasNonBlackPixel(pixels)) {
+            return;
+        }
+        lastPixels = pixels;
+        await page.waitForTimeout(pollInterval);
+    }
 }
 
 test.describe('visual: renderer — all models', () => {

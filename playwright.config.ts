@@ -18,6 +18,9 @@ export default defineConfig({
         // Playwright passes deviceScaleFactor to the browser context.
         deviceScaleFactor: 1,
         // slowdown? avoid unless debugging.
+        launchOptions: {
+            args: process.env.SWIFTSHADER ? ['--use-gl=angle', '--use-angle=swiftshader-webgl', '--enable-unsafe-swiftshader'] : [],
+        },
     },
     projects: [
         {
