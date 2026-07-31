@@ -6,6 +6,8 @@ declare global {
     }
     interface KtxTexture {
         needsTranscoding: boolean;
+        baseWidth: number;
+        baseHeight: number;
         transcodeBasis(target: number, flags: number): number;
         glUpload(): {
             texture: WebGLTexture;
@@ -63,8 +65,13 @@ export declare function createTexturesWebGPU(input: ReadonlyState, WebGPU: WEBGP
 export declare function createTexturesWebGL(input: ReadonlyState): void;
 export declare function createTextures(input: ReadonlyState, callback: (t: LoadedTexture, textureType: string) => unknown): void;
 export declare function initTextures(input: ReadonlyState, output: Partial<State>, isbitmap: boolean): Promise<boolean>;
-export declare function handleTextureLoadedWebGPU(input: ReadonlyState, WebGPU: WEBGPU, { image: bitmap, sampler, srgb, name }: {
-    image: ImageBitmap;
+export declare function handleTextureLoadedWebGPU(input: ReadonlyState, WebGPU: WEBGPU, { image, mimeType, sampler, srgb, name, }: {
+    image: ImageBitmap | {
+        data: Uint8Array;
+        width: number;
+        height: number;
+    };
+    mimeType?: string;
     sampler?: number;
     srgb?: boolean;
     name: string;

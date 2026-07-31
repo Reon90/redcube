@@ -10,7 +10,9 @@ export interface ImageSource {
         bufferViews?: BufferView[];
     };
     arrayBuffer: ArrayBufferLike[] | null;
+    gl?: WebGL2RenderingContext | WEBGPU;
 }
+export declare function getHelperGl(): WebGL2RenderingContext;
 export declare function fetchJSON(url: string): Promise<GlTf>;
 export declare function fetchBinary(url: string): Promise<ArrayBuffer>;
 export declare function fetchImage(isbitmap: boolean, s: ImageSource, { bufferView, mimeType, uri }: GLTFImage, { url, name }: {

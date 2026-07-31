@@ -1,5 +1,5 @@
 import { createProgram, generateMipmaps, LoadedTexture } from './utils';
-import { fetchImage, FetchedImage, ImageSource } from './fetch';
+import { fetchImage, FetchedImage, ImageSource, getHelperGl } from './fetch';
 import { GlTf } from '../GLTF';
 import type { State, ReadonlyState, Define } from './state';
 
@@ -14,6 +14,8 @@ declare global {
     }
     interface KtxTexture {
         needsTranscoding: boolean;
+        baseWidth: number;
+        baseHeight: number;
         transcodeBasis(target: number, flags: number): number;
         glUpload(): { texture: WebGLTexture };
     }
@@ -146,7 +148,13 @@ export function createTexturesWebGPU(input: ReadonlyState, WebGPU: WEBGPU) {
         handleTextureLoadedWebGPU(
             input,
             WebGPU,
-            t as unknown as { image: ImageBitmap; sampler?: number; srgb?: boolean; name: string },
+            t as unknown as {
+                image: ImageBitmap | { data: Uint8Array; width: number; height: number };
+                mimeType?: string;
+                sampler?: number;
+                srgb?: boolean;
+                name: string;
+            },
             textureType,
         ),
     );
@@ -236,14 +244,22 @@ export async function initTextures(input: ReadonlyState, output: Partial<State>,
     });
     if (hasBasisu) {
         const { gl } = input;
+        const isWebGPU = Boolean((gl as WEBGPU).device);
+        // libktx's GL bindings only understand a real WebGL2RenderingContext
+        // - for WebGPU, register a hidden offscreen one for it to transcode
+        // into instead (see fetch.ts's getHelperGl()/loadKTXPixels()).
+        const registrationGl = isWebGPU ? getHelperGl() : (gl as WebGL2RenderingContext);
         await import(/*webpackChunkName: "libktx"*/ '../libktx');
-        (globalThis as unknown as LibktxGlobal).LIBKTX({ preinitializedWebGLContext: gl }).then((module) => {
-            const transcoderConfig = (gl as WEBGPU).device
-                ? {
-                      astcSupported: (gl as WEBGPU).features.has('texture-compression-astc'),
-                      etc1Supported: (gl as WEBGPU).features.has('texture-compression-etc2'),
-                      etc2Supported: (gl as WEBGPU).features.has('texture-compression-etc2'),
-                      bptcSupported: (gl as WEBGPU).features.has('texture-compression-bc'),
+        (globalThis as unknown as LibktxGlobal).LIBKTX({ preinitializedWebGLContext: registrationGl }).then((module) => {
+            const transcoderConfig = isWebGPU
+                ? // Force the uncompressed RGBA4444 fallback: the WebGPU path
+                  // reads the transcoded pixels back via readPixels(), which
+                  // only works for uncompressed formats.
+                  {
+                      astcSupported: false,
+                      etc1Supported: false,
+                      etc2Supported: false,
+                      bptcSupported: false,
                       dxtSupported: false,
                       pvrtcSupported: false,
                   }
@@ -259,7 +275,7 @@ export async function initTextures(input: ReadonlyState, output: Partial<State>,
                   };
             window.LIBKTX = module;
             window.LIBKTX.transcoderConfig = transcoderConfig;
-            window.LIBKTX.GL.makeContextCurrent(window.LIBKTX.GL.registerContext(gl, { majorVersion: 2.0 }));
+            window.LIBKTX.GL.makeContextCurrent(window.LIBKTX.GL.registerContext(registrationGl, { majorVersion: 2.0 }));
         });
         await new Promise((resolve) => setTimeout(resolve, 1000));
     }
@@ -297,7 +313,19 @@ export async function initTextures(input: ReadonlyState, output: Partial<State>,
 export function handleTextureLoadedWebGPU(
     input: ReadonlyState,
     WebGPU: WEBGPU,
-    { image: bitmap, sampler, srgb, name }: { image: ImageBitmap; sampler?: number; srgb?: boolean; name: string },
+    {
+        image,
+        mimeType,
+        sampler,
+        srgb,
+        name,
+    }: {
+        image: ImageBitmap | { data: Uint8Array; width: number; height: number };
+        mimeType?: string;
+        sampler?: number;
+        srgb?: boolean;
+        name: string;
+    },
     textureType: string,
 ) {
     if (input.images.get(name)) {
@@ -305,24 +333,42 @@ export function handleTextureLoadedWebGPU(
     }
     const { device } = WebGPU;
     const s = input.samplers![sampler !== undefined ? sampler : 0];
-    const mipLevelCount = Math.max(1, Math.floor(Math.log2(Math.max(bitmap.width, bitmap.height))) - 2);
+    const isKTX2 = mimeType === 'image/ktx2';
+    const width = isKTX2 ? (image as { width: number }).width : (image as ImageBitmap).width;
+    const height = isKTX2 ? (image as { height: number }).height : (image as ImageBitmap).height;
+    const mipLevelCount = Math.max(1, Math.floor(Math.log2(Math.max(width, height))) - 2);
 
     const tex = device.createTexture({
         label: textureType,
-        size: [bitmap.width, bitmap.height, 1],
+        size: [width, height, 1],
         format: srgb ? 'rgba8unorm-srgb' : 'rgba8unorm',
         usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT,
         mipLevelCount,
     }) as LoadedTexture;
-    device.queue.copyExternalImageToTexture(
-        { source: bitmap },
-        { premultipliedAlpha: false, texture: tex as GPUTexture, mipLevel: 0, origin: { x: 0, y: 0, z: 0 } },
-        { width: bitmap.width, height: bitmap.height, depthOrArrayLayers: 1 },
-    );
+    if (isKTX2) {
+        // KTX2 comes back from loadKTXPixels() as raw RGBA bytes (libktx
+        // only exposes a WebGL upload path, not a WebGPU one - see
+        // fetch.ts), so it's uploaded via writeTexture() instead of
+        // copyExternalImageToTexture(), which only accepts image/canvas
+        // sources.
+        const { data } = image as { data: Uint8Array };
+        device.queue.writeTexture(
+            { texture: tex as GPUTexture, mipLevel: 0 },
+            data,
+            { bytesPerRow: width * 4 },
+            { width, height, depthOrArrayLayers: 1 },
+        );
+    } else {
+        device.queue.copyExternalImageToTexture(
+            { source: image as ImageBitmap },
+            { premultipliedAlpha: false, texture: tex as GPUTexture, mipLevel: 0, origin: { x: 0, y: 0, z: 0 } },
+            { width, height, depthOrArrayLayers: 1 },
+        );
+    }
     tex.sampler = s;
     tex.view = (tex as GPUTexture).createView();
 
-    generateMipmaps(device, tex as GPUTexture, bitmap.width, bitmap.height, mipLevelCount);
+    generateMipmaps(device, tex as GPUTexture, width, height, mipLevelCount);
     input.images.set(name, tex);
 
     return tex;

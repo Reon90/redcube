@@ -15219,6 +15219,14 @@ var redcube = (() => {
   };
 
   // src/fetch.ts
+  var helperGl;
+  function getHelperGl() {
+    if (!helperGl) {
+      const canvas = document.createElement("canvas");
+      helperGl = canvas.getContext("webgl2");
+    }
+    return helperGl;
+  }
   function loadKTX(b) {
     const { ktxTexture, TranscodeTarget, transcoderConfig } = window.LIBKTX;
     const { astcSupported, dxtSupported, pvrtcSupported, etc1Supported, etc2Supported } = transcoderConfig;
@@ -15245,7 +15253,21 @@ var redcube = (() => {
         throw new Error("Texture transcode failed. See console for details.");
       }
     }
-    return texture.glUpload().texture;
+    const { texture: tex } = texture.glUpload();
+    return { tex, width: texture.baseWidth, height: texture.baseHeight };
+  }
+  function loadKTXPixels(b) {
+    const gl = getHelperGl();
+    const { tex, width, height } = loadKTX(b);
+    const fb = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+    const data = new Uint8Array(width * height * 4);
+    gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, data);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.deleteFramebuffer(fb);
+    gl.deleteTexture(tex);
+    return { data, width, height };
   }
   function IsValid(data) {
     if (data.byteLength >= 12) {
@@ -15266,12 +15288,13 @@ var redcube = (() => {
     if (typeof window !== "undefined") {
       return new Promise((resolve, reject) => {
         if (mimeType === "image/ktx2") {
+          const isWebGPU = Boolean(s.gl?.device);
           window.fetch(url).then((r) => r.arrayBuffer()).then((b) => {
             resolve({
               sampler,
               mimeType,
               name,
-              image: loadKTX(b)
+              image: isWebGPU ? loadKTXPixels(b) : loadKTX(b).tex
             });
           });
         } else {
@@ -17499,16 +17522,23 @@ ${defineStr}`));
     });
     if (hasBasisu) {
       const { gl } = input;
+      const isWebGPU = Boolean(gl.device);
+      const registrationGl = isWebGPU ? getHelperGl() : gl;
       await Promise.resolve().then(() => (init_libktx(), libktx_exports));
-      globalThis.LIBKTX({ preinitializedWebGLContext: gl }).then((module2) => {
-        const transcoderConfig = gl.device ? {
-          astcSupported: gl.features.has("texture-compression-astc"),
-          etc1Supported: gl.features.has("texture-compression-etc2"),
-          etc2Supported: gl.features.has("texture-compression-etc2"),
-          bptcSupported: gl.features.has("texture-compression-bc"),
-          dxtSupported: false,
-          pvrtcSupported: false
-        } : {
+      globalThis.LIBKTX({ preinitializedWebGLContext: registrationGl }).then((module2) => {
+        const transcoderConfig = isWebGPU ? (
+          // Force the uncompressed RGBA4444 fallback: the WebGPU path
+          // reads the transcoded pixels back via readPixels(), which
+          // only works for uncompressed formats.
+          {
+            astcSupported: false,
+            etc1Supported: false,
+            etc2Supported: false,
+            bptcSupported: false,
+            dxtSupported: false,
+            pvrtcSupported: false
+          }
+        ) : {
           astcSupported: gl.getExtension("WEBGL_compressed_texture_astc"),
           etc1Supported: gl.getExtension("WEBGL_compressed_texture_etc1"),
           etc2Supported: gl.getExtension("WEBGL_compressed_texture_etc"),
@@ -17518,7 +17548,7 @@ ${defineStr}`));
         };
         window.LIBKTX = module2;
         window.LIBKTX.transcoderConfig = transcoderConfig;
-        window.LIBKTX.GL.makeContextCurrent(window.LIBKTX.GL.registerContext(gl, { majorVersion: 2 }));
+        window.LIBKTX.GL.makeContextCurrent(window.LIBKTX.GL.registerContext(registrationGl, { majorVersion: 2 }));
       });
       await new Promise((resolve) => setTimeout(resolve, 1e3));
     }

@@ -10,6 +10,27 @@ export interface FetchedImage {
 export interface ImageSource {
     json: { bufferViews?: BufferView[] };
     arrayBuffer: ArrayBufferLike[] | null;
+    gl?: WebGL2RenderingContext | WEBGPU;
+}
+
+// libktx's glUpload() is the only pixel-access API this vendored build
+// exposes - there's no CPU-side getImage()/raw-bytes accessor. It binds into
+// whatever WebGL context LIBKTX.GL currently has registered, which is only
+// ever a real WebGL2RenderingContext (Emscripten's GL bindings have no
+// concept of WebGPU). For the WebGPU backend we still need libktx to do the
+// actual KTX2/Basis transcoding, so we give it a hidden, offscreen WebGL2
+// context to upload into, then read the decoded pixels back out with
+// readPixels() and hand them to WebGPU's own texture APIs. This only works
+// for uncompressed transcode targets (RGBA4444) - compressed formats aren't
+// framebuffer-attachable/readable - so parseTextures.ts forces the WebGPU
+// path's transcoderConfig to report no compressed-format support.
+let helperGl: WebGL2RenderingContext | undefined;
+export function getHelperGl(): WebGL2RenderingContext {
+    if (!helperGl) {
+        const canvas = document.createElement('canvas');
+        helperGl = canvas.getContext('webgl2')!;
+    }
+    return helperGl;
 }
 
 function loadKTX(b: ArrayBuffer) {
@@ -41,7 +62,26 @@ function loadKTX(b: ArrayBuffer) {
     // needsTranscoding=false means the file is already in a GPU-uploadable
     // format - glUpload() handles both cases, so it must run either way, not
     // only inside the transcoding branch.
-    return texture.glUpload().texture;
+    const { texture: tex } = texture.glUpload();
+    return { tex, width: texture.baseWidth, height: texture.baseHeight };
+}
+
+// WebGPU path: same transcode as loadKTX(), but reads the result back into
+// a plain byte array instead of returning a (WebGL-only) WebGLTexture.
+function loadKTXPixels(b: ArrayBuffer): { data: Uint8Array; width: number; height: number } {
+    const gl = getHelperGl();
+    const { tex, width, height } = loadKTX(b);
+
+    const fb = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+    const data = new Uint8Array(width * height * 4);
+    gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, data);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.deleteFramebuffer(fb);
+    gl.deleteTexture(tex);
+
+    return { data, width, height };
 }
 
 function IsValid(data: ArrayBufferView): boolean {
@@ -87,6 +127,7 @@ export function fetchImage(
     if (typeof window !== 'undefined') {
         return new Promise<FetchedImage>((resolve, reject) => {
             if (mimeType === 'image/ktx2') {
+                const isWebGPU = Boolean((s.gl as WEBGPU)?.device);
                 window
                     .fetch(url)
                     .then((r) => r.arrayBuffer())
@@ -95,7 +136,7 @@ export function fetchImage(
                             sampler,
                             mimeType,
                             name,
-                            image: loadKTX(b),
+                            image: isWebGPU ? loadKTXPixels(b) : loadKTX(b).tex,
                         });
                     });
             } else {
