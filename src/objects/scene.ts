@@ -3,7 +3,7 @@ import { Object3D } from './object3d';
 import { Mesh } from './mesh';
 import { Camera } from './camera';
 import { Light } from './light';
-import { Track } from '../parse';
+import { Track } from '../state';
 
 export class Scene {
     children: Array<Object3D>;

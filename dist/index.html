@@ -117,9 +117,10 @@
                     span.innerHTML = 'light position';
                     const slider = document.createElement('input');
                     slider.oninput = () => {
-                        renderer.light.update(Number(slider.value));
-                        renderer.renderer.reflow = true;
-                        renderer.renderer.needUpdateView = true;
+                        const state = renderer.getState();
+                        state.light.update(Number(slider.value));
+                        state.renderer.reflow = true;
+                        state.renderer.needUpdateView = true;
                     };
                     slider.type = 'range';
                     slider.min = '0';
@@ -173,22 +174,23 @@
                         mode,
                     );
                     renderer.init(() => {
-                        if (renderer.parse.cameras.length) {
+                        const state = renderer.getState();
+                        if (state.cameras.length) {
                             const animations = document.createElement('select');
                             animations.innerHTML = '<option hidden>animations</option>';
-                            renderer.parse.tracks.forEach((it, i) => {
+                            state.tracks.forEach((it, i) => {
                                 const option = document.createElement('option');
                                 option.innerHTML = `animation${i}`;
                                 option.value = i;
                                 animations.appendChild(option);
                             });
                             animations.onchange = () => {
-                                renderer.renderer.currentTrack = animations.value;
+                                state.renderer.currentTrack = animations.value;
                             };
 
                             const variants = document.createElement('select');
                             variants.innerHTML = '<option hidden>variants</option>';
-                            renderer.scene.variants.forEach((it, i) => {
+                            state.scene.variants.forEach((it, i) => {
                                 const option = document.createElement('option');
                                 option.innerHTML = it.name;
                                 option.value = i;
@@ -200,22 +202,21 @@
 
                             const select = document.createElement('select');
                             select.onchange = () => {
-                                renderer.ioc._updateDep(
-                                    'camera',
-                                    renderer.parse.cameras.find((it) => {
+                                renderer.setActiveCamera(
+                                    state.cameras.find((it) => {
                                         return Number(select.value) === it.name;
                                     }),
                                 );
-                                renderer.renderer.needUpdateView = true;
+                                state.renderer.needUpdateView = true;
                                 renderer.draw();
                             };
-                            renderer.parse.cameras.forEach((it) => {
+                            state.cameras.forEach((it) => {
                                 const option = document.createElement('option');
                                 option.innerHTML = it.name;
                                 option.value = it.name;
                                 select.appendChild(option);
                             });
-                            select.value = renderer.parse.cameras[renderer.parse.cameras.length - 1].name;
+                            select.value = state.cameras[state.cameras.length - 1].name;
                             selector.appendChild(select);
                             selector.appendChild(animations);
                             selector.appendChild(variants);

@@ -1,14 +1,13 @@
-import { Scene, Mesh, Camera, Bone, Light, Object3D } from './objects/index';
+import { Mesh, Bone, Light, Camera, Object3D } from './objects/index';
 import { Vector, Vector2, Vector3, Vector4, Frustum } from './matrix';
-import { interpolation, walk, GLTexture } from './utils';
-import { Parse, Track } from './parse';
-import { PostProcessing } from './postprocessing.webgpu';
-import { Particles } from './particles';
+import { interpolation, walk } from './utils';
 import { FPS } from './fps';
 import { Light as PPLight } from './postprocessors/light';
-import { Env } from './env';
 import { Attributes } from './objects/geometry';
-import { UniformBuffer, UniformBufferLike } from './objects/uniform';
+import type { Env } from './env';
+import type { Track, State } from './state';
+
+export type { State, RenderPassState, Track, Key, Skin, Define } from './state';
 
 declare global {
     interface Window {
@@ -16,84 +15,21 @@ declare global {
     }
 }
 
-export interface RenderPassState {
-    isprepender?: boolean;
-    isprerefraction?: boolean;
-}
-
-export interface State {
-    lights: Light[];
-    camera: Camera;
-    needUpdateProjection: boolean;
-    needUpdateView: boolean;
-    preDepthTexture: GLTexture;
-    colorTexture: GLTexture;
-    renderState: RenderPassState;
-    fakeDepth: GLTexture;
-    isIBL: boolean;
-    isDefaultLight: boolean;
-    UBO: WebGLBuffer;
-    cameraBuffer: UniformBuffer;
-    light: Light;
-    lightPosUniform: WebGLBuffer;
-    lightPosBuffer: UniformBuffer;
-    lightColorUniform: WebGLBuffer;
-    lightColorBuffer: UniformBuffer;
-    storage2: { texture: WebGLTexture };
-    storage: { texture2: WebGLTexture };
-    stateBuffer: UniformBuffer;
-    materialStorage: UniformBufferLike;
-    transformsStorage: UniformBufferLike;
-}
-
+// Renderer holds no references to its collaborators (gl/scene/camera/parse
+// output/env/PP/particles) - every read goes through getState() so there's
+// exactly one canonical copy of each value, owned by RedCube. Only fps is
+// genuinely private, per-instance runtime state.
 export class Renderer {
-    gl!: WebGL2RenderingContext | WEBGPU;
-    parse!: Parse;
-    PP!: PostProcessing;
-    scene!: Scene;
-    Particles!: Particles;
     fps: FPS;
-    camera!: Camera;
     getState: () => State;
-    reflow: boolean;
-    needUpdateProjection = true;
+    reflow = true;
     needUpdateView = true;
-    env!: Env;
-    currentTrack: number;
+    needUpdateProjection = true;
+    currentTrack = 0;
 
     constructor(getState: () => State) {
-        this.reflow = true;
         this.fps = new FPS();
         this.getState = getState;
-        this.currentTrack = 0;
-    }
-
-    setEnv(env: Env) {
-        this.env = env;
-    }
-
-    setCamera(camera: Camera) {
-        this.camera = camera;
-    }
-
-    setParticles(Particles: Particles) {
-        this.Particles = Particles;
-    }
-
-    setScene(scene: Scene) {
-        this.scene = scene;
-    }
-
-    setPp(pp: PostProcessing) {
-        this.PP = pp;
-    }
-
-    setGl(g: WebGL2RenderingContext | WEBGPU) {
-        this.gl = g;
-    }
-
-    setParser(parser: Parse) {
-        this.parse = parser;
     }
 
     step(sec: number, v: Track) {
@@ -208,7 +144,7 @@ export class Renderer {
     }
 
     updateGeometry(mesh: Mesh, geometry: Attributes) {
-        mesh.geometry.update(this.gl as WebGL2RenderingContext, geometry);
+        mesh.geometry.update(this.getState().gl as WebGL2RenderingContext, geometry);
     }
 
     interpolation(sec: number, v: Track) {
@@ -307,7 +243,7 @@ export class Renderer {
     }
 
     updateMaterial(mesh: Mesh, type: string, out: { elements: Float32Array }) {
-        const gl = this.gl as WebGL2RenderingContext;
+        const gl = this.getState().gl as WebGL2RenderingContext;
         const s = type.split('/');
         const last = s[s.length - 1];
 
@@ -321,14 +257,15 @@ export class Renderer {
     }
 
     animate(sec: number) {
-        if (!this.parse.tracks.length) {
+        const { tracks, camera } = this.getState();
+        if (!tracks.length) {
             return;
         }
-        const duration = Math.max(...this.parse.tracks.map((t) => t[0].duration));
+        const duration = Math.max(...tracks.map((t) => t[0].duration));
         const increment = Math.floor(sec / duration);
         sec -= increment * duration;
 
-        for (const track of this.parse.tracks.sort((a, b) => a[0].duration - b[0].duration)) {
+        for (const track of tracks.sort((a, b) => a[0].duration - b[0].duration)) {
             for (const v of track) {
                 let result: boolean | undefined;
                 switch (v.interpolation) {
@@ -365,7 +302,7 @@ export class Renderer {
                             this.needUpdateView = true;
                         }
 
-                        if (node instanceof Camera && node === this.camera) {
+                        if (node instanceof Camera && node === camera) {
                             this.needUpdateView = true;
                         }
                     });
@@ -377,7 +314,8 @@ export class Renderer {
     }
 
     render(time = 0) {
-        const gl = this.gl as WebGL2RenderingContext;
+        const s = this.getState();
+        const gl = s.gl as WebGL2RenderingContext;
         const sec = time / 1000;
 
         if (!window.__FORCE_DETERMINISTIC__) {
@@ -385,32 +323,32 @@ export class Renderer {
         }
 
         if (this.reflow) {
-            if (this.PP.hasPrePass) {
-                this.PP.bindPrePass();
-                this.PP.preProcessing();
+            if (s.pp!.hasPrePass) {
+                s.pp!.bindPrePass();
+                s.pp!.preProcessing();
             }
-            if (this.PP.hasPostPass) {
-                this.PP.bindPostPass();
+            if (s.pp!.hasPostPass) {
+                s.pp!.bindPostPass();
             }
 
             gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-            if (this.parse.json.extensions && this.parse.json.extensions.EXT_lights_image_based) {
-                this.env.draw();
+            if (s.json.extensions && s.json.extensions.EXT_lights_image_based) {
+                (s.env as Env).draw();
             }
-            //\this.env.draw();
+            //\s.env.draw();
 
             this.renderScene();
             this.clean();
 
-            if (this.PP.postprocessors.some((p) => p instanceof PPLight)) {
+            if (s.pp!.postprocessors.some((p) => p instanceof PPLight)) {
                 gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, null);
-                this.Particles.draw(time);
+                s.particles!.draw(time);
                 this.reflow = true;
             }
 
-            if (this.PP.hasPostPass) {
-                this.PP.postProcessing();
+            if (s.pp!.hasPostPass) {
+                s.pp!.postProcessing();
             }
         }
 
@@ -420,49 +358,49 @@ export class Renderer {
     }
 
     renderScene() {
-        const gl = this.gl as WebGL2RenderingContext;
+        const s = this.getState();
+        const gl = s.gl as WebGL2RenderingContext;
         if (this.needUpdateView || this.reflow) {
-            const planes = Frustum(this.camera.getViewProjMatrix());
+            const planes = Frustum(s.camera.getViewProjMatrix());
 
-            this.scene.meshes.forEach((mesh) => {
+            s.scene.meshes.forEach((mesh) => {
                 mesh.visible = mesh.parent!.visible && mesh.isVisible(planes);
             });
         }
 
-        const s = this.getState();
-        if (s.needUpdateView) {
-            gl.bindBufferBase(gl.UNIFORM_BUFFER, 1, s.UBO);
-            s.cameraBuffer.update(gl, 'view', s.camera.matrixWorldInvert.elements);
-            s.cameraBuffer.update(gl, 'light', s.light.matrixWorldInvert.elements);
+        if (this.needUpdateView) {
+            gl.bindBufferBase(gl.UNIFORM_BUFFER, 1, s.UBO!);
+            s.cameraBuffer!.update(gl, 'view', s.camera.matrixWorldInvert.elements);
+            s.cameraBuffer!.update(gl, 'light', s.light!.matrixWorldInvert.elements);
 
-            gl.bindBufferBase(gl.UNIFORM_BUFFER, 3, s.lightPosUniform);
-            this.parse.lights.forEach((light, i) => {
-                s.lightPosBuffer.store!.set(light.getPosition(), i * 4);
+            gl.bindBufferBase(gl.UNIFORM_BUFFER, 3, s.lightPosUniform!);
+            s.lights.forEach((light, i) => {
+                s.lightPosBuffer!.store!.set(light.getPosition(), i * 4);
             });
-            gl.bufferSubData(gl.UNIFORM_BUFFER, 0, s.lightPosBuffer.store!);
+            gl.bufferSubData(gl.UNIFORM_BUFFER, 0, s.lightPosBuffer!.store!);
         }
-        if (s.needUpdateProjection) {
-            gl.bindBufferBase(gl.UNIFORM_BUFFER, 1, s.UBO);
-            s.cameraBuffer.update(gl, 'projection', s.camera.projection.elements);
+        if (this.needUpdateProjection) {
+            gl.bindBufferBase(gl.UNIFORM_BUFFER, 1, s.UBO!);
+            s.cameraBuffer!.update(gl, 'projection', s.camera.projection.elements);
         }
-        gl.bindBufferBase(gl.UNIFORM_BUFFER, 4, s.lightColorUniform);
-        gl.bufferSubData(gl.UNIFORM_BUFFER, 0, s.lightColorBuffer.store!);
+        gl.bindBufferBase(gl.UNIFORM_BUFFER, 4, s.lightColorUniform!);
+        gl.bufferSubData(gl.UNIFORM_BUFFER, 0, s.lightColorBuffer!.store!);
         s.lights.forEach((light, i) => {
             const offset = i * 4 * Float32Array.BYTES_PER_ELEMENT;
             if (light.visible === false) {
                 gl.bufferSubData(gl.UNIFORM_BUFFER, offset, new Float32Array([0, 0, 0, 0]));
             }
         });
-        this.scene.meshes.forEach((mesh, i) => {
+        s.scene.meshes.forEach((mesh, i) => {
             if (mesh.reflow) {
                 gl.activeTexture(gl[`TEXTURE${31}`]);
-                gl.bindTexture(gl.TEXTURE_2D, s.storage2.texture);
+                gl.bindTexture(gl.TEXTURE_2D, s.storage2!.texture);
                 gl.texSubImage2D(
                     gl.TEXTURE_2D,
                     0, // Mipmap level
                     0, // xoffset
                     i, // yoffset
-                    this.scene.meshes[0].geometry.uniformBuffer!.store!.length / Float32Array.BYTES_PER_ELEMENT,
+                    s.scene.meshes[0].geometry.uniformBuffer!.store!.length / Float32Array.BYTES_PER_ELEMENT,
                     1,
                     gl.RGBA,
                     gl.FLOAT,
@@ -475,7 +413,7 @@ export class Renderer {
                             0, // Mipmap level
                             0, // xoffset
                             i + j + 1, // yoffset
-                            this.scene.meshes[0].geometry.uniformBuffer!.store!.length / Float32Array.BYTES_PER_ELEMENT,
+                            s.scene.meshes[0].geometry.uniformBuffer!.store!.length / Float32Array.BYTES_PER_ELEMENT,
                             1,
                             gl.RGBA,
                             gl.FLOAT,
@@ -487,13 +425,13 @@ export class Renderer {
             }
             if (mesh.repaint) {
                 gl.activeTexture(gl[`TEXTURE${30}`]);
-                gl.bindTexture(gl.TEXTURE_2D, s.storage.texture2);
+                gl.bindTexture(gl.TEXTURE_2D, s.storage!.texture2);
                 gl.texSubImage2D(
                     gl.TEXTURE_2D,
                     0, // Mipmap level
                     0, // xoffset
                     i, // yoffset
-                    this.scene.meshes[0].material.materialUniformBuffer.store.length / Float32Array.BYTES_PER_ELEMENT,
+                    s.scene.meshes[0].material.materialUniformBuffer.store.length / Float32Array.BYTES_PER_ELEMENT,
                     1,
                     gl.RGBA,
                     gl.FLOAT,
@@ -503,18 +441,18 @@ export class Renderer {
             }
         });
 
-        this.scene.opaqueChildren.forEach((mesh) => {
+        s.scene.opaqueChildren.forEach((mesh) => {
             if (mesh.visible) {
-                mesh.draw(gl, this.getState());
+                mesh.draw(gl, s);
             }
         });
-        if (this.scene.transparentChildren.length) {
+        if (s.scene.transparentChildren.length) {
             gl.enable(gl.BLEND);
             gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
-            this.scene.transparentChildren.forEach((mesh) => {
+            s.scene.transparentChildren.forEach((mesh) => {
                 if (mesh.visible) {
-                    mesh.draw(gl, this.getState());
+                    mesh.draw(gl, s);
                 }
             });
 
@@ -524,7 +462,7 @@ export class Renderer {
     }
 
     clean() {
-        walk(this.scene, (node) => {
+        walk(this.getState().scene, (node) => {
             (node as Object3D).reflow = false;
         });
         this.needUpdateView = false;

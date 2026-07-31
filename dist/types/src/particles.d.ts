@@ -1,19 +1,17 @@
 import { GLTexture } from './utils';
-import { Camera } from './objects/index';
+import type { State } from './state';
 type Texture = GLTexture;
 export declare class Particles {
-    gl: WebGL2RenderingContext;
+    getState: () => State;
     currentSourceIdx: number;
     program: WebGLProgram;
     program2: WebGLProgram;
     VAO: Array<WebGLVertexArrayObject>;
     TFO: Array<WebGLTransformFeedback>;
     texture3d: Texture;
-    camera: Camera;
     getLight: () => number;
-    constructor(getLight: () => number);
-    setGl(g: WebGL2RenderingContext): void;
-    setCamera(camera: Camera): void;
+    constructor(getState: () => State, getLight: () => number);
+    private get gl();
     build(): void;
     draw(time: number): void;
 }

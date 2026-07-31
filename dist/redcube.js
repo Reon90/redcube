@@ -10324,81 +10324,6 @@ var redcube = (() => {
     RedCube: () => RedCube
   });
 
-  // src/container.ts
-  var Container = class {
-    _services;
-    _singletons;
-    constructor() {
-      this._services = /* @__PURE__ */ new Map();
-      this._singletons = /* @__PURE__ */ new Map();
-      this.update = this.update.bind(this);
-    }
-    register(name, definition, dependencies = [], ...args) {
-      this._services.set(name, { definition, dependencies, args });
-      if (!this._isClass(definition)) {
-        this._updateDep(name, definition);
-      } else {
-        definition.__update = this.update;
-      }
-    }
-    get(name) {
-      const c = this._services.get(name);
-      if (!c) {
-        return null;
-      }
-      if (this._isClass(c.definition)) {
-        const singletonInstance = this._singletons.get(name);
-        if (singletonInstance) {
-          return singletonInstance;
-        } else {
-          const newSingletonInstance = this._createInstance(c);
-          this._singletons.set(name, newSingletonInstance);
-          return newSingletonInstance;
-        }
-      } else {
-        return c.definition;
-      }
-    }
-    update(name, ...args) {
-      const c = this._services.get(name);
-      c.args = args;
-      this._singletons.delete(name);
-      const instance = this.get(name);
-      this._updateDep(name, instance);
-    }
-    _updateDep(name, definition) {
-      for (const [key, instance] of this._singletons) {
-        if (this._services.get(key).dependencies.some((dep) => dep === name)) {
-          instance[`set${name.charAt(0).toUpperCase() + name.slice(1)}`].call(
-            instance,
-            definition
-          );
-        }
-      }
-      this._singletons.set(name, definition);
-    }
-    _getResolvedDependencies(service) {
-      let classDependencies = [];
-      if (service.dependencies) {
-        classDependencies = service.dependencies.map((dep) => {
-          return [dep, this.get(dep)];
-        });
-      }
-      return classDependencies;
-    }
-    _createInstance(service) {
-      const Definition = service.definition;
-      const instance = new Definition(...service.args);
-      this._getResolvedDependencies(service).forEach(([name, dep]) => {
-        instance[`set${name.charAt(0).toUpperCase() + name.slice(1)}`].call(instance, dep);
-      });
-      return instance;
-    }
-    _isClass(definition) {
-      return typeof definition === "function" && /^class\s/.test(Function.prototype.toString.call(definition));
-    }
-  };
-
   // src/matrix.ts
   var Matrix4 = class _Matrix4 {
     elements;
@@ -12590,11 +12515,7 @@ var redcube = (() => {
     setMaterial(material) {
       this.material = material;
     }
-    drawWebGPU(WebGPU, passEncoder, i, {
-      renderState,
-      materialStorage,
-      transformsStorage
-    }) {
+    drawWebGPU(WebGPU, passEncoder, i, { renderState, materialStorage, transformsStorage }) {
       const { isprerefraction } = renderState;
       if (this.defines.find((i2) => i2.name === "TRANSMISSION") && isprerefraction) {
         return;
@@ -14168,45 +14089,15 @@ var redcube = (() => {
 
   // src/renderer.ts
   var Renderer = class {
-    gl;
-    parse;
-    PP;
-    scene;
-    Particles;
     fps;
-    camera;
     getState;
-    reflow;
-    needUpdateProjection = true;
+    reflow = true;
     needUpdateView = true;
-    env;
-    currentTrack;
+    needUpdateProjection = true;
+    currentTrack = 0;
     constructor(getState) {
-      this.reflow = true;
       this.fps = new FPS();
       this.getState = getState;
-      this.currentTrack = 0;
-    }
-    setEnv(env) {
-      this.env = env;
-    }
-    setCamera(camera) {
-      this.camera = camera;
-    }
-    setParticles(Particles2) {
-      this.Particles = Particles2;
-    }
-    setScene(scene) {
-      this.scene = scene;
-    }
-    setPp(pp) {
-      this.PP = pp;
-    }
-    setGl(g) {
-      this.gl = g;
-    }
-    setParser(parser) {
-      this.parse = parser;
     }
     step(sec, v) {
       const val = interpolation(sec, v.keys);
@@ -14302,7 +14193,7 @@ var redcube = (() => {
       }
     }
     updateGeometry(mesh, geometry) {
-      mesh.geometry.update(this.gl, geometry);
+      mesh.geometry.update(this.getState().gl, geometry);
     }
     interpolation(sec, v) {
       const val = interpolation(sec, v.keys);
@@ -14381,7 +14272,7 @@ var redcube = (() => {
       }
     }
     updateMaterial(mesh, type, out) {
-      const gl = this.gl;
+      const gl = this.getState().gl;
       const s = type.split("/");
       const last = s[s.length - 1];
       if (last === "offset" || last === "rotation" || last === "scale") {
@@ -14393,13 +14284,14 @@ var redcube = (() => {
       }
     }
     animate(sec) {
-      if (!this.parse.tracks.length) {
+      const { tracks, camera } = this.getState();
+      if (!tracks.length) {
         return;
       }
-      const duration = Math.max(...this.parse.tracks.map((t) => t[0].duration));
+      const duration = Math.max(...tracks.map((t) => t[0].duration));
       const increment = Math.floor(sec / duration);
       sec -= increment * duration;
-      for (const track of this.parse.tracks.sort((a, b) => a[0].duration - b[0].duration)) {
+      for (const track of tracks.sort((a, b) => a[0].duration - b[0].duration)) {
         for (const v of track) {
           let result;
           switch (v.interpolation) {
@@ -14431,7 +14323,7 @@ var redcube = (() => {
               if (node instanceof Light) {
                 this.needUpdateView = true;
               }
-              if (node instanceof Camera && node === this.camera) {
+              if (node instanceof Camera && node === camera) {
                 this.needUpdateView = true;
               }
             });
@@ -14441,57 +14333,58 @@ var redcube = (() => {
       }
     }
     render(time = 0) {
-      const gl = this.gl;
+      const s = this.getState();
+      const gl = s.gl;
       const sec = time / 1e3;
       if (!window.__FORCE_DETERMINISTIC__) {
         this.animate(sec);
       }
       if (this.reflow) {
-        if (this.PP.hasPrePass) {
-          this.PP.bindPrePass();
-          this.PP.preProcessing();
+        if (s.pp.hasPrePass) {
+          s.pp.bindPrePass();
+          s.pp.preProcessing();
         }
-        if (this.PP.hasPostPass) {
-          this.PP.bindPostPass();
+        if (s.pp.hasPostPass) {
+          s.pp.bindPostPass();
         }
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-        if (this.parse.json.extensions && this.parse.json.extensions.EXT_lights_image_based) {
-          this.env.draw();
+        if (s.json.extensions && s.json.extensions.EXT_lights_image_based) {
+          s.env.draw();
         }
         this.renderScene();
         this.clean();
-        if (this.PP.postprocessors.some((p2) => p2 instanceof Light2)) {
+        if (s.pp.postprocessors.some((p2) => p2 instanceof Light2)) {
           gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, null);
-          this.Particles.draw(time);
+          s.particles.draw(time);
           this.reflow = true;
         }
-        if (this.PP.hasPostPass) {
-          this.PP.postProcessing();
+        if (s.pp.hasPostPass) {
+          s.pp.postProcessing();
         }
       }
       this.fps.tick(time);
       requestAnimationFrame(this.render.bind(this));
     }
     renderScene() {
-      const gl = this.gl;
+      const s = this.getState();
+      const gl = s.gl;
       if (this.needUpdateView || this.reflow) {
-        const planes = Frustum(this.camera.getViewProjMatrix());
-        this.scene.meshes.forEach((mesh) => {
+        const planes = Frustum(s.camera.getViewProjMatrix());
+        s.scene.meshes.forEach((mesh) => {
           mesh.visible = mesh.parent.visible && mesh.isVisible(planes);
         });
       }
-      const s = this.getState();
-      if (s.needUpdateView) {
+      if (this.needUpdateView) {
         gl.bindBufferBase(gl.UNIFORM_BUFFER, 1, s.UBO);
         s.cameraBuffer.update(gl, "view", s.camera.matrixWorldInvert.elements);
         s.cameraBuffer.update(gl, "light", s.light.matrixWorldInvert.elements);
         gl.bindBufferBase(gl.UNIFORM_BUFFER, 3, s.lightPosUniform);
-        this.parse.lights.forEach((light, i) => {
+        s.lights.forEach((light, i) => {
           s.lightPosBuffer.store.set(light.getPosition(), i * 4);
         });
         gl.bufferSubData(gl.UNIFORM_BUFFER, 0, s.lightPosBuffer.store);
       }
-      if (s.needUpdateProjection) {
+      if (this.needUpdateProjection) {
         gl.bindBufferBase(gl.UNIFORM_BUFFER, 1, s.UBO);
         s.cameraBuffer.update(gl, "projection", s.camera.projection.elements);
       }
@@ -14503,7 +14396,7 @@ var redcube = (() => {
           gl.bufferSubData(gl.UNIFORM_BUFFER, offset, new Float32Array([0, 0, 0, 0]));
         }
       });
-      this.scene.meshes.forEach((mesh, i) => {
+      s.scene.meshes.forEach((mesh, i) => {
         if (mesh.reflow) {
           gl.activeTexture(gl[`TEXTURE${31}`]);
           gl.bindTexture(gl.TEXTURE_2D, s.storage2.texture);
@@ -14515,7 +14408,7 @@ var redcube = (() => {
             // xoffset
             i,
             // yoffset
-            this.scene.meshes[0].geometry.uniformBuffer.store.length / Float32Array.BYTES_PER_ELEMENT,
+            s.scene.meshes[0].geometry.uniformBuffer.store.length / Float32Array.BYTES_PER_ELEMENT,
             1,
             gl.RGBA,
             gl.FLOAT,
@@ -14531,7 +14424,7 @@ var redcube = (() => {
                 // xoffset
                 i + j + 1,
                 // yoffset
-                this.scene.meshes[0].geometry.uniformBuffer.store.length / Float32Array.BYTES_PER_ELEMENT,
+                s.scene.meshes[0].geometry.uniformBuffer.store.length / Float32Array.BYTES_PER_ELEMENT,
                 1,
                 gl.RGBA,
                 gl.FLOAT,
@@ -14552,7 +14445,7 @@ var redcube = (() => {
             // xoffset
             i,
             // yoffset
-            this.scene.meshes[0].material.materialUniformBuffer.store.length / Float32Array.BYTES_PER_ELEMENT,
+            s.scene.meshes[0].material.materialUniformBuffer.store.length / Float32Array.BYTES_PER_ELEMENT,
             1,
             gl.RGBA,
             gl.FLOAT,
@@ -14561,17 +14454,17 @@ var redcube = (() => {
           mesh.repaint = false;
         }
       });
-      this.scene.opaqueChildren.forEach((mesh) => {
+      s.scene.opaqueChildren.forEach((mesh) => {
         if (mesh.visible) {
-          mesh.draw(gl, this.getState());
+          mesh.draw(gl, s);
         }
       });
-      if (this.scene.transparentChildren.length) {
+      if (s.scene.transparentChildren.length) {
         gl.enable(gl.BLEND);
         gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-        this.scene.transparentChildren.forEach((mesh) => {
+        s.scene.transparentChildren.forEach((mesh) => {
           if (mesh.visible) {
-            mesh.draw(gl, this.getState());
+            mesh.draw(gl, s);
           }
         });
         gl.disable(gl.BLEND);
@@ -14579,7 +14472,7 @@ var redcube = (() => {
       }
     }
     clean() {
-      walk(this.scene, (node) => {
+      walk(this.getState().scene, (node) => {
         node.reflow = false;
       });
       this.needUpdateView = false;
@@ -14800,8 +14693,7 @@ var redcube = (() => {
 
   // src/env.ts
   var Env = class {
-    gl;
-    camera;
+    getState;
     envMatrix;
     VAO;
     quadVAO;
@@ -14820,7 +14712,6 @@ var redcube = (() => {
     views2;
     prefilterrender;
     brdfbuffer;
-    canvas;
     url;
     sampler;
     samplerCube;
@@ -14833,29 +14724,23 @@ var redcube = (() => {
     prefilterMap;
     charlieMap;
     Sheen_E;
-    constructor(url) {
+    constructor(getState, url) {
       this.url = url;
       this.envMatrix = new Matrix4();
-    }
-    setCamera(camera) {
-      this.camera = camera;
-    }
-    setGl(g) {
-      this.gl = g;
-    }
-    setCanvas(canvas) {
-      this.canvas = canvas;
+      this.getState = getState;
     }
     get width() {
-      return this.canvas.offsetWidth * devicePixelRatio;
+      return this.getState().width * devicePixelRatio;
     }
     get height() {
-      return this.canvas.offsetHeight * devicePixelRatio;
+      return this.getState().height * devicePixelRatio;
     }
     drawQuad() {
-      const { gl } = this;
+      const state = this.getState();
+      const gl = state.gl;
+      const { camera } = state;
       const m = new Matrix4();
-      const cam = Object.assign({}, this.camera.props, {
+      const cam = Object.assign({}, camera.props, {
         perspective: {
           yfov: 0.3,
           znear: 0.01,
@@ -14909,13 +14794,15 @@ var redcube = (() => {
       gl.bindVertexArray(this.quadVAO);
       gl.uniformMatrix4fv(gl.getUniformLocation(program, "projection"), false, m.elements);
       gl.uniform1i(gl.getUniformLocation(program, "environmentMap"), this.brdfLUTTexture.index);
-      gl.uniformMatrix4fv(gl.getUniformLocation(program, "view"), false, this.camera.matrixWorldInvert.elements);
+      gl.uniformMatrix4fv(gl.getUniformLocation(program, "view"), false, camera.matrixWorldInvert.elements);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     }
     draw() {
-      const { gl } = this;
+      const state = this.getState();
+      const gl = state.gl;
+      const { camera } = state;
       const m = new Matrix4();
-      const cam = Object.assign({}, this.camera.props, {
+      const cam = Object.assign({}, camera.props, {
         perspective: {
           yfov: 0.3,
           znear: 0.01,
@@ -14972,22 +14859,24 @@ var redcube = (() => {
       gl.useProgram(program);
       gl.bindVertexArray(this.VAO);
       gl.uniformMatrix4fv(gl.getUniformLocation(program, "projection"), false, m.elements);
-      const s = this.camera.modelSize * 2;
+      const s = camera.modelSize * 2;
       gl.uniformMatrix4fv(
         gl.getUniformLocation(program, "model"),
         false,
         new Matrix4().makeRotationAxis(new Vector3([1, 0, 0]), Math.PI).scale(new Vector3([s, s, s])).elements
       );
       gl.uniform1i(gl.getUniformLocation(program, "environmentMap"), this.originalCubeTexture.index);
-      gl.uniformMatrix4fv(gl.getUniformLocation(program, "view"), false, this.camera.matrixWorldInvert.elements);
+      gl.uniformMatrix4fv(gl.getUniformLocation(program, "view"), false, camera.matrixWorldInvert.elements);
       gl.drawArrays(gl.TRIANGLES, 0, 36);
       gl.enable(gl.DEPTH_TEST);
     }
     createEnvironment() {
-      const { gl } = this;
+      const state = this.getState();
+      const gl = state.gl;
+      const { camera } = state;
       gl.enable(gl.CULL_FACE);
       const m = new Matrix4();
-      const cam = Object.assign({}, this.camera.props, {
+      const cam = Object.assign({}, camera.props, {
         aspect: 1,
         perspective: {
           yfov: Math.PI / 2,
@@ -15095,7 +14984,7 @@ var redcube = (() => {
       }
     }
     async createEnvironmentBuffer(envData) {
-      const { gl } = this;
+      const gl = this.getState().gl;
       this.envData = envData;
       if (envData) {
         const matrix = new Matrix4();
@@ -15355,8 +15244,8 @@ var redcube = (() => {
       if (result !== window.LIBKTX.ErrorCode.SUCCESS) {
         throw new Error("Texture transcode failed. See console for details.");
       }
-      return texture.glUpload().texture;
     }
+    return texture.glUpload().texture;
   }
   function IsValid(data) {
     if (data.byteLength >= 12) {
@@ -16092,7 +15981,7 @@ var redcube = (() => {
   };
 
   // src/parseSceneBuilder.ts
-  function buildPrim(input, el, parent, name, skin, weights, primitive) {
+  function buildPrim(input, el, parent, name, skin, weights, primitive, draco) {
     const m = input.json.materials && input.json.materials[primitive.material];
     if (input.json.extensions && input.json.extensions.EXT_lights_image_based) {
       input.defines.push({
@@ -16124,7 +16013,7 @@ var redcube = (() => {
       defines.push({ name: "COLOR" });
     }
     const mesh = skin !== void 0 ? new SkinnedMesh(name, parent) : new Mesh(name, parent);
-    const geometry = new Geometry(input.json, input.arrayBuffer, weights, input.draco, primitive);
+    const geometry = new Geometry(input.json, input.arrayBuffer, weights, draco, primitive);
     if (primitive.attributes.TANGENT === void 0) {
       defines.push({ name: "USERIGHTHANDEDSYSTEM" });
     }
@@ -16154,7 +16043,7 @@ var redcube = (() => {
     mesh.instances = parent.instances;
     return mesh;
   }
-  function buildNode(input, parent, name) {
+  function buildNode(input, parent, name, draco) {
     const el = input.json.nodes[name];
     let child;
     if (el.camera !== void 0) {
@@ -16162,7 +16051,7 @@ var redcube = (() => {
         {
           zoom: 1,
           isInitial: false,
-          aspect: input.canvas ? input.canvas.offsetWidth / input.canvas.offsetHeight : 1
+          aspect: input.width && input.height ? input.width / input.height : 1
         },
         input.json.cameras[el.camera]
       );
@@ -16238,12 +16127,21 @@ var redcube = (() => {
     if (el.mesh !== void 0) {
       parent.children.push(
         ...input.json.meshes[el.mesh].primitives.map(
-          (primitive) => buildPrim(input, el, parent, input.json.meshes[el.mesh].name, el.skin, input.json.meshes[el.mesh].weights, primitive)
+          (primitive) => buildPrim(
+            input,
+            el,
+            parent,
+            input.json.meshes[el.mesh].name,
+            el.skin,
+            input.json.meshes[el.mesh].weights,
+            primitive,
+            draco
+          )
         )
       );
     }
     if (el.children && el.children.length) {
-      el.children.forEach((childName) => buildNode(input, parent, childName));
+      el.children.forEach((childName) => buildNode(input, parent, childName, draco));
     }
   }
   function calculateFov(input, isInitial) {
@@ -16269,27 +16167,27 @@ var redcube = (() => {
     input.cameras.forEach((c) => {
       c.modelSize = size;
     });
-    input.resize();
   }
-  async function buildMesh(input, output) {
+  async function buildMesh(input) {
+    let draco;
     if (input.json.extensionsUsed && input.json.extensionsUsed.includes("KHR_draco_mesh_compression")) {
-      output.draco = await DecoderModule();
+      draco = await DecoderModule();
     }
     if (input.json.extensions && input.json.extensions.KHR_materials_variants) {
       input.scene.variants = input.json.extensions.KHR_materials_variants.variants;
     }
     input.json.scenes[input.json.scene !== void 0 ? input.json.scene : 0].nodes.forEach((n) => {
       if (input.json.nodes[n].extensions !== void 0) {
-        buildNode(input, input.scene, n);
+        buildNode(input, input.scene, n, draco);
       }
       if (input.json.nodes[n].children && input.json.nodes[n].children.length) {
-        buildNode(input, input.scene, n);
+        buildNode(input, input.scene, n, draco);
       }
       if (input.json.nodes[n].mesh !== void 0) {
-        buildNode(input, input.scene, n);
+        buildNode(input, input.scene, n, draco);
       }
       if (input.json.nodes[n].camera !== void 0) {
-        buildNode(input, input.scene, n);
+        buildNode(input, input.scene, n, draco);
       }
     });
     if (input.lights.length === 0 && input.light) {
@@ -17527,39 +17425,6 @@ ${defineStr}`));
       return sampler;
     });
   }
-  function createSamplersWebGPU(input, output, WebGPU) {
-    function getSamplerParam(value) {
-      const map = {
-        9987: "linear",
-        9729: "linear",
-        9986: "nearest",
-        9728: "nearest",
-        10497: "repeat",
-        33648: "mirror-repeat",
-        33071: "clamp-to-edge"
-      };
-      return value === void 0 ? void 0 : map[value];
-    }
-    const samplers = input.json.samplers || [{}];
-    output.samplers = samplers.map((s) => {
-      const sampler = WebGPU.device.createSampler({
-        mipmapFilter: "linear",
-        magFilter: getSamplerParam(s.magFilter) || "linear",
-        minFilter: getSamplerParam(s.minFilter) || "linear",
-        addressModeU: getSamplerParam(s.wrapS) || "repeat",
-        addressModeV: getSamplerParam(s.wrapT) || "repeat",
-        addressModeW: getSamplerParam(s.wrapS) || "repeat"
-      });
-      sampler.id = (getSamplerParam(s.minFilter) || "linear") + (getSamplerParam(s.magFilter) || "linear");
-      return sampler;
-    });
-  }
-  function createTexturesWebGPU(input, WebGPU) {
-    createTextures(
-      input,
-      (t, textureType) => handleTextureLoadedWebGPU(input, WebGPU, t, textureType)
-    );
-  }
   function createTexturesWebGL(input) {
     createTextures(
       input,
@@ -17658,13 +17523,18 @@ ${defineStr}`));
       await new Promise((resolve) => setTimeout(resolve, 1e3));
     }
     const promiseArr = Object.values(texturesMap).map((t) => {
-      let s = t.extensions && t.extensions.KHR_texture_basisu ? t.extensions.KHR_texture_basisu.source : t.source;
+      const isBasisu = Boolean(t.extensions && t.extensions.KHR_texture_basisu);
+      let s = isBasisu ? t.extensions.KHR_texture_basisu.source : t.source;
       s = t.extensions && t.extensions.EXT_texture_webp ? t.extensions.EXT_texture_webp.source : s;
       const source = input.json.images[s];
       return fetchImage(
         isbitmap,
         input,
-        source,
+        // KHR_texture_basisu images aren't required to carry mimeType
+        // themselves (the extension reference is what marks them as
+        // KTX2) - fetchImage only branches to the KTX2 loader off
+        // mimeType, so make that explicit here.
+        isBasisu ? { ...source, mimeType: "image/ktx2" } : source,
         {
           url: `${input.host}${source.uri}`,
           name: t.name
@@ -17679,31 +17549,6 @@ ${defineStr}`));
       return true;
     });
   }
-  function handleTextureLoadedWebGPU(input, WebGPU, { image: bitmap, sampler, srgb, name }, textureType) {
-    if (input.images.get(name)) {
-      return input.images.get(name);
-    }
-    const { device } = WebGPU;
-    const s = input.samplers[sampler !== void 0 ? sampler : 0];
-    const mipLevelCount = Math.max(1, Math.floor(Math.log2(Math.max(bitmap.width, bitmap.height))) - 2);
-    const tex = device.createTexture({
-      label: textureType,
-      size: [bitmap.width, bitmap.height, 1],
-      format: srgb ? "rgba8unorm-srgb" : "rgba8unorm",
-      usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT,
-      mipLevelCount
-    });
-    device.queue.copyExternalImageToTexture(
-      { source: bitmap },
-      { premultipliedAlpha: false, texture: tex, mipLevel: 0, origin: { x: 0, y: 0, z: 0 } },
-      { width: bitmap.width, height: bitmap.height, depthOrArrayLayers: 1 }
-    );
-    tex.sampler = s;
-    tex.view = tex.createView();
-    generateMipmaps(device, tex, bitmap.width, bitmap.height, mipLevelCount);
-    input.images.set(name, tex);
-    return tex;
-  }
   function handleTextureLoaded(input, {
     image,
     name,
@@ -17713,6 +17558,10 @@ ${defineStr}`));
   }) {
     const s = input.samplers[sampler !== void 0 ? sampler : 0];
     if (mimeType) {
+      const webglGl2 = input.gl;
+      webglGl2.bindTexture(webglGl2.TEXTURE_2D, image);
+      webglGl2.texParameteri(webglGl2.TEXTURE_2D, webglGl2.TEXTURE_BASE_LEVEL, 0);
+      webglGl2.texParameteri(webglGl2.TEXTURE_2D, webglGl2.TEXTURE_MAX_LEVEL, 0);
       image.sampler = s;
       return image;
     }
@@ -17733,140 +17582,6 @@ ${defineStr}`));
     input.images.set(name + srgb, t);
     return t;
   }
-
-  // src/parseContext.ts
-  var ParseContext = class {
-    gl;
-    tracks;
-    url;
-    host;
-    skins;
-    textures;
-    images;
-    samplers;
-    arrayBuffer;
-    cameras;
-    lights;
-    programs;
-    scene;
-    camera;
-    light;
-    canvas;
-    resize;
-    json;
-    defines;
-    draco;
-    constructor(url, defines, resize) {
-      this.url = url;
-      this.host = url.substr(0, url.lastIndexOf("/") + 1);
-      this.tracks = [];
-      this.skins = [];
-      this.textures = null;
-      this.images = /* @__PURE__ */ new Map();
-      this.samplers = null;
-      this.arrayBuffer = null;
-      this.cameras = [];
-      this.lights = [];
-      this.programs = {};
-      this.defines = defines;
-      this.resize = resize;
-    }
-  };
-  function commit(target, patch) {
-    Object.assign(target, patch);
-  }
-
-  // src/parse.ts
-  var Parse = class {
-    context;
-    constructor(url, defines, resize) {
-      this.context = new ParseContext(url, defines, resize);
-    }
-    // Runs a function that writes into a fresh patch instead of the live
-    // context, then commits that patch in one place - so call sites below
-    // don't each repeat "make a patch, call, commit."
-    withPatch(run) {
-      const patch = {};
-      const result = run(patch);
-      commit(this.context, patch);
-      return result;
-    }
-    async withPatchAsync(run) {
-      const patch = {};
-      const result = await run(patch);
-      commit(this.context, patch);
-      return result;
-    }
-    get tracks() {
-      return this.context.tracks;
-    }
-    get json() {
-      return this.context.json;
-    }
-    get lights() {
-      return this.context.lights;
-    }
-    get cameras() {
-      return this.context.cameras;
-    }
-    get skins() {
-      return this.context.skins;
-    }
-    setScene(scene) {
-      this.context.scene = scene;
-    }
-    setGl(g) {
-      this.context.gl = g;
-    }
-    setCamera(camera) {
-      this.context.camera = camera;
-    }
-    setLight(light) {
-      this.context.light = light;
-    }
-    setCanvas(canvas) {
-      this.context.canvas = canvas;
-    }
-    getJson() {
-      return this.withPatchAsync((patch) => getJson(this.context, patch));
-    }
-    getBuffer() {
-      return this.withPatchAsync((patch) => getBuffer(this.context, patch));
-    }
-    getEnv(isBuffer) {
-      return getEnv(this.context, isBuffer);
-    }
-    calculateFov(isInitial) {
-      return calculateFov(this.context, isInitial);
-    }
-    buildMesh() {
-      return this.withPatchAsync((patch) => buildMesh(this.context, patch));
-    }
-    buildSkin() {
-      return buildSkin(this.context);
-    }
-    buildAnimation() {
-      return buildAnimation(this.context);
-    }
-    createProgram(defines) {
-      return createShaderProgram(this.context, defines);
-    }
-    createSamplers() {
-      this.withPatch((patch) => createSamplers(this.context, patch));
-    }
-    createSamplersWebGPU(WebGPU) {
-      this.withPatch((patch) => createSamplersWebGPU(this.context, patch, WebGPU));
-    }
-    createTexturesWebGPU(WebGPU) {
-      return createTexturesWebGPU(this.context, WebGPU);
-    }
-    createTexturesWebGL() {
-      return createTexturesWebGL(this.context);
-    }
-    initTextures(isbitmap) {
-      return this.withPatchAsync((patch) => initTextures(this.context, patch, isbitmap));
-    }
-  };
 
   // src/shaders/ssao.glsl
   var ssao_default = "#version 300 es\nprecision highp float;\n\nin vec2 uv;\nout float color;\n\nconst int kernelSize = 32;\nconst float power = 5.0;\n\nuniform sampler2D normBuff;\nuniform sampler2D depthBuff;\nuniform sampler2D noice;\nuniform vec2 noiseScale;\nuniform vec3 kernels[kernelSize];\nuniform mat4 proj;\nuniform mat4 projI;\nuniform mat4 view;\nuniform float zFar;\nuniform float zNear;\nuniform float bias;\n\nvec3 getPositionFromDepth(float depth) {\n	vec4 clipSpaceLocation = vec4(0.0);\n	clipSpaceLocation.xy = uv * 2.0 - 1.0;\n	clipSpaceLocation.z = depth * 2.0 - 1.0;;\n	clipSpaceLocation.w = 1.0;\n	vec4 homogenousLocation = projI * clipSpaceLocation;\n	homogenousLocation.xyz = homogenousLocation.xyz / homogenousLocation.w;\n	return homogenousLocation.xyz;\n}\n\nvoid main() {\n	float depth = texture(depthBuff, uv).x;\n	if ((2.0 * zNear) / (zFar + zNear - depth * (zFar - zNear)) > 0.99) {\n		discard;\n	}\n\n	float radius = bias * 2.0;\n	vec3 pos = getPositionFromDepth(depth);\n	vec3 normal = normalize(vec3(view * texture(normBuff, uv)));\n	vec3 rvec = normalize(texture(noice, uv * noiseScale).xyz);\n\n	vec3 tangent = normalize(rvec - normal * dot(rvec, normal));\n	vec3 bitangent = cross(tangent, normal);\n	mat3 rotate = mat3(tangent, bitangent, normal);\n\n	float occlusion  = 0.0;\n	for (int i = 0; i < kernelSize; i++) {\n		vec3 samplePos = rotate * kernels[i];\n		samplePos = pos + samplePos * radius;\n\n		vec4 shift = proj * vec4(samplePos, 1.0);\n		shift.xy /= shift.w;\n		shift.xy = shift.xy * 0.5 + 0.5;\n\n		float sampleDepth = getPositionFromDepth(texture(depthBuff, shift.xy).r).z;\n\n		float distanceCheck = smoothstep(0.0, 1.0, radius / abs(pos.z - sampleDepth));\n		occlusion  += (sampleDepth >= samplePos.z + bias ? 1.0 : 0.0) * distanceCheck;\n	}\n\n	occlusion = 1.0 - (occlusion / float(kernelSize));\n	color = pow(occlusion, power);\n}\n";
@@ -18292,7 +18007,7 @@ ${defineStr}`));
     scattering: Scattering
   };
   var PostProcessing = class {
-    gl;
+    getState;
     screenTexture;
     normalTexture;
     irradianceTexture;
@@ -18301,9 +18016,6 @@ ${defineStr}`));
     depthTexture;
     preDepthTexture;
     fakeDepth;
-    camera;
-    renderer;
-    canvas;
     framebuffer;
     preframebuffer;
     postprocessors;
@@ -18314,9 +18026,22 @@ ${defineStr}`));
     renderScene;
     hasPostPass = false;
     hasPrePass = false;
-    constructor(processors, renderScene) {
+    constructor(getState, canvas, processors, renderScene) {
+      this.getState = getState;
       this.renderScene = renderScene;
       this.postprocessors = processors.map((name) => new processorsMap[name]());
+      const { gl, camera, light } = getState();
+      this.postprocessors.forEach((postProcessor) => {
+        postProcessor.setCamera(camera);
+        postProcessor.light = light;
+        postProcessor.setCanvas(canvas);
+        postProcessor.setGL(gl);
+      });
+      this.MSAA = gl.getParameter(gl.MAX_SAMPLES);
+      this.fakeDepth = this.createNoiceTexture(1, new Float32Array([1, 1, 0]));
+    }
+    get gl() {
+      return this.getState().gl;
     }
     add(name) {
       const p2 = new processorsMap[name]();
@@ -18331,37 +18056,15 @@ ${defineStr}`));
       this.hasPrePass = true;
     }
     setCamera(camera) {
-      this.camera = camera;
       this.postprocessors.forEach((postProcessor) => {
         postProcessor.setCamera(camera);
       });
     }
-    setLight(light) {
-      this.postprocessors.forEach((postProcessor) => {
-        postProcessor.light = light;
-      });
-    }
-    setGl(g) {
-      if (g) {
-        this.gl = g;
-        this.MSAA = g.getParameter(g.MAX_SAMPLES);
-        this.postprocessors.forEach((postProcessor) => {
-          postProcessor.setGL(g);
-        });
-        this.fakeDepth = this.createNoiceTexture(1, new Float32Array([1, 1, 0]));
-      }
-    }
-    setCanvas(canvas) {
-      this.canvas = canvas;
-      this.postprocessors.forEach((postProcessor) => {
-        postProcessor.setCanvas(canvas);
-      });
-    }
     get width() {
-      return this.canvas.offsetWidth * devicePixelRatio;
+      return this.getState().width * devicePixelRatio;
     }
     get height() {
-      return this.canvas.offsetHeight * devicePixelRatio;
+      return this.getState().height * devicePixelRatio;
     }
     bindPrePass() {
       const { gl } = this;
@@ -18847,23 +18550,20 @@ ${defineStr}`));
   // src/particles.ts
   var amount = 1e3;
   var Particles = class {
-    gl;
+    getState;
     currentSourceIdx;
     program;
     program2;
     VAO;
     TFO;
     texture3d;
-    camera;
     getLight;
-    constructor(getLight) {
+    constructor(getState, getLight) {
+      this.getState = getState;
       this.getLight = getLight;
     }
-    setGl(g) {
-      this.gl = g;
-    }
-    setCamera(camera) {
-      this.camera = camera;
+    get gl() {
+      return this.getState().gl;
     }
     build() {
       const { gl } = this;
@@ -18997,9 +18697,10 @@ ${defineStr}`));
       gl.useProgram(this.program);
       gl.bindVertexArray(this.VAO[this.currentSourceIdx]);
       gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, this.TFO[destinationIdx]);
+      const { camera } = this.getState();
       const m = new Matrix4();
-      m.multiply(this.camera.projection);
-      m.multiply(this.camera.matrixWorldInvert);
+      m.multiply(camera.projection);
+      m.multiply(camera.matrixWorldInvert);
       gl.uniform1f(gl.getUniformLocation(this.program, "u_time"), time + 5e3);
       gl.uniform1f(gl.getUniformLocation(this.program, "count"), amount);
       gl.uniform1i(gl.getUniformLocation(this.program, "noize"), this.texture3d.index);
@@ -19023,6 +18724,11 @@ ${defineStr}`));
       this.currentSourceIdx = (this.currentSourceIdx + 1) % 2;
     }
   };
+
+  // src/state.ts
+  function commit(target, patch) {
+    Object.assign(target, patch);
+  }
 
   // webgl-memory.js
   (function(factory) {
@@ -19981,25 +19687,13 @@ ${defineStr}`));
   // src/redcube.ts
   var FOV = 60;
   var RedCube = class {
-    gl;
     canvas;
     events;
     processors;
-    ioc;
-    renderState = {};
-    isIBL = true;
-    isDefaultLight = true;
-    stateBuffer;
-    cameraBuffer;
-    lightPosBuffer;
-    lightColorBuffer;
-    storage2;
-    storage;
-    lightPosUniform;
-    lightColorUniform;
-    spotdirUniform;
-    lightIntensityUniform;
-    UBO;
+    url;
+    envUrl;
+    defines;
+    state;
     constructor(url, canvas, processors = [], envUrl = "env", mode = "pbr") {
       if (!url) {
         throw new Error("RedCube: a glTF url must be passed as the first constructor argument");
@@ -20007,8 +19701,10 @@ ${defineStr}`));
       if (!canvas) {
         throw new Error("RedCube: an HTMLCanvasElement must be passed as the second constructor argument");
       }
+      this.url = url;
       this.canvas = canvas;
       this.processors = processors;
+      this.envUrl = envUrl;
       const defines = [];
       if (this.processors.length === 0) {
         defines.push({ name: "TONE" });
@@ -20019,12 +19715,8 @@ ${defineStr}`));
       if (mode === "pbr") {
         defines.push({ name: "USE_PBR" });
       }
-      this.ioc = new Container();
-      this.ioc.register("env", Env, ["camera", "canvas", "gl"], envUrl);
-      this.ioc.register(
-        "camera",
-        Camera,
-        [],
+      this.defines = defines;
+      const camera = new Camera(
         {
           type: "perspective",
           isInitial: true,
@@ -20036,94 +19728,122 @@ ${defineStr}`));
         },
         "perspective"
       );
-      this.ioc.register("canvas", canvas);
-      this.ioc.register("scene", Scene);
-      this.ioc.register("light", Light, [], {
+      const scene = new Scene();
+      const light = new Light({
         type: "directional",
         intensity: 5,
         color: [1, 1, 1],
         isInitial: true,
         spot: {}
       });
-      this.ioc.register("pp", PostProcessing, ["light", "camera", "canvas", "gl"], this.processors, this.renderScene.bind(this));
-      this.ioc.register("parser", Parse, ["scene", "light", "camera", "canvas", "gl"], url, defines, this.resize.bind(this));
-      this.ioc.register("particles", Particles, ["camera", "gl"], () => {
-        const l = this.PP.postprocessors.find((p2) => p2 instanceof Light2);
-        return l.texture.index;
-      });
-      this.ioc.register("renderer", Renderer, ["gl", "parser", "pp", "scene", "camera", "particles", "env"], this.getState.bind(this));
+      this.state = {
+        camera,
+        scene,
+        light,
+        width: canvas.offsetWidth,
+        height: canvas.offsetHeight,
+        url,
+        host: url.substr(0, url.lastIndexOf("/") + 1),
+        defines,
+        tracks: [],
+        json: void 0,
+        skins: [],
+        cameras: [],
+        lights: [],
+        textures: null,
+        images: /* @__PURE__ */ new Map(),
+        samplers: null,
+        arrayBuffer: null,
+        programs: {},
+        renderState: {},
+        isIBL: true,
+        isDefaultLight: true,
+        needUpdateView: true,
+        needUpdateProjection: true
+      };
       this.events = new Events(canvas, this.redraw.bind(this));
     }
-    get renderer() {
-      return this.ioc.get("renderer");
+    getState() {
+      return this.state;
     }
-    get scene() {
-      return this.ioc.get("scene");
+    withPatch(run) {
+      const patch = {};
+      const result = run(patch);
+      commit(this.state, patch);
+      return result;
     }
-    get camera() {
-      return this.ioc.get("camera");
+    async withPatchAsync(run) {
+      const patch = {};
+      const result = await run(patch);
+      commit(this.state, patch);
+      return result;
     }
-    get light() {
-      return this.ioc.get("light");
-    }
-    get env() {
-      return this.ioc.get("env");
-    }
-    get PP() {
-      return this.ioc.get("pp");
-    }
-    get Particles() {
-      return this.ioc.get("particles");
-    }
-    get parse() {
-      return this.ioc.get("parser");
+    // Fans out a runtime camera switch (e.g. picking a different glTF camera
+    // node) to the child postprocessors that still cache their own copy -
+    // everything else reads state.camera live, so there's nothing to update.
+    setActiveCamera(camera) {
+      this.state.camera = camera;
+      this.state.pp.setCamera(camera);
     }
     setVariant(variant) {
-      this.scene.meshes.forEach((mesh) => {
+      this.state.scene.meshes.forEach((mesh) => {
         if (variant && mesh.variants.length) {
           mesh.material = mesh.variants.find((v) => v.variants.includes(Number(variant))).m;
           mesh.repaint = true;
         }
       });
-      this.renderer.reflow = true;
-      this.renderer.needUpdateView = true;
-      this.renderer.needUpdateProjection = true;
+      this.state.renderer.reflow = true;
+      this.state.renderer.needUpdateView = true;
+      this.state.renderer.needUpdateProjection = true;
     }
     async init(cb) {
-      await this.parse.getJson();
       this.glInit();
-      const { gl } = this;
-      await this.parse.getBuffer();
-      await this.parse.initTextures(false);
-      this.parse.buildSkin();
-      await this.parse.buildMesh();
-      this.parse.createSamplers();
-      this.parse.createTexturesWebGL();
-      this.parse.cameras.push(this.camera);
-      this.parse.calculateFov(this.camera.props.isInitial);
-      const envData = await this.parse.getEnv(false);
-      await this.env.createEnvironmentBuffer(envData);
+      const gl = this.state.gl;
+      const env = new Env(this.getState.bind(this), this.envUrl);
+      this.state.env = env;
+      this.state.pp = new PostProcessing(
+        this.getState.bind(this),
+        this.canvas,
+        this.processors,
+        this.renderScene.bind(this)
+      );
+      this.state.particles = new Particles(this.getState.bind(this), () => {
+        const l = this.state.pp.postprocessors.find((p2) => p2 instanceof Light2);
+        return l.texture.index;
+      });
+      this.state.renderer = new Renderer(this.getState.bind(this));
+      await this.withPatchAsync((patch) => getJson(this.state, patch));
+      await this.withPatchAsync((patch) => getBuffer(this.state, patch));
+      await this.withPatchAsync((patch) => initTextures(this.state, patch, false));
+      buildSkin(this.state);
+      await buildMesh(this.state);
+      this.withPatch((patch) => createSamplers(this.state, patch));
+      createTexturesWebGL(this.state);
+      this.state.cameras.push(this.state.camera);
+      calculateFov(this.state, this.state.camera.props.isInitial);
+      const envData = await getEnv(this.state, false);
+      await env.createEnvironmentBuffer(envData);
       const cameraBuffer = new UniformBuffer();
-      cameraBuffer.add("view", this.camera.matrixWorldInvert.elements);
-      cameraBuffer.add("projection", this.camera.projection.elements);
-      cameraBuffer.add("light", this.light.matrixWorldInvert.elements);
+      cameraBuffer.add("view", this.state.camera.matrixWorldInvert.elements);
+      cameraBuffer.add("projection", this.state.camera.projection.elements);
+      cameraBuffer.add("light", this.state.light.matrixWorldInvert.elements);
       cameraBuffer.add("isShadow", 0);
       cameraBuffer.done();
-      this.cameraBuffer = cameraBuffer;
+      this.state.cameraBuffer = cameraBuffer;
       const UBO = gl.createBuffer();
       gl.bindBuffer(gl.UNIFORM_BUFFER, UBO);
       gl.bufferData(gl.UNIFORM_BUFFER, cameraBuffer.store, gl.DYNAMIC_DRAW);
-      this.UBO = UBO;
+      this.state.UBO = UBO;
       const lightEnum2 = {
         directional: 0,
         point: 1,
         spot: 2
       };
-      const spotDirs = new Float32Array(this.parse.lights.length * 4);
-      const lightPos = new Float32Array(this.parse.lights.length * 4);
-      const lightColor = new Float32Array(this.parse.lights.length * 4);
-      const lightProps = new Float32Array(this.parse.lights.length * 4);
-      this.parse.lights.forEach((light, i) => {
+      const spotDirs = new Float32Array(this.state.lights.length * 4);
+      const lightPos = new Float32Array(this.state.lights.length * 4);
+      const lightColor = new Float32Array(this.state.lights.length * 4);
+      const lightProps = new Float32Array(this.state.lights.length * 4);
+      this.state.lights.forEach((light, i) => {
         spotDirs.set(
           new Vector3([light.matrixWorld.elements[8], light.matrixWorld.elements[9], light.matrixWorld.elements[10]]).normalize().elements,
           i * 4
@@ -20138,11 +19858,11 @@ ${defineStr}`));
       const lightPosBuffer = new UniformBuffer();
       lightPosBuffer.add("lightPos", lightPos);
       lightPosBuffer.done();
-      this.lightPosBuffer = lightPosBuffer;
+      this.state.lightPosBuffer = lightPosBuffer;
       const lightColorBuffer = new UniformBuffer();
       lightColorBuffer.add("lightColor", lightColor);
       lightColorBuffer.done();
-      this.lightColorBuffer = lightColorBuffer;
+      this.state.lightColorBuffer = lightColorBuffer;
       const spotdirBuffer = new UniformBuffer();
       spotdirBuffer.add("spotdir", spotDirs);
       spotdirBuffer.done();
@@ -20161,24 +19881,22 @@ ${defineStr}`));
       const lightIntensityUniform = gl.createBuffer();
       gl.bindBuffer(gl.UNIFORM_BUFFER, lightIntensityUniform);
       gl.bufferData(gl.UNIFORM_BUFFER, lightIntensityBuffer.store, gl.DYNAMIC_DRAW);
-      this.lightPosUniform = lightPosUniform;
-      this.lightColorUniform = lightColorUniform;
-      this.spotdirUniform = spotdirUniform;
-      this.lightIntensityUniform = lightIntensityUniform;
-      let meshCount = this.scene.meshes.length;
-      this.scene.meshes.forEach((mesh) => {
+      this.state.lightPosUniform = lightPosUniform;
+      this.state.lightColorUniform = lightColorUniform;
+      let meshCount = this.state.scene.meshes.length;
+      this.state.scene.meshes.forEach((mesh) => {
         mesh.geometry.createUniforms(mesh.matrixWorld);
         if (mesh.matrices.length) {
           meshCount += mesh.matrices.length;
         }
       });
-      this.scene.meshes.forEach((mesh, i) => {
+      this.state.scene.meshes.forEach((mesh, i) => {
         mesh.order = i;
         mesh.reflow = true;
         mesh.repaint = true;
       });
-      this.scene.meshes.forEach((mesh) => {
-        [mesh.material, ...mesh.variants.map((m) => m.m)].forEach((m) => m.createUniforms(true, this.parse.lights));
+      this.state.scene.meshes.forEach((mesh) => {
+        [mesh.material, ...mesh.variants.map((m) => m.m)].forEach((m) => m.createUniforms(true, this.state.lights));
       });
       gl.activeTexture(gl[`TEXTURE${31}`]);
       const texture = gl.createTexture();
@@ -20187,7 +19905,7 @@ ${defineStr}`));
         gl.TEXTURE_2D,
         0,
         gl.RGBA32F,
-        this.scene.meshes[0].geometry.uniformBuffer.store.length / Float32Array.BYTES_PER_ELEMENT,
+        this.state.scene.meshes[0].geometry.uniformBuffer.store.length / Float32Array.BYTES_PER_ELEMENT,
         meshCount,
         0,
         gl.RGBA,
@@ -20196,7 +19914,7 @@ ${defineStr}`));
       );
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-      this.storage2 = { texture };
+      this.state.storage2 = { texture };
       gl.activeTexture(gl[`TEXTURE${30}`]);
       const texture2 = gl.createTexture();
       gl.bindTexture(gl.TEXTURE_2D, texture2);
@@ -20204,8 +19922,8 @@ ${defineStr}`));
         gl.TEXTURE_2D,
         0,
         gl.RGBA32F,
-        this.scene.meshes[0].material.materialUniformBuffer.store.length / Float32Array.BYTES_PER_ELEMENT,
-        this.scene.meshes.length,
+        this.state.scene.meshes[0].material.materialUniformBuffer.store.length / Float32Array.BYTES_PER_ELEMENT,
+        this.state.scene.meshes.length,
         0,
         gl.RGBA,
         gl.FLOAT,
@@ -20213,18 +19931,18 @@ ${defineStr}`));
       );
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-      this.storage = { texture2 };
-      const hasTransmission = this.parse.json.extensionsUsed && this.parse.json.extensionsUsed.includes("KHR_materials_transmission");
-      this.scene.meshes.forEach((mesh) => {
+      this.state.storage = { texture2 };
+      const hasTransmission = this.state.json.extensionsUsed && this.state.json.extensionsUsed.includes("KHR_materials_transmission");
+      this.state.scene.meshes.forEach((mesh) => {
         mesh.geometry.createGeometryForWebGl(gl, mesh.defines, mesh.order);
-        const program = this.parse.createProgram(mesh.defines);
+        const program = createShaderProgram(this.state, mesh.defines);
         [mesh.material, ...mesh.variants.map((m) => m.m)].forEach((m) => m.updateUniformsWebgl(gl, program));
-        mesh.material.setHarmonics(this.env.updateUniform(gl, program));
+        mesh.material.setHarmonics(env.updateUniform(gl, program));
         mesh.setProgram(program);
-        gl.bindBufferBase(gl.UNIFORM_BUFFER, 3, this.lightPosUniform);
-        gl.bindBufferBase(gl.UNIFORM_BUFFER, 4, this.lightColorUniform);
-        gl.bindBufferBase(gl.UNIFORM_BUFFER, 5, this.spotdirUniform);
-        gl.bindBufferBase(gl.UNIFORM_BUFFER, 6, this.lightIntensityUniform);
+        gl.bindBufferBase(gl.UNIFORM_BUFFER, 3, this.state.lightPosUniform);
+        gl.bindBufferBase(gl.UNIFORM_BUFFER, 4, this.state.lightColorUniform);
+        gl.bindBufferBase(gl.UNIFORM_BUFFER, 5, spotdirUniform);
+        gl.bindBufferBase(gl.UNIFORM_BUFFER, 6, lightIntensityUniform);
         gl.activeTexture(gl[`TEXTURE${31}`]);
         let t = gl.getUniformLocation(program, "uTransformTex");
         gl.uniform1i(t, 31);
@@ -20233,23 +19951,27 @@ ${defineStr}`));
         gl.uniform1i(t, 30);
         mesh.geometry.updateUniformsWebGl(gl, mesh.program);
         if (mesh instanceof SkinnedMesh) {
-          for (const join of this.parse.skins[mesh.skin].jointNames) {
-            walk(this.scene, this.buildBones.bind(this, join, this.parse.skins[mesh.skin]));
+          for (const join of this.state.skins[mesh.skin].jointNames) {
+            walk(this.state.scene, this.buildBones.bind(this, join, this.state.skins[mesh.skin]));
           }
-          mesh.setSkin(gl, this.parse.skins[mesh.skin]);
+          mesh.setSkin(gl, this.state.skins[mesh.skin]);
         }
       });
       if (hasTransmission) {
-        this.PP.addPrepass("refraction");
+        this.state.pp.addPrepass("refraction");
       }
-      if (this.PP.postprocessors.some((p2) => p2 instanceof Light2)) {
-        this.Particles.build();
+      if (this.state.pp.postprocessors.some((p2) => p2 instanceof Light2)) {
+        this.state.particles.build();
       }
-      if (this.PP.hasPostPass || this.PP.hasPrePass) {
-        this.PP.buildScreenBuffer();
+      if (this.state.pp.hasPostPass || this.state.pp.hasPrePass) {
+        this.state.pp.buildScreenBuffer();
       }
+      const refraction = this.state.pp.postprocessors.find((p2) => p2 instanceof Refraction);
+      this.state.preDepthTexture = this.state.pp.preDepthTexture;
+      this.state.fakeDepth = this.state.pp.fakeDepth;
+      this.state.colorTexture = refraction ? refraction.texture : this.state.pp.fakeDepth;
       this.resize();
-      this.parse.buildAnimation();
+      buildAnimation(this.state);
       this.initialDraw();
       const ext = gl.getExtension("GMAN_webgl_memory");
       if (ext) {
@@ -20258,7 +19980,7 @@ ${defineStr}`));
         const buffers = ext.getResourcesInfo(WebGLBuffer);
         console.log(info, textures, buffers);
       }
-      cb(this.scene);
+      cb(this.state.scene);
     }
     buildBones(join, v, node) {
       if (node instanceof Object3D && node.name === join) {
@@ -20266,48 +19988,52 @@ ${defineStr}`));
       }
     }
     renderScene(renderState) {
-      this.renderState = renderState;
-      this.renderer.renderScene();
-      this.renderState = this.PP.hasPostPass ? { isprerefraction: true } : {};
+      this.state.renderState = renderState;
+      this.state.renderer.renderScene();
+      this.state.renderState = this.state.pp.hasPostPass ? { isprerefraction: true } : {};
     }
     redraw(type, coordsStart, coordsMove) {
+      const { camera, renderer } = this.state;
       if (type === "zoom") {
-        this.camera.zoom(coordsStart);
-        this.renderer.needUpdateView = true;
-        this.renderer.needUpdateProjection = true;
+        camera.zoom(coordsStart);
+        renderer.needUpdateView = true;
+        renderer.needUpdateProjection = true;
       }
       if (type === "rotate") {
-        this.camera.rotate(coordsStart, coordsMove);
-        this.renderer.needUpdateView = true;
+        camera.rotate(coordsStart, coordsMove);
+        renderer.needUpdateView = true;
       }
       if (type === "pan") {
-        this.camera.pan(coordsStart, coordsMove, this.canvas.offsetWidth, this.canvas.offsetHeight);
-        this.renderer.needUpdateView = true;
+        camera.pan(coordsStart, coordsMove, this.canvas.offsetWidth, this.canvas.offsetHeight);
+        renderer.needUpdateView = true;
       }
       if (type === "resize") {
         this.resize(true);
-        this.renderer.needUpdateProjection = true;
+        renderer.needUpdateProjection = true;
       }
-      this.renderer.reflow = true;
+      renderer.reflow = true;
     }
     resize(isResizeEvent = false) {
-      const { gl } = this;
-      this.camera.props.aspect = this.canvas.offsetWidth / this.canvas.offsetHeight;
+      this.state.width = this.canvas.offsetWidth;
+      this.state.height = this.canvas.offsetHeight;
+      const { camera, light, renderer, pp } = this.state;
+      const gl = this.state.gl;
+      camera.props.aspect = this.canvas.offsetWidth / this.canvas.offsetHeight;
       this.canvas.width = this.canvas.offsetWidth * devicePixelRatio;
       this.canvas.height = this.canvas.offsetHeight * devicePixelRatio;
       gl.viewport(0, 0, this.canvas.offsetWidth * devicePixelRatio, this.canvas.offsetHeight * devicePixelRatio);
-      const z = this.camera.modelSize;
-      if (this.camera.props.isInitial) {
-        this.camera.setZ(z);
+      const z = camera.modelSize;
+      if (camera.props.isInitial) {
+        camera.setZ(z);
       }
-      if (this.light.isInitial || this.light.type === "directional") {
-        this.light.setZ(z);
+      if (light.isInitial || light.type === "directional") {
+        light.setZ(z);
       }
-      this.renderer.needUpdateView = true;
-      this.camera.updateNF();
+      renderer.needUpdateView = true;
+      camera.updateNF();
       if (isResizeEvent) {
-        this.PP.clear();
-        this.PP.buildScreenBuffer();
+        pp.clear();
+        pp.buildScreenBuffer();
       }
     }
     glInit() {
@@ -20319,55 +20045,23 @@ ${defineStr}`));
           "RedCube: WebGL2 is not supported by this browser/canvas - use the WebGPU or Node build instead, or check that the canvas has no other active rendering context"
         );
       }
-      this.gl = context;
-      this.ioc.register("gl", context);
+      this.state.gl = context;
       let ext = context.getExtension("EXT_color_buffer_float");
       ext = context.getExtension("OES_texture_float_linear");
       ext = context.getExtension("OES_texture_buffer");
       console.log(ext);
     }
     draw() {
-      this.renderer.reflow = true;
+      this.state.renderer.reflow = true;
     }
     initialDraw() {
-      const { gl } = this;
+      const gl = this.state.gl;
       gl.clearColor(...clearColor);
       gl.enable(gl.DEPTH_TEST);
       gl.enable(gl.CULL_FACE);
-      this.renderer.reflow = true;
-      this.renderer.render();
+      this.state.renderer.reflow = true;
+      this.state.renderer.render();
       window.__TEST_READY__ = true;
-    }
-    getState() {
-      const refraction = this.PP.postprocessors.find((p2) => p2 instanceof Refraction);
-      return {
-        storage: this.storage,
-        storage2: this.storage2,
-        UBO: this.UBO,
-        cameraBuffer: this.cameraBuffer,
-        lightPosUniform: this.lightPosUniform,
-        lightColorUniform: this.lightColorUniform,
-        spotdirUniform: this.spotdirUniform,
-        lightIntensityUniform: this.lightIntensityUniform,
-        lightPosBuffer: this.lightPosBuffer,
-        lightColorBuffer: this.lightColorBuffer,
-        isIBL: this.isIBL,
-        isDefaultLight: this.isDefaultLight,
-        renderState: this.renderState,
-        lights: this.parse.lights,
-        camera: this.camera,
-        light: this.light,
-        preDepthTexture: this.PP.preDepthTexture,
-        colorTexture: refraction ? refraction.texture : this.PP.fakeDepth,
-        fakeDepth: this.PP.fakeDepth,
-        needUpdateView: this.renderer.needUpdateView,
-        needUpdateProjection: this.renderer.needUpdateProjection,
-        irradiancemap: this.env.irradiancemap,
-        Sheen_E: this.env.Sheen_E,
-        prefilterMap: this.env.prefilterMap,
-        charlieMap: this.env.charlieMap,
-        brdfLUT: this.env.brdfLUTTexture
-      };
     }
   };
   return __toCommonJS(redcube_exports);

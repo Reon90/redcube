@@ -1,10 +1,10 @@
 import { GlTf } from '../GLTF';
 import { fetchJSON, fetchBinary } from './fetch';
-import type { ParseContext, ReadonlyParseContext } from './parseContext';
+import type { State, ReadonlyState } from './state';
 
 const BASE64_MARKER = ';base64,';
 
-export function getJson(input: ReadonlyParseContext, output: Partial<ParseContext>) {
+export function getJson(input: ReadonlyState, output: Partial<State>) {
     if (/glb/.test(input.url)) {
         return fetchBinary(input.url).then((b: ArrayBuffer) => {
             const decoder = new TextDecoder('utf-8');
@@ -30,7 +30,7 @@ export function getJson(input: ReadonlyParseContext, output: Partial<ParseContex
     }
 }
 
-export function getBuffer(input: ReadonlyParseContext, output: Partial<ParseContext>) {
+export function getBuffer(input: ReadonlyState, output: Partial<State>) {
     return Promise.all(
         input.scene.bin.map((url) => {
             if (typeof url === 'string') {
@@ -57,8 +57,8 @@ export function getBuffer(input: ReadonlyParseContext, output: Partial<ParseCont
 }
 
 // Read-only: computes and returns IBL environment data without reassigning
-// any ParseContext field.
-export async function getEnv(input: ReadonlyParseContext, isBuffer: boolean) {
+// any State field.
+export async function getEnv(input: ReadonlyState, isBuffer: boolean) {
     if (input.json.extensions && input.json.extensions.EXT_lights_image_based) {
         const [env] = input.json.extensions.EXT_lights_image_based.lights;
         const specularImages: (HTMLImageElement & { bitmap?: ImageBitmap })[][] = env.specularImages.map((cube: number[]) => {

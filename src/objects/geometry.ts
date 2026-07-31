@@ -17,7 +17,7 @@ import {
 } from '../utils';
 import { decodeDracoData, getArray, DracoModule } from '../decoder';
 import { GlTf, MeshPrimitive, Accessor } from '../../GLTF';
-import type { Define } from '../parse';
+import type { Define } from '../state';
 
 export interface Attributes {
     POSITION?: TypedArray;

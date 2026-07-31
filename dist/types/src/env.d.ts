@@ -1,6 +1,6 @@
 import { GLTexture } from './utils';
 import { Matrix4 } from './matrix';
-import { Camera } from './objects/index';
+import type { State } from './state';
 import { UniformBuffer } from './objects/uniform';
 type Texture = GLTexture;
 type FrameBuffer = WebGLFramebuffer & {
@@ -14,8 +14,7 @@ interface IBLData {
     specularImages: Array<Array<HTMLImageElement>>;
 }
 export declare class Env {
-    gl: WebGL2RenderingContext;
-    camera: Camera;
+    getState: () => State;
     envMatrix: Matrix4;
     VAO: WebGLVertexArrayObject;
     quadVAO: WebGLVertexArrayObject;
@@ -34,7 +33,6 @@ export declare class Env {
     views2: Array<Matrix4>;
     prefilterrender?: WebGLRenderbuffer;
     brdfbuffer: FrameBuffer;
-    canvas: HTMLCanvasElement;
     url: string;
     sampler: WebGLSampler;
     samplerCube: WebGLSampler;
@@ -47,10 +45,7 @@ export declare class Env {
     prefilterMap: Texture;
     charlieMap: Texture;
     Sheen_E: Texture;
-    constructor(url: string);
-    setCamera(camera: Camera): void;
-    setGl(g: WebGL2RenderingContext): void;
-    setCanvas(canvas: HTMLCanvasElement): void;
+    constructor(getState: () => State, url: string);
     get width(): number;
     get height(): number;
     drawQuad(): void;

@@ -2,7 +2,7 @@ import { Matrix4 } from '../matrix';
 import { Material as M } from '../../GLTF';
 import { LoadedTexture } from '../utils';
 import { Light } from './light';
-import type { Define } from '../parse';
+import type { Define } from '../state';
 interface Uniforms {
     baseColorTexture: WebGLUniformLocation | null;
     metallicRoughnessTexture: WebGLUniformLocation | null;

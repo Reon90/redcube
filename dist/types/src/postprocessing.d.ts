@@ -1,6 +1,4 @@
 import { GLTexture } from './utils';
-import { Camera, Light as LightObj } from './objects/index';
-import { Renderer } from './renderer';
 import { SSAO } from './postprocessors/ssao';
 import { Bloom } from './postprocessors/bloom';
 import { Shadow } from './postprocessors/shadow';
@@ -8,6 +6,8 @@ import { Refraction } from './postprocessors/refraction';
 import { Light } from './postprocessors/light';
 import { PostProcessor } from './postprocessors/base';
 import { Scattering } from './postprocessors/scattering';
+import type { State } from './state';
+import type { Camera } from './objects/index';
 declare const processorsMap: {
     bloom: typeof Bloom;
     ssao: typeof SSAO;
@@ -16,10 +16,10 @@ declare const processorsMap: {
     refraction: typeof Refraction;
     scattering: typeof Scattering;
 };
-type ProcessorName = keyof typeof processorsMap;
+export type ProcessorName = keyof typeof processorsMap;
 type Texture = GLTexture;
 export declare class PostProcessing {
-    gl: WebGL2RenderingContext;
+    getState: () => State;
     screenTexture: Texture;
     normalTexture: Texture;
     irradianceTexture: Texture;
@@ -28,9 +28,6 @@ export declare class PostProcessing {
     depthTexture: Texture;
     preDepthTexture: Texture;
     fakeDepth: Texture;
-    camera: Camera;
-    renderer: Renderer;
-    canvas: HTMLCanvasElement;
     framebuffer: WebGLFramebuffer;
     preframebuffer: WebGLFramebuffer;
     postprocessors: Array<PostProcessor>;
@@ -44,16 +41,14 @@ export declare class PostProcessing {
     }) => void;
     hasPostPass: boolean;
     hasPrePass: boolean;
-    constructor(processors: ProcessorName[], renderScene: (renderState: {
+    constructor(getState: () => State, canvas: HTMLCanvasElement, processors: ProcessorName[], renderScene: (renderState: {
         isprepender?: boolean;
         isprerefraction?: boolean;
     }) => void);
+    private get gl();
     add(name: ProcessorName): void;
     addPrepass(name: ProcessorName): void;
     setCamera(camera: Camera): void;
-    setLight(light: LightObj): void;
-    setGl(g: WebGL2RenderingContext): void;
-    setCanvas(canvas: HTMLCanvasElement): void;
     get width(): number;
     get height(): number;
     bindPrePass(): void;

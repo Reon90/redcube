@@ -1,7 +1,7 @@
 import { calculateProjection, generateMipmaps } from './utils';
 import { Matrix4, Vector3, Vector4 } from './matrix';
-import { Camera } from './objects/index';
 import parseHDR from 'parse-hdr';
+import type { State } from './state';
 
 import vertex from './shaders/env.webgpu.vert';
 import cube from './shaders/cube.webgpu.frag';
@@ -81,10 +81,9 @@ function loadHDR(
 }
 
 export class Env {
-    camera!: Camera;
+    getState: () => State;
     envMatrix: Matrix4;
     views!: Array<Matrix4>;
-    canvas!: HTMLCanvasElement;
     url: string;
     envData!: IBLData;
     uniformBuffer?: UniformBuffer;
@@ -101,30 +100,24 @@ export class Env {
     pipeline2?: GPURenderPipeline;
     pipeline3?: GPURenderPipeline;
 
-    constructor(url: string) {
+    constructor(getState: () => State, url: string) {
         this.url = url;
         this.envMatrix = new Matrix4();
-    }
-
-    setCamera(camera: Camera) {
-        this.camera = camera;
-    }
-
-    setCanvas(canvas: HTMLCanvasElement) {
-        this.canvas = canvas;
+        this.getState = getState;
     }
 
     get width() {
-        return this.canvas.offsetWidth * devicePixelRatio;
+        return this.getState().width! * devicePixelRatio;
     }
 
     get height() {
-        return this.canvas.offsetHeight * devicePixelRatio;
+        return this.getState().height! * devicePixelRatio;
     }
 
     drawQuad(WebGPU: WEBGPU, _x: unknown) {
+        const { camera } = this.getState();
         const m = new Matrix4();
-        const cam = Object.assign({}, this.camera.props, {
+        const cam = Object.assign({}, camera.props, {
             perspective: {
                 yfov: 0.3,
                 znear: 0.01,
@@ -259,8 +252,9 @@ export class Env {
 
     drawCube(WebGPU: WEBGPU, shadowPass: GPURenderPassEncoder) {
         const { device } = WebGPU;
+        const { camera } = this.getState();
         const m = new Matrix4();
-        const cam = Object.assign({}, this.camera.props, {
+        const cam = Object.assign({}, camera.props, {
             perspective: {
                 yfov: 0.3,
                 znear: 0.01,
@@ -270,9 +264,9 @@ export class Env {
         m.multiply(calculateProjection(cam)!);
 
         const uniformBuffer = new UniformBuffer();
-        const s = this.camera.modelSize! * 2;
+        const s = camera.modelSize! * 2;
         uniformBuffer.add('model', new Matrix4().makeRotationAxis(new Vector3([1, 0, 0]), Math.PI).scale(new Vector3([s, s, s])).elements);
-        uniformBuffer.add('view', this.camera.matrixWorldInvert.elements);
+        uniformBuffer.add('view', camera.matrixWorldInvert.elements);
         uniformBuffer.add('projection', m.elements);
         uniformBuffer.done();
         const matrixSize = uniformBuffer.store!.byteLength;
@@ -636,9 +630,10 @@ export class Env {
 
     drawWebGPU(WebGPU: WEBGPU, mipWidth: number, mipHeight: number, layer: number, mip: number) {
         const { device } = WebGPU;
+        const { camera } = this.getState();
 
         const m = new Matrix4();
-        const cam = Object.assign({}, this.camera.props, {
+        const cam = Object.assign({}, camera.props, {
             aspect: 1,
             perspective: {
                 yfov: Math.PI / 2,
@@ -747,9 +742,10 @@ export class Env {
 
     drawWebGPU2(WebGPU: WEBGPU, mipWidth: number, mipHeight: number, layer: number, mip: number) {
         const { device } = WebGPU;
+        const { camera } = this.getState();
 
         const m = new Matrix4();
-        const cam = Object.assign({}, this.camera.props, {
+        const cam = Object.assign({}, camera.props, {
             aspect: 1,
             perspective: {
                 yfov: Math.PI / 2,
@@ -860,9 +856,10 @@ export class Env {
 
     drawWebGPU3(WebGPU: WEBGPU, mipWidth: number, mipHeight: number, layer: number, mip: number) {
         const { device } = WebGPU;
+        const { camera } = this.getState();
 
         const m = new Matrix4();
-        const cam = Object.assign({}, this.camera.props, {
+        const cam = Object.assign({}, camera.props, {
             aspect: 1,
             perspective: {
                 yfov: Math.PI / 2,

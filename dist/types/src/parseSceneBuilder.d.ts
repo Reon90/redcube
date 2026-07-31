@@ -1,9 +1,10 @@
 import { Mesh, Object3D, Scene } from './objects/index';
 import { Node, MeshPrimitive } from '../GLTF';
-import type { ParseContext, ReadonlyParseContext } from './parseContext';
-export declare function buildPrim(input: ReadonlyParseContext, el: Node, parent: Object3D, name: string, skin: number | undefined, weights: number[] | undefined, primitive: MeshPrimitive): Mesh;
-export declare function buildNode(input: ReadonlyParseContext, parent: Object3D | Scene, name: number): void;
-export declare function calculateFov(input: ReadonlyParseContext, isInitial: boolean): void;
-export declare function buildMesh(input: ReadonlyParseContext, output: Partial<ParseContext>): Promise<void>;
-export declare function buildSkin(input: ReadonlyParseContext): true | undefined;
-export declare function buildAnimation(input: ReadonlyParseContext): true | undefined;
+import { DracoModule } from './decoder';
+import type { ReadonlyState } from './state';
+export declare function buildPrim(input: ReadonlyState, el: Node, parent: Object3D, name: string, skin: number | undefined, weights: number[] | undefined, primitive: MeshPrimitive, draco: DracoModule | undefined): Mesh;
+export declare function buildNode(input: ReadonlyState, parent: Object3D | Scene, name: number, draco: DracoModule | undefined): void;
+export declare function calculateFov(input: ReadonlyState, isInitial: boolean): void;
+export declare function buildMesh(input: ReadonlyState): Promise<void>;
+export declare function buildSkin(input: ReadonlyState): true | undefined;
+export declare function buildAnimation(input: ReadonlyState): true | undefined;

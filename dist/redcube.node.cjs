@@ -11813,28 +11813,6 @@ function buildArray(arrayBuffer, type, offset, length) {
   }
   return arr;
 }
-function compileShader(gl, type, shaderSource, program) {
-  const shader = gl.createShader(type);
-  gl.shaderSource(shader, shaderSource);
-  gl.compileShader(shader);
-  gl.attachShader(program, shader);
-  const log = gl.getShaderInfoLog(shader);
-  if (log) {
-    throw new Error(log);
-  }
-}
-function createProgram(gl, vertex, fragment) {
-  const program = gl.createProgram();
-  compileShader(gl, gl.VERTEX_SHADER, vertex, program);
-  compileShader(gl, gl.FRAGMENT_SHADER, fragment, program);
-  gl.linkProgram(program);
-  gl.validateProgram(program);
-  if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-    const info = gl.getProgramInfoLog(program);
-    throw new Error(`Could not compile WebGL program. ${info}`);
-  }
-  return program;
-}
 function walk(node, callback) {
   function _walk(node2) {
     callback(node2);
@@ -12045,105 +12023,6 @@ function normalize(array) {
     return array;
   }
 }
-async function generateMipmaps(device, texture, width, height, mipLevelCount, { isCube = false } = {}) {
-  const wgsl = `
-    @group(0) @binding(0) var mySampler: sampler;
-    @group(0) @binding(1) var myTexture: texture_2d<f32>;
-
-    struct VSOut {
-      @builtin(position) pos: vec4f,
-      @location(0) uv: vec2f
-    };
-
-    @vertex
-    fn vs_main(@builtin(vertex_index) vi: u32) -> VSOut {
-      var pos = array<vec2f, 6>(
-        vec2f(-1.0, -1.0),
-        vec2f( 1.0, -1.0),
-        vec2f(-1.0,  1.0),
-        vec2f(-1.0,  1.0),
-        vec2f( 1.0, -1.0),
-        vec2f( 1.0,  1.0)
-      );
-      var out: VSOut;
-      out.pos = vec4f(pos[vi], 0.0, 1.0);
-      var  uv = (pos[vi] + vec2f(1.0)) * 0.5;
-      uv.y = 1.0 - uv.y;
-      out.uv  = uv;
-      return out;
-    }
-
-    @fragment
-    fn fs_main(@location(0) uv: vec2f) -> @location(0) vec4f {
-      // sample exactly mip 0 of the bound view (which we create from src mip)
-      return textureSampleLevel(myTexture, mySampler, uv, 0.0);
-    }
-  `;
-  const module2 = device.createShaderModule({ code: wgsl });
-  const pipeline = device.createRenderPipeline({
-    layout: "auto",
-    vertex: { module: module2, entryPoint: "vs_main" },
-    fragment: {
-      module: module2,
-      entryPoint: "fs_main",
-      targets: [{ format: texture.format }]
-      // use the real texture format
-    },
-    primitive: { topology: "triangle-list" }
-  });
-  const genSampler = device.createSampler({
-    magFilter: "linear",
-    minFilter: "linear",
-    mipmapFilter: "nearest",
-    addressModeU: "clamp-to-edge",
-    addressModeV: "clamp-to-edge"
-  });
-  for (let level = 1; level < mipLevelCount; level++) {
-    const dstWidth = Math.max(1, Math.floor(width / Math.pow(2, level)));
-    const dstHeight = Math.max(1, Math.floor(height / Math.pow(2, level)));
-    const faceCount = isCube ? 6 : 1;
-    for (let face = 0; face < faceCount; face++) {
-      const srcView = texture.createView({
-        baseMipLevel: level - 1,
-        mipLevelCount: 1,
-        baseArrayLayer: isCube ? face : 0,
-        arrayLayerCount: isCube ? 1 : void 0,
-        dimension: "2d"
-      });
-      const dstView = texture.createView({
-        baseMipLevel: level,
-        mipLevelCount: 1,
-        baseArrayLayer: isCube ? face : 0,
-        arrayLayerCount: isCube ? 1 : void 0,
-        dimension: "2d"
-      });
-      const bindGroup = device.createBindGroup({
-        layout: pipeline.getBindGroupLayout(0),
-        entries: [
-          { binding: 0, resource: genSampler },
-          { binding: 1, resource: srcView }
-        ]
-      });
-      const encoder = device.createCommandEncoder();
-      const pass = encoder.beginRenderPass({
-        colorAttachments: [
-          {
-            view: dstView,
-            clearValue: { r: 0, g: 0, b: 0, a: 1 },
-            loadOp: "clear",
-            storeOp: "store"
-          }
-        ]
-      });
-      pass.setPipeline(pipeline);
-      pass.setBindGroup(0, bindGroup);
-      pass.setViewport(0, 0, dstWidth, dstHeight, 0, 1);
-      pass.draw(6);
-      pass.end();
-      device.queue.submit([encoder.finish()]);
-    }
-  }
-}
 function fanToTriListIndices(fan) {
   if (fan.length < 3) return new Uint32Array(0);
   const out = new Uint32Array((fan.length - 2) * 3);
@@ -12238,11 +12117,7 @@ var Mesh = class extends Object3D {
   setMaterial(material) {
     this.material = material;
   }
-  drawWebGPU(WebGPU, passEncoder, i, {
-    renderState,
-    materialStorage,
-    transformsStorage
-  }) {
+  drawWebGPU(WebGPU, passEncoder, i, { renderState, materialStorage, transformsStorage }) {
     const { isprerefraction } = renderState;
     if (this.defines.find((i2) => i2.name === "TRANSMISSION") && isprerefraction) {
       return;
@@ -13607,8 +13482,8 @@ function loadKTX(b) {
     if (result !== window.LIBKTX.ErrorCode.SUCCESS) {
       throw new Error("Texture transcode failed. See console for details.");
     }
-    return texture.glUpload().texture;
   }
+  return texture.glUpload().texture;
 }
 function IsValid(data) {
   if (data.byteLength >= 12) {
@@ -13730,34 +13605,6 @@ function getBuffer(input, output) {
   ).then((buffers) => {
     output.arrayBuffer = buffers;
   });
-}
-async function getEnv(input, isBuffer) {
-  if (input.json.extensions && input.json.extensions.EXT_lights_image_based) {
-    const [env] = input.json.extensions.EXT_lights_image_based.lights;
-    const specularImages = env.specularImages.map((cube) => {
-      return cube.map((img) => {
-        const accessor = input.json.images[img];
-        const bufferView = input.json.bufferViews[accessor.bufferView];
-        const { buffer, byteLength, byteOffset } = bufferView;
-        const view = new Uint8Array(input.arrayBuffer[buffer], byteOffset, byteLength);
-        const blob = new Blob([view], { type: accessor.mimeType });
-        const imageUrl = window.URL.createObjectURL(blob);
-        const imageEl = new Image();
-        imageEl.src = imageUrl;
-        return imageEl;
-      });
-    });
-    env.specularImages = specularImages;
-    await new Promise((r) => setTimeout(r, 200));
-    if (isBuffer) {
-      for (const images of specularImages) {
-        for (const image of images) {
-          image.bitmap = await createImageBitmap(image);
-        }
-      }
-    }
-    return env;
-  }
 }
 
 // src/decoder.ts
@@ -14344,7 +14191,7 @@ var Geometry = class {
 };
 
 // src/parseSceneBuilder.ts
-function buildPrim(input, el, parent, name, skin, weights, primitive) {
+function buildPrim(input, el, parent, name, skin, weights, primitive, draco) {
   const m = input.json.materials && input.json.materials[primitive.material];
   if (input.json.extensions && input.json.extensions.EXT_lights_image_based) {
     input.defines.push({
@@ -14376,7 +14223,7 @@ function buildPrim(input, el, parent, name, skin, weights, primitive) {
     defines.push({ name: "COLOR" });
   }
   const mesh = skin !== void 0 ? new SkinnedMesh(name, parent) : new Mesh(name, parent);
-  const geometry = new Geometry(input.json, input.arrayBuffer, weights, input.draco, primitive);
+  const geometry = new Geometry(input.json, input.arrayBuffer, weights, draco, primitive);
   if (primitive.attributes.TANGENT === void 0) {
     defines.push({ name: "USERIGHTHANDEDSYSTEM" });
   }
@@ -14406,7 +14253,7 @@ function buildPrim(input, el, parent, name, skin, weights, primitive) {
   mesh.instances = parent.instances;
   return mesh;
 }
-function buildNode(input, parent, name) {
+function buildNode(input, parent, name, draco) {
   const el = input.json.nodes[name];
   let child;
   if (el.camera !== void 0) {
@@ -14414,7 +14261,7 @@ function buildNode(input, parent, name) {
       {
         zoom: 1,
         isInitial: false,
-        aspect: input.canvas ? input.canvas.offsetWidth / input.canvas.offsetHeight : 1
+        aspect: input.width && input.height ? input.width / input.height : 1
       },
       input.json.cameras[el.camera]
     );
@@ -14490,12 +14337,21 @@ function buildNode(input, parent, name) {
   if (el.mesh !== void 0) {
     parent.children.push(
       ...input.json.meshes[el.mesh].primitives.map(
-        (primitive) => buildPrim(input, el, parent, input.json.meshes[el.mesh].name, el.skin, input.json.meshes[el.mesh].weights, primitive)
+        (primitive) => buildPrim(
+          input,
+          el,
+          parent,
+          input.json.meshes[el.mesh].name,
+          el.skin,
+          input.json.meshes[el.mesh].weights,
+          primitive,
+          draco
+        )
       )
     );
   }
   if (el.children && el.children.length) {
-    el.children.forEach((childName) => buildNode(input, parent, childName));
+    el.children.forEach((childName) => buildNode(input, parent, childName, draco));
   }
 }
 function calculateFov(input, isInitial) {
@@ -14521,27 +14377,27 @@ function calculateFov(input, isInitial) {
   input.cameras.forEach((c) => {
     c.modelSize = size;
   });
-  input.resize();
 }
-async function buildMesh(input, output) {
+async function buildMesh(input) {
+  let draco;
   if (input.json.extensionsUsed && input.json.extensionsUsed.includes("KHR_draco_mesh_compression")) {
-    output.draco = await DecoderModule();
+    draco = await DecoderModule();
   }
   if (input.json.extensions && input.json.extensions.KHR_materials_variants) {
     input.scene.variants = input.json.extensions.KHR_materials_variants.variants;
   }
   input.json.scenes[input.json.scene !== void 0 ? input.json.scene : 0].nodes.forEach((n) => {
     if (input.json.nodes[n].extensions !== void 0) {
-      buildNode(input, input.scene, n);
+      buildNode(input, input.scene, n, draco);
     }
     if (input.json.nodes[n].children && input.json.nodes[n].children.length) {
-      buildNode(input, input.scene, n);
+      buildNode(input, input.scene, n, draco);
     }
     if (input.json.nodes[n].mesh !== void 0) {
-      buildNode(input, input.scene, n);
+      buildNode(input, input.scene, n, draco);
     }
     if (input.json.nodes[n].camera !== void 0) {
-      buildNode(input, input.scene, n);
+      buildNode(input, input.scene, n, draco);
     }
   });
   if (input.lights.length === 0 && input.light) {
@@ -14696,1177 +14552,7 @@ function buildAnimation(input) {
   }
 }
 
-// src/shaders/vertex.glsl
-var vertex_default = '#include "./vert.h"\r\n\r\nvoid main() {\r\n    #if defined(WEBGPU)\r\n    Transform tr = transforms.data[gl_InstanceIndex];\r\n    #else\r\n    Transform tr = fetchTransform(int(uMaterialID) + gl_InstanceID);\r\n    #endif\r\n    mat4 model = tr.model;\r\n\r\n    #ifdef JOINTNUMBER\r\n        mat4 skin = inWeight.x * joint[int(inJoint.x)];\r\n        skin += inWeight.y * joint[int(inJoint.y)];\r\n        skin += inWeight.z * joint[int(inJoint.z)];\r\n        skin += inWeight.w * joint[int(inJoint.w)];\r\n    #else\r\n        mat4 skin = mat4(1.0);\r\n    #endif\r\n\r\n    #ifdef COLOR\r\n    vColor = inColor;\r\n    #endif\r\n    outUV0 = inUV;\r\n    #ifdef MULTIUV\r\n    outUV2 = inUV2;\r\n    #endif\r\n    #ifdef MULTIUV2\r\n    outUV3 = inUV3;\r\n    #endif\r\n    #ifdef TANGENT\r\n        vec3 normalW = normalize(vec3(model * vec4(inNormal.xyz, 0.0)));\r\n        vec3 tangentW = normalize(vec3(model * vec4(inTangent.xyz, 0.0)));\r\n        vec3 bitangentW = cross(normalW, tangentW) * inTangent.w;\r\n        #ifdef USERIGHTHANDEDSYSTEM\r\n        tangentW *= 1.0; // invertX\r\n        bitangentW *= -1.0; // invertY\r\n        #endif\r\n        outTBN = mat3(tangentW, bitangentW, normalW);\r\n    #else\r\n        outNormal = normalize(mat3(transpose(inverse(model))) * mat3(skin) * inNormal);\r\n    #endif\r\n    outPosition = vec3(model * skin * vec4(inPosition, 1.0));\r\n    outPositionView = projection * light * model * skin * vec4(inPosition, 1.0);\r\n    if (isShadow == 1.0) {\r\n        gl_Position = projection * light * model * skin * vec4(inPosition, 1.0);\r\n    } else {\r\n        gl_Position = projection * view * model * skin * vec4(inPosition, 1.0);\r\n    }\r\n\r\n    gl_PointSize = 1.0;\r\n\r\n    id = int(uMaterialID);\r\n}\r\n';
-
-// src/shaders/fragment.glsl
-var fragment_default = `#include "./frag.h"\r
-\r
-const float RECIPROCAL_PI = 0.31830988618;\r
-const float PI = 3.141592653589793;\r
-const float EPSILON = 1e-6;\r
-const float ambientStrength = 0.1;\r
-const float specularStrength = 2.5;\r
-const float specularPower = 32.0;\r
-const float gamma = 2.2;\r
-const float exposure = 0.7;\r
-\r
-vec3 PBRNeutralToneMapping( vec3 color ) {\r
-  const float startCompression = 0.8 - 0.04;\r
-  const float desaturation = 0.15;\r
-\r
-  float x = min(color.r, min(color.g, color.b));\r
-  float offset = x < 0.08 ? x - 6.25 * x * x : 0.04;\r
-  color -= offset;\r
-\r
-  float peak = max(color.r, max(color.g, color.b));\r
-  if (peak < startCompression) return color;\r
-\r
-  const float d = 1. - startCompression;\r
-  float newPeak = 1. - d * d / (peak + d - startCompression);\r
-  color *= newPeak / peak;\r
-\r
-  float g = 1. - 1. / (desaturation * (peak - newPeak) + 1.);\r
-  return mix(color, newPeak * vec3(1, 1, 1), g);\r
-}\r
-vec3 toneMapACES(vec3 x) {\r
-    const float a = 2.51;\r
-    const float b = 0.03;\r
-    const float c = 2.43;\r
-    const float d = 0.59;\r
-    const float e = 0.14;\r
-    return clamp((x*(a*x+b))/(x*(c*x+d)+e), 0.0, 1.0);\r
-}\r
-float saturate(float a) {\r
-	if (a > 1.0) return 1.0;\r
-	if (a < 0.0) return 0.0;\r
-	return a;\r
-}\r
-vec2 getUV(int index) {\r
-    #ifdef MULTIUV\r
-    if (index == 2) {\r
-        return outUV3;\r
-    }\r
-    if (index == 1) {\r
-        return outUV2;\r
-    }\r
-    #endif\r
-    if (index == 0) {\r
-        return outUV0;\r
-    }\r
-}\r
-#ifdef SHADOWMAP\r
-float ShadowCalculation(vec4 fragPosLightSpace, float bias) {\r
-    vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;\r
-    projCoords = projCoords * 0.5 + 0.5;\r
-    float currentDepth = projCoords.z;\r
-\r
-    float shadow = 0.0;\r
-    vec2 texelSize = 1.0 / vec2(textureSize(depthTexture, 0));\r
-    for (int x = -2; x <= 2; ++x) {\r
-        for (int y = -2; y <= 2; ++y) {\r
-            float pcfDepth = texture2D(depthTexture, projCoords.xy + vec2(x, y) * texelSize).r;\r
-            shadow += currentDepth - bias > pcfDepth ? 0.5 : 0.0;\r
-        }\r
-    }\r
-    shadow /= 25.0;\r
-\r
-    return shadow;\r
-}\r
-#endif\r
-\r
-vec3 srgbToLinear(vec4 srgbIn) {\r
-    #ifdef BASISU\r
-    return srgbIn.rgb;\r
-    #else\r
-    return pow(srgbIn.rgb, vec3(2.2));\r
-    #endif\r
-}\r
-\r
-vec3 fresnelSchlick(float cosTheta, vec3 F0) {\r
-    return F0 + (vec3(1.0) - F0) * pow(1.0 - cosTheta, 5.0);\r
-}\r
-float fresnelSchlick(float cosTheta, float F0) {\r
-    return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);\r
-}\r
-vec3 Schlick_to_F0(vec3 f, vec3 f90, float VdotH) {\r
-    float x = clamp(1.0 - VdotH, 0.0, 1.0);\r
-    float x2 = x * x;\r
-    float x5 = clamp(x * x2 * x2, 0.0, 0.9999);\r
-\r
-    return (f - f90 * x5) / (1.0 - x5);\r
-}\r
-vec3 Schlick_to_F0(vec3 f, float VdotH) {\r
-    return Schlick_to_F0(f, vec3(1.0), VdotH);\r
-}\r
-float sq(float t) {\r
-    return t * t;\r
-}\r
-vec3 sq(vec3 t) {\r
-    return t * t;\r
-}\r
-// XYZ to sRGB color space\r
-const mat3 XYZ_TO_REC709 = mat3(\r
-     3.2404542, -0.9692660,  0.0556434,\r
-    -1.5371385,  1.8760108, -0.2040259,\r
-    -0.4985314,  0.0415560,  1.0572252\r
-);\r
-\r
-float applyIorToRoughness(float roughness, float ior) {\r
-    #if defined VOLUME\r
-    // Scale roughness with IOR so that an IOR of 1.0 results in no microfacet refraction and\r
-    // an IOR of 1.5 results in the default amount of microfacet refraction.\r
-    return roughness * clamp(ior * 2.0 - 2.0, 0.0, 1.0);\r
-    #else\r
-    return roughness;\r
-    #endif\r
-}\r
-\r
-// Assume air interface for top\r
-// Note: We don't handle the case fresnel0 == 1\r
-vec3 Fresnel0ToIor(vec3 fresnel0) {\r
-    vec3 sqrtF0 = sqrt(fresnel0);\r
-    return (vec3(1.0) + sqrtF0) / (vec3(1.0) - sqrtF0);\r
-}\r
-\r
-// Conversion FO/IOR\r
-vec3 IorToFresnel0(vec3 transmittedIor, float incidentIor) {\r
-    return sq((transmittedIor - vec3(incidentIor)) / (transmittedIor + vec3(incidentIor)));\r
-}\r
-\r
-// ior is a value between 1.0 and 3.0. 1.0 is air interface\r
-float IorToFresnel0(float transmittedIor, float incidentIor) {\r
-    return sq((transmittedIor - incidentIor) / (transmittedIor + incidentIor));\r
-}\r
-\r
-// Fresnel equations for dielectric/dielectric interfaces.\r
-// Ref: https://belcour.github.io/blog/research/2017/05/01/brdf-thin-film.html\r
-// Evaluation XYZ sensitivity curves in Fourier space\r
-vec3 evalSensitivity(float OPD, vec3 shift) {\r
-    float phase = 2.0 * PI * OPD * 1.0e-9;\r
-    vec3 val = vec3(5.4856e-13, 4.4201e-13, 5.2481e-13);\r
-    vec3 pos = vec3(1.6810e+06, 1.7953e+06, 2.2084e+06);\r
-    vec3 var = vec3(4.3278e+09, 9.3046e+09, 6.6121e+09);\r
-\r
-    vec3 xyz = val * sqrt(2.0 * PI * var) * cos(pos * phase + shift) * exp(-sq(phase) * var);\r
-    xyz.x += 9.7470e-14 * sqrt(2.0 * PI * 4.5282e+09) * cos(2.2399e+06 * phase + shift[0]) * exp(-4.5282e+09 * sq(phase));\r
-    xyz /= 1.0685e-7;\r
-\r
-    vec3 srgb = XYZ_TO_REC709 * xyz;\r
-    return srgb;\r
-}\r
-\r
-vec3 evalIridescence(float outsideIOR, float eta2, float cosTheta1, float thinFilmThickness, vec3 baseF0) {\r
-    vec3 I;\r
-\r
-    // Force iridescenceIOR -> outsideIOR when thinFilmThickness -> 0.0\r
-    float iridescenceIOR = mix(outsideIOR, eta2, smoothstep(0.0, 0.03, thinFilmThickness));\r
-    // Evaluate the cosTheta on the base layer (Snell law)\r
-    float sinTheta2Sq = sq(outsideIOR / iridescenceIOR) * (1.0 - sq(cosTheta1));\r
-\r
-    // Handle TIR:\r
-    float cosTheta2Sq = 1.0 - sinTheta2Sq;\r
-    if (cosTheta2Sq < 0.0) {\r
-        return vec3(1.0);\r
-    }\r
-\r
-    float cosTheta2 = sqrt(cosTheta2Sq);\r
-\r
-    // First interface\r
-    float R0 = IorToFresnel0(iridescenceIOR, outsideIOR);\r
-    float R12 = fresnelSchlick(cosTheta1, R0);\r
-    float R21 = R12;\r
-    float T121 = 1.0 - R12;\r
-    float phi12 = 0.0;\r
-    if (iridescenceIOR < outsideIOR) phi12 = PI;\r
-    float phi21 = PI - phi12;\r
-\r
-    // Second interface\r
-    vec3 baseIOR = Fresnel0ToIor(clamp(baseF0, 0.0, 0.9999)); // guard against 1.0\r
-    vec3 R1 = IorToFresnel0(baseIOR, iridescenceIOR);\r
-    vec3 R23 = fresnelSchlick(cosTheta2, R1);\r
-    vec3 phi23 = vec3(0.0);\r
-    if (baseIOR[0] < iridescenceIOR) phi23[0] = PI;\r
-    if (baseIOR[1] < iridescenceIOR) phi23[1] = PI;\r
-    if (baseIOR[2] < iridescenceIOR) phi23[2] = PI;\r
-\r
-    // Phase shift\r
-    float OPD = 2.0 * iridescenceIOR * thinFilmThickness * cosTheta2;\r
-    vec3 phi = vec3(phi21) + phi23;\r
-\r
-    // Compound terms\r
-    vec3 R123 = clamp(R12 * R23, 1e-5, 0.9999);\r
-    vec3 r123 = sqrt(R123);\r
-    vec3 Rs = sq(T121) * R23 / (vec3(1.0) - R123);\r
-\r
-    // Reflectance term for m = 0 (DC term amplitude)\r
-    vec3 C0 = R12 + Rs;\r
-    I = C0;\r
-\r
-    // Reflectance term for m > 0 (pairs of diracs)\r
-    vec3 Cm = Rs - T121;\r
-    for (int m = 1; m <= 2; ++m)\r
-    {\r
-        Cm *= r123;\r
-        vec3 Sm = 2.0 * evalSensitivity(float(m) * OPD, float(m) * phi);\r
-        I += Cm * Sm;\r
-    }\r
-\r
-    // Since out of gamut colors might be produced, negative color values are clamped to 0.\r
-    return max(I, vec3(0.0));\r
-}\r
-#ifdef ANISOTROPY\r
-float DistributionGGX(vec3 N, vec3 H, vec3 anisotropicT, vec3 anisotropicB, float at, float ab) {\r
-    float NdotH = dot(N, H);\r
-    float TdotH = dot(anisotropicT, H);\r
-    float BdotH = dot(anisotropicB, H);\r
-\r
-    float a2 = at * ab;\r
-    vec3 f = vec3(ab * TdotH, at * BdotH, a2 * NdotH);\r
-    float w2 = a2 / dot(f, f);\r
-    return a2 * w2 * w2 / PI;\r
-}\r
-\r
-float GeometrySmith(vec3 N, vec3 V, vec3 L, vec3 anisotropicT, vec3 anisotropicB, float at, float ab) {\r
-    float NdotV = dot(N, V);\r
-    float NdotL = dot(N, L);\r
-    float TdotV = dot(anisotropicT, V);\r
-    float TdotL = dot(anisotropicT, L);\r
-    float BdotV = dot(anisotropicB, V);\r
-    float BdotL = dot(anisotropicB, L);\r
-\r
-    float GGXV = NdotL * length(vec3(at * TdotV, ab * BdotV, NdotV));\r
-    float GGXL = NdotV * length(vec3(at * TdotL, ab * BdotL, NdotL));\r
-    float v = 0.5 / (GGXV + GGXL);\r
-    return clamp(v, 0.0, 1.0);\r
-}\r
-#else\r
-float DistributionGGX(vec3 N, vec3 H, float roughness) {\r
-    float NdotH = saturate(dot(N, H));\r
-    float a = max(roughness*roughness, 0.04);\r
-    float alphaRoughnessSq = a * a;\r
-    float f = (NdotH * NdotH) * (alphaRoughnessSq - 1.0) + 1.0;\r
-    return alphaRoughnessSq / (PI * f * f);\r
-}\r
-\r
-float GeometrySchlickGGX(float cosTheta, float roughness) {\r
-    float r = (roughness + 1.0);\r
-    float k = (r * r) / 8.0;\r
-\r
-    float nom   = cosTheta;\r
-    float denom = cosTheta * (1.0 - k) + k;\r
-\r
-    return nom / denom;\r
-}\r
-\r
-float GeometrySmith(vec3 N, vec3 V, vec3 L, float roughness) {\r
-    float NdotV = saturate(dot(N, V));\r
-    float NdotL = saturate(dot(N, L));\r
-    float ggx2 = GeometrySchlickGGX(NdotV, roughness);\r
-    float ggx1 = GeometrySchlickGGX(NdotL, roughness);\r
-\r
-    return ggx1 * ggx2;\r
-}\r
-#endif\r
-\r
-float fresnelSchlickRoughness(float cosTheta, float F0, float roughness) {\r
-    return F0 + (max(1.0 - roughness, F0) - F0) * pow(1.0 - cosTheta, 5.0);\r
-}\r
-vec3 fresnelSchlickRoughness(float cosTheta, vec3 F0, float roughness) {\r
-    return F0 + (max(vec3(1.0 - roughness), F0) - F0) * pow(1.0 - cosTheta, 5.0);\r
-}\r
-vec3 calcTransmission(float dispersionFactor, float ior, vec3 color, vec3 N, float roughness, vec3 V, float transmission, float thickness) {\r
-    float refraction_ior = 1.0 / ior;\r
-    vec3 environmentRefraction = vec3(0.0);\r
-    #ifdef DISPERSION\r
-    float realIOR = 1.0 / ior;\r
-    float iorDispersionSpread = 0.04 * dispersionFactor * (realIOR - 1.0);\r
-    vec3 iors = vec3(realIOR - iorDispersionSpread, refraction_ior, realIOR + iorDispersionSpread);\r
-    for (int i = 0; i < 3; i++) {\r
-        refraction_ior = iors[i];\r
-    #endif\r
-\r
-    vec4 refractS = projection * view * vec4(outPosition + refract(-V, N, refraction_ior) * thickness, 1.0);\r
-    refractS.xy = refractS.xy / refractS.w;\r
-    refractS.xy = refractS.xy * 0.5 + 0.5;\r
-    const float MAX_REFLECTION_LOD = 7.0;\r
-    #if defined(WEBGPU)\r
-    refractS.y = 1.0 - refractS.y;\r
-    #endif\r
-    vec3 baseColor = textureLod2D2(colorTexture, refractS.xy, applyIorToRoughness(roughness, 1.0 / refraction_ior) * MAX_REFLECTION_LOD).xyz;\r
-\r
-    #ifdef DISPERSION\r
-        environmentRefraction[i] = baseColor[i];\r
-    }\r
-    #else\r
-        environmentRefraction = baseColor;\r
-    #endif\r
-\r
-    return transmission * environmentRefraction * color;\r
-}\r
-\r
-#ifdef SPHERICAL_HARMONICS\r
-vec3 computeEnvironmentIrradiance(vec3 normal) {\r
-    return vSphericalL00.xyz\r
-        + vSphericalL1_1.xyz * (normal.y)\r
-        + vSphericalL10.xyz * (normal.z)\r
-        + vSphericalL11.xyz * (normal.x)\r
-        + vSphericalL2_2.xyz * (normal.y * normal.x)\r
-        + vSphericalL2_1.xyz * (normal.y * normal.z)\r
-        + vSphericalL20.xyz * ((3.0 * normal.z * normal.z) - 1.0)\r
-        + vSphericalL21.xyz * (normal.z * normal.x)\r
-        + vSphericalL22.xyz * (normal.x * normal.x - (normal.y * normal.y));\r
-}\r
-#endif\r
-float sheenDistribution(float sheenRoughness, vec3 N, vec3 H) {\r
-    float NdotH = saturate(dot(N, H));\r
-    float alphaG = max(sheenRoughness * sheenRoughness, 0.01);\r
-    float invR = 1.0 / alphaG;\r
-    float cos2h = NdotH * NdotH;\r
-    float sin2h = 1.0 - cos2h;\r
-    return (2.0 + invR) * pow(sin2h, invR * 0.5) / (2.0 * PI);\r
-}\r
-float lambdaSheenNumericHelper(float x, float alphaG) {\r
-    float oneMinusAlphaSq = (1.0 - alphaG) * (1.0 - alphaG);\r
-    float a = mix(21.5473, 25.3245, oneMinusAlphaSq);\r
-    float b = mix(3.82987, 3.32435, oneMinusAlphaSq);\r
-    float c = mix(0.19823, 0.16801, oneMinusAlphaSq);\r
-    float d = mix(-1.97760, -1.27393, oneMinusAlphaSq);\r
-    float e = mix(-4.32054, -4.85967, oneMinusAlphaSq);\r
-    return a / (1.0 + b * pow(x, c)) + d * x + e;\r
-}\r
-float lambdaSheen(float cosTheta, float alphaG) {\r
-    if (abs(cosTheta) < 0.5) {\r
-        return exp(lambdaSheenNumericHelper(cosTheta, alphaG));\r
-    } else {\r
-        return exp(2.0 * lambdaSheenNumericHelper(0.5, alphaG) - lambdaSheenNumericHelper(1.0 - cosTheta, alphaG));\r
-    }\r
-}\r
-float sheenVisibility(vec3 N, vec3 V, vec3 L, float sheenRoughness) {\r
-    float NdotL = saturate(dot(N, L));\r
-    float NdotV = saturate(dot(N, V));\r
-\r
-    sheenRoughness = max(sheenRoughness, 0.000001); //clamp (0,1]\r
-    float alphaG = sheenRoughness * sheenRoughness;\r
-\r
-    return clamp(1.0 / ((1.0 + lambdaSheen(NdotV, alphaG) + lambdaSheen(NdotL, alphaG)) *\r
-        (4.0 * NdotV * NdotL)), 0.0, 1.0);\r
-}\r
-float E(float x, float y) {\r
-    return clamp(textureLod2D(Sheen_E, vec2(x,y), 0.0).r, 0.0, 1.0);\r
-}\r
-float max3(vec3 v) { return max(max(v.x, v.y), v.z); }\r
-float pow2(float v) { return v * v; }\r
-vec3 IBLAmbient(vec3 baseColor, float metallic, vec3 n, float roughness, vec3 viewDir, float transmission, vec3 sheenColor, float sheenRoughness, vec3 iridescenceFresnel, float iridescenceFactor, vec3 F0, float specularWeight, float anisotropy, vec3 anisotropicB, inout vec3 f_sheen, out vec3 specular) {\r
-    #ifdef ANISOTROPY\r
-    vec3 Normal = cross(anisotropicB, viewDir);\r
-    Normal = normalize(cross(Normal, anisotropicB));\r
-    float a = pow2(pow2(1.0 - anisotropy * (1.0 - roughness)));\r
-    n = normalize(mix(Normal, n, a));\r
-    #endif\r
-    \r
-    vec3 F = fresnelSchlickRoughness(saturate(dot(n, viewDir)), F0, roughness);\r
-\r
-    vec3 kD = vec3(1.0) - F * specularWeight;\r
-    #if defined SPECULARGLOSSINESSMAP\r
-    #else\r
-        kD *= 1.0 - clamp(metallic, 0.0, 0.9);\r
-    #endif\r
-    #if defined IRIDESCENCE\r
-    kD = vec3(1.0) - mix(F, iridescenceFresnel, iridescenceFactor) * specularWeight;\r
-    kD *= 1.0 - clamp(metallic, 0.0, 0.9);\r
-    #endif\r
-\r
-    vec3 R;\r
-    #ifdef SPHERICAL_HARMONICS\r
-    R = reflect(viewDir, n);\r
-    vec4 rotatedR = rotationMatrix * vec4(R.x * -1.0, R.y, R.z, 0.0);\r
-    R = rotatedR.xyz;\r
-    vec4 prefilterColor = textureLodCube(prefilterMap, R, roughness * float(SPHERICAL_HARMONICS));\r
-    vec3 prefilteredColor = srgbToLinear(vec4(prefilterColor.rgb, 0.0)) / pow(prefilterColor.a, 2.2);\r
-    vec3 irradianceVector = vec3(rotationMatrix * vec4(n.x, n.y, n.z * -1.0, 0)).xyz;\r
-    vec3 irradiance = computeEnvironmentIrradiance(irradianceVector).rgb;\r
-    #else\r
-    const float MAX_REFLECTION_LOD = 4.0;\r
-    R = reflect(-viewDir, n);\r
-    vec3 prefilteredColor = textureLodCube(prefilterMap, R, roughness * MAX_REFLECTION_LOD).rgb;\r
-    vec3 irradiance = textureCube(irradianceMap, n).rgb;\r
-    #endif\r
-    vec2 envBRDF  = textureLod2D(brdfLUT, vec2(saturate(dot(n, viewDir)), roughness), 0.0).rg;\r
-    vec3 kS = F;\r
-    #if defined IRIDESCENCE\r
-    kS = mix(F, iridescenceFresnel, iridescenceFactor);\r
-    #endif\r
-    specular = prefilteredColor * (kS * specularWeight * envBRDF.x + envBRDF.y);\r
-\r
-    #if defined SHEEN\r
-    float charliebrdf = textureLod2D(brdfLUT, vec2(saturate(dot(n, viewDir)), sheenRoughness), 0.0).b;\r
-    vec3 sheenSample = textureLodCube(charlieMap, R, max(sheenRoughness * MAX_REFLECTION_LOD, 1.0)).rgb;\r
-    f_sheen += sheenSample * sheenColor * charliebrdf;\r
-    #endif\r
-\r
-    return (1.0 - transmission) * kD * irradiance * baseColor;\r
-}\r
-\r
-float specEnv(vec3 N, vec3 V, float metallic, float roughness, vec3 F0, float specularWeight) {\r
-    float F = fresnelSchlickRoughness(saturate(dot(N, V)), (F0.x+F0.y+F0.z)/3.0, roughness);\r
-    vec2 envBRDF  = textureLod2D(brdfLUT, vec2(saturate(dot(N, V)), roughness), 0.0).rg;\r
-    return (F * specularWeight * envBRDF.x + envBRDF.y);\r
-}\r
-\r
-#ifdef ANISOTROPY\r
-vec3 CookTorranceSpecular2(vec3 baseColor, float metallic, vec3 n, vec3 H, vec3 anisotropicT, vec3 anisotropicB, float roughness, vec3 viewDir, vec3 lightDir, float anisotropy, vec3 iridescenceFresnel, float iridescenceFactor, vec3 F0, float specularWeight) {\r
-    roughness = roughness * roughness;\r
-    float at = max(mix(roughness, 1.0, anisotropy * anisotropy), 0.001);\r
-    float ab = max(roughness, 0.001);\r
-    float D = DistributionGGX(n, H, anisotropicT, anisotropicB, at, ab);\r
-    float G = GeometrySmith(n, viewDir, lightDir, anisotropicT, anisotropicB, at, ab);\r
-    vec3 F = mix(fresnelSchlick(saturate(dot(viewDir, H)), F0), iridescenceFresnel, iridescenceFactor);\r
-\r
-    vec3 nominator = D * G * F * specularWeight;\r
-    float denominator = 4.0 * saturate(dot(n, viewDir)) * max(dot(n, lightDir), 0.0);\r
-    return D * G * F;\r
-}\r
-vec3 CookTorranceSpecular(vec3 baseColor, float metallic, vec3 n, vec3 H, vec3 anisotropicT, vec3 anisotropicB, float roughness, vec3 viewDir, vec3 lightDir, float anisotropy, vec3 F0, float specularWeight) {\r
-    roughness = roughness * roughness;\r
-    float at = max(mix(roughness, 1.0, anisotropy * anisotropy), 0.001);\r
-    float ab = max(roughness, 0.001);\r
-    float D = DistributionGGX(n, H, anisotropicT, anisotropicB, at, ab);\r
-    float G = GeometrySmith(n, viewDir, lightDir, anisotropicT, anisotropicB, at, ab);\r
-    vec3 F = fresnelSchlick(saturate(dot(viewDir, H)), F0); \r
-\r
-    vec3 nominator = D * G * F * specularWeight;\r
-    float denominator = 4.0 * saturate(dot(n, viewDir)) * saturate(dot(n, lightDir));\r
-    return D * G * F;\r
-}\r
-#else\r
-vec3 CookTorranceSpecular2(vec3 baseColor, float metallic, vec3 n, vec3 H, vec3 anisotropicT, vec3 anisotropicB, float roughness, vec3 viewDir, vec3 lightDir, float anisotropy, vec3 iridescenceFresnel, float iridescenceFactor, vec3 F0, float specularWeight) {\r
-    float D = DistributionGGX(n, H, roughness);\r
-    float G = GeometrySmith(n, viewDir, lightDir, roughness);\r
-    vec3 F = mix(fresnelSchlick(saturate(dot(viewDir, H)), F0), iridescenceFresnel, iridescenceFactor);\r
-\r
-    vec3 nominator = D * G * F * specularWeight;\r
-    float denominator = 4.0 * saturate(dot(n, viewDir)) * saturate(dot(n, lightDir));\r
-    return nominator / max(denominator, 0.001);\r
-}\r
-vec3 CookTorranceSpecular(vec3 baseColor, float metallic, vec3 n, vec3 H, vec3 anisotropicT, vec3 anisotropicB, float roughness, vec3 viewDir, vec3 lightDir, float anisotropy, vec3 F0, float specularWeight) {\r
-    float D = DistributionGGX(n, H, roughness);\r
-    float G = GeometrySmith(n, viewDir, lightDir, roughness);\r
-    vec3 F = fresnelSchlick(saturate(dot(viewDir, H)), F0); \r
-\r
-    vec3 nominator = D * G * F * specularWeight;\r
-    float denominator = 4.0 * saturate(dot(n, viewDir)) * saturate(dot(n, lightDir));\r
-    return nominator / max(denominator, 0.001);\r
-}\r
-#endif\r
-\r
-vec3 LambertDiffuse(vec3 baseColor, float metallic, vec3 n, vec3 H, float roughness, vec3 viewDir, vec3 lightDir, vec3 F0, float specularWeight) {\r
-    float NdotL = saturate(dot(n, lightDir));\r
-\r
-    vec3 F = fresnelSchlick(saturate(dot(H, viewDir)), F0);    \r
-\r
-    vec3 kD = vec3(1.0) - F * specularWeight;\r
-    #if defined SPECULARGLOSSINESSMAP\r
-    #else\r
-        kD *= 1.0 - metallic;\r
-    #endif\r
-    return baseColor * kD / PI;\r
-}\r
-\r
-vec3 ImprovedOrenNayarDiffuse(vec3 baseColor, float metallic, vec3 N, vec3 H, float a, vec3 V, vec3 L, vec3 F0, vec3 iridescenceFresnel, float iridescenceFactor, float specularWeight) {\r
-    vec3 F = fresnelSchlick(saturate(dot(H, V)), F0);\r
-    vec3 kD = vec3(1.0) - F * specularWeight;\r
-    #if defined SPECULARGLOSSINESSMAP\r
-    #else\r
-        kD *= 1.0 - metallic;\r
-    #endif\r
-    #if defined IRIDESCENCE\r
-    kD = vec3(1.0) - mix(F, iridescenceFresnel, iridescenceFactor) * specularWeight;\r
-    kD *= 1.0 - clamp(metallic, 0.0, 0.9);\r
-    #endif\r
-    vec3 diffuseColor = baseColor * kD;\r
-	// calculate intermediary values\r
-	float dotNL = saturate(dot(N, L));\r
-	float dotNV = saturate(dot(N, V));\r
-	float dotLV = saturate(dot(L, V));\r
-	float dotLH = saturate(dot(L, H));\r
-\r
-	float s = dotLV - dotNL * dotNV;\r
-	float t = mix(1.0, max(max(dotNL, dotNV), 0.001), step(0.0, s));\r
-	float st = s * (1.0 / (t + EPSILON));\r
-\r
-	float sigma2 = a;\r
-	vec3 A = diffuseColor * (0.17 * sigma2 / (sigma2 + 0.13)) + vec3(1.0 - 0.5 * sigma2 / (sigma2 + 0.33));\r
-	float B = 0.45 * sigma2 / (sigma2 + 0.09);\r
-	return (diffuseColor * max(0.0, dotNL)) * (A + vec3(B * s / t) / PI) / PI;\r
-}\r
-\r
-vec2 applyTransform(vec2 uv, mat4 textureMatrix) {\r
-    mat3 translation = mat3(1, 0, 0, 0, 1, 0, textureMatrix[0].x, textureMatrix[0].y, 1);\r
-    mat3 rotation = mat3(1, 0, 0, 0, 1, 0, 0, 0, 1);\r
-    if (textureMatrix[2].x != 0.0) {\r
-        rotation = mat3(\r
-            cos(-textureMatrix[2].x), sin(-textureMatrix[2].x), 0,\r
-            -sin(-textureMatrix[2].x), cos(-textureMatrix[2].x), 0,\r
-            0, 0, 1\r
-        );\r
-    }\r
-    mat3 scale = mat3(textureMatrix[1].x, 0, 0, 0, textureMatrix[1].y, 0, 0, 0, 1);\r
-\r
-    mat3 matrix = translation * rotation * scale;\r
-    vec2 outUV = ( matrix * vec3(uv, 1.0) ).xy;\r
-    return outUV;\r
-}\r
-float computeWrappedDiffuseNdotL(float NdotL, float w) {\r
-    float t = 1.0+w;\r
-    float invt2 = 1.0/(t*t);\r
-    return saturate((NdotL+w)*invt2);\r
-}\r
-float pow5(float value) {\r
-    float sq = value*value;\r
-    return sq*sq*value;\r
-}\r
-float diffuseBRDF_Burley(float NdotL, float NdotV, float VdotH, float roughness) {\r
-    float diffuseFresnelNV = pow5(saturate(1.0-NdotL)+EPSILON);\r
-    float diffuseFresnelNL = pow5(saturate(1.0-NdotV)+EPSILON);\r
-    float diffuseFresnel90 = 0.5+2.0*VdotH*VdotH*roughness;\r
-    float fresnel = (1.0+(diffuseFresnel90-1.0)*diffuseFresnelNL) *\r
-    (1.0+(diffuseFresnel90-1.0)*diffuseFresnelNV);\r
-    return fresnel/PI;\r
-}\r
-#define absEps(x) abs(x)+EPSILON\r
-\r
-vec3 cocaLambert(vec3 alpha, float distance) {\r
-    return exp(-alpha*distance);\r
-}\r
-#define maxEps(x) max(x, EPSILON)\r
-vec3 transmittanceBRDF_Burley(const vec3 tintColor, const vec3 diffusionDistance, float thickness) {\r
-    vec3 S = 1./maxEps(diffusionDistance);\r
-    vec3 temp = exp((-0.333333333*thickness)*S);\r
-    return tintColor.rgb*0.25*(temp*temp*temp+3.0*temp);\r
-}\r
-\r
-vec3 computeColorAtDistanceInMedia(vec3 color, float distance) {\r
-    return -log(color)/distance;\r
-}\r
-\r
-void main() {\r
-    mat4 inverseViewMatrix = inverse(view);\r
-    vec3 viewPos = inverseViewMatrix[3].xyz;\r
-\r
-    #if defined(WEBGPU)\r
-    Material mat = materials.data[int(id)];\r
-    #else\r
-    Material mat = fetchMaterial(int(id));\r
-    #endif\r
-    ivec4 lights = ivec4(mat.lights);\r
-    vec4 baseColorFactor = mat.baseColorFactor;\r
-    vec3 specularFactor = mat.specularFactor;\r
-    vec3 specularColorFactor = mat.specularColorFactor;\r
-    vec3 emissiveFactor = mat.emissiveFactor;\r
-    float glossinessFactor = mat.glossinessFactor;\r
-    float metallic = mat.metallicFactor;\r
-    float roughness = mat.roughnessFactor;\r
-    float clearcoatBlendFactor = mat.clearcoatFactor;\r
-    float clearcoatRoughness = mat.clearcoatRoughnessFactor;;\r
-    vec3 sheenColor = mat.sheenColorFactor;\r
-    float sheenRoughness = mat.sheenRoughnessFactor;\r
-    float transmission = mat.transmissionFactor;\r
-    float ior = mat.ior;\r
-    float normalTextureScale = mat.normalTextureScale;\r
-    vec3 attenuationColorFactor = mat.attenuationColorFactor; \r
-    float attenuationDistance = mat.attenuationDistance;\r
-    float thickness = mat.thicknessFactor;\r
-    float emissiveStrength = mat.emissiveStrength;\r
-    vec2 anisotropyFactor = mat.anisotropyFactor;\r
-    vec4 iridescence = mat.iridescence;\r
-    float transmissionDiffuse = mat.diffuseTransmissionFactor.x;\r
-    vec3 tintColor = mat.diffuseTransmissionFactor.yzw;\r
-    float dispersionFactor = mat.dispersionFactor;\r
-\r
-    vec2 outUV = outUV0;\r
-    #ifdef BASECOLORTEXTURE\r
-        outUV = getUV(BASECOLORTEXTURE);\r
-        #ifdef BASECOLORTEXTURE_TEXTURE_TRANSFORM\r
-            outUV = applyTransform(outUV, textureMatrices[BASECOLORTEXTURE_TEXTURE_TRANSFORM]);\r
-        #endif\r
-        vec3 baseColor = texture2D(baseColorTexture, outUV).rgb * baseColorFactor.rgb;\r
-        float alpha = min(texture2D(baseColorTexture, outUV).a, baseColorFactor.a);\r
-    #else\r
-        vec3 baseColor = baseColorFactor.rgb;\r
-        float alpha = baseColorFactor.a;\r
-    #endif\r
-\r
-    #ifdef ALPHATEST\r
-    if ( alpha < ALPHATEST ) {\r
-        discard;\r
-    }\r
-    if ( ALPHATEST > 0.01 ) {\r
-        alpha = 1.0;\r
-    }\r
-    #else\r
-        alpha = 1.0;\r
-    #endif\r
-\r
-    if ( length(vColor.rgb) != 0.0 ) {\r
-        baseColor.rgb *= vColor.rgb;\r
-    }\r
-\r
-    #ifdef NOLIGHT\r
-        color = vec4(baseColor, alpha);\r
-        return;\r
-    #endif\r
-\r
-    float ao = 1.0;\r
-    #ifdef OCCLUSIONMAP\r
-        outUV = getUV(OCCLUSIONMAP);\r
-        #ifdef OCCLUSIONMAP_TEXTURE_TRANSFORM\r
-            outUV = applyTransform(outUV, textureMatrices[OCCLUSIONMAP_TEXTURE_TRANSFORM]);\r
-        #endif\r
-        ao = texture2D(occlusionTexture, outUV).r;\r
-    #endif\r
-    \r
-    #ifdef DIFFUSE_TRANSMISSION_MAP\r
-        #ifdef DIFFUSE_TRANSMISSION_MAP_TEXTURE_TRANSFORM\r
-            outUV = applyTransform(outUV, textureMatrices[DIFFUSE_TRANSMISSION_MAP_TEXTURE_TRANSFORM]);\r
-        #endif\r
-        vec4 diffuseTransmissionTextureV = texture2D(diffuseTransmissionTexture, outUV);\r
-        transmissionDiffuse *= diffuseTransmissionTextureV.a;\r
-    #endif\r
-    vec3 attenuationColor = attenuationColorFactor.rgb;\r
-    \r
-    #ifdef DIFFUSE_TRANSMISSION_COLOR_MAP\r
-        #ifdef DIFFUSE_TRANSMISSION_COLOR_MAP_TEXTURE_TRANSFORM\r
-            outUV = applyTransform(outUV, textureMatrices[DIFFUSE_TRANSMISSION_COLOR_MAP_TEXTURE_TRANSFORM]);\r
-        #endif\r
-        vec4 diffuseTransmissionColorTextureV = texture2D(diffuseTransmissionColorTexture, outUV);\r
-        tintColor *= diffuseTransmissionColorTextureV.rgb;\r
-    #endif\r
-    #ifdef CLEARCOATMAP\r
-        outUV = getUV(CLEARCOATMAP);\r
-        #ifdef CLEARCOATMAP_TEXTURE_TRANSFORM\r
-            outUV = applyTransform(outUV, textureMatrices[CLEARCOATMAP_TEXTURE_TRANSFORM]);\r
-        #endif\r
-        clearcoatBlendFactor = texture2D(clearcoatTexture, outUV).r * clearcoatBlendFactor;\r
-    #endif\r
-    #ifdef CLEARCOATROUGHMAP\r
-        outUV = getUV(CLEARCOATROUGHMAP);\r
-        #ifdef CLEARCOATROUGHMAP_TEXTURE_TRANSFORM\r
-            outUV = applyTransform(outUV, textureMatrices[CLEARCOATROUGHMAP_TEXTURE_TRANSFORM]);\r
-        #endif\r
-        clearcoatRoughness = texture2D(clearcoatRoughnessTexture, outUV).g * clearcoatRoughness;\r
-    #endif\r
-    #ifdef SHEENMAP\r
-        outUV = getUV(SHEENMAP);\r
-        #ifdef SHEENMAP_TEXTURE_TRANSFORM\r
-            outUV = applyTransform(outUV, textureMatrices[SHEENMAP_TEXTURE_TRANSFORM]);\r
-        #endif\r
-        vec3 sheenColorTextureV = texture2D(sheenColorTexture, outUV).rgb;\r
-        sheenColor = sheenColorTextureV * sheenColor;\r
-    #endif\r
-    #ifdef SHEENROUGHNESSMAP\r
-        outUV = getUV(SHEENROUGHNESSMAP);\r
-        #ifdef SHEENROUGHNESSMAP_TEXTURE_TRANSFORM\r
-            outUV = applyTransform(outUV, textureMatrices[SHEENROUGHNESSMAP_TEXTURE_TRANSFORM]);\r
-        #endif\r
-    vec4 sheenRoughnessTextureV = texture2D(sheenRoughnessTexture, outUV);\r
-    sheenRoughness = sheenRoughnessTextureV.a * sheenRoughness;\r
-    #endif\r
-    float iridescenceThickness = iridescence.z;\r
-    #ifdef IRIDESCENCEMAP\r
-        #ifdef IRIDESCENCEMAP_TEXTURE_TRANSFORM\r
-            outUV = applyTransform(outUV, textureMatrices[IRIDESCENCEMAP_TEXTURE_TRANSFORM]);\r
-        #endif\r
-        iridescenceThickness = mix(iridescence.w, iridescence.z, texture2D(iridescenceThicknessTexture, outUV).g);\r
-    #endif\r
-    float iridescenceFactor = iridescence.y;\r
-    #ifdef IRIDESCENCE_COLOR\r
-        #ifdef IRIDESCENCE_COLOR_TEXTURE_TRANSFORM\r
-            outUV = applyTransform(outUV, textureMatrices[IRIDESCENCE_COLOR_TEXTURE_TRANSFORM]);\r
-        #endif\r
-        iridescenceFactor *= texture2D(iridescenceTexture, outUV).r;\r
-    #endif\r
-    #ifdef TRANSMISSIONMAP\r
-        #ifdef TRANSMISSIONMAP_TEXTURE_TRANSFORM\r
-            outUV = applyTransform(outUV, textureMatrices[TRANSMISSIONMAP_TEXTURE_TRANSFORM]);\r
-        #endif\r
-        float transmissionTextureV = texture2D(transmissionTexture, outUV).r;\r
-        transmission = transmissionTextureV * transmission;\r
-    #endif\r
-    #ifdef THICKNESSMAP\r
-        #ifdef THICKNESSMAP_TEXTURE_TRANSFORM\r
-            outUV = applyTransform(outUV, textureMatrices[THICKNESSMAP_TEXTURE_TRANSFORM]);\r
-        #endif\r
-        float thicknessTextureV = texture2D(thicknessTexture, outUV).g;\r
-        thickness = thicknessTextureV * thickness;\r
-    #endif\r
-    #ifdef DIFFUSE_TRANSMISSION\r
-        thickness *= 2.2;\r
-    #endif\r
-    vec3 specularMap = vec3(0);\r
-    #ifdef SPECULARGLOSSINESSMAP\r
-        #ifdef METALROUGHNESSMAP\r
-            outUV = getUV(METALROUGHNESSMAP);\r
-            #ifdef METALROUGHNESSMAP_TEXTURE_TRANSFORM\r
-                outUV = applyTransform(outUV, textureMatrices[METALROUGHNESSMAP_TEXTURE_TRANSFORM]);\r
-            #endif\r
-            roughness = 1.0 - texture2D(metallicRoughnessTexture, outUV).a;\r
-            specularMap = texture2D(metallicRoughnessTexture, outUV).rgb;\r
-        #else\r
-            roughness = glossinessFactor;\r
-            specularMap = specularFactor;\r
-        #endif\r
-    #else\r
-        #ifdef METALROUGHNESSMAP\r
-            outUV = getUV(METALROUGHNESSMAP);\r
-            #ifdef METALROUGHNESSMAP_TEXTURE_TRANSFORM\r
-                outUV = applyTransform(outUV, textureMatrices[METALROUGHNESSMAP_TEXTURE_TRANSFORM]);\r
-            #endif\r
-            vec4 metallicRoughness = texture2D(metallicRoughnessTexture, outUV);\r
-            roughness *= metallicRoughness.g;\r
-            metallic *= metallicRoughness.b;\r
-        #endif\r
-    #endif\r
-    float specularWeight = 1.0;\r
-    #ifdef SPECULAR\r
-        specularMap = specularColorFactor;\r
-        #ifdef SPECULARCOLORMAP\r
-        #ifdef SPECULARCOLORMAP_TEXTURE_TRANSFORM\r
-            outUV = applyTransform(outUV, textureMatrices[SPECULARCOLORMAP_TEXTURE_TRANSFORM]);\r
-        #endif\r
-        specularMap *= texture2D(specularColorTexture, outUV).rgb;\r
-        #endif\r
-        specularWeight = specularFactor.x;\r
-        #ifdef SPECULARMAP\r
-        #ifdef SPECULARMAP_TEXTURE_TRANSFORM\r
-            outUV = applyTransform(outUV, textureMatrices[SPECULARMAP_TEXTURE_TRANSFORM]);\r
-        #endif\r
-        specularWeight *= texture2D(specularTexture, outUV).a;\r
-        #endif\r
-    #endif\r
-    vec3 F0 = mix(vec3(0.04), baseColor, metallic);\r
-    #if defined(IOR) && defined(VOLUME)\r
-    F0 = vec3(pow(( ior - 1.0) /  (ior + 1.0), 2.0));\r
-    #endif\r
-    #if defined SPECULAR\r
-    F0 = mix(min(F0 * specularMap, vec3(1.0)), baseColor, metallic);\r
-    #endif\r
-    #if defined SPECULARGLOSSINESSMAP\r
-        F0 = specularMap;\r
-    #endif\r
-\r
-    #ifdef TANGENT\r
-        #ifdef NORMALMAP\r
-            outUV = getUV(NORMALMAP);\r
-            #ifdef NORMALMAP_TEXTURE_TRANSFORM\r
-                outUV = applyTransform(outUV, textureMatrices[NORMALMAP_TEXTURE_TRANSFORM]);\r
-            #endif\r
-            vec3 n = texture2D(normalTexture, outUV).rgb;\r
-            n = normalize(outTBN * (2.0 * n - 1.0) * vec3(normalTextureScale, normalTextureScale, 1.0));\r
-        #else\r
-            vec3 n = normalize(outTBN[2].xyz);\r
-        #endif\r
-    #else\r
-        vec3 n = normalize(outNormal);\r
-    #endif\r
-\r
-    #ifdef TANGENT\r
-    #ifdef CLEARCOATNORMALMAP\r
-        outUV = getUV(CLEARCOATNORMALMAP);\r
-        #ifdef CLEARCOATNORMALMAP_TEXTURE_TRANSFORM\r
-            outUV = applyTransform(outUV, textureMatrices[CLEARCOATNORMALMAP_TEXTURE_TRANSFORM]);\r
-        #endif\r
-        vec3 clearcoatNormal = texture2D(clearcoatNormalTexture, outUV).rgb;\r
-        clearcoatNormal = normalize(outTBN * (2.0 * clearcoatNormal - 1.0));\r
-    #else\r
-        vec3 clearcoatNormal = outTBN[2].xyz;\r
-    #endif\r
-    #else\r
-        vec3 clearcoatNormal = outNormal;\r
-    #endif\r
-\r
-    vec3 viewDir = normalize(viewPos - outPosition);\r
-\r
-    #ifdef DOUBLESIDED\r
-    if (gl_FrontFacing == false) {\r
-        n = -n;\r
-        clearcoatNormal = -clearcoatNormal;\r
-    }\r
-    #endif\r
-\r
-    float shadow = 1.0;\r
-    #ifdef SHADOWMAP\r
-        vec3 l = normalize(lightPos[0] - outPosition);\r
-        float shadowBias = max(0.05 * (1.0 - dot(n, l)), 0.005);\r
-        shadow = 1.0 - ShadowCalculation(outPositionView, shadowBias);\r
-    #endif\r
-\r
-    vec3 anisotropicT = vec3(0.0);\r
-    vec3 anisotropicB = vec3(0.0);\r
-    vec3 anisotropy = vec3(anisotropyFactor.xy, 0.0);\r
-    anisotropy.yz = vec2(cos(anisotropy.y), sin(anisotropy.y));\r
-    #ifdef ANISOTROPYMAP\r
-        #ifdef ANISOTROPYMAP_TEXTURE_TRANSFORM\r
-            outUV = applyTransform(outUV, textureMatrices[ANISOTROPYMAP_TEXTURE_TRANSFORM]);\r
-        #endif\r
-        vec4 anisotropyTex = texture2D(anisotropyTexture, outUV);\r
-        vec2 direction = anisotropyTex.rg * 2.0 - vec2(1.0);\r
-        direction = mat2(anisotropy.y, anisotropy.z, -anisotropy.z, anisotropy.y) * normalize(direction);\r
-        anisotropy.x = anisotropyTex.b * anisotropyFactor.x;\r
-        anisotropy.yz = direction;\r
-    #endif\r
-    #ifdef TANGENT\r
-        anisotropicT = normalize(outTBN * vec3(anisotropy.yz, 0.0));\r
-        anisotropicB = normalize(cross(n, anisotropicT));\r
-    #endif\r
-\r
-    // clamp nan inf\r
-    n = clamp(n, vec3(-1.0), vec3(1.0));\r
-    clearcoatNormal = clamp(clearcoatNormal, vec3(-1.0), vec3(1.0));\r
-\r
-    #ifdef USE_PBR\r
-        vec3 finalDiffuse = vec3(0.0);\r
-        vec3 Lo = vec3(0.0);\r
-\r
-        #ifdef DIFFUSE_TRANSMISSION\r
-        float translucencyIntensity = transmissionDiffuse;\r
-        vec3 transmittance = transmittanceBRDF_Burley(tintColor, vec3(1.0), thickness);\r
-        transmittance *= translucencyIntensity;\r
-        vec3 f_transmission = transmittance;\r
-        vec3 f_transmission2 = transmittance;\r
-        #else\r
-        vec3 f_transmission = cocaLambert(computeColorAtDistanceInMedia(attenuationColor.rgb, attenuationDistance), thickness) * calcTransmission(dispersionFactor, ior, baseColor, n, roughness, viewDir, transmission, thickness);\r
-        #endif\r
-\r
-        if (isDefaultLight == 1.0) {\r
-        for (int j = 0; j < 4; j++) {\r
-            if (lights[j] < 0) continue;\r
-            int i = lights[j];\r
-            vec3 lightDir = normalize(lightPos[i].xyz - outPosition);\r
-            float NdotL = saturate(dot(n, lightDir));\r
-            vec3 H = normalize(viewDir + lightDir);\r
-\r
-            vec3 radiance = lightColor[i].xyz * lightIntensity[i].x * (1.0 / PI);\r
-            float distance = length(lightPos[i].xyz - outPosition);\r
-            float attenuation = 1.0 / (distance * distance);\r
-            if (lightIntensity[i].w == 1.0) { // point\r
-                vec3 irradiance = lightColor[i].xyz * lightIntensity[i].x * attenuation;\r
-                radiance = irradiance * (1.0 / PI);\r
-            }\r
-            if (lightIntensity[i].w == 2.0) { // spot\r
-                float lightAngleScale = 1.0 / max(0.001, cos(lightIntensity[i].y) - cos(lightIntensity[i].z));\r
-                float lightAngleOffset = -cos(lightIntensity[i].z) * lightAngleScale;\r
-\r
-                float cd = dot(spotdir[i].xyz, lightDir);\r
-                float attenuationSpot = saturate(cd * lightAngleScale + lightAngleOffset);\r
-                attenuationSpot *= attenuationSpot;\r
-\r
-                radiance = radiance * attenuationSpot * attenuation;\r
-            }\r
-\r
-            float NdotV = saturate(dot(n, viewDir));\r
-            vec3 iridescenceF0 = vec3(0.0);\r
-            #if defined IRIDESCENCE\r
-            vec3 iridescenceFresnel = evalIridescence(1.0, iridescenceFactor, NdotV, iridescenceThickness, F0);\r
-            iridescenceF0 = Schlick_to_F0(iridescenceFresnel, NdotV);\r
-            vec3 specular = CookTorranceSpecular2(baseColor, metallic, n, H, anisotropicT, anisotropicB, roughness, viewDir, lightDir, anisotropy.x, iridescenceF0, iridescence.x, F0, specularWeight);\r
-            #else\r
-            vec3 specular = CookTorranceSpecular(baseColor, metallic, n, H, anisotropicT, anisotropicB, roughness, viewDir, lightDir, anisotropy.x, F0, specularWeight);\r
-            #endif\r
-            vec3 f_clearcoat = CookTorranceSpecular(vec3(0.0), 0.0, clearcoatNormal, H, anisotropicT, anisotropicB, clearcoatRoughness, viewDir, lightDir, anisotropy.x, F0, specularWeight);\r
-            vec3 clearcoatFresnel = 1.0 - clearcoatBlendFactor * fresnelSchlick(saturate(dot(clearcoatNormal, viewDir)), vec3(0.04));\r
-            #ifndef DIFFUSE_TRANSMISSION\r
-            vec3 diffuse = ImprovedOrenNayarDiffuse(baseColor, metallic, n, H, roughness, viewDir, lightDir, F0, iridescenceF0, iridescence.x, specularWeight);\r
-            //#ifdef CLEARCOAT\r
-            diffuse *= radiance * clearcoatFresnel;\r
-            //#endif\r
-            #else\r
-            float NdotV2 = absEps(dot(n, viewDir));\r
-            float NdotL2 = absEps(dot(n, lightDir));\r
-            float VdotH = absEps(dot(viewDir, H));\r
-            float diffuse = diffuseBRDF_Burley(NdotL2, NdotV2, VdotH, roughness);\r
-            #endif\r
-            #if defined SPECULARGLOSSINESSMAP\r
-                diffuse = baseColor * (1.0 - max(max(specularMap.r, specularMap.g), specularMap.b));\r
-            #endif\r
-            #if defined SHEEN\r
-            vec3 f_sheen = NdotL * (sheenColor * sheenDistribution(sheenRoughness, n, H) * sheenVisibility(n, viewDir, lightDir, sheenRoughness));\r
-            float VN = saturate(dot(viewDir, n));\r
-            float LN = saturate(dot(lightDir, n));\r
-            float albedoSheenScaling = min(1.0 - max3(sheenColor) * E(VN, sheenRoughness), 1.0 - max3(sheenColor) * E(LN, sheenRoughness));\r
-            \r
-            Lo = f_sheen + Lo * albedoSheenScaling;\r
-            #endif\r
-\r
-            Lo += (specular * NdotL * radiance);\r
-            //#ifdef CLEARCOAT\r
-            Lo = Lo * clearcoatFresnel + f_clearcoat * clearcoatBlendFactor;\r
-            //#endif\r
-            vec3 diffuseLobe = vec3(diffuse);\r
-\r
-            #ifdef DIFFUSE_TRANSMISSION\r
-            float trAdapt = step(0., dot(n, lightDir));\r
-            float wrapNdotL = computeWrappedDiffuseNdotL(absEps(dot(n, lightDir)), 0.02);\r
-            vec3 transmittanceNdotL = mix(f_transmission*wrapNdotL, vec3(wrapNdotL), trAdapt);\r
-            diffuseLobe = diffuseLobe * radiance * baseColor;\r
-            diffuseLobe = mix(diffuseLobe, f_transmission * transmittanceNdotL, transmissionDiffuse);\r
-            transmission = 0.0;\r
-            f_transmission = vec3(0.0);\r
-            #else\r
-            diffuseLobe *= (1.0 - transmission);\r
-            #endif\r
-\r
-            #ifndef SCATTERING\r
-            Lo += diffuseLobe;\r
-            #endif\r
-\r
-            finalDiffuse += diffuseLobe;\r
-        }\r
-        }\r
-\r
-        vec3 ambient = vec3(0.0);\r
-        vec3 ambientClearcoat = vec3(0.0);\r
-        vec3 clearcoatFresnel = vec3(1.0);\r
-        vec3 aSpecular;\r
-        vec3 cSpecular;\r
-        vec3 f_sheen = vec3(0.0);\r
-        float albedoSheenScaling = 1.0;\r
-        if (isIBL == 1.0) {\r
-            float NdotV = saturate(dot(n, viewDir));\r
-            vec3 iridescenceFresnel = evalIridescence(1.0, iridescenceFactor, NdotV, iridescenceThickness, F0);\r
-            vec3 iridescenceF0 = Schlick_to_F0(iridescenceFresnel, NdotV);\r
-            ambient = IBLAmbient(baseColor, metallic, n, roughness, viewDir, transmission, sheenColor, sheenRoughness, iridescenceF0, iridescence.x, F0, specularWeight, anisotropy.x, anisotropicB, f_sheen, aSpecular);\r
-            float VN = saturate(dot(viewDir, n));\r
-            albedoSheenScaling = 1.0 - max3(sheenColor) * E(VN, sheenRoughness);\r
-            vec3 placeholder = vec3(0.0);\r
-            ambientClearcoat = IBLAmbient(vec3(0.0), 0.0, clearcoatNormal, clearcoatRoughness, viewDir, transmission, sheenColor, sheenRoughness, iridescenceF0, iridescence.x, F0, specularWeight, anisotropy.x, anisotropicB, placeholder, cSpecular) * clearcoatBlendFactor;\r
-            #ifdef DIFFUSE_TRANSMISSION\r
-            ambient = mix(ambient, f_transmission2, transmissionDiffuse);\r
-            #endif\r
-            #ifndef SPHERICAL_HARMONICS\r
-            #ifndef SCATTERING\r
-            ambient += aSpecular;\r
-            #endif\r
-            ambientClearcoat += cSpecular * clearcoatBlendFactor;\r
-            #endif\r
-            clearcoatFresnel = (1.0 - clearcoatBlendFactor * fresnelSchlick(saturate(dot(clearcoatNormal, viewDir)), vec3(0.04)));\r
-        } else {\r
-            ambient = vec3(0.03) * baseColor * 0.2;\r
-        }\r
-\r
-        vec3 emissive = emissiveFactor;\r
-        #ifdef EMISSIVEMAP\r
-            outUV = getUV(EMISSIVEMAP);\r
-            #ifdef EMISSIVEMAP_TEXTURE_TRANSFORM\r
-                outUV = applyTransform(outUV, textureMatrices[EMISSIVEMAP_TEXTURE_TRANSFORM]);\r
-            #endif\r
-            emissive *= texture2D(emissiveTexture, outUV).rgb;\r
-        #endif\r
-        emissive *= emissiveStrength;\r
-\r
-        #ifdef TRANSMISSION\r
-            float kT = 1.0 - specEnv(n, viewDir, metallic, roughness, F0, specularWeight);\r
-            f_transmission = f_transmission * kT;\r
-            color = vec4((Lo) * clearcoatFresnel + ambientClearcoat, alpha);\r
-            #ifndef SCATTERING\r
-            color.rgb += (ambient * ao + emissive + f_transmission) * clearcoatFresnel;\r
-            #endif\r
-        #else\r
-            color = vec4(ao * ((emissive + Lo) * clearcoatFresnel + ambientClearcoat), alpha);\r
-            #ifndef SCATTERING\r
-            color.rgb += ambient * ao * clearcoatFresnel;\r
-            #endif\r
-        #endif\r
-\r
-        color.rgb = f_sheen + color.rgb * albedoSheenScaling;\r
-    #else\r
-        n = clamp(n, vec3(0.0), vec3(1.0));\r
-        vec3 lightDir = normalize(lightPos[lights[0]].xyz - outPosition);\r
-        vec3 ambient = ambientStrength * lightColor[lights[0]].xyz;\r
-\r
-        float diff = saturate(dot(n, lightDir));\r
-        vec3 diffuse = diff * lightColor[lights[0]].xyz;\r
-\r
-        vec3 reflectDir = reflect(-lightDir, n);\r
-        float spec = pow(saturate(dot(viewDir, reflectDir)), specularPower);\r
-        vec3 specular = specularStrength * spec * lightColor[lights[0]].xyz;\r
-\r
-        color = vec4(emissiveFactor + baseColor.rgb * (ambient + diffuse + specular) * shadow, alpha);\r
-    #endif\r
-\r
-    #ifndef SCATTERING\r
-    if (isTone == 1.0) {\r
-        #ifdef SPHERICAL_HARMONICS\r
-        vec3 X = max(vec3(0.0, 0.0, 0.0), color.rgb - 0.004);\r
-        vec3 retColor = (X * (6.2 * X + 0.5)) / (X * (6.2 * X + 1.7) + 0.06);\r
-        color.rgb = retColor * retColor;\r
-        #else\r
-        color.rgb = vec3(1.0) - exp(-color.rgb * exposure);\r
-        color.rgb = PBRNeutralToneMapping(color.rgb);\r
-        color.rgb = pow(color.rgb, vec3(1.0 / gamma));\r
-        #endif\r
-    }\r
-    #endif\r
-\r
-    #ifdef SPHERICAL_HARMONICS\r
-    color.rgb += aSpecular;\r
-    #endif\r
-\r
-    // normalColor = vec4(n, 0.0);\r
-\r
-    #ifdef SCATTERING\r
-    specColor = vec4(Lo + aSpecular, 1.0);\r
-\r
-    vec3 irradiance = finalDiffuse;\r
-    irradiance += ambient;\r
-    irradiance += f_transmission;\r
-    irradiance /= sqrt(baseColor.rgb);\r
-\r
-    irradianceColor = vec4(clamp(irradiance, vec3(0.), vec3(1.)), 1.0);\r
-    #ifdef TRANSMISSION\r
-    albedoColor = vec4(sqrt(attenuationColor.rgb), 1.0);\r
-    #else\r
-    albedoColor = vec4(sqrt(baseColor), 1.0);\r
-    #endif\r
-    #else\r
-    irradianceColor = vec4(0.0);\r
-    albedoColor = vec4(0.0);\r
-    specColor = vec4(0.0);\r
-    #endif\r
-}\r
-`;
-
-// src/shaders/frag.h
-var frag_default = "#version 300 es\r\nprecision highp float;\r\n\r\n// #ifdef DIFFUSE_TRANSMISSION\r\n//     #define SCATTERING 1\r\n// #endif\r\n\r\n#define texture2D(p, uv) texture(p, uv)\r\n#define textureCube(p, uv) texture(p, uv)\r\n#define textureLodCube(p, uv, i) textureLod(p, uv, i)\r\n#define textureLod2D(p, uv, i) textureLod(p, uv, i)\r\n#define textureLod2D2(p, uv, i) textureLod(p, uv, i)\r\n\r\nuniform sampler2D uMaterialTex;\r\n\r\nin vec4 vColor;\r\nin vec2 outUV0;\r\nin vec2 outUV2;\r\nin vec2 outUV3;\r\nin vec3 outPosition;\r\nin vec4 outPositionView;\r\nflat in int id;\r\n#ifdef TANGENT\r\n    in mat3 outTBN;\r\n#else\r\n    in vec3 outNormal;\r\n#endif\r\n\r\nlayout (location = 0) out vec4 color;\r\nlayout (location = 1) out vec4 normalColor;\r\nlayout (location = 2) out vec4 irradianceColor;\r\nlayout (location = 3) out vec4 albedoColor;\r\nlayout (location = 4) out vec4 specColor;\r\n\r\nstruct Material {\r\n    vec4 lights;\r\n    vec4 iridescence;\r\n    vec4 diffuseTransmissionFactor;\r\n    vec4 baseColorFactor;\r\n    vec3 specularColorFactor;\r\n    vec3 emissiveFactor;\r\n    vec3 sheenColorFactor;\r\n    vec3 attenuationColorFactor; \r\n    vec3 specularFactor;\r\n    vec2 anisotropyFactor;\r\n    float glossinessFactor;\r\n    float metallicFactor;\r\n    float roughnessFactor;\r\n    float clearcoatFactor;\r\n    float clearcoatRoughnessFactor;\r\n    float sheenRoughnessFactor;\r\n    float transmissionFactor;\r\n    float ior;\r\n    float normalTextureScale;\r\n    float attenuationDistance; \r\n    float thicknessFactor;\r\n    float emissiveStrength;\r\n    float dispersionFactor;\r\n};\r\n\r\nMaterial fetchMaterial(int id) {\r\n    Material m;\r\n    int row = id;\r\n    m.baseColorFactor         = texelFetch(uMaterialTex, ivec2(3, row), 0);\r\n    m.specularFactor          = texelFetch(uMaterialTex, ivec2(8, row), 0).xyz;\r\n    m.specularColorFactor     = texelFetch(uMaterialTex, ivec2(4, row), 0).xyz;\r\n    m.emissiveFactor          = texelFetch(uMaterialTex, ivec2(5, row), 0).xyz;\r\n    m.glossinessFactor        = texelFetch(uMaterialTex, ivec2(10, row), 0).x;\r\n    m.metallicFactor          = texelFetch(uMaterialTex, ivec2(11, row), 0).x;\r\n    m.roughnessFactor         = texelFetch(uMaterialTex, ivec2(12, row), 0).x;\r\n    m.clearcoatFactor         = texelFetch(uMaterialTex, ivec2(13, row), 0).x;\r\n    m.clearcoatRoughnessFactor= texelFetch(uMaterialTex, ivec2(14, row), 0).x;\r\n    m.sheenColorFactor        = texelFetch(uMaterialTex, ivec2(6, row), 0).xyz;\r\n    m.sheenRoughnessFactor    = texelFetch(uMaterialTex, ivec2(15, row), 0).x;\r\n    m.transmissionFactor      = texelFetch(uMaterialTex, ivec2(16, row), 0).x;\r\n    m.ior                     = texelFetch(uMaterialTex, ivec2(17, row), 0).x;\r\n    m.normalTextureScale      = texelFetch(uMaterialTex, ivec2(18, row), 0).x;\r\n    m.attenuationColorFactor  = texelFetch(uMaterialTex, ivec2(7, row), 0).xyz;\r\n    m.attenuationDistance     = texelFetch(uMaterialTex, ivec2(19, row), 0).x;\r\n    m.thicknessFactor         = texelFetch(uMaterialTex, ivec2(20, row), 0).x;\r\n    m.emissiveStrength        = texelFetch(uMaterialTex, ivec2(21, row), 0).x;\r\n    m.anisotropyFactor        = texelFetch(uMaterialTex, ivec2(9, row), 0).xy;\r\n    m.iridescence             = texelFetch(uMaterialTex, ivec2(1, row), 0);\r\n    m.diffuseTransmissionFactor= texelFetch(uMaterialTex, ivec2(2, row), 0);\r\n    m.dispersionFactor        = texelFetch(uMaterialTex, ivec2(22, row), 0).x;\r\n    m.lights                  = texelFetch(uMaterialTex, ivec2(0, row), 0);\r\n    return m;\r\n}\r\n\r\nuniform Matrices2 {\r\n    mat4 view;\r\n    mat4 projection;\r\n    mat4 light;\r\n    float isShadow;\r\n};\r\nuniform LightPos {\r\n    vec4 lightPos[LIGHTNUMBER];\r\n};\r\nuniform LightColor {\r\n    vec4 lightColor[LIGHTNUMBER];\r\n};\r\nuniform Spotdir {\r\n    vec4 spotdir[LIGHTNUMBER];\r\n};\r\nuniform LightIntensity {\r\n    vec4 lightIntensity[LIGHTNUMBER];\r\n};\r\n#if defined MATRICES\r\nuniform TextureMatrices {\r\n    mat4 textureMatrices[MATRICES];\r\n};\r\n#endif\r\n#ifdef SPHERICAL_HARMONICS\r\nuniform SphericalHarmonics {\r\n    vec4 vSphericalL00;\r\n    vec4 vSphericalL1_1;\r\n    vec4 vSphericalL10;\r\n    vec4 vSphericalL11;\r\n    vec4 vSphericalL2_2;\r\n    vec4 vSphericalL2_1;\r\n    vec4 vSphericalL20;\r\n    vec4 vSphericalL21;\r\n    vec4 vSphericalL22;\r\n    mat4 rotationMatrix;\r\n};\r\n#endif\r\n\r\nuniform sampler2D baseColorTexture;\r\nuniform sampler2D metallicRoughnessTexture;\r\nuniform sampler2D normalTexture;\r\nuniform sampler2D emissiveTexture;\r\nuniform sampler2D occlusionTexture;\r\nuniform sampler2D clearcoatTexture;\r\nuniform sampler2D clearcoatRoughnessTexture;\r\nuniform sampler2D transmissionTexture;\r\nuniform sampler2D sheenColorTexture;\r\nuniform sampler2D sheenRoughnessTexture;\r\nuniform sampler2D iridescenceThicknessTexture;\r\nuniform sampler2D iridescenceTexture;\r\nuniform sampler2D clearcoatNormalTexture;\r\nuniform sampler2D specularTexture;\r\nuniform sampler2D specularColorTexture;\r\nuniform sampler2D thicknessTexture;\r\nuniform sampler2D diffuseTransmissionTexture;\r\nuniform sampler2D diffuseTransmissionColorTexture;\r\nuniform sampler2D anisotropyTexture;\r\n\r\nuniform samplerCube prefilterMap;\r\nuniform samplerCube charlieMap;\r\nuniform sampler2D brdfLUT;  \r\nuniform samplerCube irradianceMap;\r\nuniform sampler2D depthTexture;\r\nuniform sampler2D colorTexture;\r\nuniform float isTone;\r\nuniform float isIBL;\r\nuniform float isDefaultLight;\r\nuniform sampler2D Sheen_E;\r\n";
-
-// src/shaders/vert.h
-var vert_default = "#version 300 es\r\nprecision highp float;\r\n\r\nlayout (location = 0) in vec3 inPosition;\r\nlayout (location = 1) in vec3 inNormal;\r\nlayout (location = 2) in vec2 inUV;\r\nlayout (location = 4) in vec4 inJoint;\r\nlayout (location = 5) in vec4 inWeight;\r\nlayout (location = 3) in vec4 inTangent;\r\nlayout (location = 6) in vec4 inColor;\r\nlayout (location = 7) in vec2 inUV2;\r\nlayout (location = 8) in vec2 inUV3;\r\nlayout (location = 9) in float uMaterialID;\r\n\r\nuniform sampler2D uTransformTex;\r\n\r\nout vec4 vColor;\r\nout vec2 outUV0;\r\nout vec2 outUV2;\r\nout vec2 outUV3;\r\nout vec3 outPosition;\r\nout vec4 outPositionView;\r\nflat out int id;\r\n#ifdef TANGENT\r\n    out mat3 outTBN;\r\n#else\r\n    out vec3 outNormal;\r\n#endif\r\n\r\nstruct Transform {\r\n    mat4 model;\r\n};\r\nTransform fetchTransform(int id) {\r\n    Transform t;\r\n\r\n    // 8 texels across (0..7)\r\n    t.model[0] = texelFetch(uTransformTex, ivec2(0, id), 0);\r\n    t.model[1] = texelFetch(uTransformTex, ivec2(1, id), 0);\r\n    t.model[2] = texelFetch(uTransformTex, ivec2(2, id), 0);\r\n    t.model[3] = texelFetch(uTransformTex, ivec2(3, id), 0);\r\n\r\n    return t;\r\n}\r\nuniform Matrices2 {\r\n    mat4 view;\r\n    mat4 projection;\r\n    mat4 light;\r\n    float isShadow;\r\n};\r\n#ifdef JOINTNUMBER\r\nuniform Skin {\r\n    mat4 joint[JOINTNUMBER];\r\n};\r\n#endif";
-
 // src/parseTextures.ts
-function createShaderProgram(input, defines) {
-  let program;
-  const programHash = defines.map((define2) => `${define2.name}${define2.value ?? 1}`).join("");
-  if (input.programs[programHash]) {
-    program = input.programs[programHash];
-  } else {
-    const defineStr = defines.map((define2) => `#define ${define2.name} ${define2.value ?? 1}
-`).join("");
-    const shaders = [vertex_default, fragment_default].map(
-      (p) => p.replace(/#include ".*/g, (str) => {
-        const [, subPath] = str.split('"');
-        if (subPath.includes("vert")) {
-          return vert_default;
-        } else {
-          return frag_default;
-        }
-      })
-    ).map((p) => p.replace(/\n/, `
-${defineStr}`));
-    input.programs[programHash] = createProgram(input.gl, shaders[0], shaders[1]);
-    program = input.programs[programHash];
-  }
-  return program;
-}
-function createSamplers(input, output) {
-  const webglGl = input.gl;
-  const samplers = input.json.samplers || [{}];
-  output.samplers = samplers.map((s) => {
-    const sampler = webglGl.createSampler();
-    webglGl.samplerParameteri(sampler, webglGl.TEXTURE_MIN_FILTER, s.minFilter || webglGl.LINEAR_MIPMAP_LINEAR);
-    webglGl.samplerParameteri(sampler, webglGl.TEXTURE_MAG_FILTER, s.magFilter || webglGl.LINEAR);
-    webglGl.samplerParameteri(sampler, webglGl.TEXTURE_WRAP_S, s.wrapS || webglGl.REPEAT);
-    webglGl.samplerParameteri(sampler, webglGl.TEXTURE_WRAP_T, s.wrapT || webglGl.REPEAT);
-    return sampler;
-  });
-}
-function createSamplersWebGPU(input, output, WebGPU) {
-  function getSamplerParam(value) {
-    const map = {
-      9987: "linear",
-      9729: "linear",
-      9986: "nearest",
-      9728: "nearest",
-      10497: "repeat",
-      33648: "mirror-repeat",
-      33071: "clamp-to-edge"
-    };
-    return value === void 0 ? void 0 : map[value];
-  }
-  const samplers = input.json.samplers || [{}];
-  output.samplers = samplers.map((s) => {
-    const sampler = WebGPU.device.createSampler({
-      mipmapFilter: "linear",
-      magFilter: getSamplerParam(s.magFilter) || "linear",
-      minFilter: getSamplerParam(s.minFilter) || "linear",
-      addressModeU: getSamplerParam(s.wrapS) || "repeat",
-      addressModeV: getSamplerParam(s.wrapT) || "repeat",
-      addressModeW: getSamplerParam(s.wrapS) || "repeat"
-    });
-    sampler.id = (getSamplerParam(s.minFilter) || "linear") + (getSamplerParam(s.magFilter) || "linear");
-    return sampler;
-  });
-}
-function createTexturesWebGPU(input, WebGPU) {
-  createTextures(
-    input,
-    (t, textureType) => handleTextureLoadedWebGPU(input, WebGPU, t, textureType)
-  );
-}
-function createTexturesWebGL(input) {
-  createTextures(
-    input,
-    (t) => handleTextureLoaded(
-      input,
-      t
-    )
-  );
-}
-function createTextures(input, callback) {
-  input.scene.meshes.forEach((mesh) => {
-    const materials = [mesh.material, ...mesh.variants.map((m) => m.m)];
-    const textureTypes = [
-      "baseColorTexture",
-      "metallicRoughnessTexture",
-      "emissiveTexture",
-      "normalTexture",
-      "occlusionTexture",
-      "clearcoatTexture",
-      "clearcoatRoughnessTexture",
-      "clearcoatNormalTexture",
-      "sheenColorTexture",
-      "sheenRoughnessTexture",
-      "transmissionTexture",
-      "specularTexture",
-      "specularColorTexture",
-      "thicknessTexture",
-      "iridescenceThicknessTexture",
-      "iridescenceTexture",
-      "diffuseTransmissionTexture",
-      "diffuseTransmissionColorTexture",
-      "anisotropyTexture"
-    ];
-    const textureSRGB = [
-      "baseColorTexture",
-      "sheenColorTexture",
-      "emissiveTexture",
-      "diffuseTransmissionColorTexture",
-      mesh.defines.find((d) => d.name === "SPECULARGLOSSINESSMAP") && "metallicRoughnessTexture"
-    ];
-    for (let i = 0; i < textureTypes.length; i++) {
-      for (const material of materials) {
-        const textureType = textureTypes[i];
-        const t = material[textureType];
-        if (!t) {
-          continue;
-        }
-        if (textureSRGB.find((name) => name === textureType)) {
-          t.srgb = true;
-        }
-        material[textureType] = callback(t, textureType);
-      }
-    }
-  });
-}
 async function initTextures(input, output, isbitmap) {
   if (!input.json.textures) {
     return true;
@@ -15910,13 +14596,18 @@ async function initTextures(input, output, isbitmap) {
     await new Promise((resolve) => setTimeout(resolve, 1e3));
   }
   const promiseArr = Object.values(texturesMap).map((t) => {
-    let s = t.extensions && t.extensions.KHR_texture_basisu ? t.extensions.KHR_texture_basisu.source : t.source;
+    const isBasisu = Boolean(t.extensions && t.extensions.KHR_texture_basisu);
+    let s = isBasisu ? t.extensions.KHR_texture_basisu.source : t.source;
     s = t.extensions && t.extensions.EXT_texture_webp ? t.extensions.EXT_texture_webp.source : s;
     const source = input.json.images[s];
     return fetchImage(
       isbitmap,
       input,
-      source,
+      // KHR_texture_basisu images aren't required to carry mimeType
+      // themselves (the extension reference is what marks them as
+      // KTX2) - fetchImage only branches to the KTX2 loader off
+      // mimeType, so make that explicit here.
+      isBasisu ? { ...source, mimeType: "image/ktx2" } : source,
       {
         url: `${input.host}${source.uri}`,
         name: t.name
@@ -15931,219 +14622,60 @@ async function initTextures(input, output, isbitmap) {
     return true;
   });
 }
-function handleTextureLoadedWebGPU(input, WebGPU, { image: bitmap, sampler, srgb, name }, textureType) {
-  if (input.images.get(name)) {
-    return input.images.get(name);
-  }
-  const { device } = WebGPU;
-  const s = input.samplers[sampler !== void 0 ? sampler : 0];
-  const mipLevelCount = Math.max(1, Math.floor(Math.log2(Math.max(bitmap.width, bitmap.height))) - 2);
-  const tex = device.createTexture({
-    label: textureType,
-    size: [bitmap.width, bitmap.height, 1],
-    format: srgb ? "rgba8unorm-srgb" : "rgba8unorm",
-    usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT,
-    mipLevelCount
-  });
-  device.queue.copyExternalImageToTexture(
-    { source: bitmap },
-    { premultipliedAlpha: false, texture: tex, mipLevel: 0, origin: { x: 0, y: 0, z: 0 } },
-    { width: bitmap.width, height: bitmap.height, depthOrArrayLayers: 1 }
-  );
-  tex.sampler = s;
-  tex.view = tex.createView();
-  generateMipmaps(device, tex, bitmap.width, bitmap.height, mipLevelCount);
-  input.images.set(name, tex);
-  return tex;
-}
-function handleTextureLoaded(input, {
-  image,
-  name,
-  mimeType,
-  sampler,
-  srgb = false
-}) {
-  const s = input.samplers[sampler !== void 0 ? sampler : 0];
-  if (mimeType) {
-    image.sampler = s;
-    return image;
-  }
-  if (input.images.has(name + srgb)) {
-    return input.images.get(name + srgb);
-  }
-  const webglGl = input.gl;
-  const t = webglGl.createTexture();
-  t.name = name;
-  t.image = image.src.substr(image.src.lastIndexOf("/"));
-  t.sampler = s;
-  webglGl.activeTexture(webglGl[`TEXTURE${31}`]);
-  webglGl.bindTexture(webglGl.TEXTURE_2D, t);
-  webglGl.pixelStorei(webglGl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
-  webglGl.pixelStorei(webglGl.UNPACK_COLORSPACE_CONVERSION_WEBGL, webglGl.NONE);
-  webglGl.texImage2D(webglGl.TEXTURE_2D, 0, srgb ? webglGl.SRGB8_ALPHA8 : webglGl.RGBA, webglGl.RGBA, webglGl.UNSIGNED_BYTE, image);
-  webglGl.generateMipmap(webglGl.TEXTURE_2D);
-  input.images.set(name + srgb, t);
-  return t;
-}
 
-// src/parseContext.ts
-var ParseContext = class {
-  gl;
-  tracks;
-  url;
-  host;
-  skins;
-  textures;
-  images;
-  samplers;
-  arrayBuffer;
-  cameras;
-  lights;
-  programs;
-  scene;
-  camera;
-  light;
-  canvas;
-  resize;
-  json;
-  defines;
-  draco;
-  constructor(url, defines, resize) {
-    this.url = url;
-    this.host = url.substr(0, url.lastIndexOf("/") + 1);
-    this.tracks = [];
-    this.skins = [];
-    this.textures = null;
-    this.images = /* @__PURE__ */ new Map();
-    this.samplers = null;
-    this.arrayBuffer = null;
-    this.cameras = [];
-    this.lights = [];
-    this.programs = {};
-    this.defines = defines;
-    this.resize = resize;
-  }
-};
+// src/state.ts
 function commit(target, patch) {
   Object.assign(target, patch);
 }
-
-// src/parse.ts
-var Parse = class {
-  context;
-  constructor(url, defines, resize) {
-    this.context = new ParseContext(url, defines, resize);
-  }
-  // Runs a function that writes into a fresh patch instead of the live
-  // context, then commits that patch in one place - so call sites below
-  // don't each repeat "make a patch, call, commit."
-  withPatch(run) {
-    const patch = {};
-    const result = run(patch);
-    commit(this.context, patch);
-    return result;
-  }
-  async withPatchAsync(run) {
-    const patch = {};
-    const result = await run(patch);
-    commit(this.context, patch);
-    return result;
-  }
-  get tracks() {
-    return this.context.tracks;
-  }
-  get json() {
-    return this.context.json;
-  }
-  get lights() {
-    return this.context.lights;
-  }
-  get cameras() {
-    return this.context.cameras;
-  }
-  get skins() {
-    return this.context.skins;
-  }
-  setScene(scene) {
-    this.context.scene = scene;
-  }
-  setGl(g) {
-    this.context.gl = g;
-  }
-  setCamera(camera) {
-    this.context.camera = camera;
-  }
-  setLight(light) {
-    this.context.light = light;
-  }
-  setCanvas(canvas) {
-    this.context.canvas = canvas;
-  }
-  getJson() {
-    return this.withPatchAsync((patch) => getJson(this.context, patch));
-  }
-  getBuffer() {
-    return this.withPatchAsync((patch) => getBuffer(this.context, patch));
-  }
-  getEnv(isBuffer) {
-    return getEnv(this.context, isBuffer);
-  }
-  calculateFov(isInitial) {
-    return calculateFov(this.context, isInitial);
-  }
-  buildMesh() {
-    return this.withPatchAsync((patch) => buildMesh(this.context, patch));
-  }
-  buildSkin() {
-    return buildSkin(this.context);
-  }
-  buildAnimation() {
-    return buildAnimation(this.context);
-  }
-  createProgram(defines) {
-    return createShaderProgram(this.context, defines);
-  }
-  createSamplers() {
-    this.withPatch((patch) => createSamplers(this.context, patch));
-  }
-  createSamplersWebGPU(WebGPU) {
-    this.withPatch((patch) => createSamplersWebGPU(this.context, patch, WebGPU));
-  }
-  createTexturesWebGPU(WebGPU) {
-    return createTexturesWebGPU(this.context, WebGPU);
-  }
-  createTexturesWebGL() {
-    return createTexturesWebGL(this.context);
-  }
-  initTextures(isbitmap) {
-    return this.withPatchAsync((patch) => initTextures(this.context, patch, isbitmap));
-  }
-};
 
 // src/redcube.node.ts
 var FOV = 45;
 var RedCube = class {
   url;
-  parse;
+  state;
   camera;
   constructor(url) {
     if (!url) {
       throw new Error("RedCube: a glTF url must be passed as the first constructor argument");
     }
     this.url = url;
+    const scene = new Scene();
+    this.state = {
+      scene,
+      url,
+      host: url.substr(0, url.lastIndexOf("/") + 1),
+      defines: [],
+      tracks: [],
+      json: void 0,
+      skins: [],
+      cameras: [],
+      lights: [],
+      textures: null,
+      images: /* @__PURE__ */ new Map(),
+      samplers: null,
+      arrayBuffer: null,
+      programs: {},
+      renderState: {},
+      isIBL: true,
+      isDefaultLight: true,
+      needUpdateView: true,
+      needUpdateProjection: true
+    };
+  }
+  async withPatchAsync(run) {
+    const patch = {};
+    const result = await run(patch);
+    commit(this.state, patch);
+    return result;
   }
   async init(cb) {
-    const scene = new Scene();
-    this.parse = new Parse(this.url, [], () => {
-    });
-    this.parse.setScene(scene);
-    await this.parse.getJson();
-    await this.parse.getBuffer();
-    await this.parse.initTextures(false);
-    this.parse.buildSkin();
-    await this.parse.buildMesh();
-    this.parse.buildAnimation();
-    if (this.parse.cameras.length === 0) {
+    await this.withPatchAsync((patch) => getJson(this.state, patch));
+    await this.withPatchAsync((patch) => getBuffer(this.state, patch));
+    await this.withPatchAsync((patch) => initTextures(this.state, patch, false));
+    buildSkin(this.state);
+    await buildMesh(this.state);
+    buildAnimation(this.state);
+    if (this.state.cameras.length === 0) {
       this.camera = new Camera(
         {
           type: "perspective",
@@ -16156,16 +14688,17 @@ var RedCube = class {
         },
         "perspective"
       );
-      this.parse.cameras.push(this.camera);
+      this.state.cameras.push(this.camera);
     }
-    const [c] = this.parse.cameras;
+    const [c] = this.state.cameras;
     this.camera = c;
-    this.parse.calculateFov(this.camera.props.isInitial);
+    this.state.camera = c;
+    calculateFov(this.state, this.camera.props.isInitial);
     this.resize();
-    scene.tracks = this.parse.tracks;
-    scene.cameras = this.parse.cameras;
-    scene.lights = this.parse.lights;
-    cb(scene);
+    this.state.scene.tracks = this.state.tracks;
+    this.state.scene.cameras = this.state.cameras;
+    this.state.scene.lights = this.state.lights;
+    cb(this.state.scene);
   }
   resize() {
     const z = this.camera.modelSize;

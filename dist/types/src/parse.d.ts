@@ -1,21 +1,16 @@
-import { Camera, Scene, Light } from './objects/index';
+import { Scene, Light } from './objects/index';
 import { ParseContext, Define } from './parseContext';
 export type { Track, Key, Skin, Define } from './parseContext';
 export declare class Parse {
     context: ParseContext;
-    constructor(url: string, defines: Array<Define>, resize: () => void);
+    constructor(url: string, defines: Array<Define>, resize: () => void, scene: Scene, light?: Light, canvas?: HTMLCanvasElement, gl?: WebGL2RenderingContext | WEBGPU);
     private withPatch;
     private withPatchAsync;
     get tracks(): import("./parseContext").Track[][];
     get json(): import("../GLTF").GlTf;
     get lights(): Light[];
-    get cameras(): Camera[];
+    get cameras(): import("./objects/camera").Camera[];
     get skins(): import("./parseContext").Skin[];
-    setScene(scene: Scene): void;
-    setGl(g: WebGL2RenderingContext | WEBGPU): void;
-    setCamera(camera: Camera): void;
-    setLight(light: Light): void;
-    setCanvas(canvas: HTMLCanvasElement): void;
     getJson(): Promise<void | boolean>;
     getBuffer(): Promise<void>;
     getEnv(isBuffer: boolean): Promise<any>;

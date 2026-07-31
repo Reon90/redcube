@@ -2,10 +2,8 @@ import { Matrix4, Vector4 } from '../matrix';
 import { Object3D } from './object3d';
 import { Geometry } from './geometry';
 import { Material } from './material';
-import { UniformBufferLike } from './uniform';
 import type { Scene } from './scene';
-import type { Define, Skin } from '../parse';
-import type { State, RenderPassState } from '../renderer';
+import type { Define, Skin, State } from '../state';
 export declare class Mesh extends Object3D {
     geometry: Geometry;
     material: Material;
@@ -26,11 +24,7 @@ export declare class Mesh extends Object3D {
     setDefines(defines: Array<Define>): void;
     setBlend(value: string): void;
     setMaterial(material: Material): void;
-    drawWebGPU(WebGPU: WEBGPU, passEncoder: GPURenderPassEncoder, i: number, { renderState, materialStorage, transformsStorage, }: {
-        renderState: RenderPassState;
-        materialStorage: UniformBufferLike;
-        transformsStorage: UniformBufferLike;
-    }): void;
+    drawWebGPU(WebGPU: WEBGPU, passEncoder: GPURenderPassEncoder, i: number, { renderState, materialStorage, transformsStorage }: State): void;
     draw(gl: WebGL2RenderingContext, { lights, camera, needUpdateProjection, preDepthTexture, colorTexture, renderState, fakeDepth, isIBL, isDefaultLight }: State): void;
     setGeometry(geometry: Geometry): void;
     setProgram(value: WebGLProgram): void;

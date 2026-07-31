@@ -1,5 +1,3 @@
-import { Camera, Light as LightObj } from './objects/index';
-import { Renderer } from './renderer';
 import { SSAO } from './postprocessors/ssao';
 import { Bloom } from './postprocessors/bloom';
 import { Shadow } from './postprocessors/shadow';
@@ -7,6 +5,8 @@ import { Refraction } from './postprocessors/refraction';
 import { Light } from './postprocessors/light';
 import { PostProcessor } from './postprocessors/base';
 import { Scattering } from './postprocessors/scattering';
+import type { State } from './state';
+import type { Camera } from './objects/index';
 declare const processorsMap: {
     bloom: typeof Bloom;
     ssao: typeof SSAO;
@@ -31,7 +31,7 @@ interface WebGPUProcessor {
     attachUniformWebGPU?(): GPUBindGroupEntry;
 }
 export declare class PostProcessing {
-    gl: WEBGPU;
+    getState: () => State;
     screenTexture: GPUTextureSet;
     normalTexture: GPUTextureSet;
     irradianceTexture: GPUTextureSet;
@@ -40,9 +40,6 @@ export declare class PostProcessing {
     depthTexture: GPUTextureSet;
     preDepthTexture: GPUTextureSet;
     fakeDepth: GPUTextureSet;
-    camera: Camera;
-    renderer: Renderer;
-    canvas: HTMLCanvasElement;
     framebuffer: WebGLFramebuffer;
     preframebuffer: WebGLFramebuffer;
     postprocessors: Array<PostProcessor & Partial<WebGPUProcessor>>;
@@ -62,16 +59,14 @@ export declare class PostProcessing {
     bindGroup: GPUBindGroup;
     hasPostPass: boolean;
     hasPrePass: boolean;
-    constructor(processors: ProcessorName[], renderScene: (renderState: {
+    constructor(getState: () => State, canvas: HTMLCanvasElement, processors: ProcessorName[], renderScene: (renderState: {
         isprepender?: boolean;
         isprerefraction?: boolean;
     }) => void);
+    private get gl();
     add(name: ProcessorName): void;
     addPrepass(name: ProcessorName): void;
     setCamera(camera: Camera): void;
-    setLight(light: LightObj): void;
-    setGl(g: WEBGPU): void;
-    setCanvas(canvas: HTMLCanvasElement): void;
     get width(): number;
     get height(): number;
     bindPrePass(): void;

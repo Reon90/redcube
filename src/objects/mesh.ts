@@ -3,10 +3,8 @@ import { Object3D } from './object3d';
 import { Geometry } from './geometry';
 import { Material } from './material';
 import { ArrayBufferMap } from '../utils';
-import { UniformBufferLike } from './uniform';
 import type { Scene } from './scene';
-import type { Define, Skin } from '../parse';
-import type { State, RenderPassState } from '../renderer';
+import type { Define, Skin, State } from '../state';
 
 export class Mesh extends Object3D {
     geometry!: Geometry;
@@ -44,40 +42,31 @@ export class Mesh extends Object3D {
         this.material = material;
     }
 
-    drawWebGPU(
-        WebGPU: WEBGPU,
-        passEncoder: GPURenderPassEncoder,
-        i: number,
-        {
-            renderState,
-            materialStorage,
-            transformsStorage,
-        }: { renderState: RenderPassState; materialStorage: UniformBufferLike; transformsStorage: UniformBufferLike },
-    ) {
+    drawWebGPU(WebGPU: WEBGPU, passEncoder: GPURenderPassEncoder, i: number, { renderState, materialStorage, transformsStorage }: State) {
         const { isprerefraction } = renderState;
         if (this.defines!.find((i) => i.name === 'TRANSMISSION') && isprerefraction) {
             return;
         }
         if (this.reflow) {
             // matrixWorld changed
-            transformsStorage.store!.set(this.matrixWorld.elements, i * this.geometry.uniformBuffer!.store!.length);
+            transformsStorage!.store!.set(this.matrixWorld.elements, i * this.geometry.uniformBuffer!.store!.length);
             WebGPU.device.queue.writeBuffer(
-                transformsStorage.bufferWebGPU!,
+                transformsStorage!.bufferWebGPU!,
                 0,
-                transformsStorage.store!.buffer,
-                transformsStorage.store!.byteOffset,
-                transformsStorage.store!.byteLength,
+                transformsStorage!.store!.buffer,
+                transformsStorage!.store!.byteOffset,
+                transformsStorage!.store!.byteLength,
             );
         }
         if (this.repaint) {
             // matrixWorld changed
-            materialStorage.store!.set(this.material.materialUniformBuffer.store!, i * this.material.materialUniformBuffer.store!.length);
+            materialStorage!.store!.set(this.material.materialUniformBuffer.store!, i * this.material.materialUniformBuffer.store!.length);
             WebGPU.device.queue.writeBuffer(
-                materialStorage.bufferWebGPU!,
+                materialStorage!.bufferWebGPU!,
                 0,
-                materialStorage.store!.buffer,
-                materialStorage.store!.byteOffset,
-                materialStorage.store!.byteLength,
+                materialStorage!.store!.buffer,
+                materialStorage!.store!.byteOffset,
+                materialStorage!.store!.byteLength,
             );
         }
         if (this instanceof SkinnedMesh) {
@@ -145,8 +134,8 @@ export class Mesh extends Object3D {
             gl.bindBufferBase(gl.UNIFORM_BUFFER, 7, this.material.sphericalHarmonics);
         }
 
-        gl.uniform1i(this.material.uniforms.depthTexture, preDepthTexture && !isprepender ? preDepthTexture.index : fakeDepth.index);
-        gl.uniform1i(this.material.uniforms.colorTexture, !isprerefraction ? colorTexture.index : fakeDepth.index);
+        gl.uniform1i(this.material.uniforms.depthTexture, preDepthTexture && !isprepender ? preDepthTexture.index : fakeDepth!.index);
+        gl.uniform1i(this.material.uniforms.colorTexture, !isprerefraction ? colorTexture!.index : fakeDepth!.index);
         gl.uniform1f(this.material.uniforms.isTone, isprerefraction ? 0 : 1);
         gl.uniform1f(this.material.uniforms.isIBL, isIBL ? 1 : 0);
         gl.uniform1f(this.material.uniforms.isDefaultLight, isDefaultLight || lights.some((l) => !l.isInitial) ? 1 : 0);

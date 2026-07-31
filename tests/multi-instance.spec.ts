@@ -94,9 +94,10 @@ test('two RedCube instances on the same page render independently', async ({ pag
     await page.evaluate(() => {
         const renderer2 = (window as any).renderer2;
         renderer2.resize(true);
-        renderer2.renderer.reflow = true;
-        renderer2.renderer.needUpdateView = true;
-        renderer2.renderer.needUpdateProjection = true;
+        const state2 = renderer2.getState();
+        state2.renderer.reflow = true;
+        state2.renderer.needUpdateView = true;
+        state2.renderer.needUpdateProjection = true;
     });
     await page.waitForTimeout(500);
 

@@ -1,12 +1,6 @@
-import { Container } from './container';
-import { Renderer } from './renderer';
-import { Scene, Camera, Light, Object3D, UniformBuffer } from './objects/index';
+import { Scene, Camera, Object3D } from './objects/index';
 import { Events } from './events';
-import { Env } from './env';
-import { Parse, Skin } from './parse';
-import { PostProcessing } from './postprocessing';
-import { Particles } from './particles';
-import { GLTexture } from './utils';
+import { State, Define, Skin } from './state';
 import '../webgl-memory';
 declare global {
     interface Window {
@@ -14,41 +8,18 @@ declare global {
     }
 }
 declare class RedCube {
-    gl: WebGL2RenderingContext;
     canvas: HTMLCanvasElement;
     events: Events;
     processors: Array<string>;
-    ioc: Container;
-    renderState: {
-        isprepender?: boolean;
-        isprerefraction?: boolean;
-    };
-    isIBL: boolean;
-    isDefaultLight: boolean;
-    stateBuffer?: UniformBuffer;
-    cameraBuffer: UniformBuffer;
-    lightPosBuffer: UniformBuffer;
-    lightColorBuffer: UniformBuffer;
-    storage2: {
-        texture: WebGLTexture;
-    };
-    storage: {
-        texture2: WebGLTexture;
-    };
-    lightPosUniform: WebGLBuffer;
-    lightColorUniform: WebGLBuffer;
-    spotdirUniform: WebGLBuffer;
-    lightIntensityUniform: WebGLBuffer;
-    UBO: WebGLBuffer;
+    url: string;
+    envUrl: string;
+    defines: Array<Define>;
+    state: State;
     constructor(url: string, canvas: HTMLCanvasElement, processors?: string[], envUrl?: string, mode?: string);
-    get renderer(): Renderer;
-    get scene(): Scene;
-    get camera(): Camera;
-    get light(): Light;
-    get env(): Env;
-    get PP(): PostProcessing;
-    get Particles(): Particles;
-    get parse(): Parse;
+    getState(): State;
+    private withPatch;
+    private withPatchAsync;
+    setActiveCamera(camera: Camera): void;
     setVariant(variant: string | number): void;
     init(cb: (scene: Scene) => void): Promise<void>;
     buildBones(join: number, v: Skin, node: Object3D | Scene): void;
@@ -61,40 +32,5 @@ declare class RedCube {
     glInit(): void;
     draw(): void;
     initialDraw(): void;
-    getState(): {
-        storage: {
-            texture2: WebGLTexture;
-        };
-        storage2: {
-            texture: WebGLTexture;
-        };
-        UBO: WebGLBuffer;
-        cameraBuffer: UniformBuffer;
-        lightPosUniform: WebGLBuffer;
-        lightColorUniform: WebGLBuffer;
-        spotdirUniform: WebGLBuffer;
-        lightIntensityUniform: WebGLBuffer;
-        lightPosBuffer: UniformBuffer;
-        lightColorBuffer: UniformBuffer;
-        isIBL: boolean;
-        isDefaultLight: boolean;
-        renderState: {
-            isprepender?: boolean;
-            isprerefraction?: boolean;
-        };
-        lights: Light[];
-        camera: Camera;
-        light: Light;
-        preDepthTexture: GLTexture;
-        colorTexture: GLTexture;
-        fakeDepth: GLTexture;
-        needUpdateView: boolean;
-        needUpdateProjection: boolean;
-        irradiancemap: GLTexture;
-        Sheen_E: GLTexture;
-        prefilterMap: GLTexture;
-        charlieMap: GLTexture;
-        brdfLUT: GLTexture;
-    };
 }
 export { RedCube };

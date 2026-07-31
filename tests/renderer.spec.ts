@@ -63,6 +63,7 @@ const MODELS = [
     'CompareVolume',
     'Corset',
     'Cube',
+    'CubeVisibility',
     'DamagedHelmet',
     'DiffuseTransmissionPlant',
     'DiffuseTransmissionTeacup',
@@ -89,10 +90,12 @@ const MODELS = [
     'IridescenceSuzanne',
     'IridescentDishWithOlives',
     'Lantern',
+    'LightVisibility',
     'LightsPunctualLamp',
     'MandarinOrange',
     'MaterialsVariantsShoe',
     'MeshPrimitiveModes',
+    'MeshoptCubeTest',
     'MetalRoughSpheres',
     'MetalRoughSpheresNoTextures',
     'MorphPrimitivesTest',
@@ -101,6 +104,7 @@ const MODELS = [
     'MultiUVTest',
     'MultipleScenes',
     'NegativeScaleTest',
+    'NodePerformanceTest',
     'NormalTangentMirrorTest',
     'NormalTangentTest',
     'OrientationTest',
@@ -146,6 +150,7 @@ const MODELS = [
     'Triangle',
     'TriangleWithoutIndices',
     'TwoSidedPlane',
+    'USDShaderBallForGltf',
     'Unicode❤♻Test',
     'UnlitTest',
     'VertexColorTest',
@@ -213,71 +218,108 @@ async function waitForCanvasStable(page, timeout = 60000, pollInterval = 300, fa
     }
 }
 
+async function runVisualTest(page, url: string, baselineName: string) {
+    let crashed: string | null = null;
+    page.on('crash', () => {
+        crashed = 'page crashed';
+    });
+
+    let networkError: string | null = null;
+    page.on('requestfailed', (request) => {
+        if (request.url().includes('raw.githubusercontent.com')) {
+            networkError = `request failed: ${request.url()} (${request.failure()?.errorText})`;
+        }
+    });
+    page.on('response', (response) => {
+        if (!response.ok() && response.url().includes('raw.githubusercontent.com')) {
+            networkError = `request failed: ${response.url()} (HTTP ${response.status()})`;
+        }
+    });
+
+    await page.addInitScript(() => {
+        (window as any).__WEBGL_CONTEXT_LOST__ = false;
+        document.addEventListener(
+            'webglcontextlost',
+            () => {
+                (window as any).__WEBGL_CONTEXT_LOST__ = true;
+            },
+            true,
+        );
+    });
+
+    await page.goto(url);
+
+    await page.evaluate(() => {
+        (window as any).__FORCE_DETERMINISTIC__ = true;
+    });
+
+    await waitForRendererReady(page, undefined, () => networkError ?? crashed);
+
+    if (crashed) {
+        throw new Error(crashed);
+    }
+    if (networkError) {
+        throw new Error(networkError);
+    }
+    const contextLost = await page.evaluate(() => (window as any).__WEBGL_CONTEXT_LOST__);
+    if (contextLost) {
+        throw new Error('WebGL context lost during render');
+    }
+
+    await page.waitForTimeout(50);
+
+    await page.evaluate(() => {
+        const selector = document.getElementById('selector');
+        if (selector) {
+            selector.style.display = 'none';
+        }
+    });
+
+    const canvas = await page.locator('canvas').first();
+    const buffer = await canvas.screenshot({ type: 'png' });
+
+    const result = await compareScreenshot(baselineName, buffer);
+    expect(result.reason, result.reason).toBeUndefined();
+    expect(result.matched, `Visual diff: ${result.diffPath}`).toBeTruthy();
+}
+
 test.describe('visual: renderer — all models', () => {
     for (const model of MODELS) {
         test(`model: ${model}`, async ({ page }) => {
-            let crashed: string | null = null;
-            page.on('crash', () => {
-                crashed = 'page crashed';
-            });
+            await runVisualTest(page, `${APP_URL}?model=${model}&webgpu=${MODE}`, `model-${model}`);
+        });
+    }
+});
 
-            let networkError: string | null = null;
-            page.on('requestfailed', (request) => {
-                if (request.url().includes('raw.githubusercontent.com')) {
-                    networkError = `request failed: ${request.url()} (${request.failure()?.errorText})`;
-                }
-            });
-            page.on('response', (response) => {
-                if (!response.ok() && response.url().includes('raw.githubusercontent.com')) {
-                    networkError = `request failed: ${response.url()} (HTTP ${response.status()})`;
-                }
-            });
+// index.html's loader only ever picks the glTF-Binary (falling back to
+// plain glTF) variant for a model - Draco/Embedded/Quantized/KTX-BasisU
+// never get exercised by the suite above even though redcube advertises
+// support for all of them. index.html already supports overriding the
+// variant via localStorage (used by its own variant <select>), so drive
+// that from here instead of adding new app code.
+const VARIANTS: Array<{ model: string; variantKey: string; file: string }> = [
+    { model: 'Box', variantKey: 'glTF-Draco', file: 'Box.gltf' },
+    { model: 'Box', variantKey: 'glTF-Embedded', file: 'Box.gltf' },
+    { model: 'Duck', variantKey: 'glTF-Quantized', file: 'Duck.gltf' },
+    { model: 'AnisotropyBarnLamp', variantKey: 'glTF-KTX-BasisU', file: 'AnisotropyBarnLamp.gltf' },
+    // Not included: BrainStem/glTF-Meshopt-EXT. Unlike MeshoptCubeTest's
+    // KHR_meshopt_compression variant (whose fallback buffer has a real,
+    // fetchable URI), this file's fallback buffer has no uri at all - its
+    // bytes only exist via meshopt decompression, which redcube doesn't
+    // implement. That's a genuine, current gltf-spec gap (no
+    // EXT_meshopt_compression support), not a test-coverage gap - confirmed
+    // by the crash: arrayBuffer[1] resolves to undefined since there's
+    // nothing to fetch, and geometry construction throws reading its
+    // byteLength.
+];
 
-            await page.addInitScript(() => {
-                (window as any).__WEBGL_CONTEXT_LOST__ = false;
-                document.addEventListener(
-                    'webglcontextlost',
-                    () => {
-                        (window as any).__WEBGL_CONTEXT_LOST__ = true;
-                    },
-                    true,
-                );
-            });
-
-            await page.goto(`${APP_URL}?model=${model}&webgpu=${MODE}`);
-
-            await page.evaluate(() => {
-                (window as any).__FORCE_DETERMINISTIC__ = true;
-            });
-
-            await waitForRendererReady(page, undefined, () => networkError ?? crashed);
-
-            if (crashed) {
-                throw new Error(crashed);
-            }
-            if (networkError) {
-                throw new Error(networkError);
-            }
-            const contextLost = await page.evaluate(() => (window as any).__WEBGL_CONTEXT_LOST__);
-            if (contextLost) {
-                throw new Error('WebGL context lost during render');
-            }
-
-            await page.waitForTimeout(50);
-
-            await page.evaluate(() => {
-                const selector = document.getElementById('selector');
-                if (selector) {
-                    selector.style.display = 'none';
-                }
-            });
-
-            const canvas = await page.locator('canvas').first();
-            const buffer = await canvas.screenshot({ type: 'png' });
-
-            const result = await compareScreenshot(`model-${model}`, buffer);
-            expect(result.reason, result.reason).toBeUndefined();
-            expect(result.matched, `Visual diff: ${result.diffPath}`).toBeTruthy();
+test.describe('visual: renderer — glTF format variants', () => {
+    for (const { model, variantKey, file } of VARIANTS) {
+        test(`variant: ${model} (${variantKey})`, async ({ page }) => {
+            await page.addInitScript((variant) => {
+                localStorage.setItem('variant', variant);
+            }, `${variantKey}/${file}`);
+            await runVisualTest(page, `${APP_URL}?model=${model}&webgpu=${MODE}`, `variant-${model}-${variantKey}`);
         });
     }
 });

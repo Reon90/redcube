@@ -1,10 +1,11 @@
 import { Scene, Camera } from './objects/index';
-import { Parse } from './parse';
+import { State } from './state';
 declare class RedCube {
     url: string;
-    parse: Parse;
+    state: State;
     camera: Camera;
     constructor(url: string);
+    private withPatchAsync;
     init(cb: (scene: Scene) => void): Promise<void>;
     resize(): void;
 }

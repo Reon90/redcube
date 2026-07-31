@@ -1,5 +1,5 @@
 import { Matrix4 } from './matrix';
-import { Camera } from './objects/index';
+import type { State } from './state';
 import { UniformBuffer } from './objects/uniform';
 type EnvTexture = GPUTexture & {
     view?: GPUTextureView;
@@ -15,10 +15,9 @@ interface IBLData {
     specularImageSize: number;
 }
 export declare class Env {
-    camera: Camera;
+    getState: () => State;
     envMatrix: Matrix4;
     views: Array<Matrix4>;
-    canvas: HTMLCanvasElement;
     url: string;
     envData: IBLData;
     uniformBuffer?: UniformBuffer;
@@ -32,9 +31,7 @@ export declare class Env {
     pipeline?: GPURenderPipeline;
     pipeline2?: GPURenderPipeline;
     pipeline3?: GPURenderPipeline;
-    constructor(url: string);
-    setCamera(camera: Camera): void;
-    setCanvas(canvas: HTMLCanvasElement): void;
+    constructor(getState: () => State, url: string);
     get width(): number;
     get height(): number;
     drawQuad(WebGPU: WEBGPU, _x: unknown): void;

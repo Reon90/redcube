@@ -1,6 +1,4 @@
 import { createProgram, createTexture, GLTexture } from './utils';
-import { Camera, Light as LightObj } from './objects/index';
-import { Renderer } from './renderer';
 import { SSAO } from './postprocessors/ssao';
 import { Bloom } from './postprocessors/bloom';
 import { Shadow } from './postprocessors/shadow';
@@ -12,6 +10,8 @@ import quadShader from './shaders/quad.glsl';
 import composerShader from './shaders/composer.glsl';
 import { quadVertex } from './vertex';
 import { Scattering } from './postprocessors/scattering';
+import type { State } from './state';
+import type { Camera } from './objects/index';
 
 const processorsMap = {
     bloom: Bloom,
@@ -22,11 +22,11 @@ const processorsMap = {
     scattering: Scattering,
 };
 
-type ProcessorName = keyof typeof processorsMap;
+export type ProcessorName = keyof typeof processorsMap;
 type Texture = GLTexture;
 
 export class PostProcessing {
-    gl!: WebGL2RenderingContext;
+    getState: () => State;
     screenTexture!: Texture;
     normalTexture!: Texture;
     irradianceTexture!: Texture;
@@ -35,9 +35,6 @@ export class PostProcessing {
     depthTexture!: Texture;
     preDepthTexture!: Texture;
     fakeDepth!: Texture;
-    camera!: Camera;
-    renderer!: Renderer;
-    canvas!: HTMLCanvasElement;
     framebuffer!: WebGLFramebuffer;
     preframebuffer!: WebGLFramebuffer;
     postprocessors: Array<PostProcessor>;
@@ -50,9 +47,28 @@ export class PostProcessing {
     hasPostPass = false;
     hasPrePass = false;
 
-    constructor(processors: ProcessorName[], renderScene: (renderState: { isprepender?: boolean; isprerefraction?: boolean }) => void) {
+    constructor(
+        getState: () => State,
+        canvas: HTMLCanvasElement,
+        processors: ProcessorName[],
+        renderScene: (renderState: { isprepender?: boolean; isprerefraction?: boolean }) => void,
+    ) {
+        this.getState = getState;
         this.renderScene = renderScene;
         this.postprocessors = processors.map((name) => new processorsMap[name]());
+        const { gl, camera, light } = getState();
+        this.postprocessors.forEach((postProcessor) => {
+            postProcessor.setCamera(camera);
+            postProcessor.light = light!;
+            postProcessor.setCanvas(canvas);
+            postProcessor.setGL(gl as WebGL2RenderingContext);
+        });
+        this.MSAA = (gl as WebGL2RenderingContext).getParameter((gl as WebGL2RenderingContext).MAX_SAMPLES);
+        this.fakeDepth = this.createNoiceTexture(1, new Float32Array([1, 1, 0]));
+    }
+
+    private get gl(): WebGL2RenderingContext {
+        return this.getState().gl as WebGL2RenderingContext;
     }
 
     add(name: ProcessorName) {
@@ -70,42 +86,17 @@ export class PostProcessing {
     }
 
     setCamera(camera: Camera) {
-        this.camera = camera;
         this.postprocessors.forEach((postProcessor) => {
             postProcessor.setCamera(camera);
         });
     }
 
-    setLight(light: LightObj) {
-        this.postprocessors.forEach((postProcessor) => {
-            postProcessor.light = light;
-        });
-    }
-
-    setGl(g: WebGL2RenderingContext) {
-        if (g) {
-            this.gl = g;
-            this.MSAA = g.getParameter(g.MAX_SAMPLES);
-            this.postprocessors.forEach((postProcessor) => {
-                postProcessor.setGL(g);
-            });
-            this.fakeDepth = this.createNoiceTexture(1, new Float32Array([1, 1, 0]));
-        }
-    }
-
-    setCanvas(canvas: HTMLCanvasElement) {
-        this.canvas = canvas;
-        this.postprocessors.forEach((postProcessor) => {
-            postProcessor.setCanvas(canvas);
-        });
-    }
-
     get width() {
-        return this.canvas.offsetWidth * devicePixelRatio;
+        return this.getState().width! * devicePixelRatio;
     }
 
     get height() {
-        return this.canvas.offsetHeight * devicePixelRatio;
+        return this.getState().height! * devicePixelRatio;
     }
 
     bindPrePass() {

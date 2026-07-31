@@ -1,7 +1,7 @@
 import { createProgram, generateMipmaps, LoadedTexture } from './utils';
 import { fetchImage, FetchedImage, ImageSource } from './fetch';
 import { GlTf } from '../GLTF';
-import type { ParseContext, ReadonlyParseContext, Define } from './parseContext';
+import type { State, ReadonlyState, Define } from './state';
 
 import vertexShader from './shaders/vertex.glsl';
 import fragmentShader from './shaders/fragment.glsl';
@@ -72,9 +72,9 @@ interface texturesMap {
 }
 type TextureJSON = GlTf['textures'] extends (infer T)[] | undefined ? T & { name?: string } : never;
 
-// Read-only: programs[hash] = ... mutates the Record ParseContext already
+// Read-only: programs[hash] = ... mutates the Record State already
 // owns, it doesn't reassign the `programs` field itself.
-export function createShaderProgram(input: ReadonlyParseContext, defines: Define[]) {
+export function createShaderProgram(input: ReadonlyState, defines: Define[]) {
     let program;
     const programHash = defines.map((define) => `${define.name}${define.value ?? 1}`).join('');
     if (input.programs[programHash]) {
@@ -100,7 +100,7 @@ export function createShaderProgram(input: ReadonlyParseContext, defines: Define
     return program;
 }
 
-export function createSamplers(input: ReadonlyParseContext, output: Partial<ParseContext>) {
+export function createSamplers(input: ReadonlyState, output: Partial<State>) {
     const webglGl = input.gl as WebGL2RenderingContext;
     const samplers = input.json.samplers || [{}];
     output.samplers = samplers.map((s) => {
@@ -113,7 +113,7 @@ export function createSamplers(input: ReadonlyParseContext, output: Partial<Pars
     });
 }
 
-export function createSamplersWebGPU(input: ReadonlyParseContext, output: Partial<ParseContext>, WebGPU: WEBGPU) {
+export function createSamplersWebGPU(input: ReadonlyState, output: Partial<State>, WebGPU: WEBGPU) {
     function getSamplerParam(value?: number) {
         const map: Record<number, string> = {
             9987: 'linear',
@@ -141,7 +141,7 @@ export function createSamplersWebGPU(input: ReadonlyParseContext, output: Partia
     });
 }
 
-export function createTexturesWebGPU(input: ReadonlyParseContext, WebGPU: WEBGPU) {
+export function createTexturesWebGPU(input: ReadonlyState, WebGPU: WEBGPU) {
     createTextures(input, (t, textureType) =>
         handleTextureLoadedWebGPU(
             input,
@@ -152,7 +152,7 @@ export function createTexturesWebGPU(input: ReadonlyParseContext, WebGPU: WEBGPU
     );
 }
 
-export function createTexturesWebGL(input: ReadonlyParseContext) {
+export function createTexturesWebGL(input: ReadonlyState) {
     createTextures(input, (t) =>
         handleTextureLoaded(
             input,
@@ -168,8 +168,8 @@ export function createTexturesWebGL(input: ReadonlyParseContext) {
 }
 
 // Read-only: material[textureType] = ... mutates a Material object reached
-// through the scene, not a ParseContext field itself.
-export function createTextures(input: ReadonlyParseContext, callback: (t: LoadedTexture, textureType: string) => unknown) {
+// through the scene, not a State field itself.
+export function createTextures(input: ReadonlyState, callback: (t: LoadedTexture, textureType: string) => unknown) {
     input.scene.meshes.forEach((mesh) => {
         const materials = [mesh.material, ...mesh.variants.map((m) => m.m)];
         const textureTypes = [
@@ -217,7 +217,7 @@ export function createTextures(input: ReadonlyParseContext, callback: (t: Loaded
     });
 }
 
-export async function initTextures(input: ReadonlyParseContext, output: Partial<ParseContext>, isbitmap: boolean) {
+export async function initTextures(input: ReadonlyState, output: Partial<State>, isbitmap: boolean) {
     if (!input.json.textures) {
         return true;
     }
@@ -264,13 +264,18 @@ export async function initTextures(input: ReadonlyParseContext, output: Partial<
         await new Promise((resolve) => setTimeout(resolve, 1000));
     }
     const promiseArr = Object.values(texturesMap).map((t) => {
-        let s = t.extensions && t.extensions.KHR_texture_basisu ? t.extensions.KHR_texture_basisu.source : t.source;
+        const isBasisu = Boolean(t.extensions && t.extensions.KHR_texture_basisu);
+        let s = isBasisu ? t.extensions!.KHR_texture_basisu.source : t.source;
         s = t.extensions && t.extensions.EXT_texture_webp ? t.extensions.EXT_texture_webp.source : s;
         const source = input.json.images![s!];
         return fetchImage(
             isbitmap,
             input as unknown as ImageSource,
-            source,
+            // KHR_texture_basisu images aren't required to carry mimeType
+            // themselves (the extension reference is what marks them as
+            // KTX2) - fetchImage only branches to the KTX2 loader off
+            // mimeType, so make that explicit here.
+            isBasisu ? { ...source, mimeType: 'image/ktx2' } : source,
             {
                 url: `${input.host}${source.uri}`,
                 name: t.name,
@@ -287,10 +292,10 @@ export async function initTextures(input: ReadonlyParseContext, output: Partial<
     });
 }
 
-// Read-only: images.set(...) mutates the Map ParseContext already owns, it
+// Read-only: images.set(...) mutates the Map State already owns, it
 // doesn't reassign the `images` field itself.
 export function handleTextureLoadedWebGPU(
-    input: ReadonlyParseContext,
+    input: ReadonlyState,
     WebGPU: WEBGPU,
     { image: bitmap, sampler, srgb, name }: { image: ImageBitmap; sampler?: number; srgb?: boolean; name: string },
     textureType: string,
@@ -324,7 +329,7 @@ export function handleTextureLoadedWebGPU(
 }
 
 export function handleTextureLoaded(
-    input: ReadonlyParseContext,
+    input: ReadonlyState,
     {
         image,
         name,
@@ -341,6 +346,18 @@ export function handleTextureLoaded(
 ) {
     const s = input.samplers![sampler !== undefined ? sampler : 0] as WebGLSampler;
     if (mimeType) {
+        // KTX2 (mimeType 'image/ktx2'): `image` here is already an uploaded
+        // WebGLTexture (loadKTX() -> glUpload()) with only its base level
+        // populated - it skipped texImage2D entirely. generateMipmap()
+        // doesn't work for (and errors on) compressed internal formats like
+        // the ASTC/ETC/DXT targets loadKTX() transcodes to, so instead tell
+        // WebGL this texture intentionally has a single mip level: sampler
+        // objects' minFilter is otherwise still treated as mipmapped and the
+        // texture is considered incomplete (renders as solid black).
+        const webglGl = input.gl as WebGL2RenderingContext;
+        webglGl.bindTexture(webglGl.TEXTURE_2D, image as unknown as WebGLTexture);
+        webglGl.texParameteri(webglGl.TEXTURE_2D, webglGl.TEXTURE_BASE_LEVEL, 0);
+        webglGl.texParameteri(webglGl.TEXTURE_2D, webglGl.TEXTURE_MAX_LEVEL, 0);
         image.sampler = s;
         return image;
     }

@@ -1,11 +1,14 @@
 import { Scene, Camera } from './objects/index';
-import { Parse } from './parse';
+import { getJson, getBuffer } from './parseLoader';
+import { buildMesh, buildSkin, buildAnimation, calculateFov } from './parseSceneBuilder';
+import { initTextures } from './parseTextures';
+import { State, commit } from './state';
 
 const FOV = 45; // degrees
 
 class RedCube {
     url: string;
-    parse!: Parse;
+    state: State;
     camera!: Camera;
 
     constructor(url: string) {
@@ -14,22 +17,46 @@ class RedCube {
         }
 
         this.url = url;
+        const scene = new Scene();
+        this.state = {
+            scene,
+            url,
+            host: url.substr(0, url.lastIndexOf('/') + 1),
+            defines: [],
+            tracks: [],
+            json: undefined,
+            skins: [],
+            cameras: [],
+            lights: [],
+            textures: null,
+            images: new Map(),
+            samplers: null,
+            arrayBuffer: null,
+            programs: {},
+            renderState: {},
+            isIBL: true,
+            isDefaultLight: true,
+            needUpdateView: true,
+            needUpdateProjection: true,
+        } as unknown as State;
+    }
+
+    private async withPatchAsync<T>(run: (patch: Partial<State>) => Promise<T>): Promise<T> {
+        const patch: Partial<State> = {};
+        const result = await run(patch);
+        commit(this.state, patch);
+        return result;
     }
 
     async init(cb: (scene: Scene) => void) {
-        const scene = new Scene();
-        this.parse = new Parse(this.url, [], () => {});
+        await this.withPatchAsync<void | boolean>((patch) => getJson(this.state, patch));
+        await this.withPatchAsync((patch) => getBuffer(this.state, patch));
+        await this.withPatchAsync((patch) => initTextures(this.state, patch, false));
+        buildSkin(this.state);
+        await buildMesh(this.state);
+        buildAnimation(this.state);
 
-        this.parse.setScene(scene);
-
-        await this.parse.getJson();
-        await this.parse.getBuffer();
-        await this.parse.initTextures(false);
-        this.parse.buildSkin();
-        await this.parse.buildMesh();
-        this.parse.buildAnimation();
-
-        if (this.parse.cameras.length === 0) {
+        if (this.state.cameras.length === 0) {
             this.camera = new Camera(
                 {
                     type: 'perspective',
@@ -42,18 +69,19 @@ class RedCube {
                 },
                 'perspective',
             );
-            this.parse.cameras.push(this.camera);
+            this.state.cameras.push(this.camera);
         }
-        const [c] = this.parse.cameras;
+        const [c] = this.state.cameras;
         this.camera = c;
-        this.parse.calculateFov(this.camera.props.isInitial);
+        this.state.camera = c;
+        calculateFov(this.state, this.camera.props.isInitial);
         this.resize();
 
-        scene.tracks = this.parse.tracks;
-        scene.cameras = this.parse.cameras;
-        scene.lights = this.parse.lights;
+        this.state.scene.tracks = this.state.tracks;
+        this.state.scene.cameras = this.state.cameras;
+        this.state.scene.lights = this.state.lights;
 
-        cb(scene);
+        cb(this.state.scene);
     }
 
     resize() {

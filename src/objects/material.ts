@@ -3,7 +3,7 @@ import { UniformBuffer } from './uniform';
 import { Material as M } from '../../GLTF';
 import { textureEnum, LoadedTexture } from '../utils';
 import { Light } from './light';
-import type { Define } from '../parse';
+import type { Define } from '../state';
 
 const defaultMaterial = {
     baseColorFactor: [1, 0, 0, 1],

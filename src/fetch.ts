@@ -37,8 +37,11 @@ function loadKTX(b: ArrayBuffer) {
         if (result !== window.LIBKTX.ErrorCode.SUCCESS) {
             throw new Error('Texture transcode failed. See console for details.');
         }
-        return texture.glUpload().texture;
     }
+    // needsTranscoding=false means the file is already in a GPU-uploadable
+    // format - glUpload() handles both cases, so it must run either way, not
+    // only inside the transcoding branch.
+    return texture.glUpload().texture;
 }
 
 function IsValid(data: ArrayBufferView): boolean {

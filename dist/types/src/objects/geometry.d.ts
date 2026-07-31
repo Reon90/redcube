@@ -3,7 +3,7 @@ import { UniformBuffer, UniformBufferLike } from './uniform';
 import { TypedArray } from '../utils';
 import { DracoModule } from '../decoder';
 import { GlTf, MeshPrimitive, Accessor } from '../../GLTF';
-import type { Define } from '../parse';
+import type { Define } from '../state';
 export interface Attributes {
     POSITION?: TypedArray;
     NORMAL?: TypedArray;

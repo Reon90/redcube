@@ -3,21 +3,22 @@ import { Mesh, SkinnedMesh, Bone, Camera, Object3D, Scene, Light, Material } fro
 import type { CameraProps } from './objects/camera';
 import { Matrix4, Box, Vector3 } from './matrix';
 import { Node, MeshPrimitive } from '../GLTF';
-import { DecoderModule } from './decoder';
+import { DecoderModule, DracoModule } from './decoder';
 import { Geometry } from './objects/geometry';
-import type { ParseContext, ReadonlyParseContext, Track, Skin, Key } from './parseContext';
+import type { ReadonlyState, Track, Skin, Key } from './state';
 
-// Read-only: builds and returns a Mesh without reassigning any ParseContext
-// field (defines.push mutates the array ParseContext already owns, it
+// Read-only: builds and returns a Mesh without reassigning any State
+// field (defines.push mutates the array State already owns, it
 // doesn't reassign the `defines` property itself).
 export function buildPrim(
-    input: ReadonlyParseContext,
+    input: ReadonlyState,
     el: Node,
     parent: Object3D,
     name: string,
     skin: number | undefined,
     weights: number[] | undefined,
     primitive: MeshPrimitive,
+    draco: DracoModule | undefined,
 ) {
     const m = input.json.materials && input.json.materials[primitive.material!];
     if (input.json.extensions && input.json.extensions.EXT_lights_image_based) {
@@ -51,7 +52,7 @@ export function buildPrim(
     }
 
     const mesh = skin !== undefined ? new SkinnedMesh(name, parent) : new Mesh(name, parent);
-    const geometry = new Geometry(input.json, input.arrayBuffer!, weights!, input.draco, primitive);
+    const geometry = new Geometry(input.json, input.arrayBuffer!, weights!, draco, primitive);
     if (primitive.attributes.TANGENT === undefined) {
         defines.push({ name: 'USERIGHTHANDEDSYSTEM' });
     }
@@ -85,9 +86,9 @@ export function buildPrim(
 }
 
 // Read-only: recursively builds the node tree (cameras/lights.push and
-// json.nodes mutation are all through references ParseContext already
-// owns - no ParseContext field itself is reassigned).
-export function buildNode(input: ReadonlyParseContext, parent: Object3D | Scene, name: number) {
+// json.nodes mutation are all through references State already
+// owns - no State field itself is reassigned).
+export function buildNode(input: ReadonlyState, parent: Object3D | Scene, name: number, draco: DracoModule | undefined) {
     const el = input.json.nodes![name];
     let child: Object3D;
 
@@ -96,7 +97,7 @@ export function buildNode(input: ReadonlyParseContext, parent: Object3D | Scene,
             {
                 zoom: 1,
                 isInitial: false,
-                aspect: input.canvas ? input.canvas.offsetWidth / input.canvas.offsetHeight : 1,
+                aspect: input.width && input.height ? input.width / input.height : 1,
             },
             input.json.cameras![el.camera],
         ) as unknown as CameraProps;
@@ -180,19 +181,28 @@ export function buildNode(input: ReadonlyParseContext, parent: Object3D | Scene,
     if (el.mesh !== undefined) {
         parent.children.push(
             ...input.json.meshes![el.mesh].primitives.map((primitive) =>
-                buildPrim(input, el, parent, input.json.meshes![el.mesh!].name!, el.skin, input.json.meshes![el.mesh!].weights, primitive),
+                buildPrim(
+                    input,
+                    el,
+                    parent,
+                    input.json.meshes![el.mesh!].name!,
+                    el.skin,
+                    input.json.meshes![el.mesh!].weights,
+                    primitive,
+                    draco,
+                ),
             ),
         );
     }
 
     if (el.children && el.children.length) {
-        el.children.forEach((childName) => buildNode(input, parent, childName));
+        el.children.forEach((childName) => buildNode(input, parent, childName, draco));
     }
 }
 
-// Read-only: mutates the Scene/Camera objects reached through ParseContext,
-// but never reassigns a ParseContext field itself.
-export function calculateFov(input: ReadonlyParseContext, isInitial: boolean) {
+// Read-only: mutates the Scene/Camera objects reached through State,
+// but never reassigns a State field itself.
+export function calculateFov(input: ReadonlyState, isInitial: boolean) {
     const box = new Box();
     walk(input.scene, (node: Object3D | Scene) => {
         if (node instanceof Mesh) {
@@ -217,13 +227,12 @@ export function calculateFov(input: ReadonlyParseContext, isInitial: boolean) {
     input.cameras.forEach((c) => {
         c.modelSize = size;
     });
-
-    input.resize();
 }
 
-export async function buildMesh(input: ReadonlyParseContext, output: Partial<ParseContext>) {
+export async function buildMesh(input: ReadonlyState) {
+    let draco: DracoModule | undefined;
     if (input.json.extensionsUsed && input.json.extensionsUsed.includes('KHR_draco_mesh_compression')) {
-        output.draco = await DecoderModule();
+        draco = await DecoderModule();
     }
     if (input.json.extensions && input.json.extensions.KHR_materials_variants) {
         input.scene.variants = input.json.extensions.KHR_materials_variants.variants;
@@ -231,16 +240,16 @@ export async function buildMesh(input: ReadonlyParseContext, output: Partial<Par
 
     input.json.scenes![input.json.scene !== undefined ? input.json.scene : 0].nodes!.forEach((n) => {
         if (input.json.nodes![n].extensions !== undefined) {
-            buildNode(input, input.scene, n);
+            buildNode(input, input.scene, n, draco);
         }
         if (input.json.nodes![n].children && input.json.nodes![n].children!.length) {
-            buildNode(input, input.scene, n);
+            buildNode(input, input.scene, n, draco);
         }
         if (input.json.nodes![n].mesh !== undefined) {
-            buildNode(input, input.scene, n);
+            buildNode(input, input.scene, n, draco);
         }
         if (input.json.nodes![n].camera !== undefined) {
-            buildNode(input, input.scene, n);
+            buildNode(input, input.scene, n, draco);
         }
     });
     if (input.lights.length === 0 && input.light) {
@@ -284,9 +293,9 @@ export async function buildMesh(input: ReadonlyParseContext, output: Partial<Par
     input.scene.transparentChildren.sort((a, b) => a.distance - b.distance);
 }
 
-// Read-only: pushes onto skins/mutates json.nodes in place, no ParseContext
+// Read-only: pushes onto skins/mutates json.nodes in place, no State
 // field itself is reassigned.
-export function buildSkin(input: ReadonlyParseContext) {
+export function buildSkin(input: ReadonlyState) {
     if (!input.json.skins) {
         return true;
     }
@@ -320,8 +329,8 @@ export function buildSkin(input: ReadonlyParseContext) {
     }
 }
 
-// Read-only: pushes onto tracks, no ParseContext field itself is reassigned.
-export function buildAnimation(input: ReadonlyParseContext) {
+// Read-only: pushes onto tracks, no State field itself is reassigned.
+export function buildAnimation(input: ReadonlyState) {
     if (!input.json.animations) {
         return true;
     }

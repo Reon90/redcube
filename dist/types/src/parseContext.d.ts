@@ -26,7 +26,7 @@ export interface Define {
     value?: number;
 }
 export declare class ParseContext {
-    gl: WebGL2RenderingContext | WEBGPU;
+    gl?: WebGL2RenderingContext | WEBGPU;
     tracks: Array<Track[]>;
     url: string;
     host: string;
@@ -39,14 +39,13 @@ export declare class ParseContext {
     lights: Array<Light>;
     programs: Record<string, WebGLProgram>;
     scene: Scene;
-    camera: Camera;
-    light: Light;
-    canvas: HTMLCanvasElement;
+    light?: Light;
+    canvas?: HTMLCanvasElement;
     resize: () => void;
     json: GlTf;
     defines: Array<Define>;
     draco?: DracoModule;
-    constructor(url: string, defines: Array<Define>, resize: () => void);
+    constructor(url: string, defines: Array<Define>, resize: () => void, scene: Scene, light?: Light, canvas?: HTMLCanvasElement, gl?: WebGL2RenderingContext | WEBGPU);
 }
 export type ReadonlyParseContext = Readonly<ParseContext>;
 export declare function commit(target: ParseContext, patch: Partial<ParseContext>): void;

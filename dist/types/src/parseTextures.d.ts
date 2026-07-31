@@ -1,5 +1,5 @@
 import { LoadedTexture } from './utils';
-import type { ParseContext, ReadonlyParseContext, Define } from './parseContext';
+import type { State, ReadonlyState, Define } from './state';
 declare global {
     interface Constructable<T> {
         new (...args: unknown[]): T;
@@ -56,20 +56,20 @@ declare global {
         };
     }
 }
-export declare function createShaderProgram(input: ReadonlyParseContext, defines: Define[]): WebGLProgram;
-export declare function createSamplers(input: ReadonlyParseContext, output: Partial<ParseContext>): void;
-export declare function createSamplersWebGPU(input: ReadonlyParseContext, output: Partial<ParseContext>, WebGPU: WEBGPU): void;
-export declare function createTexturesWebGPU(input: ReadonlyParseContext, WebGPU: WEBGPU): void;
-export declare function createTexturesWebGL(input: ReadonlyParseContext): void;
-export declare function createTextures(input: ReadonlyParseContext, callback: (t: LoadedTexture, textureType: string) => unknown): void;
-export declare function initTextures(input: ReadonlyParseContext, output: Partial<ParseContext>, isbitmap: boolean): Promise<boolean>;
-export declare function handleTextureLoadedWebGPU(input: ReadonlyParseContext, WebGPU: WEBGPU, { image: bitmap, sampler, srgb, name }: {
+export declare function createShaderProgram(input: ReadonlyState, defines: Define[]): WebGLProgram;
+export declare function createSamplers(input: ReadonlyState, output: Partial<State>): void;
+export declare function createSamplersWebGPU(input: ReadonlyState, output: Partial<State>, WebGPU: WEBGPU): void;
+export declare function createTexturesWebGPU(input: ReadonlyState, WebGPU: WEBGPU): void;
+export declare function createTexturesWebGL(input: ReadonlyState): void;
+export declare function createTextures(input: ReadonlyState, callback: (t: LoadedTexture, textureType: string) => unknown): void;
+export declare function initTextures(input: ReadonlyState, output: Partial<State>, isbitmap: boolean): Promise<boolean>;
+export declare function handleTextureLoadedWebGPU(input: ReadonlyState, WebGPU: WEBGPU, { image: bitmap, sampler, srgb, name }: {
     image: ImageBitmap;
     sampler?: number;
     srgb?: boolean;
     name: string;
 }, textureType: string): unknown;
-export declare function handleTextureLoaded(input: ReadonlyParseContext, { image, name, mimeType, sampler, srgb, }: {
+export declare function handleTextureLoaded(input: ReadonlyState, { image, name, mimeType, sampler, srgb, }: {
     image: HTMLImageElement & {
         sampler?: WebGLSampler;
     };

@@ -1,7 +1,7 @@
 import { Matrix4 } from './matrix';
 import { perlin3 } from './perlin';
 import { createTexture, compileShader, createProgram, GLTexture } from './utils';
-import { Camera } from './objects/index';
+import type { State } from './state';
 
 import instanceShader from './shaders/instance.glsl';
 import instanceFragShader from './shaders/instance-frag.glsl';
@@ -13,26 +13,22 @@ type Texture = GLTexture;
 const amount = 1000;
 
 export class Particles {
-    gl!: WebGL2RenderingContext;
+    getState: () => State;
     currentSourceIdx!: number;
     program!: WebGLProgram;
     program2!: WebGLProgram;
     VAO!: Array<WebGLVertexArrayObject>;
     TFO!: Array<WebGLTransformFeedback>;
     texture3d!: Texture;
-    camera!: Camera;
     getLight: () => number;
 
-    constructor(getLight: () => number) {
+    constructor(getState: () => State, getLight: () => number) {
+        this.getState = getState;
         this.getLight = getLight;
     }
 
-    setGl(g: WebGL2RenderingContext) {
-        this.gl = g;
-    }
-
-    setCamera(camera: Camera) {
-        this.camera = camera;
+    private get gl(): WebGL2RenderingContext {
+        return this.getState().gl as WebGL2RenderingContext;
     }
 
     build() {
@@ -169,9 +165,10 @@ export class Particles {
         gl.bindVertexArray(this.VAO[this.currentSourceIdx]);
         gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, this.TFO[destinationIdx]);
 
+        const { camera } = this.getState();
         const m = new Matrix4();
-        m.multiply(this.camera.projection);
-        m.multiply(this.camera.matrixWorldInvert);
+        m.multiply(camera.projection);
+        m.multiply(camera.matrixWorldInvert);
         gl.uniform1f(gl.getUniformLocation(this.program, 'u_time'), time + 5000);
         gl.uniform1f(gl.getUniformLocation(this.program, 'count'), amount);
         gl.uniform1i(gl.getUniformLocation(this.program, 'noize'), this.texture3d.index);

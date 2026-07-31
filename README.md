@@ -11,8 +11,10 @@
 
 <p align="center">
   <a href="https://www.npmjs.com/package/redcube.js"><img src="https://img.shields.io/npm/v/redcube.js?color=%232e58ff&style=for-the-badge" alt="npm downloads"></a>
+  <a href="https://github.com/Reon90/redcube/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/Reon90/redcube/ci.yml?branch=master&color=%232e58ff&style=for-the-badge&label=CI" alt="CI"></a>
+  <a href="https://github.com/Reon90/redcube/stargazers"><img src="https://img.shields.io/github/stars/Reon90/redcube?color=%232e58ff&style=for-the-badge" alt="stars"></a>
+  <a href="./LICENSE"><img src="https://img.shields.io/npm/l/redcube.js?color=%232e58ff&style=for-the-badge" alt="license"></a>
   <img src="https://img.shields.io/npm/types/typescript?color=%232e58ff&style=for-the-badge" alt="typescript">
-  <img src="https://img.shields.io/github/last-commit/reon90/redcube?color=2e58ff&style=for-the-badge" alt="last commit">
   <img src="https://img.shields.io/bundlephobia/min/redcube.js?color=%232e58ff&style=for-the-badge" alt="size">
   <img src="https://img.shields.io/badge/code%20style-oxlint-%232e58ff?style=for-the-badge" alt="oxlint">
 </p>
@@ -25,7 +27,10 @@
   </h3>
 </div><br>
 
-The javascript rendering library for [Khronos glTF 2.0 format](https://github.com/KhronosGroup/glTF/tree/master/specification/2.0).
+The javascript rendering library for [Khronos glTF 2.0 format](https://github.com/KhronosGroup/glTF/tree/master/specification/2.0)
+— one library, three runtimes: render with **WebGL2** today, swap to the **WebGPU** build for the same scene with the same
+API, or parse/validate glTF headlessly in **Node.js** with no canvas or GPU at all. Broad glTF extension coverage (see below)
+means most real-world assets from Blender, Sketchfab, or any other glTF 2.0 exporter just work.
 
 ## Features
 
@@ -168,12 +173,5 @@ subpath) is a real CommonJS module for headless parsing/validation use cases.
 TypeScript consumers get full type declarations from all three (`redcube.js`,
 `redcube.js/webgpu`, `redcube.js/node`).
 
-## Known limitations
-
-&bull; **One `RedCube` instance per page.** The renderer currently keeps its
-WebGL/WebGPU context and related state in module-level variables rather than
-per-instance. Creating a second `RedCube` (e.g. a second canvas on the same
-page) will have its `init()` overwrite the first instance's rendering state,
-causing silent corruption rather than an error. This is a known architectural
-issue, not an intentional design choice — fixing it (moving to per-instance
-state) is on the roadmap.
+Multiple `RedCube` instances (e.g. several canvases on one page) are fully
+supported — each instance owns its own render state independently.

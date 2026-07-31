@@ -1,5 +1,3 @@
-import { Camera, Light as LightObj } from './objects/index';
-import { Renderer } from './renderer';
 import { SSAO } from './postprocessors/ssao';
 import { Bloom } from './postprocessors/bloom';
 import { Shadow } from './postprocessors/shadow';
@@ -11,6 +9,8 @@ import quadShader from './shaders/quad.webgpu.glsl';
 import composerShader from './shaders/composer.webgpu.glsl';
 import { quadFull } from './vertex';
 import { Scattering } from './postprocessors/scattering';
+import type { State } from './state';
+import type { Camera } from './objects/index';
 
 const processorsMap = {
     bloom: Bloom,
@@ -32,7 +32,7 @@ interface WebGPUProcessor {
 }
 
 export class PostProcessing {
-    gl!: WEBGPU;
+    getState: () => State;
     screenTexture!: GPUTextureSet;
     normalTexture!: GPUTextureSet;
     irradianceTexture!: GPUTextureSet;
@@ -41,9 +41,6 @@ export class PostProcessing {
     depthTexture!: GPUTextureSet;
     preDepthTexture!: GPUTextureSet;
     fakeDepth!: GPUTextureSet;
-    camera!: Camera;
-    renderer!: Renderer;
-    canvas!: HTMLCanvasElement;
     framebuffer!: WebGLFramebuffer;
     preframebuffer!: WebGLFramebuffer;
     postprocessors: Array<PostProcessor & Partial<WebGPUProcessor>>;
@@ -60,9 +57,28 @@ export class PostProcessing {
     hasPostPass = false;
     hasPrePass = false;
 
-    constructor(processors: ProcessorName[], renderScene: (renderState: { isprepender?: boolean; isprerefraction?: boolean }) => void) {
+    constructor(
+        getState: () => State,
+        canvas: HTMLCanvasElement,
+        processors: ProcessorName[],
+        renderScene: (renderState: { isprepender?: boolean; isprerefraction?: boolean }) => void,
+    ) {
+        this.getState = getState;
         this.renderScene = renderScene;
         this.postprocessors = processors.map((name) => new processorsMap[name]());
+        const { gl, camera, light } = getState();
+        this.postprocessors.forEach((postProcessor) => {
+            postProcessor.setCamera(camera);
+            postProcessor.light = light!;
+            postProcessor.setCanvas(canvas);
+            postProcessor.setGL(gl as WEBGPU);
+        });
+        this.fakeDepth = this.createNoiceTexture(1);
+        this.fakeDepth.view = this.fakeDepth.texture.createView();
+    }
+
+    private get gl(): WEBGPU {
+        return this.getState().gl as WEBGPU;
     }
 
     add(name: ProcessorName) {
@@ -80,42 +96,17 @@ export class PostProcessing {
     }
 
     setCamera(camera: Camera) {
-        this.camera = camera;
         this.postprocessors.forEach((postProcessor) => {
             postProcessor.setCamera(camera);
         });
     }
 
-    setLight(light: LightObj) {
-        this.postprocessors.forEach((postProcessor) => {
-            postProcessor.light = light;
-        });
-    }
-
-    setGl(g: WEBGPU) {
-        if (g) {
-            this.gl = g;
-            this.postprocessors.forEach((postProcessor) => {
-                postProcessor.setGL(g);
-            });
-            this.fakeDepth = this.createNoiceTexture(1);
-            this.fakeDepth.view = this.fakeDepth.texture.createView();
-        }
-    }
-
-    setCanvas(canvas: HTMLCanvasElement) {
-        this.canvas = canvas;
-        this.postprocessors.forEach((postProcessor) => {
-            postProcessor.setCanvas(canvas);
-        });
-    }
-
     get width() {
-        return this.canvas.offsetWidth * devicePixelRatio;
+        return this.getState().width! * devicePixelRatio;
     }
 
     get height() {
-        return this.canvas.offsetHeight * devicePixelRatio;
+        return this.getState().height! * devicePixelRatio;
     }
 
     bindPrePass() {}

@@ -1,4 +1,4 @@
-import type { Define } from '../parse';
+import type { Define } from '../state';
 interface Glslang {
     compileGLSL(code: string, type: string): Uint32Array;
 }

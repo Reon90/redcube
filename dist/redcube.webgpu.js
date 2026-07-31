@@ -14196,81 +14196,6 @@ var redcube = (() => {
     RedCube: () => RedCube
   });
 
-  // src/container.ts
-  var Container = class {
-    _services;
-    _singletons;
-    constructor() {
-      this._services = /* @__PURE__ */ new Map();
-      this._singletons = /* @__PURE__ */ new Map();
-      this.update = this.update.bind(this);
-    }
-    register(name, definition, dependencies = [], ...args) {
-      this._services.set(name, { definition, dependencies, args });
-      if (!this._isClass(definition)) {
-        this._updateDep(name, definition);
-      } else {
-        definition.__update = this.update;
-      }
-    }
-    get(name) {
-      const c = this._services.get(name);
-      if (!c) {
-        return null;
-      }
-      if (this._isClass(c.definition)) {
-        const singletonInstance = this._singletons.get(name);
-        if (singletonInstance) {
-          return singletonInstance;
-        } else {
-          const newSingletonInstance = this._createInstance(c);
-          this._singletons.set(name, newSingletonInstance);
-          return newSingletonInstance;
-        }
-      } else {
-        return c.definition;
-      }
-    }
-    update(name, ...args) {
-      const c = this._services.get(name);
-      c.args = args;
-      this._singletons.delete(name);
-      const instance = this.get(name);
-      this._updateDep(name, instance);
-    }
-    _updateDep(name, definition) {
-      for (const [key, instance] of this._singletons) {
-        if (this._services.get(key).dependencies.some((dep) => dep === name)) {
-          instance[`set${name.charAt(0).toUpperCase() + name.slice(1)}`].call(
-            instance,
-            definition
-          );
-        }
-      }
-      this._singletons.set(name, definition);
-    }
-    _getResolvedDependencies(service) {
-      let classDependencies = [];
-      if (service.dependencies) {
-        classDependencies = service.dependencies.map((dep) => {
-          return [dep, this.get(dep)];
-        });
-      }
-      return classDependencies;
-    }
-    _createInstance(service) {
-      const Definition = service.definition;
-      const instance = new Definition(...service.args);
-      this._getResolvedDependencies(service).forEach(([name, dep]) => {
-        instance[`set${name.charAt(0).toUpperCase() + name.slice(1)}`].call(instance, dep);
-      });
-      return instance;
-    }
-    _isClass(definition) {
-      return typeof definition === "function" && /^class\s/.test(Function.prototype.toString.call(definition));
-    }
-  };
-
   // src/matrix.ts
   var Matrix4 = class _Matrix4 {
     elements;
@@ -16450,11 +16375,7 @@ var redcube = (() => {
     setMaterial(material) {
       this.material = material;
     }
-    drawWebGPU(WebGPU, passEncoder, i, {
-      renderState,
-      materialStorage,
-      transformsStorage
-    }) {
+    drawWebGPU(WebGPU, passEncoder, i, { renderState, materialStorage, transformsStorage }) {
       const { isprerefraction } = renderState;
       if (this.defines.find((i2) => i2.name === "TRANSMISSION") && isprerefraction) {
         return;
@@ -18168,10 +18089,9 @@ var redcube = (() => {
     return tex;
   }
   var Env = class {
-    camera;
+    getState;
     envMatrix;
     views;
-    canvas;
     url;
     envData;
     uniformBuffer;
@@ -18185,25 +18105,21 @@ var redcube = (() => {
     pipeline;
     pipeline2;
     pipeline3;
-    constructor(url) {
+    constructor(getState, url) {
       this.url = url;
       this.envMatrix = new Matrix4();
-    }
-    setCamera(camera) {
-      this.camera = camera;
-    }
-    setCanvas(canvas) {
-      this.canvas = canvas;
+      this.getState = getState;
     }
     get width() {
-      return this.canvas.offsetWidth * devicePixelRatio;
+      return this.getState().width * devicePixelRatio;
     }
     get height() {
-      return this.canvas.offsetHeight * devicePixelRatio;
+      return this.getState().height * devicePixelRatio;
     }
     drawQuad(WebGPU, _x) {
+      const { camera } = this.getState();
       const m = new Matrix4();
-      const cam = Object.assign({}, this.camera.props, {
+      const cam = Object.assign({}, camera.props, {
         perspective: {
           yfov: 0.3,
           znear: 0.01,
@@ -18328,8 +18244,9 @@ var redcube = (() => {
     }
     drawCube(WebGPU, shadowPass) {
       const { device } = WebGPU;
+      const { camera } = this.getState();
       const m = new Matrix4();
-      const cam = Object.assign({}, this.camera.props, {
+      const cam = Object.assign({}, camera.props, {
         perspective: {
           yfov: 0.3,
           znear: 0.01,
@@ -18338,9 +18255,9 @@ var redcube = (() => {
       });
       m.multiply(calculateProjection(cam));
       const uniformBuffer = new UniformBuffer();
-      const s = this.camera.modelSize * 2;
+      const s = camera.modelSize * 2;
       uniformBuffer.add("model", new Matrix4().makeRotationAxis(new Vector3([1, 0, 0]), Math.PI).scale(new Vector3([s, s, s])).elements);
-      uniformBuffer.add("view", this.camera.matrixWorldInvert.elements);
+      uniformBuffer.add("view", camera.matrixWorldInvert.elements);
       uniformBuffer.add("projection", m.elements);
       uniformBuffer.done();
       const matrixSize = uniformBuffer.store.byteLength;
@@ -18665,8 +18582,9 @@ var redcube = (() => {
     }
     drawWebGPU(WebGPU, mipWidth, mipHeight, layer, mip) {
       const { device } = WebGPU;
+      const { camera } = this.getState();
       const m = new Matrix4();
-      const cam = Object.assign({}, this.camera.props, {
+      const cam = Object.assign({}, camera.props, {
         aspect: 1,
         perspective: {
           yfov: Math.PI / 2,
@@ -18766,8 +18684,9 @@ var redcube = (() => {
     }
     drawWebGPU2(WebGPU, mipWidth, mipHeight, layer, mip) {
       const { device } = WebGPU;
+      const { camera } = this.getState();
       const m = new Matrix4();
-      const cam = Object.assign({}, this.camera.props, {
+      const cam = Object.assign({}, camera.props, {
         aspect: 1,
         perspective: {
           yfov: Math.PI / 2,
@@ -18869,8 +18788,9 @@ var redcube = (() => {
     }
     drawWebGPU3(WebGPU, mipWidth, mipHeight, layer, mip) {
       const { device } = WebGPU;
+      const { camera } = this.getState();
       const m = new Matrix4();
-      const cam = Object.assign({}, this.camera.props, {
+      const cam = Object.assign({}, camera.props, {
         aspect: 1,
         perspective: {
           yfov: Math.PI / 2,
@@ -19098,8 +19018,8 @@ var redcube = (() => {
       if (result !== window.LIBKTX.ErrorCode.SUCCESS) {
         throw new Error("Texture transcode failed. See console for details.");
       }
-      return texture.glUpload().texture;
     }
+    return texture.glUpload().texture;
   }
   function IsValid(data) {
     if (data.byteLength >= 12) {
@@ -19835,7 +19755,7 @@ var redcube = (() => {
   };
 
   // src/parseSceneBuilder.ts
-  function buildPrim(input, el, parent, name, skin, weights, primitive) {
+  function buildPrim(input, el, parent, name, skin, weights, primitive, draco) {
     const m = input.json.materials && input.json.materials[primitive.material];
     if (input.json.extensions && input.json.extensions.EXT_lights_image_based) {
       input.defines.push({
@@ -19867,7 +19787,7 @@ var redcube = (() => {
       defines.push({ name: "COLOR" });
     }
     const mesh = skin !== void 0 ? new SkinnedMesh(name, parent) : new Mesh(name, parent);
-    const geometry = new Geometry(input.json, input.arrayBuffer, weights, input.draco, primitive);
+    const geometry = new Geometry(input.json, input.arrayBuffer, weights, draco, primitive);
     if (primitive.attributes.TANGENT === void 0) {
       defines.push({ name: "USERIGHTHANDEDSYSTEM" });
     }
@@ -19897,7 +19817,7 @@ var redcube = (() => {
     mesh.instances = parent.instances;
     return mesh;
   }
-  function buildNode(input, parent, name) {
+  function buildNode(input, parent, name, draco) {
     const el = input.json.nodes[name];
     let child;
     if (el.camera !== void 0) {
@@ -19905,7 +19825,7 @@ var redcube = (() => {
         {
           zoom: 1,
           isInitial: false,
-          aspect: input.canvas ? input.canvas.offsetWidth / input.canvas.offsetHeight : 1
+          aspect: input.width && input.height ? input.width / input.height : 1
         },
         input.json.cameras[el.camera]
       );
@@ -19981,12 +19901,21 @@ var redcube = (() => {
     if (el.mesh !== void 0) {
       parent.children.push(
         ...input.json.meshes[el.mesh].primitives.map(
-          (primitive) => buildPrim(input, el, parent, input.json.meshes[el.mesh].name, el.skin, input.json.meshes[el.mesh].weights, primitive)
+          (primitive) => buildPrim(
+            input,
+            el,
+            parent,
+            input.json.meshes[el.mesh].name,
+            el.skin,
+            input.json.meshes[el.mesh].weights,
+            primitive,
+            draco
+          )
         )
       );
     }
     if (el.children && el.children.length) {
-      el.children.forEach((childName) => buildNode(input, parent, childName));
+      el.children.forEach((childName) => buildNode(input, parent, childName, draco));
     }
   }
   function calculateFov(input, isInitial) {
@@ -20012,27 +19941,27 @@ var redcube = (() => {
     input.cameras.forEach((c) => {
       c.modelSize = size;
     });
-    input.resize();
   }
-  async function buildMesh(input, output) {
+  async function buildMesh(input) {
+    let draco;
     if (input.json.extensionsUsed && input.json.extensionsUsed.includes("KHR_draco_mesh_compression")) {
-      output.draco = await DecoderModule();
+      draco = await DecoderModule();
     }
     if (input.json.extensions && input.json.extensions.KHR_materials_variants) {
       input.scene.variants = input.json.extensions.KHR_materials_variants.variants;
     }
     input.json.scenes[input.json.scene !== void 0 ? input.json.scene : 0].nodes.forEach((n) => {
       if (input.json.nodes[n].extensions !== void 0) {
-        buildNode(input, input.scene, n);
+        buildNode(input, input.scene, n, draco);
       }
       if (input.json.nodes[n].children && input.json.nodes[n].children.length) {
-        buildNode(input, input.scene, n);
+        buildNode(input, input.scene, n, draco);
       }
       if (input.json.nodes[n].mesh !== void 0) {
-        buildNode(input, input.scene, n);
+        buildNode(input, input.scene, n, draco);
       }
       if (input.json.nodes[n].camera !== void 0) {
-        buildNode(input, input.scene, n);
+        buildNode(input, input.scene, n, draco);
       }
     });
     if (input.lights.length === 0 && input.light) {
@@ -21227,49 +21156,7 @@ void main() {\r
 }\r
 `;
 
-  // src/shaders/frag.h
-  var frag_default = "#version 300 es\r\nprecision highp float;\r\n\r\n// #ifdef DIFFUSE_TRANSMISSION\r\n//     #define SCATTERING 1\r\n// #endif\r\n\r\n#define texture2D(p, uv) texture(p, uv)\r\n#define textureCube(p, uv) texture(p, uv)\r\n#define textureLodCube(p, uv, i) textureLod(p, uv, i)\r\n#define textureLod2D(p, uv, i) textureLod(p, uv, i)\r\n#define textureLod2D2(p, uv, i) textureLod(p, uv, i)\r\n\r\nuniform sampler2D uMaterialTex;\r\n\r\nin vec4 vColor;\r\nin vec2 outUV0;\r\nin vec2 outUV2;\r\nin vec2 outUV3;\r\nin vec3 outPosition;\r\nin vec4 outPositionView;\r\nflat in int id;\r\n#ifdef TANGENT\r\n    in mat3 outTBN;\r\n#else\r\n    in vec3 outNormal;\r\n#endif\r\n\r\nlayout (location = 0) out vec4 color;\r\nlayout (location = 1) out vec4 normalColor;\r\nlayout (location = 2) out vec4 irradianceColor;\r\nlayout (location = 3) out vec4 albedoColor;\r\nlayout (location = 4) out vec4 specColor;\r\n\r\nstruct Material {\r\n    vec4 lights;\r\n    vec4 iridescence;\r\n    vec4 diffuseTransmissionFactor;\r\n    vec4 baseColorFactor;\r\n    vec3 specularColorFactor;\r\n    vec3 emissiveFactor;\r\n    vec3 sheenColorFactor;\r\n    vec3 attenuationColorFactor; \r\n    vec3 specularFactor;\r\n    vec2 anisotropyFactor;\r\n    float glossinessFactor;\r\n    float metallicFactor;\r\n    float roughnessFactor;\r\n    float clearcoatFactor;\r\n    float clearcoatRoughnessFactor;\r\n    float sheenRoughnessFactor;\r\n    float transmissionFactor;\r\n    float ior;\r\n    float normalTextureScale;\r\n    float attenuationDistance; \r\n    float thicknessFactor;\r\n    float emissiveStrength;\r\n    float dispersionFactor;\r\n};\r\n\r\nMaterial fetchMaterial(int id) {\r\n    Material m;\r\n    int row = id;\r\n    m.baseColorFactor         = texelFetch(uMaterialTex, ivec2(3, row), 0);\r\n    m.specularFactor          = texelFetch(uMaterialTex, ivec2(8, row), 0).xyz;\r\n    m.specularColorFactor     = texelFetch(uMaterialTex, ivec2(4, row), 0).xyz;\r\n    m.emissiveFactor          = texelFetch(uMaterialTex, ivec2(5, row), 0).xyz;\r\n    m.glossinessFactor        = texelFetch(uMaterialTex, ivec2(10, row), 0).x;\r\n    m.metallicFactor          = texelFetch(uMaterialTex, ivec2(11, row), 0).x;\r\n    m.roughnessFactor         = texelFetch(uMaterialTex, ivec2(12, row), 0).x;\r\n    m.clearcoatFactor         = texelFetch(uMaterialTex, ivec2(13, row), 0).x;\r\n    m.clearcoatRoughnessFactor= texelFetch(uMaterialTex, ivec2(14, row), 0).x;\r\n    m.sheenColorFactor        = texelFetch(uMaterialTex, ivec2(6, row), 0).xyz;\r\n    m.sheenRoughnessFactor    = texelFetch(uMaterialTex, ivec2(15, row), 0).x;\r\n    m.transmissionFactor      = texelFetch(uMaterialTex, ivec2(16, row), 0).x;\r\n    m.ior                     = texelFetch(uMaterialTex, ivec2(17, row), 0).x;\r\n    m.normalTextureScale      = texelFetch(uMaterialTex, ivec2(18, row), 0).x;\r\n    m.attenuationColorFactor  = texelFetch(uMaterialTex, ivec2(7, row), 0).xyz;\r\n    m.attenuationDistance     = texelFetch(uMaterialTex, ivec2(19, row), 0).x;\r\n    m.thicknessFactor         = texelFetch(uMaterialTex, ivec2(20, row), 0).x;\r\n    m.emissiveStrength        = texelFetch(uMaterialTex, ivec2(21, row), 0).x;\r\n    m.anisotropyFactor        = texelFetch(uMaterialTex, ivec2(9, row), 0).xy;\r\n    m.iridescence             = texelFetch(uMaterialTex, ivec2(1, row), 0);\r\n    m.diffuseTransmissionFactor= texelFetch(uMaterialTex, ivec2(2, row), 0);\r\n    m.dispersionFactor        = texelFetch(uMaterialTex, ivec2(22, row), 0).x;\r\n    m.lights                  = texelFetch(uMaterialTex, ivec2(0, row), 0);\r\n    return m;\r\n}\r\n\r\nuniform Matrices2 {\r\n    mat4 view;\r\n    mat4 projection;\r\n    mat4 light;\r\n    float isShadow;\r\n};\r\nuniform LightPos {\r\n    vec4 lightPos[LIGHTNUMBER];\r\n};\r\nuniform LightColor {\r\n    vec4 lightColor[LIGHTNUMBER];\r\n};\r\nuniform Spotdir {\r\n    vec4 spotdir[LIGHTNUMBER];\r\n};\r\nuniform LightIntensity {\r\n    vec4 lightIntensity[LIGHTNUMBER];\r\n};\r\n#if defined MATRICES\r\nuniform TextureMatrices {\r\n    mat4 textureMatrices[MATRICES];\r\n};\r\n#endif\r\n#ifdef SPHERICAL_HARMONICS\r\nuniform SphericalHarmonics {\r\n    vec4 vSphericalL00;\r\n    vec4 vSphericalL1_1;\r\n    vec4 vSphericalL10;\r\n    vec4 vSphericalL11;\r\n    vec4 vSphericalL2_2;\r\n    vec4 vSphericalL2_1;\r\n    vec4 vSphericalL20;\r\n    vec4 vSphericalL21;\r\n    vec4 vSphericalL22;\r\n    mat4 rotationMatrix;\r\n};\r\n#endif\r\n\r\nuniform sampler2D baseColorTexture;\r\nuniform sampler2D metallicRoughnessTexture;\r\nuniform sampler2D normalTexture;\r\nuniform sampler2D emissiveTexture;\r\nuniform sampler2D occlusionTexture;\r\nuniform sampler2D clearcoatTexture;\r\nuniform sampler2D clearcoatRoughnessTexture;\r\nuniform sampler2D transmissionTexture;\r\nuniform sampler2D sheenColorTexture;\r\nuniform sampler2D sheenRoughnessTexture;\r\nuniform sampler2D iridescenceThicknessTexture;\r\nuniform sampler2D iridescenceTexture;\r\nuniform sampler2D clearcoatNormalTexture;\r\nuniform sampler2D specularTexture;\r\nuniform sampler2D specularColorTexture;\r\nuniform sampler2D thicknessTexture;\r\nuniform sampler2D diffuseTransmissionTexture;\r\nuniform sampler2D diffuseTransmissionColorTexture;\r\nuniform sampler2D anisotropyTexture;\r\n\r\nuniform samplerCube prefilterMap;\r\nuniform samplerCube charlieMap;\r\nuniform sampler2D brdfLUT;  \r\nuniform samplerCube irradianceMap;\r\nuniform sampler2D depthTexture;\r\nuniform sampler2D colorTexture;\r\nuniform float isTone;\r\nuniform float isIBL;\r\nuniform float isDefaultLight;\r\nuniform sampler2D Sheen_E;\r\n";
-
-  // src/shaders/vert.h
-  var vert_default = "#version 300 es\r\nprecision highp float;\r\n\r\nlayout (location = 0) in vec3 inPosition;\r\nlayout (location = 1) in vec3 inNormal;\r\nlayout (location = 2) in vec2 inUV;\r\nlayout (location = 4) in vec4 inJoint;\r\nlayout (location = 5) in vec4 inWeight;\r\nlayout (location = 3) in vec4 inTangent;\r\nlayout (location = 6) in vec4 inColor;\r\nlayout (location = 7) in vec2 inUV2;\r\nlayout (location = 8) in vec2 inUV3;\r\nlayout (location = 9) in float uMaterialID;\r\n\r\nuniform sampler2D uTransformTex;\r\n\r\nout vec4 vColor;\r\nout vec2 outUV0;\r\nout vec2 outUV2;\r\nout vec2 outUV3;\r\nout vec3 outPosition;\r\nout vec4 outPositionView;\r\nflat out int id;\r\n#ifdef TANGENT\r\n    out mat3 outTBN;\r\n#else\r\n    out vec3 outNormal;\r\n#endif\r\n\r\nstruct Transform {\r\n    mat4 model;\r\n};\r\nTransform fetchTransform(int id) {\r\n    Transform t;\r\n\r\n    // 8 texels across (0..7)\r\n    t.model[0] = texelFetch(uTransformTex, ivec2(0, id), 0);\r\n    t.model[1] = texelFetch(uTransformTex, ivec2(1, id), 0);\r\n    t.model[2] = texelFetch(uTransformTex, ivec2(2, id), 0);\r\n    t.model[3] = texelFetch(uTransformTex, ivec2(3, id), 0);\r\n\r\n    return t;\r\n}\r\nuniform Matrices2 {\r\n    mat4 view;\r\n    mat4 projection;\r\n    mat4 light;\r\n    float isShadow;\r\n};\r\n#ifdef JOINTNUMBER\r\nuniform Skin {\r\n    mat4 joint[JOINTNUMBER];\r\n};\r\n#endif";
-
   // src/parseTextures.ts
-  function createShaderProgram(input, defines) {
-    let program;
-    const programHash = defines.map((define2) => `${define2.name}${define2.value ?? 1}`).join("");
-    if (input.programs[programHash]) {
-      program = input.programs[programHash];
-    } else {
-      const defineStr = defines.map((define2) => `#define ${define2.name} ${define2.value ?? 1}
-`).join("");
-      const shaders = [vertex_default, fragment_default].map(
-        (p) => p.replace(/#include ".*/g, (str) => {
-          const [, subPath] = str.split('"');
-          if (subPath.includes("vert")) {
-            return vert_default;
-          } else {
-            return frag_default;
-          }
-        })
-      ).map((p) => p.replace(/\n/, `
-${defineStr}`));
-      input.programs[programHash] = createProgram(input.gl, shaders[0], shaders[1]);
-      program = input.programs[programHash];
-    }
-    return program;
-  }
-  function createSamplers(input, output) {
-    const webglGl = input.gl;
-    const samplers = input.json.samplers || [{}];
-    output.samplers = samplers.map((s) => {
-      const sampler = webglGl.createSampler();
-      webglGl.samplerParameteri(sampler, webglGl.TEXTURE_MIN_FILTER, s.minFilter || webglGl.LINEAR_MIPMAP_LINEAR);
-      webglGl.samplerParameteri(sampler, webglGl.TEXTURE_MAG_FILTER, s.magFilter || webglGl.LINEAR);
-      webglGl.samplerParameteri(sampler, webglGl.TEXTURE_WRAP_S, s.wrapS || webglGl.REPEAT);
-      webglGl.samplerParameteri(sampler, webglGl.TEXTURE_WRAP_T, s.wrapT || webglGl.REPEAT);
-      return sampler;
-    });
-  }
   function createSamplersWebGPU(input, output, WebGPU) {
     function getSamplerParam(value) {
       const map = {
@@ -21300,15 +21187,11 @@ ${defineStr}`));
   function createTexturesWebGPU(input, WebGPU) {
     createTextures(
       input,
-      (t, textureType) => handleTextureLoadedWebGPU(input, WebGPU, t, textureType)
-    );
-  }
-  function createTexturesWebGL(input) {
-    createTextures(
-      input,
-      (t) => handleTextureLoaded(
+      (t, textureType) => handleTextureLoadedWebGPU(
         input,
-        t
+        WebGPU,
+        t,
+        textureType
       )
     );
   }
@@ -21401,13 +21284,18 @@ ${defineStr}`));
       await new Promise((resolve) => setTimeout(resolve, 1e3));
     }
     const promiseArr = Object.values(texturesMap).map((t) => {
-      let s = t.extensions && t.extensions.KHR_texture_basisu ? t.extensions.KHR_texture_basisu.source : t.source;
+      const isBasisu = Boolean(t.extensions && t.extensions.KHR_texture_basisu);
+      let s = isBasisu ? t.extensions.KHR_texture_basisu.source : t.source;
       s = t.extensions && t.extensions.EXT_texture_webp ? t.extensions.EXT_texture_webp.source : s;
       const source = input.json.images[s];
       return fetchImage(
         isbitmap,
         input,
-        source,
+        // KHR_texture_basisu images aren't required to carry mimeType
+        // themselves (the extension reference is what marks them as
+        // KTX2) - fetchImage only branches to the KTX2 loader off
+        // mimeType, so make that explicit here.
+        isBasisu ? { ...source, mimeType: "image/ktx2" } : source,
         {
           url: `${input.host}${source.uri}`,
           name: t.name
@@ -21447,169 +21335,6 @@ ${defineStr}`));
     input.images.set(name, tex);
     return tex;
   }
-  function handleTextureLoaded(input, {
-    image,
-    name,
-    mimeType,
-    sampler,
-    srgb = false
-  }) {
-    const s = input.samplers[sampler !== void 0 ? sampler : 0];
-    if (mimeType) {
-      image.sampler = s;
-      return image;
-    }
-    if (input.images.has(name + srgb)) {
-      return input.images.get(name + srgb);
-    }
-    const webglGl = input.gl;
-    const t = webglGl.createTexture();
-    t.name = name;
-    t.image = image.src.substr(image.src.lastIndexOf("/"));
-    t.sampler = s;
-    webglGl.activeTexture(webglGl[`TEXTURE${31}`]);
-    webglGl.bindTexture(webglGl.TEXTURE_2D, t);
-    webglGl.pixelStorei(webglGl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
-    webglGl.pixelStorei(webglGl.UNPACK_COLORSPACE_CONVERSION_WEBGL, webglGl.NONE);
-    webglGl.texImage2D(webglGl.TEXTURE_2D, 0, srgb ? webglGl.SRGB8_ALPHA8 : webglGl.RGBA, webglGl.RGBA, webglGl.UNSIGNED_BYTE, image);
-    webglGl.generateMipmap(webglGl.TEXTURE_2D);
-    input.images.set(name + srgb, t);
-    return t;
-  }
-
-  // src/parseContext.ts
-  var ParseContext = class {
-    gl;
-    tracks;
-    url;
-    host;
-    skins;
-    textures;
-    images;
-    samplers;
-    arrayBuffer;
-    cameras;
-    lights;
-    programs;
-    scene;
-    camera;
-    light;
-    canvas;
-    resize;
-    json;
-    defines;
-    draco;
-    constructor(url, defines, resize) {
-      this.url = url;
-      this.host = url.substr(0, url.lastIndexOf("/") + 1);
-      this.tracks = [];
-      this.skins = [];
-      this.textures = null;
-      this.images = /* @__PURE__ */ new Map();
-      this.samplers = null;
-      this.arrayBuffer = null;
-      this.cameras = [];
-      this.lights = [];
-      this.programs = {};
-      this.defines = defines;
-      this.resize = resize;
-    }
-  };
-  function commit(target, patch) {
-    Object.assign(target, patch);
-  }
-
-  // src/parse.ts
-  var Parse = class {
-    context;
-    constructor(url, defines, resize) {
-      this.context = new ParseContext(url, defines, resize);
-    }
-    // Runs a function that writes into a fresh patch instead of the live
-    // context, then commits that patch in one place - so call sites below
-    // don't each repeat "make a patch, call, commit."
-    withPatch(run) {
-      const patch = {};
-      const result = run(patch);
-      commit(this.context, patch);
-      return result;
-    }
-    async withPatchAsync(run) {
-      const patch = {};
-      const result = await run(patch);
-      commit(this.context, patch);
-      return result;
-    }
-    get tracks() {
-      return this.context.tracks;
-    }
-    get json() {
-      return this.context.json;
-    }
-    get lights() {
-      return this.context.lights;
-    }
-    get cameras() {
-      return this.context.cameras;
-    }
-    get skins() {
-      return this.context.skins;
-    }
-    setScene(scene) {
-      this.context.scene = scene;
-    }
-    setGl(g) {
-      this.context.gl = g;
-    }
-    setCamera(camera) {
-      this.context.camera = camera;
-    }
-    setLight(light) {
-      this.context.light = light;
-    }
-    setCanvas(canvas) {
-      this.context.canvas = canvas;
-    }
-    getJson() {
-      return this.withPatchAsync((patch) => getJson(this.context, patch));
-    }
-    getBuffer() {
-      return this.withPatchAsync((patch) => getBuffer(this.context, patch));
-    }
-    getEnv(isBuffer) {
-      return getEnv(this.context, isBuffer);
-    }
-    calculateFov(isInitial) {
-      return calculateFov(this.context, isInitial);
-    }
-    buildMesh() {
-      return this.withPatchAsync((patch) => buildMesh(this.context, patch));
-    }
-    buildSkin() {
-      return buildSkin(this.context);
-    }
-    buildAnimation() {
-      return buildAnimation(this.context);
-    }
-    createProgram(defines) {
-      return createShaderProgram(this.context, defines);
-    }
-    createSamplers() {
-      this.withPatch((patch) => createSamplers(this.context, patch));
-    }
-    createSamplersWebGPU(WebGPU) {
-      this.withPatch((patch) => createSamplersWebGPU(this.context, patch, WebGPU));
-    }
-    createTexturesWebGPU(WebGPU) {
-      return createTexturesWebGPU(this.context, WebGPU);
-    }
-    createTexturesWebGL() {
-      return createTexturesWebGL(this.context);
-    }
-    initTextures(isbitmap) {
-      return this.withPatchAsync((patch) => initTextures(this.context, patch, isbitmap));
-    }
-  };
 
   // src/profile.ts
   var WebGPUProfiler = class {
@@ -21897,45 +21622,15 @@ ${defineStr}`));
 
   // src/renderer.ts
   var Renderer = class {
-    gl;
-    parse;
-    PP;
-    scene;
-    Particles;
     fps;
-    camera;
     getState;
-    reflow;
-    needUpdateProjection = true;
+    reflow = true;
     needUpdateView = true;
-    env;
-    currentTrack;
+    needUpdateProjection = true;
+    currentTrack = 0;
     constructor(getState) {
-      this.reflow = true;
       this.fps = new FPS();
       this.getState = getState;
-      this.currentTrack = 0;
-    }
-    setEnv(env) {
-      this.env = env;
-    }
-    setCamera(camera) {
-      this.camera = camera;
-    }
-    setParticles(Particles) {
-      this.Particles = Particles;
-    }
-    setScene(scene) {
-      this.scene = scene;
-    }
-    setPp(pp) {
-      this.PP = pp;
-    }
-    setGl(g) {
-      this.gl = g;
-    }
-    setParser(parser) {
-      this.parse = parser;
     }
     step(sec, v) {
       const val = interpolation(sec, v.keys);
@@ -22031,7 +21726,7 @@ ${defineStr}`));
       }
     }
     updateGeometry(mesh, geometry) {
-      mesh.geometry.update(this.gl, geometry);
+      mesh.geometry.update(this.getState().gl, geometry);
     }
     interpolation(sec, v) {
       const val = interpolation(sec, v.keys);
@@ -22110,7 +21805,7 @@ ${defineStr}`));
       }
     }
     updateMaterial(mesh, type, out) {
-      const gl = this.gl;
+      const gl = this.getState().gl;
       const s = type.split("/");
       const last = s[s.length - 1];
       if (last === "offset" || last === "rotation" || last === "scale") {
@@ -22122,13 +21817,14 @@ ${defineStr}`));
       }
     }
     animate(sec) {
-      if (!this.parse.tracks.length) {
+      const { tracks, camera } = this.getState();
+      if (!tracks.length) {
         return;
       }
-      const duration = Math.max(...this.parse.tracks.map((t) => t[0].duration));
+      const duration = Math.max(...tracks.map((t) => t[0].duration));
       const increment = Math.floor(sec / duration);
       sec -= increment * duration;
-      for (const track of this.parse.tracks.sort((a, b) => a[0].duration - b[0].duration)) {
+      for (const track of tracks.sort((a, b) => a[0].duration - b[0].duration)) {
         for (const v of track) {
           let result;
           switch (v.interpolation) {
@@ -22160,7 +21856,7 @@ ${defineStr}`));
               if (node instanceof Light) {
                 this.needUpdateView = true;
               }
-              if (node instanceof Camera && node === this.camera) {
+              if (node instanceof Camera && node === camera) {
                 this.needUpdateView = true;
               }
             });
@@ -22170,57 +21866,58 @@ ${defineStr}`));
       }
     }
     render(time = 0) {
-      const gl = this.gl;
+      const s = this.getState();
+      const gl = s.gl;
       const sec = time / 1e3;
       if (!window.__FORCE_DETERMINISTIC__) {
         this.animate(sec);
       }
       if (this.reflow) {
-        if (this.PP.hasPrePass) {
-          this.PP.bindPrePass();
-          this.PP.preProcessing();
+        if (s.pp.hasPrePass) {
+          s.pp.bindPrePass();
+          s.pp.preProcessing();
         }
-        if (this.PP.hasPostPass) {
-          this.PP.bindPostPass();
+        if (s.pp.hasPostPass) {
+          s.pp.bindPostPass();
         }
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-        if (this.parse.json.extensions && this.parse.json.extensions.EXT_lights_image_based) {
-          this.env.draw();
+        if (s.json.extensions && s.json.extensions.EXT_lights_image_based) {
+          s.env.draw();
         }
         this.renderScene();
         this.clean();
-        if (this.PP.postprocessors.some((p) => p instanceof Light2)) {
+        if (s.pp.postprocessors.some((p) => p instanceof Light2)) {
           gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, null);
-          this.Particles.draw(time);
+          s.particles.draw(time);
           this.reflow = true;
         }
-        if (this.PP.hasPostPass) {
-          this.PP.postProcessing();
+        if (s.pp.hasPostPass) {
+          s.pp.postProcessing();
         }
       }
       this.fps.tick(time);
       requestAnimationFrame(this.render.bind(this));
     }
     renderScene() {
-      const gl = this.gl;
+      const s = this.getState();
+      const gl = s.gl;
       if (this.needUpdateView || this.reflow) {
-        const planes = Frustum(this.camera.getViewProjMatrix());
-        this.scene.meshes.forEach((mesh) => {
+        const planes = Frustum(s.camera.getViewProjMatrix());
+        s.scene.meshes.forEach((mesh) => {
           mesh.visible = mesh.parent.visible && mesh.isVisible(planes);
         });
       }
-      const s = this.getState();
-      if (s.needUpdateView) {
+      if (this.needUpdateView) {
         gl.bindBufferBase(gl.UNIFORM_BUFFER, 1, s.UBO);
         s.cameraBuffer.update(gl, "view", s.camera.matrixWorldInvert.elements);
         s.cameraBuffer.update(gl, "light", s.light.matrixWorldInvert.elements);
         gl.bindBufferBase(gl.UNIFORM_BUFFER, 3, s.lightPosUniform);
-        this.parse.lights.forEach((light, i) => {
+        s.lights.forEach((light, i) => {
           s.lightPosBuffer.store.set(light.getPosition(), i * 4);
         });
         gl.bufferSubData(gl.UNIFORM_BUFFER, 0, s.lightPosBuffer.store);
       }
-      if (s.needUpdateProjection) {
+      if (this.needUpdateProjection) {
         gl.bindBufferBase(gl.UNIFORM_BUFFER, 1, s.UBO);
         s.cameraBuffer.update(gl, "projection", s.camera.projection.elements);
       }
@@ -22232,7 +21929,7 @@ ${defineStr}`));
           gl.bufferSubData(gl.UNIFORM_BUFFER, offset, new Float32Array([0, 0, 0, 0]));
         }
       });
-      this.scene.meshes.forEach((mesh, i) => {
+      s.scene.meshes.forEach((mesh, i) => {
         if (mesh.reflow) {
           gl.activeTexture(gl[`TEXTURE${31}`]);
           gl.bindTexture(gl.TEXTURE_2D, s.storage2.texture);
@@ -22244,7 +21941,7 @@ ${defineStr}`));
             // xoffset
             i,
             // yoffset
-            this.scene.meshes[0].geometry.uniformBuffer.store.length / Float32Array.BYTES_PER_ELEMENT,
+            s.scene.meshes[0].geometry.uniformBuffer.store.length / Float32Array.BYTES_PER_ELEMENT,
             1,
             gl.RGBA,
             gl.FLOAT,
@@ -22260,7 +21957,7 @@ ${defineStr}`));
                 // xoffset
                 i + j + 1,
                 // yoffset
-                this.scene.meshes[0].geometry.uniformBuffer.store.length / Float32Array.BYTES_PER_ELEMENT,
+                s.scene.meshes[0].geometry.uniformBuffer.store.length / Float32Array.BYTES_PER_ELEMENT,
                 1,
                 gl.RGBA,
                 gl.FLOAT,
@@ -22281,7 +21978,7 @@ ${defineStr}`));
             // xoffset
             i,
             // yoffset
-            this.scene.meshes[0].material.materialUniformBuffer.store.length / Float32Array.BYTES_PER_ELEMENT,
+            s.scene.meshes[0].material.materialUniformBuffer.store.length / Float32Array.BYTES_PER_ELEMENT,
             1,
             gl.RGBA,
             gl.FLOAT,
@@ -22290,17 +21987,17 @@ ${defineStr}`));
           mesh.repaint = false;
         }
       });
-      this.scene.opaqueChildren.forEach((mesh) => {
+      s.scene.opaqueChildren.forEach((mesh) => {
         if (mesh.visible) {
-          mesh.draw(gl, this.getState());
+          mesh.draw(gl, s);
         }
       });
-      if (this.scene.transparentChildren.length) {
+      if (s.scene.transparentChildren.length) {
         gl.enable(gl.BLEND);
         gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-        this.scene.transparentChildren.forEach((mesh) => {
+        s.scene.transparentChildren.forEach((mesh) => {
           if (mesh.visible) {
-            mesh.draw(gl, this.getState());
+            mesh.draw(gl, s);
           }
         });
         gl.disable(gl.BLEND);
@@ -22308,7 +22005,7 @@ ${defineStr}`));
       }
     }
     clean() {
-      walk(this.scene, (node) => {
+      walk(this.getState().scene, (node) => {
         node.reflow = false;
       });
       this.needUpdateView = false;
@@ -22321,15 +22018,12 @@ ${defineStr}`));
   var DEBUG_PROFILING = false;
   var RendererWebGPU = class extends Renderer {
     profiler;
-    setEnv(env) {
-      this.env = env;
+    constructor(getState) {
+      super(getState);
+      this.profiler = new WebGPUProfiler(getState().gl.device, { maxTimestampWrites: 64 });
     }
-    setGl(g) {
-      this.gl = g;
-      this.profiler = new WebGPUProfiler(g.device, { maxTimestampWrites: 64 });
-    }
-    setPp(pp) {
-      this.PP = pp;
+    get pp() {
+      return this.getState().pp;
     }
     async render(time = 0) {
       const sec = time / 1e3;
@@ -22337,29 +22031,29 @@ ${defineStr}`));
         this.animate(sec);
       }
       if (this.reflow) {
-        if (this.PP.hasPrePass) {
-          this.PP.bindPrePass();
-          this.PP.preProcessing();
-          this.PP.target = void 0;
+        if (this.pp.hasPrePass) {
+          this.pp.bindPrePass();
+          this.pp.preProcessing();
+          this.pp.target = void 0;
         }
-        if (this.PP.hasPostPass) {
-          this.PP.bindPostPass();
+        if (this.pp.hasPostPass) {
+          this.pp.bindPostPass();
         }
         await this.renderScene();
         this.clean();
-        if (this.PP.hasPostPass) {
-          this.PP.postProcessing();
+        if (this.pp.hasPostPass) {
+          this.pp.postProcessing();
         }
       }
       this.fps.tick(time);
       requestAnimationFrame(this.render.bind(this));
     }
     updateGeometry(mesh, geometry) {
-      const WebGPU = this.gl;
+      const WebGPU = this.getState().gl;
       mesh.geometry.updateWebGPU(WebGPU, geometry);
     }
     updateMaterial(mesh, type, out) {
-      const WebGPU = this.gl;
+      const WebGPU = this.getState().gl;
       const s = type.split("/");
       const last = s[s.length - 1];
       if (last === "offset" || last === "rotation" || last === "scale") {
@@ -22371,24 +22065,24 @@ ${defineStr}`));
       }
     }
     async renderScene() {
-      const WebGPU = this.gl;
+      const WebGPU = this.getState().gl;
       const { context, device, newRenderTarget } = WebGPU;
       let { renderPassDescriptor } = WebGPU;
       const s = this.getState();
       if (s.needUpdateView || this.reflow) {
         const planes = Frustum(s.camera.getViewProjMatrix());
-        this.scene.meshes.forEach((mesh) => {
+        s.scene.meshes.forEach((mesh) => {
           mesh.visible = mesh.parent.visible && mesh.isVisible(planes);
         });
-        this.scene.opaqueChildren.sort((a, b) => a.distance - b.distance);
-        this.scene.transparentChildren.sort((a, b) => a.distance - b.distance);
+        s.scene.opaqueChildren.sort((a, b) => a.distance - b.distance);
+        s.scene.transparentChildren.sort((a, b) => a.distance - b.distance);
       }
-      if (this.PP.target) {
+      if (this.pp.target) {
         renderPassDescriptor = {
           ...renderPassDescriptor,
           label: "g-pass",
-          colorAttachments: this.PP.target,
-          depthStencilAttachment: this.PP.pipeline.pass.depthStencilAttachment
+          colorAttachments: this.pp.target,
+          depthStencilAttachment: this.pp.pipeline.pass.depthStencilAttachment
         };
       } else {
         renderPassDescriptor = {
@@ -22413,7 +22107,7 @@ ${defineStr}`));
       if (s.needUpdateView) {
         s.cameraBuffer.updateWebGPU(WebGPU, "view", s.camera.matrixWorldInvert.elements);
         s.cameraBuffer.updateWebGPU(WebGPU, "light", s.light.matrixWorldInvert.elements);
-        this.parse.lights.forEach((light, i) => {
+        s.lights.forEach((light, i) => {
           s.lightPosBuffer.store.set(light.getPosition(), i * 4);
         });
         device.queue.writeBuffer(
@@ -22440,13 +22134,13 @@ ${defineStr}`));
           device.queue.writeBuffer(s.lightColorBuffer.bufferWebGPU, offset, new Float32Array([0, 0, 0, 0]).buffer, 0, 16);
         }
       });
-      this.scene.opaqueChildren.forEach((mesh) => {
+      s.scene.opaqueChildren.forEach((mesh) => {
         if (mesh.visible) {
           passEncoder.setPipeline(s.renderState.isprerefraction ? mesh.pipeline2 : mesh.pipeline);
           mesh.drawWebGPU(WebGPU, passEncoder, mesh.order, s);
         }
       });
-      this.scene.transparentChildren.forEach((mesh) => {
+      s.scene.transparentChildren.forEach((mesh) => {
         if (mesh.visible) {
           passEncoder.setPipeline(s.renderState.isprerefraction ? mesh.pipeline2 : mesh.pipeline);
           mesh.drawWebGPU(WebGPU, passEncoder, mesh.order, s);
@@ -23188,7 +22882,7 @@ ${defineStr}`));
     scattering: Scattering
   };
   var PostProcessing = class {
-    gl;
+    getState;
     screenTexture;
     normalTexture;
     irradianceTexture;
@@ -23197,9 +22891,6 @@ ${defineStr}`));
     depthTexture;
     preDepthTexture;
     fakeDepth;
-    camera;
-    renderer;
-    canvas;
     framebuffer;
     preframebuffer;
     postprocessors;
@@ -23214,9 +22905,22 @@ ${defineStr}`));
     bindGroup;
     hasPostPass = false;
     hasPrePass = false;
-    constructor(processors, renderScene) {
+    constructor(getState, canvas, processors, renderScene) {
+      this.getState = getState;
       this.renderScene = renderScene;
       this.postprocessors = processors.map((name) => new processorsMap[name]());
+      const { gl, camera, light } = getState();
+      this.postprocessors.forEach((postProcessor) => {
+        postProcessor.setCamera(camera);
+        postProcessor.light = light;
+        postProcessor.setCanvas(canvas);
+        postProcessor.setGL(gl);
+      });
+      this.fakeDepth = this.createNoiceTexture(1);
+      this.fakeDepth.view = this.fakeDepth.texture.createView();
+    }
+    get gl() {
+      return this.getState().gl;
     }
     add(name) {
       const p = new processorsMap[name]();
@@ -23231,37 +22935,15 @@ ${defineStr}`));
       this.hasPrePass = true;
     }
     setCamera(camera) {
-      this.camera = camera;
       this.postprocessors.forEach((postProcessor) => {
         postProcessor.setCamera(camera);
       });
     }
-    setLight(light) {
-      this.postprocessors.forEach((postProcessor) => {
-        postProcessor.light = light;
-      });
-    }
-    setGl(g) {
-      if (g) {
-        this.gl = g;
-        this.postprocessors.forEach((postProcessor) => {
-          postProcessor.setGL(g);
-        });
-        this.fakeDepth = this.createNoiceTexture(1);
-        this.fakeDepth.view = this.fakeDepth.texture.createView();
-      }
-    }
-    setCanvas(canvas) {
-      this.canvas = canvas;
-      this.postprocessors.forEach((postProcessor) => {
-        postProcessor.setCanvas(canvas);
-      });
-    }
     get width() {
-      return this.canvas.offsetWidth * devicePixelRatio;
+      return this.getState().width * devicePixelRatio;
     }
     get height() {
-      return this.canvas.offsetHeight * devicePixelRatio;
+      return this.getState().height * devicePixelRatio;
     }
     bindPrePass() {
     }
@@ -25402,6 +25084,11 @@ ${defineStr}`)];
     wrapCreationDestroy(GPUDevice, GPURenderPipeline, "createRenderPipelineAsync", "renderPipeline");
   }
 
+  // src/state.ts
+  function commit(target, patch) {
+    Object.assign(target, patch);
+  }
+
   // src/redcube.webgpu.ts
   var FOV = 60;
   var RedCube = class {
@@ -25409,16 +25096,7 @@ ${defineStr}`)];
     envUrl;
     canvas;
     events;
-    ioc;
-    isIBL = true;
-    isDefaultLight = true;
-    renderState = {};
-    stateBuffer;
-    cameraBuffer;
-    lightPosBuffer;
-    lightColorBuffer;
-    transformsStorage;
-    materialStorage;
+    state;
     constructor(url, canvas, _pp, envUrl = "env") {
       if (!url) {
         throw new Error("RedCube: a glTF url must be passed as the first constructor argument");
@@ -25427,6 +25105,43 @@ ${defineStr}`)];
       this.url = url;
       this.canvas = canvas;
       this.events = new Events(canvas, this.redraw.bind(this));
+      this.state = {
+        width: canvas.offsetWidth,
+        height: canvas.offsetHeight,
+        url,
+        host: url.substr(0, url.lastIndexOf("/") + 1),
+        defines: [],
+        tracks: [],
+        json: void 0,
+        skins: [],
+        cameras: [],
+        lights: [],
+        textures: null,
+        images: /* @__PURE__ */ new Map(),
+        samplers: null,
+        arrayBuffer: null,
+        programs: {},
+        renderState: {},
+        isIBL: true,
+        isDefaultLight: true,
+        needUpdateView: true,
+        needUpdateProjection: true
+      };
+    }
+    getState() {
+      return this.state;
+    }
+    withPatch(run) {
+      const patch = {};
+      const result = run(patch);
+      commit(this.state, patch);
+      return result;
+    }
+    async withPatchAsync(run) {
+      const patch = {};
+      const result = await run(patch);
+      commit(this.state, patch);
+      return result;
     }
     async webgpuInit() {
       const glslangModule2 = await Promise.resolve().then(() => (init_glslang(), glslang_exports));
@@ -25496,50 +25211,25 @@ ${defineStr}`)];
         newRenderTarget
       };
     }
-    get camera() {
-      return this.ioc.get("camera");
-    }
-    get light() {
-      return this.ioc.get("light");
-    }
-    get renderer() {
-      return this.ioc.get("renderer");
-    }
-    get scene() {
-      return this.ioc.get("scene");
-    }
-    get parse() {
-      return this.ioc.get("parser");
-    }
-    get env() {
-      return this.ioc.get("env");
-    }
-    get PP() {
-      return this.ioc.get("pp");
+    // Fans out a runtime camera switch (e.g. picking a different glTF camera
+    // node) to the child postprocessors that still cache their own copy -
+    // everything else reads state.camera live, so there's nothing to update.
+    setActiveCamera(camera) {
+      this.state.camera = camera;
+      this.state.pp.setCamera(camera);
     }
     async init(cb) {
-      const ioc = new Container();
-      this.ioc = ioc;
       const WebGPU = await this.webgpuInit();
-      ioc.register("canvas", this.canvas);
-      ioc.register("gl", WebGPU);
-      ioc.register("scene", Scene);
-      ioc.register("light", Light, [], {
+      this.state.gl = WebGPU;
+      this.state.scene = new Scene();
+      this.state.light = new Light({
         type: "directional",
         intensity: 5,
         color: [1, 1, 1],
         isInitial: true,
         spot: {}
       });
-      this.ioc.register("pp", PostProcessing, ["light", "camera", "canvas", "gl"], [], this.renderScene.bind(this));
-      ioc.register("parser", Parse, ["gl", "scene", "camera", "light"], this.url, [], () => {
-      });
-      ioc.register("env", Env, ["camera", "canvas"], this.envUrl);
-      ioc.register("renderer", RendererWebGPU, ["gl", "scene", "parser", "env", "pp"], this.getState.bind(this));
-      ioc.register(
-        "camera",
-        Camera,
-        [],
+      this.state.camera = new Camera(
         {
           type: "perspective",
           isInitial: true,
@@ -25551,18 +25241,23 @@ ${defineStr}`)];
         },
         "perspective"
       );
-      await this.parse.getJson();
-      await this.parse.getBuffer();
-      await this.parse.initTextures(true);
-      this.parse.buildSkin();
-      await this.parse.buildMesh();
-      this.parse.buildAnimation();
-      this.parse.cameras.push(this.camera);
-      this.parse.createSamplersWebGPU(WebGPU);
-      this.parse.createTexturesWebGPU(WebGPU);
-      const envData = await this.parse.getEnv(true);
-      await this.env.createEnvironmentBuffer(envData, WebGPU);
-      this.parse.calculateFov(this.camera.props.isInitial);
+      const env = new Env(this.getState.bind(this), this.envUrl);
+      this.state.env = env;
+      const pp = new PostProcessing(this.getState.bind(this), this.canvas, [], this.renderScene.bind(this));
+      this.state.pp = pp;
+      this.state.renderer = new RendererWebGPU(this.getState.bind(this));
+      await this.withPatchAsync((patch) => getJson(this.state, patch));
+      await this.withPatchAsync((patch) => getBuffer(this.state, patch));
+      await this.withPatchAsync((patch) => initTextures(this.state, patch, true));
+      buildSkin(this.state);
+      await buildMesh(this.state);
+      buildAnimation(this.state);
+      this.state.cameras.push(this.state.camera);
+      this.withPatch((patch) => createSamplersWebGPU(this.state, patch, WebGPU));
+      createTexturesWebGPU(this.state, WebGPU);
+      const envData = await getEnv(this.state, true);
+      await env.createEnvironmentBuffer(envData, WebGPU);
+      calculateFov(this.state, this.state.camera.props.isInitial);
       this.resize();
       WebGPU.nearestSampler = WebGPU.device.createSampler({
         mipmapFilter: "nearest",
@@ -25580,18 +25275,18 @@ ${defineStr}`)];
         addressModeV: "repeat",
         addressModeW: "repeat"
       });
-      await this.env.createTexture(WebGPU);
-      this.env.drawBRDF(WebGPU);
-      this.env.drawMips(WebGPU);
-      this.env.drawIrradiance(WebGPU);
-      this.env.drawPrefilter(WebGPU);
-      const { renderState, isIBL, isDefaultLight, lights } = this.getState();
+      await env.createTexture(WebGPU);
+      env.drawBRDF(WebGPU);
+      env.drawMips(WebGPU);
+      env.drawIrradiance(WebGPU);
+      env.drawPrefilter(WebGPU);
+      const { renderState, isIBL, isDefaultLight, lights } = this.state;
       const stateBuffer = new UniformBuffer();
       stateBuffer.add("isTone", renderState.isprerefraction ? 0 : 1);
       stateBuffer.add("isIBL", isIBL ? 1 : 0);
       stateBuffer.add("isDefaultLight", isDefaultLight || lights.some((l) => !l.isInitial) ? 1 : 0);
       stateBuffer.done();
-      this.stateBuffer = stateBuffer;
+      this.state.stateBuffer = stateBuffer;
       const uniformBuffer = WebGPU.device.createBuffer({
         size: 256 + stateBuffer.store.byteLength,
         usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
@@ -25604,32 +25299,32 @@ ${defineStr}`)];
         stateBuffer.store.byteOffset,
         stateBuffer.store.byteLength
       );
-      const hasTransmission = this.parse.json.extensionsUsed && this.parse.json.extensionsUsed.includes("KHR_materials_transmission");
+      const hasTransmission = this.state.json.extensionsUsed && this.state.json.extensionsUsed.includes("KHR_materials_transmission");
       if (hasTransmission) {
-        this.PP.addPrepass("refraction");
+        this.state.pp.addPrepass("refraction");
       }
-      if (this.PP.hasPostPass || this.PP.hasPrePass) {
-        this.PP.buildScreenBuffer();
+      if (this.state.pp.hasPostPass || this.state.pp.hasPrePass) {
+        this.state.pp.buildScreenBuffer();
       }
-      const refraction = this.PP.postprocessors.find((p) => p instanceof Refraction);
+      const refraction = this.state.pp.postprocessors.find((p) => p instanceof Refraction);
       const cameraBuffer = new UniformBuffer();
-      cameraBuffer.add("view", this.camera.matrixWorldInvert.elements);
-      cameraBuffer.add("projection", this.camera.projection.elements);
-      cameraBuffer.add("light", this.light.matrixWorldInvert.elements);
+      cameraBuffer.add("view", this.state.camera.matrixWorldInvert.elements);
+      cameraBuffer.add("projection", this.state.camera.projection.elements);
+      cameraBuffer.add("light", this.state.light.matrixWorldInvert.elements);
       cameraBuffer.add("isShadow", 0);
       cameraBuffer.done();
-      this.cameraBuffer = cameraBuffer;
-      this.scene.meshes[0].geometry.updateUniformsWebGPU(WebGPU, cameraBuffer);
+      this.state.cameraBuffer = cameraBuffer;
+      this.state.scene.meshes[0].geometry.updateUniformsWebGPU(WebGPU, cameraBuffer);
       const lightEnum2 = {
         directional: 0,
         point: 1,
         spot: 2
       };
-      const spotDirs = new Float32Array(this.parse.lights.length * 4);
-      const lightPos = new Float32Array(this.parse.lights.length * 4);
-      const lightColor = new Float32Array(this.parse.lights.length * 4);
-      const lightProps = new Float32Array(this.parse.lights.length * 4);
-      this.parse.lights.forEach((light, i) => {
+      const spotDirs = new Float32Array(this.state.lights.length * 4);
+      const lightPos = new Float32Array(this.state.lights.length * 4);
+      const lightColor = new Float32Array(this.state.lights.length * 4);
+      const lightProps = new Float32Array(this.state.lights.length * 4);
+      this.state.lights.forEach((light, i) => {
         spotDirs.set(
           new Vector3([light.matrixWorld.elements[8], light.matrixWorld.elements[9], light.matrixWorld.elements[10]]).normalize().elements,
           i * 4
@@ -25644,41 +25339,41 @@ ${defineStr}`)];
       const lightPosBuffer = new UniformBuffer();
       lightPosBuffer.add("lightPos", lightPos);
       lightPosBuffer.done();
-      this.lightPosBuffer = lightPosBuffer;
+      this.state.lightPosBuffer = lightPosBuffer;
       const lightColorBuffer = new UniformBuffer();
       lightColorBuffer.add("lightColor", lightColor);
       lightColorBuffer.done();
-      this.lightColorBuffer = lightColorBuffer;
+      this.state.lightColorBuffer = lightColorBuffer;
       const spotdirBuffer = new UniformBuffer();
       spotdirBuffer.add("spotdir", spotDirs);
       spotdirBuffer.done();
       const lightIntensityBuffer = new UniformBuffer();
       lightIntensityBuffer.add("lightIntensity", lightProps);
       lightIntensityBuffer.done();
-      this.scene.meshes[0].geometry.updateUniformsWebGPU(WebGPU, lightPosBuffer);
-      this.scene.meshes[0].geometry.updateUniformsWebGPU(WebGPU, lightColorBuffer);
-      this.scene.meshes[0].geometry.updateUniformsWebGPU(WebGPU, spotdirBuffer);
-      this.scene.meshes[0].geometry.updateUniformsWebGPU(WebGPU, lightIntensityBuffer);
-      this.scene.meshes.forEach((mesh) => {
-        [mesh.material, ...mesh.variants.map((m) => m.m)].forEach((m) => m.createUniforms(false, this.parse.lights));
+      this.state.scene.meshes[0].geometry.updateUniformsWebGPU(WebGPU, lightPosBuffer);
+      this.state.scene.meshes[0].geometry.updateUniformsWebGPU(WebGPU, lightColorBuffer);
+      this.state.scene.meshes[0].geometry.updateUniformsWebGPU(WebGPU, spotdirBuffer);
+      this.state.scene.meshes[0].geometry.updateUniformsWebGPU(WebGPU, lightIntensityBuffer);
+      this.state.scene.meshes.forEach((mesh) => {
+        [mesh.material, ...mesh.variants.map((m) => m.m)].forEach((m) => m.createUniforms(false, this.state.lights));
       });
       const materialStorage = new Float32Array(
-        this.scene.meshes.length * this.scene.meshes[0].material.materialUniformBuffer.store.length
+        this.state.scene.meshes.length * this.state.scene.meshes[0].material.materialUniformBuffer.store.length
       );
-      this.scene.meshes.forEach((mesh, i) => {
+      this.state.scene.meshes.forEach((mesh, i) => {
         materialStorage.set(mesh.material.materialUniformBuffer.store, i * mesh.material.materialUniformBuffer.store.length);
       });
       const storageBuffer = { store: materialStorage };
-      this.scene.meshes[0].geometry.updateUniformsWebGPU(WebGPU, storageBuffer, GPUBufferUsage.STORAGE);
-      let meshCount = this.scene.meshes.length;
-      this.scene.meshes.forEach((mesh) => {
+      this.state.scene.meshes[0].geometry.updateUniformsWebGPU(WebGPU, storageBuffer, GPUBufferUsage.STORAGE);
+      let meshCount = this.state.scene.meshes.length;
+      this.state.scene.meshes.forEach((mesh) => {
         mesh.geometry.createUniforms(mesh.matrixWorld);
         if (mesh.matrices.length) {
           meshCount += mesh.matrices.length;
         }
       });
-      const transformsStorage = new Float32Array(meshCount * this.scene.meshes[0].geometry.uniformBuffer.store.length);
-      this.scene.meshes.forEach((mesh, i) => {
+      const transformsStorage = new Float32Array(meshCount * this.state.scene.meshes[0].geometry.uniformBuffer.store.length);
+      this.state.scene.meshes.forEach((mesh, i) => {
         mesh.order = i;
         transformsStorage.set(mesh.geometry.uniformBuffer.store, i * mesh.geometry.uniformBuffer.store.length);
         if (mesh.matrices.length) {
@@ -25688,9 +25383,9 @@ ${defineStr}`)];
         }
       });
       const storageBuffer2 = { store: transformsStorage };
-      this.scene.meshes[0].geometry.updateUniformsWebGPU(WebGPU, storageBuffer2, GPUBufferUsage.STORAGE);
-      this.transformsStorage = storageBuffer2;
-      this.materialStorage = storageBuffer;
+      this.state.scene.meshes[0].geometry.updateUniformsWebGPU(WebGPU, storageBuffer2, GPUBufferUsage.STORAGE);
+      this.state.transformsStorage = storageBuffer2;
+      this.state.materialStorage = storageBuffer;
       const uniformBindGroup1 = [
         {
           binding: 0,
@@ -25723,51 +25418,51 @@ ${defineStr}`)];
       ];
       const prevProgramHash = /* @__PURE__ */ new Map();
       const uniformBindGroup2 = [];
-      this.scene.meshes.forEach((mesh) => {
+      this.state.scene.meshes.forEach((mesh) => {
         mesh.geometry.createGeometryForWebGPU(WebGPU, mesh.order);
         mesh.geometry.uniformBindGroup1 = [];
         mesh.material.updateUniformsWebGPU(WebGPU);
         mesh.material.uniformBindGroup1.push(
           {
             binding: 19,
-            resource: this.env.prefilterTexture.view
+            resource: env.prefilterTexture.view
           },
           {
             binding: 20,
-            resource: this.env.irradianceTexture.view
+            resource: env.irradianceTexture.view
           },
           {
             binding: 21,
-            resource: this.env.bdrfTexture.view
+            resource: env.bdrfTexture.view
           },
           {
             binding: 28,
-            resource: this.env.Sheen_E.view
+            resource: env.Sheen_E.view
           },
           {
             binding: 26,
-            resource: mesh.defines.find((i) => i.name === "TRANSMISSION") ? refraction.texture.texture.createView() : this.PP.fakeDepth.view
+            resource: mesh.defines.find((i) => i.name === "TRANSMISSION") ? refraction.texture.texture.createView() : pp.fakeDepth.view
           },
           {
             binding: 35,
-            resource: this.env.charlieTexture.view
+            resource: env.charlieTexture.view
           },
           {
             binding: 30,
             resource: uniformBuffer
           }
         );
-        if (this.env.uniformBuffer) {
+        if (env.uniformBuffer) {
           mesh.material.uniformBindGroup1.push({
             binding: 27,
-            resource: this.env.uniformBuffer.bufferWebGPU
+            resource: env.uniformBuffer.bufferWebGPU
           });
         }
         if (mesh instanceof SkinnedMesh) {
-          for (const join of this.parse.skins[mesh.skin].jointNames) {
-            walk(this.scene, this.buildBones.bind(this, join, this.parse.skins[mesh.skin]));
+          for (const join of this.state.skins[mesh.skin].jointNames) {
+            walk(this.state.scene, this.buildBones.bind(this, join, this.state.skins[mesh.skin]));
           }
-          mesh.geometry.uniformBindGroup1.push(mesh.setSkinWebGPU(WebGPU, this.parse.skins[mesh.skin]));
+          mesh.geometry.uniformBindGroup1.push(mesh.setSkinWebGPU(WebGPU, this.state.skins[mesh.skin]));
         }
         const id = mesh.material.baseColorTexture ? mesh.material.baseColorTexture.sampler.id : "";
         const programHash = mesh.mode + id + mesh.material.defines.map((define2) => `${define2.name}${define2.value ?? 1}`).join("");
@@ -25800,14 +25495,14 @@ ${defineStr}`)];
         mesh.pipeline2 = prevProgramHash.get(programHash)[1];
         mesh.uniformBindGroup1 = group.v;
       });
-      this.scene.tracks = this.parse.tracks;
-      this.scene.cameras = this.parse.cameras;
-      this.scene.lights = this.parse.lights;
-      this.renderer.render();
+      this.state.scene.tracks = this.state.tracks;
+      this.state.scene.cameras = this.state.cameras;
+      this.state.scene.lights = this.state.lights;
+      this.state.renderer.render();
       const info = getWebGPUMemoryUsage();
       console.log(info);
       window.__TEST_READY__ = true;
-      cb(this.scene);
+      cb(this.state.scene);
     }
     buildBones(join, v, node) {
       if (node instanceof Object3D && node.name === join) {
@@ -25815,74 +25510,60 @@ ${defineStr}`)];
       }
     }
     resize() {
-      this.camera.props.aspect = this.canvas.offsetWidth / this.canvas.offsetHeight;
+      this.state.width = this.canvas.offsetWidth;
+      this.state.height = this.canvas.offsetHeight;
+      const { camera, light } = this.state;
+      camera.props.aspect = this.canvas.offsetWidth / this.canvas.offsetHeight;
       this.canvas.width = this.canvas.offsetWidth * devicePixelRatio;
       this.canvas.height = this.canvas.offsetHeight * devicePixelRatio;
-      const z = this.camera.modelSize;
-      if (this.camera.props.isInitial) {
-        this.camera.setZ(z);
+      const z = camera.modelSize;
+      if (camera.props.isInitial) {
+        camera.setZ(z);
       }
-      if (this.light.isInitial || this.light.type === "directional") {
-        this.light.setZ(z);
+      if (light.isInitial || light.type === "directional") {
+        light.setZ(z);
       }
-      this.camera.updateNF();
+      camera.updateNF();
     }
     renderScene(renderState) {
-      this.renderState = renderState;
-      this.renderer.renderScene();
-      this.renderState = {};
+      this.state.renderState = renderState;
+      this.state.renderer.renderScene();
+      this.state.renderState = {};
     }
     redraw(type, coordsStart, coordsMove) {
+      const { camera, renderer } = this.state;
       if (type === "zoom") {
-        this.camera.zoom(coordsStart);
-        this.renderer.needUpdateView = true;
-        this.renderer.needUpdateProjection = true;
+        camera.zoom(coordsStart);
+        renderer.needUpdateView = true;
+        renderer.needUpdateProjection = true;
       }
       if (type === "rotate") {
-        this.camera.rotate(coordsStart, coordsMove);
-        this.renderer.needUpdateView = true;
+        camera.rotate(coordsStart, coordsMove);
+        renderer.needUpdateView = true;
       }
       if (type === "pan") {
-        this.camera.pan(coordsStart, coordsMove, this.canvas.offsetWidth, this.canvas.offsetHeight);
-        this.renderer.needUpdateView = true;
+        camera.pan(coordsStart, coordsMove, this.canvas.offsetWidth, this.canvas.offsetHeight);
+        renderer.needUpdateView = true;
       }
       if (type === "resize") {
         this.resize();
-        this.renderer.needUpdateProjection = true;
+        renderer.needUpdateProjection = true;
       }
-      this.renderer.reflow = true;
+      renderer.reflow = true;
     }
     setVariant(variant) {
-      this.scene.meshes.forEach((mesh) => {
+      this.state.scene.meshes.forEach((mesh) => {
         if (variant && mesh.variants.length) {
           mesh.material = mesh.variants.find((v) => v.variants.includes(Number(variant))).m;
           mesh.repaint = true;
         }
       });
-      this.renderer.reflow = true;
-      this.renderer.needUpdateView = true;
-      this.renderer.needUpdateProjection = true;
+      this.state.renderer.reflow = true;
+      this.state.renderer.needUpdateView = true;
+      this.state.renderer.needUpdateProjection = true;
     }
     draw() {
-      this.renderer.reflow = true;
-    }
-    getState() {
-      return {
-        lightColorBuffer: this.lightColorBuffer,
-        transformsStorage: this.transformsStorage,
-        materialStorage: this.materialStorage,
-        lightPosBuffer: this.lightPosBuffer,
-        cameraBuffer: this.cameraBuffer,
-        stateBuffer: this.stateBuffer,
-        renderState: this.renderState,
-        lights: this.parse.lights,
-        isIBL: this.isIBL,
-        isDefaultLight: this.isDefaultLight,
-        camera: this.camera,
-        light: this.light,
-        needUpdateView: this.renderer.needUpdateView,
-        needUpdateProjection: this.renderer.needUpdateProjection
-      };
+      this.state.renderer.reflow = true;
     }
   };
   function check(source, candidate) {

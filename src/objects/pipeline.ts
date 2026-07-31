@@ -2,7 +2,7 @@ import vertexShaderGLSL from '../shaders/vertex.glsl';
 import fragmentShaderGLSL from '../shaders/fragment.glsl';
 import fragGLSL from '../shaders/frag.webgpu.h';
 import vertGLSL from '../shaders/vert.webgpu.h';
-import type { Define } from '../parse';
+import type { Define } from '../state';
 
 interface Glslang {
     compileGLSL(code: string, type: string): Uint32Array;
