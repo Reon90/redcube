@@ -89,6 +89,16 @@ class RedCube {
         if (adapter.features.has('timestamp-query')) {
             required.push('timestamp-query');
         }
+        // KTX2/BasisU compressed-texture support (see parseTextures.ts's
+        // selectKTX2FormatWebGPU()) - these must be explicitly requested or
+        // device.features.has(...) never reports them even when the adapter
+        // supports them, and format selection silently falls back to
+        // uncompressed RGBA32.
+        for (const feature of ['texture-compression-astc', 'texture-compression-bc', 'texture-compression-etc2'] as GPUFeatureName[]) {
+            if (adapter.features.has(feature)) {
+                required.push(feature);
+            }
+        }
         const device = await adapter.requestDevice({
             requiredFeatures: required,
         });
@@ -450,13 +460,18 @@ class RedCube {
                     ),
                 );
             }
-            let group = check(uniformBindGroup2, mesh.material.uniformBindGroup1);
+            const combinedBindGroupEntries = [
+                ...uniformBindGroup1,
+                ...mesh.geometry.uniformBindGroup1!,
+                ...mesh.material.uniformBindGroup1,
+            ];
+            let group = check(uniformBindGroup2, combinedBindGroupEntries);
             if (!group) {
                 group = {
-                    k: mesh.material.uniformBindGroup1,
+                    k: combinedBindGroupEntries,
                     v: WebGPU.device.createBindGroup({
                         layout: prevProgramHash.get(programHash)![0].getBindGroupLayout(0),
-                        entries: [...uniformBindGroup1, ...mesh.geometry.uniformBindGroup1!, ...mesh.material.uniformBindGroup1],
+                        entries: combinedBindGroupEntries,
                     }),
                 };
                 uniformBindGroup2.push(group);

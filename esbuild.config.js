@@ -43,7 +43,7 @@ const sharedOptions = {
 };
 
 const copyPlugin = copy({
-    source: ['./index.html', './libktx.wasm', './draco_decoder.wasm', './glslang.wasm', './twgsl.wasm', './src/images'],
+    source: ['./index.html', './basis_transcoder.wasm', './draco_decoder.wasm', './glslang.wasm', './twgsl.wasm', './src/images'],
     target: './dist',
 });
 

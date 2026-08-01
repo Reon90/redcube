@@ -1,5 +1,5 @@
 import { createProgram, generateMipmaps, LoadedTexture } from './utils';
-import { fetchImage, FetchedImage, ImageSource, getHelperGl } from './fetch';
+import { fetchImage, FetchedImage, ImageSource, loadBasisModule, ResolvedKTX2Format, BasisModule, TranscodedKTX2 } from './fetch';
 import { GlTf } from '../GLTF';
 import type { State, ReadonlyState, Define } from './state';
 
@@ -8,65 +8,113 @@ import fragmentShader from './shaders/fragment.glsl';
 import fragGLSL from './shaders/frag.h';
 import vertGLSL from './shaders/vert.h';
 
-declare global {
-    interface Constructable<T> {
-        new (...args: unknown[]): T;
-    }
-    interface KtxTexture {
-        needsTranscoding: boolean;
-        baseWidth: number;
-        baseHeight: number;
-        transcodeBasis(target: number, flags: number): number;
-        glUpload(): { texture: WebGLTexture };
-    }
-    interface TranscodeTarget {
-        ETC1_RGB: number;
-        BC1_RGB: number;
-        BC4_R: number;
-        BC5_RG: number;
-        BC3_RGBA: number;
-        BC1_OR_3: number;
-        PVRTC1_4_RGB: number;
-        PVRTC1_4_RGBA: number;
-        BC7_M6_RGB: number;
-        BC7_M5_RGBA: number;
-        ETC2_RGBA: number;
-        ASTC_4x4_RGBA: number;
-        RGBA32: number;
-        RGB565: number;
-        BGR565: number;
-        RGBA4444: number;
-        PVRTC2_4_RGB: number;
-        PVRTC2_4_RGBA: number;
-        ETC: number;
-        EAC_R11: number;
-        EAC_RG11: number;
-    }
-    interface Window {
-        LIBKTX: {
-            ktxTexture: Constructable<KtxTexture>;
-            TranscodeTarget: TranscodeTarget;
-            transcoderConfig: {
-                astcSupported: unknown;
-                dxtSupported: unknown;
-                pvrtcSupported: unknown;
-                etc1Supported: unknown;
-                etc2Supported: unknown;
-                bptcSupported?: unknown;
-            };
-            GL: {
-                makeContextCurrent: Function;
-                registerContext: Function;
-            };
-            ErrorCode: {
-                SUCCESS: number;
-            };
-        };
-    }
+// Ordered by preference (quality/bandwidth first). Each candidate names the
+// WebGL extension + GL constant, and the WebGPU feature + GPUTextureFormat,
+// needed to actually declare/upload that compressed format - alpha-capable
+// variants are used uniformly (no opaque-vs-alpha branching like BC1-vs-BC3)
+// to keep target-format selection a single, backend-wide choice rather than
+// a per-texture one. sRGB is different: it's a per-texture-usage property
+// (baseColorTexture vs. normalTexture) decided at upload time, not at
+// format-selection time, so both the linear and sRGB GPU format identifiers
+// are captured here - the transcoded bytes are identical either way, only
+// the tag the GPU samples them under differs.
+interface KTX2FormatCandidate {
+    transcoderFormatKey: string;
+    webgl?: { extension: string; constant: string; srgbExtension?: string; srgbConstant?: string };
+    webgpu?: { feature: GPUFeatureName; format: GPUTextureFormat; srgbFormat?: GPUTextureFormat };
+}
+const KTX2_FORMAT_CANDIDATES: KTX2FormatCandidate[] = [
+    {
+        transcoderFormatKey: 'cTFASTC_4x4_RGBA',
+        webgl: {
+            extension: 'WEBGL_compressed_texture_astc',
+            constant: 'COMPRESSED_RGBA_ASTC_4x4_KHR',
+            srgbConstant: 'COMPRESSED_SRGB8_ALPHA8_ASTC_4x4_KHR',
+        },
+        webgpu: { feature: 'texture-compression-astc', format: 'astc-4x4-unorm', srgbFormat: 'astc-4x4-unorm-srgb' },
+    },
+    {
+        transcoderFormatKey: 'cTFBC7_RGBA',
+        webgl: {
+            extension: 'EXT_texture_compression_bptc',
+            constant: 'COMPRESSED_RGBA_BPTC_UNORM_EXT',
+            srgbConstant: 'COMPRESSED_SRGB_ALPHA_BPTC_UNORM_EXT',
+        },
+        webgpu: { feature: 'texture-compression-bc', format: 'bc7-rgba-unorm', srgbFormat: 'bc7-rgba-unorm-srgb' },
+    },
+    {
+        transcoderFormatKey: 'cTFBC3_RGBA',
+        webgl: {
+            extension: 'WEBGL_compressed_texture_s3tc',
+            constant: 'COMPRESSED_RGBA_S3TC_DXT5_EXT',
+            // sRGB S3TC is a separate extension, not just another constant
+            // on WEBGL_compressed_texture_s3tc.
+            srgbExtension: 'WEBGL_compressed_texture_s3tc_srgb',
+            srgbConstant: 'COMPRESSED_SRGB_ALPHA_S3TC_DXT5_EXT',
+        },
+        webgpu: { feature: 'texture-compression-bc', format: 'bc3-rgba-unorm', srgbFormat: 'bc3-rgba-unorm-srgb' },
+    },
+    {
+        transcoderFormatKey: 'cTFETC2_RGBA',
+        webgl: {
+            extension: 'WEBGL_compressed_texture_etc',
+            constant: 'COMPRESSED_RGBA8_ETC2_EAC',
+            srgbConstant: 'COMPRESSED_SRGB8_ALPHA8_ETC2_EAC',
+        },
+        webgpu: { feature: 'texture-compression-etc2', format: 'etc2-rgba8unorm', srgbFormat: 'etc2-rgba8unorm-srgb' },
+    },
+    {
+        transcoderFormatKey: 'cTFPVRTC1_4_RGBA',
+        webgl: {
+            extension: 'WEBGL_compressed_texture_pvrtc',
+            constant: 'COMPRESSED_RGBA_PVRTC_4BPPV1_IMG',
+            // No standard sRGB PVRTC constant.
+        },
+        // No WebGPU equivalent - PVRTC isn't part of the WebGPU spec.
+    },
+];
+
+function wrapFormat(module: BasisModule, key: string) {
+    return module.transcoder_texture_format[key];
 }
 
-interface LibktxGlobal {
-    LIBKTX(config: { preinitializedWebGLContext: unknown }): Promise<Window['LIBKTX']>;
+export function selectKTX2FormatWebGL(gl: WebGL2RenderingContext, module: BasisModule): ResolvedKTX2Format {
+    for (const candidate of KTX2_FORMAT_CANDIDATES) {
+        if (!candidate.webgl) {
+            continue;
+        }
+        const ext = gl.getExtension(candidate.webgl.extension) as Record<string, number> | null;
+        if (ext) {
+            let srgbExt = ext;
+            if (candidate.webgl.srgbExtension) {
+                srgbExt = (gl.getExtension(candidate.webgl.srgbExtension) as Record<string, number> | null) ?? ext;
+            }
+            return {
+                transcoderFormat: wrapFormat(module, candidate.transcoderFormatKey),
+                compressed: true,
+                webglInternalFormat: ext[candidate.webgl.constant],
+                webglInternalFormatSrgb: candidate.webgl.srgbConstant ? srgbExt[candidate.webgl.srgbConstant] : undefined,
+            };
+        }
+    }
+    return { transcoderFormat: wrapFormat(module, 'cTFRGBA32'), compressed: false };
+}
+
+export function selectKTX2FormatWebGPU(device: GPUDevice, module: BasisModule): ResolvedKTX2Format {
+    for (const candidate of KTX2_FORMAT_CANDIDATES) {
+        if (!candidate.webgpu) {
+            continue;
+        }
+        if (device.features.has(candidate.webgpu.feature)) {
+            return {
+                transcoderFormat: wrapFormat(module, candidate.transcoderFormatKey),
+                compressed: true,
+                webgpuFormat: candidate.webgpu.format,
+                webgpuFormatSrgb: candidate.webgpu.srgbFormat,
+            };
+        }
+    }
+    return { transcoderFormat: wrapFormat(module, 'cTFRGBA32'), compressed: false };
 }
 
 interface texturesMap {
@@ -149,7 +197,7 @@ export function createTexturesWebGPU(input: ReadonlyState, WebGPU: WEBGPU) {
             input,
             WebGPU,
             t as unknown as {
-                image: ImageBitmap | { data: Uint8Array; width: number; height: number };
+                image: ImageBitmap | TranscodedKTX2;
                 mimeType?: string;
                 sampler?: number;
                 srgb?: boolean;
@@ -165,7 +213,7 @@ export function createTexturesWebGL(input: ReadonlyState) {
         handleTextureLoaded(
             input,
             t as unknown as {
-                image: HTMLImageElement & { sampler?: WebGLSampler };
+                image: (HTMLImageElement & { sampler?: WebGLSampler }) | TranscodedKTX2;
                 name: string;
                 mimeType?: string;
                 sampler?: number;
@@ -242,42 +290,14 @@ export async function initTextures(input: ReadonlyState, output: Partial<State>,
         texturesMap[name].name = name;
         t.name = name;
     });
+    let ktx2Format: ResolvedKTX2Format | undefined;
     if (hasBasisu) {
         const { gl } = input;
         const isWebGPU = Boolean((gl as WEBGPU).device);
-        // libktx's GL bindings only understand a real WebGL2RenderingContext
-        // - for WebGPU, register a hidden offscreen one for it to transcode
-        // into instead (see fetch.ts's getHelperGl()/loadKTXPixels()).
-        const registrationGl = isWebGPU ? getHelperGl() : (gl as WebGL2RenderingContext);
-        await import(/*webpackChunkName: "libktx"*/ '../libktx');
-        (globalThis as unknown as LibktxGlobal).LIBKTX({ preinitializedWebGLContext: registrationGl }).then((module) => {
-            const transcoderConfig = isWebGPU
-                ? // Force the uncompressed RGBA4444 fallback: the WebGPU path
-                  // reads the transcoded pixels back via readPixels(), which
-                  // only works for uncompressed formats.
-                  {
-                      astcSupported: false,
-                      etc1Supported: false,
-                      etc2Supported: false,
-                      bptcSupported: false,
-                      dxtSupported: false,
-                      pvrtcSupported: false,
-                  }
-                : {
-                      astcSupported: (gl as WebGL2RenderingContext).getExtension('WEBGL_compressed_texture_astc'),
-                      etc1Supported: (gl as WebGL2RenderingContext).getExtension('WEBGL_compressed_texture_etc1'),
-                      etc2Supported: (gl as WebGL2RenderingContext).getExtension('WEBGL_compressed_texture_etc'),
-                      dxtSupported: (gl as WebGL2RenderingContext).getExtension('WEBGL_compressed_texture_s3tc'),
-                      bptcSupported: (gl as WebGL2RenderingContext).getExtension('EXT_texture_compression_bptc'),
-                      pvrtcSupported:
-                          (gl as WebGL2RenderingContext).getExtension('WEBGL_compressed_texture_pvrtc') ||
-                          (gl as WebGL2RenderingContext).getExtension('WEBKIT_WEBGL_compressed_texture_pvrtc'),
-                  };
-            window.LIBKTX = module;
-            window.LIBKTX.transcoderConfig = transcoderConfig;
-            window.LIBKTX.GL.makeContextCurrent(window.LIBKTX.GL.registerContext(registrationGl, { majorVersion: 2.0 }));
-        });
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+        const module = await loadBasisModule();
+        ktx2Format = isWebGPU
+            ? selectKTX2FormatWebGPU((gl as WEBGPU).device, module)
+            : selectKTX2FormatWebGL(gl as WebGL2RenderingContext, module);
     }
     const promiseArr = Object.values(texturesMap).map((t) => {
         const isBasisu = Boolean(t.extensions && t.extensions.KHR_texture_basisu);
@@ -297,6 +317,7 @@ export async function initTextures(input: ReadonlyState, output: Partial<State>,
                 name: t.name,
             },
             t.sampler,
+            isBasisu ? ktx2Format : undefined,
         );
     });
 
@@ -310,6 +331,24 @@ export async function initTextures(input: ReadonlyState, output: Partial<State>,
 
 // Read-only: images.set(...) mutates the Map State already owns, it
 // doesn't reassign the `images` field itself.
+// writeTexture()'s bytesPerRow must be a multiple of 256 whenever more than
+// one row is copied - transcodeKTX2()'s output is tightly packed (no
+// padding), so rows need padding out to the alignment boundary here. Works
+// for either compressed (rows = block-rows) or uncompressed (rows = pixel
+// rows) data, since both are just "N equal-size rows" once the caller has
+// worked out what a row actually is.
+function alignBytesPerRow(data: Uint8Array, unpaddedBytesPerRow: number, rows: number): { data: Uint8Array; bytesPerRow: number } {
+    const bytesPerRow = Math.ceil(unpaddedBytesPerRow / 256) * 256;
+    if (bytesPerRow === unpaddedBytesPerRow) {
+        return { data, bytesPerRow };
+    }
+    const padded = new Uint8Array(bytesPerRow * rows);
+    for (let row = 0; row < rows; row++) {
+        padded.set(data.subarray(row * unpaddedBytesPerRow, (row + 1) * unpaddedBytesPerRow), row * bytesPerRow);
+    }
+    return { data: padded, bytesPerRow };
+}
+
 export function handleTextureLoadedWebGPU(
     input: ReadonlyState,
     WebGPU: WEBGPU,
@@ -320,7 +359,7 @@ export function handleTextureLoadedWebGPU(
         srgb,
         name,
     }: {
-        image: ImageBitmap | { data: Uint8Array; width: number; height: number };
+        image: ImageBitmap | TranscodedKTX2;
         mimeType?: string;
         sampler?: number;
         srgb?: boolean;
@@ -334,41 +373,63 @@ export function handleTextureLoadedWebGPU(
     const { device } = WebGPU;
     const s = input.samplers![sampler !== undefined ? sampler : 0];
     const isKTX2 = mimeType === 'image/ktx2';
-    const width = isKTX2 ? (image as { width: number }).width : (image as ImageBitmap).width;
-    const height = isKTX2 ? (image as { height: number }).height : (image as ImageBitmap).height;
-    const mipLevelCount = Math.max(1, Math.floor(Math.log2(Math.max(width, height))) - 2);
+    const width = isKTX2 ? (image as TranscodedKTX2).width : (image as ImageBitmap).width;
+    const height = isKTX2 ? (image as TranscodedKTX2).height : (image as ImageBitmap).height;
 
-    const tex = device.createTexture({
-        label: textureType,
-        size: [width, height, 1],
-        format: srgb ? 'rgba8unorm-srgb' : 'rgba8unorm',
-        usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT,
-        mipLevelCount,
-    }) as LoadedTexture;
+    let tex: LoadedTexture;
     if (isKTX2) {
-        // KTX2 comes back from loadKTXPixels() as raw RGBA bytes (libktx
-        // only exposes a WebGL upload path, not a WebGPU one - see
-        // fetch.ts), so it's uploaded via writeTexture() instead of
-        // copyExternalImageToTexture(), which only accepts image/canvas
-        // sources.
-        const { data } = image as { data: Uint8Array };
+        const { data, format } = image as TranscodedKTX2;
+        // KTX2 textures carry a single mip level, same as the WebGL path
+        // (see handleTextureLoaded) - compressed formats can't be
+        // RENDER_ATTACHMENT targets in WebGPU anyway, which generateMipmaps()'s
+        // blit pass requires.
+        tex = device.createTexture({
+            label: textureType,
+            size: [width, height, 1],
+            format: format.compressed
+                ? srgb && format.webgpuFormatSrgb
+                    ? format.webgpuFormatSrgb
+                    : format.webgpuFormat!
+                : srgb
+                  ? 'rgba8unorm-srgb'
+                  : 'rgba8unorm',
+            usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
+            mipLevelCount: 1,
+        }) as LoadedTexture;
+        // All of our WebGPU-eligible compressed candidates (ASTC 4x4, BC7,
+        // BC3, ETC2) are genuinely 4x4-block GPU formats - basis's own
+        // getFormatBlockWidth/Height() reports the *source* transcoding
+        // block granularity instead (4x4 even for the uncompressed RGBA32
+        // target, confirmed via a WebGPU validation error when it was used
+        // to derive row pitch here), so it's not a safe way to compute the
+        // real output byte layout and isn't used for that.
+        const blockRows = format.compressed ? Math.ceil(height / 4) : height;
+        const unpaddedBytesPerRow = format.compressed ? data.length / blockRows : width * 4;
+        const { data: uploadData, bytesPerRow } = alignBytesPerRow(data, unpaddedBytesPerRow, blockRows);
         device.queue.writeTexture(
             { texture: tex as GPUTexture, mipLevel: 0 },
-            data,
-            { bytesPerRow: width * 4 },
+            uploadData,
+            { bytesPerRow },
             { width, height, depthOrArrayLayers: 1 },
         );
     } else {
+        const mipLevelCount = Math.max(1, Math.floor(Math.log2(Math.max(width, height))) - 2);
+        tex = device.createTexture({
+            label: textureType,
+            size: [width, height, 1],
+            format: srgb ? 'rgba8unorm-srgb' : 'rgba8unorm',
+            usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT,
+            mipLevelCount,
+        }) as LoadedTexture;
         device.queue.copyExternalImageToTexture(
             { source: image as ImageBitmap },
             { premultipliedAlpha: false, texture: tex as GPUTexture, mipLevel: 0, origin: { x: 0, y: 0, z: 0 } },
             { width, height, depthOrArrayLayers: 1 },
         );
+        generateMipmaps(device, tex as GPUTexture, width, height, mipLevelCount);
     }
     tex.sampler = s;
     tex.view = (tex as GPUTexture).createView();
-
-    generateMipmaps(device, tex as GPUTexture, width, height, mipLevelCount);
     input.images.set(name, tex);
 
     return tex;
@@ -383,7 +444,7 @@ export function handleTextureLoaded(
         sampler,
         srgb = false,
     }: {
-        image: HTMLImageElement & { sampler?: WebGLSampler };
+        image: (HTMLImageElement & { sampler?: WebGLSampler }) | TranscodedKTX2;
         name: string;
         mimeType?: string;
         sampler?: number;
@@ -391,36 +452,58 @@ export function handleTextureLoaded(
     },
 ) {
     const s = input.samplers![sampler !== undefined ? sampler : 0] as WebGLSampler;
-    if (mimeType) {
-        // KTX2 (mimeType 'image/ktx2'): `image` here is already an uploaded
-        // WebGLTexture (loadKTX() -> glUpload()) with only its base level
-        // populated - it skipped texImage2D entirely. generateMipmap()
-        // doesn't work for (and errors on) compressed internal formats like
-        // the ASTC/ETC/DXT targets loadKTX() transcodes to, so instead tell
-        // WebGL this texture intentionally has a single mip level: sampler
-        // objects' minFilter is otherwise still treated as mipmapped and the
-        // texture is considered incomplete (renders as solid black).
+    if (mimeType === 'image/ktx2') {
+        if (input.images.has(name + srgb)) {
+            return input.images.get(name + srgb);
+        }
+        const { data, width, height, format } = image as TranscodedKTX2;
         const webglGl = input.gl as WebGL2RenderingContext;
-        webglGl.bindTexture(webglGl.TEXTURE_2D, image as unknown as WebGLTexture);
+        const t = webglGl.createTexture() as LoadedTexture;
+        t.name = name;
+        t.sampler = s;
+        webglGl.activeTexture((webglGl as unknown as Record<string, number>)[`TEXTURE${31}`]);
+        webglGl.bindTexture(webglGl.TEXTURE_2D, t as WebGLTexture);
+        if (format.compressed) {
+            const internalFormat =
+                srgb && format.webglInternalFormatSrgb !== undefined ? format.webglInternalFormatSrgb : format.webglInternalFormat!;
+            webglGl.compressedTexImage2D(webglGl.TEXTURE_2D, 0, internalFormat, width, height, 0, data);
+        } else {
+            webglGl.texImage2D(
+                webglGl.TEXTURE_2D,
+                0,
+                srgb ? webglGl.SRGB8_ALPHA8 : webglGl.RGBA,
+                width,
+                height,
+                0,
+                webglGl.RGBA,
+                webglGl.UNSIGNED_BYTE,
+                data,
+            );
+        }
+        // Single mip level only - generateMipmap() doesn't work for (and
+        // errors on) compressed internal formats, and without this the
+        // sampler's minFilter is still treated as mipmapped, making the
+        // texture mip-incomplete (renders as solid black).
         webglGl.texParameteri(webglGl.TEXTURE_2D, webglGl.TEXTURE_BASE_LEVEL, 0);
         webglGl.texParameteri(webglGl.TEXTURE_2D, webglGl.TEXTURE_MAX_LEVEL, 0);
-        image.sampler = s;
-        return image;
+        input.images.set(name + srgb, t);
+        return t;
     }
     if (input.images.has(name + srgb)) {
         return input.images.get(name + srgb);
     }
+    const htmlImage = image as HTMLImageElement & { sampler?: WebGLSampler };
     const webglGl = input.gl as WebGL2RenderingContext;
     const t = webglGl.createTexture() as LoadedTexture;
     t.name = name;
-    t.image = image.src.substr(image.src.lastIndexOf('/'));
+    t.image = htmlImage.src.substr(htmlImage.src.lastIndexOf('/'));
     t.sampler = s;
 
     webglGl.activeTexture((webglGl as unknown as Record<string, number>)[`TEXTURE${31}`]);
     webglGl.bindTexture(webglGl.TEXTURE_2D, t as WebGLTexture);
     webglGl.pixelStorei(webglGl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
     webglGl.pixelStorei(webglGl.UNPACK_COLORSPACE_CONVERSION_WEBGL, webglGl.NONE);
-    webglGl.texImage2D(webglGl.TEXTURE_2D, 0, srgb ? webglGl.SRGB8_ALPHA8 : webglGl.RGBA, webglGl.RGBA, webglGl.UNSIGNED_BYTE, image);
+    webglGl.texImage2D(webglGl.TEXTURE_2D, 0, srgb ? webglGl.SRGB8_ALPHA8 : webglGl.RGBA, webglGl.RGBA, webglGl.UNSIGNED_BYTE, htmlImage);
     webglGl.generateMipmap(webglGl.TEXTURE_2D);
     input.images.set(name + srgb, t);
 
