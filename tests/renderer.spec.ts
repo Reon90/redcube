@@ -105,6 +105,7 @@ const MODELS = [
     'MultipleScenes',
     'NegativeScaleTest',
     'NodePerformanceTest',
+    'NodeVisibilityTest',
     'NormalTangentMirrorTest',
     'NormalTangentTest',
     'OrientationTest',

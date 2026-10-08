@@ -135,7 +135,8 @@ export function buildNode(input: ReadonlyState, parent: Object3D | Scene, name: 
 
     child.visible = parent.visible;
     if (el.extensions && el.extensions.KHR_node_visibility) {
-        child.visible = el.extensions.KHR_node_visibility.visible;
+        const localVisible = el.extensions.KHR_node_visibility.visible ?? true;
+        child.visible = parent.visible && localVisible;
     }
 
     if (el.extensions && el.extensions.EXT_mesh_gpu_instancing) {

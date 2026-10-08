@@ -48,7 +48,7 @@ var init_basis_transcoder = __esm({
     window.BASIS = (() => {
       var _scriptName = typeof document != "undefined" ? document.currentScript?.src : void 0;
       if (typeof __filename != "undefined") _scriptName ||= __filename;
-      return (function(moduleArg = {}) {
+      return function(moduleArg = {}) {
         var moduleRtn;
         var Module = moduleArg;
         var readyPromiseResolve, readyPromiseReject;
@@ -265,7 +265,10 @@ var init_basis_transcoder = __esm({
         }
         function getBinaryPromise(binaryFile) {
           if (!wasmBinary) {
-            return readAsync(binaryFile).then((response) => new Uint8Array(response), () => getBinarySync(binaryFile));
+            return readAsync(binaryFile).then(
+              (response) => new Uint8Array(response),
+              () => getBinarySync(binaryFile)
+            );
           }
           return Promise.resolve().then(() => getBinarySync(binaryFile));
         }
@@ -460,34 +463,46 @@ var init_basis_transcoder = __esm({
               var setterArgumentType = fieldTypes2[i + fieldRecords.length];
               var setter = field.setter;
               var setterContext = field.setterContext;
-              fields[fieldName] = { read: (ptr) => getterReturnType["fromWireType"](getter(getterContext, ptr)), write: (ptr, o) => {
-                var destructors = [];
-                setter(setterContext, ptr, setterArgumentType["toWireType"](destructors, o));
-                runDestructors(destructors);
-              } };
-            });
-            return [{ name: reg.name, fromWireType: (ptr) => {
-              var rv = {};
-              for (var i in fields) {
-                rv[i] = fields[i].read(ptr);
-              }
-              rawDestructor(ptr);
-              return rv;
-            }, toWireType: (destructors, o) => {
-              for (var fieldName in fields) {
-                if (!(fieldName in o)) {
-                  throw new TypeError(`Missing field: "${fieldName}"`);
+              fields[fieldName] = {
+                read: (ptr) => getterReturnType["fromWireType"](getter(getterContext, ptr)),
+                write: (ptr, o) => {
+                  var destructors = [];
+                  setter(setterContext, ptr, setterArgumentType["toWireType"](destructors, o));
+                  runDestructors(destructors);
                 }
+              };
+            });
+            return [
+              {
+                name: reg.name,
+                fromWireType: (ptr) => {
+                  var rv = {};
+                  for (var i in fields) {
+                    rv[i] = fields[i].read(ptr);
+                  }
+                  rawDestructor(ptr);
+                  return rv;
+                },
+                toWireType: (destructors, o) => {
+                  for (var fieldName in fields) {
+                    if (!(fieldName in o)) {
+                      throw new TypeError(`Missing field: "${fieldName}"`);
+                    }
+                  }
+                  var ptr = rawConstructor();
+                  for (fieldName in fields) {
+                    fields[fieldName].write(ptr, o[fieldName]);
+                  }
+                  if (destructors !== null) {
+                    destructors.push(rawDestructor, ptr);
+                  }
+                  return ptr;
+                },
+                argPackAdvance: GenericWireTypeSize,
+                readValueFromPointer: readPointer,
+                destructorFunction: rawDestructor
               }
-              var ptr = rawConstructor();
-              for (fieldName in fields) {
-                fields[fieldName].write(ptr, o[fieldName]);
-              }
-              if (destructors !== null) {
-                destructors.push(rawDestructor, ptr);
-              }
-              return ptr;
-            }, argPackAdvance: GenericWireTypeSize, readValueFromPointer: readPointer, destructorFunction: rawDestructor }];
+            ];
           });
         };
         var __embind_register_bigint = (primitiveType, name, size, minRange, maxRange) => {
@@ -541,15 +556,30 @@ var init_basis_transcoder = __esm({
         var GenericWireTypeSize = 8;
         var __embind_register_bool = (rawType, name, trueValue, falseValue) => {
           name = readLatin1String(name);
-          registerType(rawType, { name, fromWireType: function(wt) {
-            return !!wt;
-          }, toWireType: function(destructors, o) {
-            return o ? trueValue : falseValue;
-          }, argPackAdvance: GenericWireTypeSize, readValueFromPointer: function(pointer) {
-            return this["fromWireType"](HEAPU8[pointer]);
-          }, destructorFunction: null });
+          registerType(rawType, {
+            name,
+            fromWireType: function(wt) {
+              return !!wt;
+            },
+            toWireType: function(destructors, o) {
+              return o ? trueValue : falseValue;
+            },
+            argPackAdvance: GenericWireTypeSize,
+            readValueFromPointer: function(pointer) {
+              return this["fromWireType"](HEAPU8[pointer]);
+            },
+            destructorFunction: null
+          });
         };
-        var shallowCopyInternalPointer = (o) => ({ count: o.count, deleteScheduled: o.deleteScheduled, preservePointerOnDelete: o.preservePointerOnDelete, ptr: o.ptr, ptrType: o.ptrType, smartPtr: o.smartPtr, smartPtrType: o.smartPtrType });
+        var shallowCopyInternalPointer = (o) => ({
+          count: o.count,
+          deleteScheduled: o.deleteScheduled,
+          preservePointerOnDelete: o.preservePointerOnDelete,
+          ptr: o.ptr,
+          ptrType: o.ptrType,
+          smartPtr: o.smartPtr,
+          smartPtrType: o.smartPtrType
+        });
         var throwInstanceAlreadyDeleted = (obj) => {
           function getInstanceTypeName(handle) {
             return handle.$$.ptrType.registeredClass.name;
@@ -665,7 +695,12 @@ var init_basis_transcoder = __esm({
           }
           function makeDefaultHandle() {
             if (this.isSmartPointer) {
-              return makeClassHandle(this.registeredClass.instancePrototype, { ptrType: this.pointeeType, ptr: rawPointer, smartPtrType: this, smartPtr: ptr });
+              return makeClassHandle(this.registeredClass.instancePrototype, {
+                ptrType: this.pointeeType,
+                ptr: rawPointer,
+                smartPtrType: this,
+                smartPtr: ptr
+              });
             } else {
               return makeClassHandle(this.registeredClass.instancePrototype, { ptrType: this, ptr });
             }
@@ -686,7 +721,12 @@ var init_basis_transcoder = __esm({
             return makeDefaultHandle.call(this);
           }
           if (this.isSmartPointer) {
-            return makeClassHandle(toType.registeredClass.instancePrototype, { ptrType: toType, ptr: dp, smartPtrType: this, smartPtr: ptr });
+            return makeClassHandle(toType.registeredClass.instancePrototype, {
+              ptrType: toType,
+              ptr: dp,
+              smartPtrType: this,
+              smartPtr: ptr
+            });
           } else {
             return makeClassHandle(toType.registeredClass.instancePrototype, { ptrType: toType, ptr: dp });
           }
@@ -712,69 +752,77 @@ var init_basis_transcoder = __esm({
           return attachFinalizer(handle);
         };
         var init_ClassHandle = () => {
-          Object.assign(ClassHandle.prototype, { isAliasOf(other) {
-            if (!(this instanceof ClassHandle)) {
-              return false;
-            }
-            if (!(other instanceof ClassHandle)) {
-              return false;
-            }
-            var leftClass = this.$$.ptrType.registeredClass;
-            var left = this.$$.ptr;
-            other.$$ = other.$$;
-            var rightClass = other.$$.ptrType.registeredClass;
-            var right = other.$$.ptr;
-            while (leftClass.baseClass) {
-              left = leftClass.upcast(left);
-              leftClass = leftClass.baseClass;
-            }
-            while (rightClass.baseClass) {
-              right = rightClass.upcast(right);
-              rightClass = rightClass.baseClass;
-            }
-            return leftClass === rightClass && left === right;
-          }, clone() {
-            if (!this.$$.ptr) {
-              throwInstanceAlreadyDeleted(this);
-            }
-            if (this.$$.preservePointerOnDelete) {
-              this.$$.count.value += 1;
+          Object.assign(ClassHandle.prototype, {
+            isAliasOf(other) {
+              if (!(this instanceof ClassHandle)) {
+                return false;
+              }
+              if (!(other instanceof ClassHandle)) {
+                return false;
+              }
+              var leftClass = this.$$.ptrType.registeredClass;
+              var left = this.$$.ptr;
+              other.$$ = other.$$;
+              var rightClass = other.$$.ptrType.registeredClass;
+              var right = other.$$.ptr;
+              while (leftClass.baseClass) {
+                left = leftClass.upcast(left);
+                leftClass = leftClass.baseClass;
+              }
+              while (rightClass.baseClass) {
+                right = rightClass.upcast(right);
+                rightClass = rightClass.baseClass;
+              }
+              return leftClass === rightClass && left === right;
+            },
+            clone() {
+              if (!this.$$.ptr) {
+                throwInstanceAlreadyDeleted(this);
+              }
+              if (this.$$.preservePointerOnDelete) {
+                this.$$.count.value += 1;
+                return this;
+              } else {
+                var clone = attachFinalizer(
+                  Object.create(Object.getPrototypeOf(this), { $$: { value: shallowCopyInternalPointer(this.$$) } })
+                );
+                clone.$$.count.value += 1;
+                clone.$$.deleteScheduled = false;
+                return clone;
+              }
+            },
+            delete() {
+              if (!this.$$.ptr) {
+                throwInstanceAlreadyDeleted(this);
+              }
+              if (this.$$.deleteScheduled && !this.$$.preservePointerOnDelete) {
+                throwBindingError("Object already scheduled for deletion");
+              }
+              detachFinalizer(this);
+              releaseClassHandle(this.$$);
+              if (!this.$$.preservePointerOnDelete) {
+                this.$$.smartPtr = void 0;
+                this.$$.ptr = void 0;
+              }
+            },
+            isDeleted() {
+              return !this.$$.ptr;
+            },
+            deleteLater() {
+              if (!this.$$.ptr) {
+                throwInstanceAlreadyDeleted(this);
+              }
+              if (this.$$.deleteScheduled && !this.$$.preservePointerOnDelete) {
+                throwBindingError("Object already scheduled for deletion");
+              }
+              deletionQueue.push(this);
+              if (deletionQueue.length === 1 && delayFunction) {
+                delayFunction(flushPendingDeletes);
+              }
+              this.$$.deleteScheduled = true;
               return this;
-            } else {
-              var clone = attachFinalizer(Object.create(Object.getPrototypeOf(this), { $$: { value: shallowCopyInternalPointer(this.$$) } }));
-              clone.$$.count.value += 1;
-              clone.$$.deleteScheduled = false;
-              return clone;
             }
-          }, delete() {
-            if (!this.$$.ptr) {
-              throwInstanceAlreadyDeleted(this);
-            }
-            if (this.$$.deleteScheduled && !this.$$.preservePointerOnDelete) {
-              throwBindingError("Object already scheduled for deletion");
-            }
-            detachFinalizer(this);
-            releaseClassHandle(this.$$);
-            if (!this.$$.preservePointerOnDelete) {
-              this.$$.smartPtr = void 0;
-              this.$$.ptr = void 0;
-            }
-          }, isDeleted() {
-            return !this.$$.ptr;
-          }, deleteLater() {
-            if (!this.$$.ptr) {
-              throwInstanceAlreadyDeleted(this);
-            }
-            if (this.$$.deleteScheduled && !this.$$.preservePointerOnDelete) {
-              throwBindingError("Object already scheduled for deletion");
-            }
-            deletionQueue.push(this);
-            if (deletionQueue.length === 1 && delayFunction) {
-              delayFunction(flushPendingDeletes);
-            }
-            this.$$.deleteScheduled = true;
-            return this;
-          } });
+          });
         };
         function ClassHandle() {
         }
@@ -784,7 +832,9 @@ var init_basis_transcoder = __esm({
             var prevFunc = proto[methodName];
             proto[methodName] = function(...args) {
               if (!proto[methodName].overloadTable.hasOwnProperty(args.length)) {
-                throwBindingError(`Function '${humanName}' called with an invalid number of arguments (${args.length}) - expects one of (${proto[methodName].overloadTable})!`);
+                throwBindingError(
+                  `Function '${humanName}' called with an invalid number of arguments (${args.length}) - expects one of (${proto[methodName].overloadTable})!`
+                );
               }
               return proto[methodName].overloadTable[args.length].apply(this, args);
             };
@@ -799,7 +849,9 @@ var init_basis_transcoder = __esm({
             }
             ensureOverloadTable(Module, name, name);
             if (Module.hasOwnProperty(numArguments)) {
-              throwBindingError(`Cannot register multiple overloads of a function with the same number of arguments (${numArguments})!`);
+              throwBindingError(
+                `Cannot register multiple overloads of a function with the same number of arguments (${numArguments})!`
+              );
             }
             Module[name].overloadTable[numArguments] = value;
           } else {
@@ -883,7 +935,9 @@ var init_basis_transcoder = __esm({
             throwBindingError(`Cannot pass deleted object as a pointer of type ${this.name}`);
           }
           if (!this.isConst && handle.$$.ptrType.isConst) {
-            throwBindingError(`Cannot convert argument of type ${handle.$$.smartPtrType ? handle.$$.smartPtrType.name : handle.$$.ptrType.name} to parameter type ${this.name}`);
+            throwBindingError(
+              `Cannot convert argument of type ${handle.$$.smartPtrType ? handle.$$.smartPtrType.name : handle.$$.ptrType.name} to parameter type ${this.name}`
+            );
           }
           var handleClass = handle.$$.ptrType.registeredClass;
           ptr = upcastPointer(handle.$$.ptr, handleClass, this.registeredClass);
@@ -896,7 +950,9 @@ var init_basis_transcoder = __esm({
                 if (handle.$$.smartPtrType === this) {
                   ptr = handle.$$.smartPtr;
                 } else {
-                  throwBindingError(`Cannot convert argument of type ${handle.$$.smartPtrType ? handle.$$.smartPtrType.name : handle.$$.ptrType.name} to parameter type ${this.name}`);
+                  throwBindingError(
+                    `Cannot convert argument of type ${handle.$$.smartPtrType ? handle.$$.smartPtrType.name : handle.$$.ptrType.name} to parameter type ${this.name}`
+                  );
                 }
                 break;
               case 1:
@@ -907,7 +963,10 @@ var init_basis_transcoder = __esm({
                   ptr = handle.$$.smartPtr;
                 } else {
                   var clonedHandle = handle["clone"]();
-                  ptr = this.rawShare(ptr, Emval.toHandle(() => clonedHandle["delete"]()));
+                  ptr = this.rawShare(
+                    ptr,
+                    Emval.toHandle(() => clonedHandle["delete"]())
+                  );
                   if (destructors !== null) {
                     destructors.push(this.rawDestructor, ptr);
                   }
@@ -940,14 +999,20 @@ var init_basis_transcoder = __esm({
           return ptr;
         }
         var init_RegisteredPointer = () => {
-          Object.assign(RegisteredPointer.prototype, { getPointee(ptr) {
-            if (this.rawGetPointee) {
-              ptr = this.rawGetPointee(ptr);
-            }
-            return ptr;
-          }, destructor(ptr) {
-            this.rawDestructor?.(ptr);
-          }, argPackAdvance: GenericWireTypeSize, readValueFromPointer: readPointer, fromWireType: RegisteredPointer_fromWireType });
+          Object.assign(RegisteredPointer.prototype, {
+            getPointee(ptr) {
+              if (this.rawGetPointee) {
+                ptr = this.rawGetPointee(ptr);
+              }
+              return ptr;
+            },
+            destructor(ptr) {
+              this.rawDestructor?.(ptr);
+            },
+            argPackAdvance: GenericWireTypeSize,
+            readValueFromPointer: readPointer,
+            fromWireType: RegisteredPointer_fromWireType
+          });
         };
         function RegisteredPointer(name, registeredClass, isReference, isConst, isSmartPointer, pointeeType, sharingPolicy, rawGetPointee, rawConstructor, rawShare, rawDestructor) {
           this.name = name;
@@ -1078,43 +1143,58 @@ var init_basis_transcoder = __esm({
           exposePublicSymbol(legalFunctionName, function() {
             throwUnboundTypeError(`Cannot construct ${name} due to unbound types`, [baseClassRawType]);
           });
-          whenDependentTypesAreResolved([rawType, rawPointerType, rawConstPointerType], baseClassRawType ? [baseClassRawType] : [], (base) => {
-            base = base[0];
-            var baseClass;
-            var basePrototype;
-            if (baseClassRawType) {
-              baseClass = base.registeredClass;
-              basePrototype = baseClass.instancePrototype;
-            } else {
-              basePrototype = ClassHandle.prototype;
+          whenDependentTypesAreResolved(
+            [rawType, rawPointerType, rawConstPointerType],
+            baseClassRawType ? [baseClassRawType] : [],
+            (base) => {
+              base = base[0];
+              var baseClass;
+              var basePrototype;
+              if (baseClassRawType) {
+                baseClass = base.registeredClass;
+                basePrototype = baseClass.instancePrototype;
+              } else {
+                basePrototype = ClassHandle.prototype;
+              }
+              var constructor = createNamedFunction(name, function(...args) {
+                if (Object.getPrototypeOf(this) !== instancePrototype) {
+                  throw new BindingError("Use 'new' to construct " + name);
+                }
+                if (void 0 === registeredClass.constructor_body) {
+                  throw new BindingError(name + " has no accessible constructor");
+                }
+                var body = registeredClass.constructor_body[args.length];
+                if (void 0 === body) {
+                  throw new BindingError(
+                    `Tried to invoke ctor of ${name} with invalid number of parameters (${args.length}) - expected (${Object.keys(registeredClass.constructor_body).toString()}) parameters instead!`
+                  );
+                }
+                return body.apply(this, args);
+              });
+              var instancePrototype = Object.create(basePrototype, { constructor: { value: constructor } });
+              constructor.prototype = instancePrototype;
+              var registeredClass = new RegisteredClass(
+                name,
+                constructor,
+                instancePrototype,
+                rawDestructor,
+                baseClass,
+                getActualType,
+                upcast,
+                downcast
+              );
+              if (registeredClass.baseClass) {
+                registeredClass.baseClass.__derivedClasses ??= [];
+                registeredClass.baseClass.__derivedClasses.push(registeredClass);
+              }
+              var referenceConverter = new RegisteredPointer(name, registeredClass, true, false, false);
+              var pointerConverter = new RegisteredPointer(name + "*", registeredClass, false, false, false);
+              var constPointerConverter = new RegisteredPointer(name + " const*", registeredClass, false, true, false);
+              registeredPointers[rawType] = { pointerType: pointerConverter, constPointerType: constPointerConverter };
+              replacePublicSymbol(legalFunctionName, constructor);
+              return [referenceConverter, pointerConverter, constPointerConverter];
             }
-            var constructor = createNamedFunction(name, function(...args) {
-              if (Object.getPrototypeOf(this) !== instancePrototype) {
-                throw new BindingError("Use 'new' to construct " + name);
-              }
-              if (void 0 === registeredClass.constructor_body) {
-                throw new BindingError(name + " has no accessible constructor");
-              }
-              var body = registeredClass.constructor_body[args.length];
-              if (void 0 === body) {
-                throw new BindingError(`Tried to invoke ctor of ${name} with invalid number of parameters (${args.length}) - expected (${Object.keys(registeredClass.constructor_body).toString()}) parameters instead!`);
-              }
-              return body.apply(this, args);
-            });
-            var instancePrototype = Object.create(basePrototype, { constructor: { value: constructor } });
-            constructor.prototype = instancePrototype;
-            var registeredClass = new RegisteredClass(name, constructor, instancePrototype, rawDestructor, baseClass, getActualType, upcast, downcast);
-            if (registeredClass.baseClass) {
-              registeredClass.baseClass.__derivedClasses ??= [];
-              registeredClass.baseClass.__derivedClasses.push(registeredClass);
-            }
-            var referenceConverter = new RegisteredPointer(name, registeredClass, true, false, false);
-            var pointerConverter = new RegisteredPointer(name + "*", registeredClass, false, false, false);
-            var constPointerConverter = new RegisteredPointer(name + " const*", registeredClass, false, true, false);
-            registeredPointers[rawType] = { pointerType: pointerConverter, constPointerType: constPointerConverter };
-            replacePublicSymbol(legalFunctionName, constructor);
-            return [referenceConverter, pointerConverter, constPointerConverter];
-          });
+          );
         };
         var heap32VectorToArray = (count, firstElement) => {
           var array = [];
@@ -1225,14 +1305,22 @@ var init_basis_transcoder = __esm({
               classType.registeredClass.constructor_body = [];
             }
             if (void 0 !== classType.registeredClass.constructor_body[argCount - 1]) {
-              throw new BindingError(`Cannot register multiple constructors with identical number of parameters (${argCount - 1}) for class '${classType.name}'! Overload resolution is currently only performed using the parameter count, not actual type info!`);
+              throw new BindingError(
+                `Cannot register multiple constructors with identical number of parameters (${argCount - 1}) for class '${classType.name}'! Overload resolution is currently only performed using the parameter count, not actual type info!`
+              );
             }
             classType.registeredClass.constructor_body[argCount - 1] = () => {
               throwUnboundTypeError(`Cannot construct ${classType.name} due to unbound types`, rawArgTypes);
             };
             whenDependentTypesAreResolved([], rawArgTypes, (argTypes) => {
               argTypes.splice(1, 0, null);
-              classType.registeredClass.constructor_body[argCount - 1] = craftInvokerFunction(humanName, argTypes, null, invoker, rawConstructor);
+              classType.registeredClass.constructor_body[argCount - 1] = craftInvokerFunction(
+                humanName,
+                argTypes,
+                null,
+                invoker,
+                rawConstructor
+              );
               return [];
             });
             return [];
@@ -1308,34 +1396,44 @@ var init_basis_transcoder = __esm({
           emval_handles.push(0, 1, void 0, 1, null, 1, true, 1, false, 1);
           Module["count_emval_handles"] = count_emval_handles;
         };
-        var Emval = { toValue: (handle) => {
-          if (!handle) {
-            throwBindingError("Cannot use deleted val. handle = " + handle);
-          }
-          return emval_handles[handle];
-        }, toHandle: (value) => {
-          switch (value) {
-            case void 0:
-              return 2;
-            case null:
-              return 4;
-            case true:
-              return 6;
-            case false:
-              return 8;
-            default: {
-              const handle = emval_freelist.pop() || emval_handles.length;
-              emval_handles[handle] = value;
-              emval_handles[handle + 1] = 1;
-              return handle;
+        var Emval = {
+          toValue: (handle) => {
+            if (!handle) {
+              throwBindingError("Cannot use deleted val. handle = " + handle);
+            }
+            return emval_handles[handle];
+          },
+          toHandle: (value) => {
+            switch (value) {
+              case void 0:
+                return 2;
+              case null:
+                return 4;
+              case true:
+                return 6;
+              case false:
+                return 8;
+              default: {
+                const handle = emval_freelist.pop() || emval_handles.length;
+                emval_handles[handle] = value;
+                emval_handles[handle + 1] = 1;
+                return handle;
+              }
             }
           }
-        } };
-        var EmValType = { name: "emscripten::val", fromWireType: (handle) => {
-          var rv = Emval.toValue(handle);
-          __emval_decref(handle);
-          return rv;
-        }, toWireType: (destructors, value) => Emval.toHandle(value), argPackAdvance: GenericWireTypeSize, readValueFromPointer: readPointer, destructorFunction: null };
+        };
+        var EmValType = {
+          name: "emscripten::val",
+          fromWireType: (handle) => {
+            var rv = Emval.toValue(handle);
+            __emval_decref(handle);
+            return rv;
+          },
+          toWireType: (destructors, value) => Emval.toHandle(value),
+          argPackAdvance: GenericWireTypeSize,
+          readValueFromPointer: readPointer,
+          destructorFunction: null
+        };
         var __embind_register_emval = (rawType) => registerType(rawType, EmValType);
         var enumReadValueFromPointer = (name, width, signed) => {
           switch (width) {
@@ -1366,9 +1464,17 @@ var init_basis_transcoder = __esm({
           function ctor() {
           }
           ctor.values = {};
-          registerType(rawType, { name, constructor: ctor, fromWireType: function(c) {
-            return this.constructor.values[c];
-          }, toWireType: (destructors, c) => c.value, argPackAdvance: GenericWireTypeSize, readValueFromPointer: enumReadValueFromPointer(name, size, isSigned), destructorFunction: null });
+          registerType(rawType, {
+            name,
+            constructor: ctor,
+            fromWireType: function(c) {
+              return this.constructor.values[c];
+            },
+            toWireType: (destructors, c) => c.value,
+            argPackAdvance: GenericWireTypeSize,
+            readValueFromPointer: enumReadValueFromPointer(name, size, isSigned),
+            destructorFunction: null
+          });
           exposePublicSymbol(name, ctor);
         };
         var requireRegisteredType = (rawType, humanName) => {
@@ -1382,8 +1488,11 @@ var init_basis_transcoder = __esm({
           var enumType = requireRegisteredType(rawEnumType, "enum");
           name = readLatin1String(name);
           var Enum = enumType.constructor;
-          var Value = Object.create(enumType.constructor.prototype, { value: { value: enumValue }, constructor: { value: createNamedFunction(`${enumType.name}_${name}`, function() {
-          }) } });
+          var Value = Object.create(enumType.constructor.prototype, {
+            value: { value: enumValue },
+            constructor: { value: createNamedFunction(`${enumType.name}_${name}`, function() {
+            }) }
+          });
           Enum.values[enumValue] = Value;
           Enum[name] = Value;
         };
@@ -1414,16 +1523,27 @@ var init_basis_transcoder = __esm({
         };
         var __embind_register_float = (rawType, name, size) => {
           name = readLatin1String(name);
-          registerType(rawType, { name, fromWireType: (value) => value, toWireType: (destructors, value) => value, argPackAdvance: GenericWireTypeSize, readValueFromPointer: floatReadValueFromPointer(name, size), destructorFunction: null });
+          registerType(rawType, {
+            name,
+            fromWireType: (value) => value,
+            toWireType: (destructors, value) => value,
+            argPackAdvance: GenericWireTypeSize,
+            readValueFromPointer: floatReadValueFromPointer(name, size),
+            destructorFunction: null
+          });
         };
         var __embind_register_function = (name, argCount, rawArgTypesAddr, signature, rawInvoker, fn, isAsync) => {
           var argTypes = heap32VectorToArray(argCount, rawArgTypesAddr);
           name = readLatin1String(name);
           name = getFunctionName(name);
           rawInvoker = embind__requireFunction(signature, rawInvoker);
-          exposePublicSymbol(name, function() {
-            throwUnboundTypeError(`Cannot call ${name} due to unbound types`, argTypes);
-          }, argCount - 1);
+          exposePublicSymbol(
+            name,
+            function() {
+              throwUnboundTypeError(`Cannot call ${name} due to unbound types`, argTypes);
+            },
+            argCount - 1
+          );
           whenDependentTypesAreResolved([], argTypes, (argTypes2) => {
             var invokerArgsArray = [argTypes2[0], null].concat(argTypes2.slice(1));
             replacePublicSymbol(name, craftInvokerFunction(name, invokerArgsArray, null, rawInvoker, fn, isAsync), argCount - 1);
@@ -1467,7 +1587,14 @@ var init_basis_transcoder = __esm({
               return value;
             };
           }
-          registerType(primitiveType, { name, fromWireType, toWireType, argPackAdvance: GenericWireTypeSize, readValueFromPointer: integerReadValueFromPointer(name, size, minRange !== 0), destructorFunction: null });
+          registerType(primitiveType, {
+            name,
+            fromWireType,
+            toWireType,
+            argPackAdvance: GenericWireTypeSize,
+            readValueFromPointer: integerReadValueFromPointer(name, size, minRange !== 0),
+            destructorFunction: null
+          });
         };
         var __embind_register_memory_view = (rawType, dataTypeIndex, name) => {
           var typeMapping = [Int8Array, Uint8Array, Int16Array, Uint16Array, Int32Array, Uint32Array, Float32Array, Float64Array];
@@ -1478,7 +1605,11 @@ var init_basis_transcoder = __esm({
             return new TA(HEAP8.buffer, data, size);
           }
           name = readLatin1String(name);
-          registerType(rawType, { name, fromWireType: decodeMemoryView, argPackAdvance: GenericWireTypeSize, readValueFromPointer: decodeMemoryView }, { ignoreDuplicateRegistrations: true });
+          registerType(
+            rawType,
+            { name, fromWireType: decodeMemoryView, argPackAdvance: GenericWireTypeSize, readValueFromPointer: decodeMemoryView },
+            { ignoreDuplicateRegistrations: true }
+          );
         };
         var stringToUTF8Array = (str, heap, outIdx, maxBytesToWrite) => {
           if (!(maxBytesToWrite > 0)) return 0;
@@ -1570,77 +1701,84 @@ var init_basis_transcoder = __esm({
         var __embind_register_std_string = (rawType, name) => {
           name = readLatin1String(name);
           var stdStringIsUTF8 = name === "std::string";
-          registerType(rawType, { name, fromWireType(value) {
-            var length = HEAPU32[value >> 2];
-            var payload = value + 4;
-            var str;
-            if (stdStringIsUTF8) {
-              var decodeStartPtr = payload;
-              for (var i = 0; i <= length; ++i) {
-                var currentBytePtr = payload + i;
-                if (i == length || HEAPU8[currentBytePtr] == 0) {
-                  var maxRead = currentBytePtr - decodeStartPtr;
-                  var stringSegment = UTF8ToString(decodeStartPtr, maxRead);
-                  if (str === void 0) {
-                    str = stringSegment;
-                  } else {
-                    str += String.fromCharCode(0);
-                    str += stringSegment;
+          registerType(rawType, {
+            name,
+            fromWireType(value) {
+              var length = HEAPU32[value >> 2];
+              var payload = value + 4;
+              var str;
+              if (stdStringIsUTF8) {
+                var decodeStartPtr = payload;
+                for (var i = 0; i <= length; ++i) {
+                  var currentBytePtr = payload + i;
+                  if (i == length || HEAPU8[currentBytePtr] == 0) {
+                    var maxRead = currentBytePtr - decodeStartPtr;
+                    var stringSegment = UTF8ToString(decodeStartPtr, maxRead);
+                    if (str === void 0) {
+                      str = stringSegment;
+                    } else {
+                      str += String.fromCharCode(0);
+                      str += stringSegment;
+                    }
+                    decodeStartPtr = currentBytePtr + 1;
                   }
-                  decodeStartPtr = currentBytePtr + 1;
-                }
-              }
-            } else {
-              var a = new Array(length);
-              for (var i = 0; i < length; ++i) {
-                a[i] = String.fromCharCode(HEAPU8[payload + i]);
-              }
-              str = a.join("");
-            }
-            _free(value);
-            return str;
-          }, toWireType(destructors, value) {
-            if (value instanceof ArrayBuffer) {
-              value = new Uint8Array(value);
-            }
-            var length;
-            var valueIsOfTypeString = typeof value == "string";
-            if (!(valueIsOfTypeString || value instanceof Uint8Array || value instanceof Uint8ClampedArray || value instanceof Int8Array)) {
-              throwBindingError("Cannot pass non-string to std::string");
-            }
-            if (stdStringIsUTF8 && valueIsOfTypeString) {
-              length = lengthBytesUTF8(value);
-            } else {
-              length = value.length;
-            }
-            var base = _malloc(4 + length + 1);
-            var ptr = base + 4;
-            HEAPU32[base >> 2] = length;
-            if (stdStringIsUTF8 && valueIsOfTypeString) {
-              stringToUTF8(value, ptr, length + 1);
-            } else {
-              if (valueIsOfTypeString) {
-                for (var i = 0; i < length; ++i) {
-                  var charCode = value.charCodeAt(i);
-                  if (charCode > 255) {
-                    _free(ptr);
-                    throwBindingError("String has UTF-16 code units that do not fit in 8 bits");
-                  }
-                  HEAPU8[ptr + i] = charCode;
                 }
               } else {
+                var a = new Array(length);
                 for (var i = 0; i < length; ++i) {
-                  HEAPU8[ptr + i] = value[i];
+                  a[i] = String.fromCharCode(HEAPU8[payload + i]);
+                }
+                str = a.join("");
+              }
+              _free(value);
+              return str;
+            },
+            toWireType(destructors, value) {
+              if (value instanceof ArrayBuffer) {
+                value = new Uint8Array(value);
+              }
+              var length;
+              var valueIsOfTypeString = typeof value == "string";
+              if (!(valueIsOfTypeString || value instanceof Uint8Array || value instanceof Uint8ClampedArray || value instanceof Int8Array)) {
+                throwBindingError("Cannot pass non-string to std::string");
+              }
+              if (stdStringIsUTF8 && valueIsOfTypeString) {
+                length = lengthBytesUTF8(value);
+              } else {
+                length = value.length;
+              }
+              var base = _malloc(4 + length + 1);
+              var ptr = base + 4;
+              HEAPU32[base >> 2] = length;
+              if (stdStringIsUTF8 && valueIsOfTypeString) {
+                stringToUTF8(value, ptr, length + 1);
+              } else {
+                if (valueIsOfTypeString) {
+                  for (var i = 0; i < length; ++i) {
+                    var charCode = value.charCodeAt(i);
+                    if (charCode > 255) {
+                      _free(ptr);
+                      throwBindingError("String has UTF-16 code units that do not fit in 8 bits");
+                    }
+                    HEAPU8[ptr + i] = charCode;
+                  }
+                } else {
+                  for (var i = 0; i < length; ++i) {
+                    HEAPU8[ptr + i] = value[i];
+                  }
                 }
               }
+              if (destructors !== null) {
+                destructors.push(_free, base);
+              }
+              return base;
+            },
+            argPackAdvance: GenericWireTypeSize,
+            readValueFromPointer: readPointer,
+            destructorFunction(ptr) {
+              _free(ptr);
             }
-            if (destructors !== null) {
-              destructors.push(_free, base);
-            }
-            return base;
-          }, argPackAdvance: GenericWireTypeSize, readValueFromPointer: readPointer, destructorFunction(ptr) {
-            _free(ptr);
-          } });
+          });
         };
         var UTF16Decoder = typeof TextDecoder != "undefined" ? new TextDecoder("utf-16le") : void 0;
         var UTF16ToString = (ptr, maxBytesToRead) => {
@@ -1730,51 +1868,77 @@ var init_basis_transcoder = __esm({
             lengthBytesUTF = lengthBytesUTF32;
             readCharAt = (pointer) => HEAPU32[pointer >> 2];
           }
-          registerType(rawType, { name, fromWireType: (value) => {
-            var length = HEAPU32[value >> 2];
-            var str;
-            var decodeStartPtr = value + 4;
-            for (var i = 0; i <= length; ++i) {
-              var currentBytePtr = value + 4 + i * charSize;
-              if (i == length || readCharAt(currentBytePtr) == 0) {
-                var maxReadBytes = currentBytePtr - decodeStartPtr;
-                var stringSegment = decodeString(decodeStartPtr, maxReadBytes);
-                if (str === void 0) {
-                  str = stringSegment;
-                } else {
-                  str += String.fromCharCode(0);
-                  str += stringSegment;
+          registerType(rawType, {
+            name,
+            fromWireType: (value) => {
+              var length = HEAPU32[value >> 2];
+              var str;
+              var decodeStartPtr = value + 4;
+              for (var i = 0; i <= length; ++i) {
+                var currentBytePtr = value + 4 + i * charSize;
+                if (i == length || readCharAt(currentBytePtr) == 0) {
+                  var maxReadBytes = currentBytePtr - decodeStartPtr;
+                  var stringSegment = decodeString(decodeStartPtr, maxReadBytes);
+                  if (str === void 0) {
+                    str = stringSegment;
+                  } else {
+                    str += String.fromCharCode(0);
+                    str += stringSegment;
+                  }
+                  decodeStartPtr = currentBytePtr + charSize;
                 }
-                decodeStartPtr = currentBytePtr + charSize;
               }
+              _free(value);
+              return str;
+            },
+            toWireType: (destructors, value) => {
+              if (!(typeof value == "string")) {
+                throwBindingError(`Cannot pass non-string to C++ string type ${name}`);
+              }
+              var length = lengthBytesUTF(value);
+              var ptr = _malloc(4 + length + charSize);
+              HEAPU32[ptr >> 2] = length / charSize;
+              encodeString(value, ptr + 4, length + charSize);
+              if (destructors !== null) {
+                destructors.push(_free, ptr);
+              }
+              return ptr;
+            },
+            argPackAdvance: GenericWireTypeSize,
+            readValueFromPointer: readPointer,
+            destructorFunction(ptr) {
+              _free(ptr);
             }
-            _free(value);
-            return str;
-          }, toWireType: (destructors, value) => {
-            if (!(typeof value == "string")) {
-              throwBindingError(`Cannot pass non-string to C++ string type ${name}`);
-            }
-            var length = lengthBytesUTF(value);
-            var ptr = _malloc(4 + length + charSize);
-            HEAPU32[ptr >> 2] = length / charSize;
-            encodeString(value, ptr + 4, length + charSize);
-            if (destructors !== null) {
-              destructors.push(_free, ptr);
-            }
-            return ptr;
-          }, argPackAdvance: GenericWireTypeSize, readValueFromPointer: readPointer, destructorFunction(ptr) {
-            _free(ptr);
-          } });
+          });
         };
         var __embind_register_value_object = (rawType, name, constructorSignature, rawConstructor, destructorSignature, rawDestructor) => {
-          structRegistrations[rawType] = { name: readLatin1String(name), rawConstructor: embind__requireFunction(constructorSignature, rawConstructor), rawDestructor: embind__requireFunction(destructorSignature, rawDestructor), fields: [] };
+          structRegistrations[rawType] = {
+            name: readLatin1String(name),
+            rawConstructor: embind__requireFunction(constructorSignature, rawConstructor),
+            rawDestructor: embind__requireFunction(destructorSignature, rawDestructor),
+            fields: []
+          };
         };
         var __embind_register_value_object_field = (structType, fieldName, getterReturnType, getterSignature, getter, getterContext, setterArgumentType, setterSignature, setter, setterContext) => {
-          structRegistrations[structType].fields.push({ fieldName: readLatin1String(fieldName), getterReturnType, getter: embind__requireFunction(getterSignature, getter), getterContext, setterArgumentType, setter: embind__requireFunction(setterSignature, setter), setterContext });
+          structRegistrations[structType].fields.push({
+            fieldName: readLatin1String(fieldName),
+            getterReturnType,
+            getter: embind__requireFunction(getterSignature, getter),
+            getterContext,
+            setterArgumentType,
+            setter: embind__requireFunction(setterSignature, setter),
+            setterContext
+          });
         };
         var __embind_register_void = (rawType, name) => {
           name = readLatin1String(name);
-          registerType(rawType, { isVoid: true, name, argPackAdvance: 0, fromWireType: () => void 0, toWireType: (destructors, o) => void 0 });
+          registerType(rawType, {
+            isVoid: true,
+            name,
+            argPackAdvance: 0,
+            fromWireType: () => void 0,
+            toWireType: (destructors, o) => void 0
+          });
         };
         var __emscripten_memcpy_js = (dest, src, num) => HEAPU8.copyWithin(dest, src, src + num);
         var emval_returnValue = (returnType, destructorsRef, handle) => {
@@ -1972,7 +2136,45 @@ var init_basis_transcoder = __esm({
         init_RegisteredPointer();
         UnboundTypeError = Module["UnboundTypeError"] = extendError(Error, "UnboundTypeError");
         init_emval();
-        var wasmImports = { K: ___cxa_throw, G: __abort_js, s: __embind_finalize_value_object, C: __embind_register_bigint, I: __embind_register_bool, w: __embind_register_class, v: __embind_register_class_constructor, d: __embind_register_class_function, m: __embind_register_constant, H: __embind_register_emval, o: __embind_register_enum, a: __embind_register_enum_value, A: __embind_register_float, i: __embind_register_function, l: __embind_register_integer, f: __embind_register_memory_view, z: __embind_register_std_string, u: __embind_register_std_wstring, t: __embind_register_value_object, c: __embind_register_value_object_field, J: __embind_register_void, F: __emscripten_memcpy_js, n: __emval_as, q: __emval_call, p: __emval_call_method, b: __emval_decref, x: __emval_get_global, j: __emval_get_method_caller, r: __emval_get_module_property, g: __emval_get_property, k: __emval_incref, h: __emval_new_cstring, e: __emval_run_destructors, D: _emscripten_resize_heap, E: _fd_close, B: _fd_seek, y: _fd_write };
+        var wasmImports = {
+          K: ___cxa_throw,
+          G: __abort_js,
+          s: __embind_finalize_value_object,
+          C: __embind_register_bigint,
+          I: __embind_register_bool,
+          w: __embind_register_class,
+          v: __embind_register_class_constructor,
+          d: __embind_register_class_function,
+          m: __embind_register_constant,
+          H: __embind_register_emval,
+          o: __embind_register_enum,
+          a: __embind_register_enum_value,
+          A: __embind_register_float,
+          i: __embind_register_function,
+          l: __embind_register_integer,
+          f: __embind_register_memory_view,
+          z: __embind_register_std_string,
+          u: __embind_register_std_wstring,
+          t: __embind_register_value_object,
+          c: __embind_register_value_object_field,
+          J: __embind_register_void,
+          F: __emscripten_memcpy_js,
+          n: __emval_as,
+          q: __emval_call,
+          p: __emval_call_method,
+          b: __emval_decref,
+          x: __emval_get_global,
+          j: __emval_get_method_caller,
+          r: __emval_get_module_property,
+          g: __emval_get_property,
+          k: __emval_incref,
+          h: __emval_new_cstring,
+          e: __emval_run_destructors,
+          D: _emscripten_resize_heap,
+          E: _fd_close,
+          B: _fd_seek,
+          y: _fd_write
+        };
         var wasmExports = createWasm();
         var ___wasm_call_ctors = () => (___wasm_call_ctors = wasmExports["M"])();
         var ___getTypeName = (a0) => (___getTypeName = wasmExports["N"])(a0);
@@ -2024,12 +2226,10 @@ var init_basis_transcoder = __esm({
         run();
         moduleRtn = readyPromise;
         return moduleRtn;
-      });
+      };
     })();
-    if (typeof exports === "object" && typeof module === "object")
-      module.exports = BASIS;
-    else if (typeof define === "function" && define["amd"])
-      define([], () => BASIS);
+    if (typeof exports === "object" && typeof module === "object") module.exports = BASIS;
+    else if (typeof define === "function" && define["amd"]) define([], () => BASIS);
   }
 });
 
@@ -9555,7 +9755,8 @@ function buildNode(input, parent, name, draco) {
   child.updateMatrix();
   child.visible = parent.visible;
   if (el.extensions && el.extensions.KHR_node_visibility) {
-    child.visible = el.extensions.KHR_node_visibility.visible;
+    const localVisible = el.extensions.KHR_node_visibility.visible ?? true;
+    child.visible = parent.visible && localVisible;
   }
   if (el.extensions && el.extensions.EXT_mesh_gpu_instancing) {
     const { attributes } = el.extensions.EXT_mesh_gpu_instancing;
